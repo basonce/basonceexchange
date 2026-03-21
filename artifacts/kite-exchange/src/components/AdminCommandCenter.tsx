@@ -316,22 +316,22 @@ export default function AdminCommandCenter() {
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 bg-gray-50 rounded-lg">
               <div className="text-xs text-gray-600 mb-1">Total Position Value</div>
-              <div className="text-base sm:text-lg font-bold truncate">{formatLargeNumber(risk.total_position_value)}</div>
+              <div className="text-base font-bold truncate">{formatLargeNumber(risk.total_position_value)}</div>
             </div>
 
             <div className="p-3 bg-gray-50 rounded-lg">
               <div className="text-xs text-gray-600 mb-1">Total Margin Used</div>
-              <div className="text-base sm:text-lg font-bold truncate">{formatLargeNumber(risk.total_margin_used)}</div>
+              <div className="text-base font-bold truncate">{formatLargeNumber(risk.total_margin_used)}</div>
             </div>
 
             <div className="p-3 bg-yellow-50 rounded-lg">
               <div className="text-xs text-gray-600 mb-1">Liquidation Risk</div>
-              <div className="text-base sm:text-lg font-bold text-yellow-600">{risk.positions_near_liquidation} pos</div>
+              <div className="text-base font-bold text-yellow-600">{risk.positions_near_liquidation} pos</div>
             </div>
 
             <div className="p-3 bg-blue-50 rounded-lg">
               <div className="text-xs text-gray-600 mb-1">Avg Leverage</div>
-              <div className="text-base sm:text-lg font-bold text-blue-600">{risk.avg_leverage.toFixed(1)}x</div>
+              <div className="text-base font-bold text-blue-600">{risk.avg_leverage.toFixed(1)}x</div>
             </div>
           </div>
         </div>

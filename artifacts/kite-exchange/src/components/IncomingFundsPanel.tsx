@@ -912,33 +912,43 @@ export default function IncomingFundsPanel() {
 
       {/* Main Tabs — scrollable, no overflow/clip */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="border-b border-gray-200 overflow-x-auto">
-          <div className="flex min-w-max">
-            {[
+        <div className="border-b border-gray-200">
+          {(() => {
+            const panelTabs = [
               { id: 'incoming' as PanelTab, label: 'Gelen İşlemler', icon: ArrowDownLeft, badge: summary?.unnotified_count },
               { id: 'users' as PanelTab, label: 'Kullanıcılar', icon: Users },
               { id: 'wallet-pool' as PanelTab, label: 'Cüzdan Yükle', icon: Upload },
               { id: 'monitor-log' as PanelTab, label: 'Tarama Günlüğü', icon: Activity },
-            ].map(({ id, label, icon: Icon, badge }) => (
-              <button
-                key={id}
-                onClick={() => setPanelTab(id)}
-                className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-                  panelTab === id
-                    ? 'border-gray-900 text-gray-900 bg-gray-50'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <Icon className="w-4 h-4 flex-shrink-0" />
-                <span>{label}</span>
-                {badge ? (
-                  <span className="px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full font-bold leading-none">
-                    {badge}
-                  </span>
-                ) : null}
-              </button>
-            ))}
-          </div>
+            ];
+            return (
+              <div>
+                <div className="flex gap-1 px-2 pt-2" style={{ scrollbarWidth: 'none' }}>
+                  {panelTabs.map(({ id, label, icon: Icon, badge }) => (
+                    <button
+                      key={id}
+                      onClick={() => setPanelTab(id)}
+                      title={label}
+                      className={`relative flex items-center justify-center w-10 h-10 rounded-lg transition-colors ${
+                        panelTab === id
+                          ? 'bg-gray-900 text-white'
+                          : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {badge ? (
+                        <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 px-0.5 bg-red-500 text-white text-[8px] rounded-full font-bold flex items-center justify-center">
+                          {badge}
+                        </span>
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-gray-500 text-xs font-medium px-2 py-1">
+                  {panelTabs.find(t => t.id === panelTab)?.label}
+                </p>
+              </div>
+            );
+          })()}
         </div>
 
         {/* ===== TAB: Gelen İşlemler ===== */}

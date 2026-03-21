@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   DollarSign,
@@ -419,27 +419,35 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         </div>
       </div>
 
-      <div className="bg-[#1E2329] border-b border-[#2B3139] overflow-x-auto">
-        <div className="flex gap-1 px-2 pb-2 min-w-max">
-          {tabs.map(({ id, label, icon: Icon, badge }) => (
-            <button
-              key={id}
-              onClick={() => setActiveTab(id)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors relative ${
-                activeTab === id
-                  ? 'bg-yellow-500 text-black'
-                  : 'text-gray-400 hover:text-white hover:bg-[#2B3139]'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              {label}
-              {badge && badge > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                  {badge > 99 ? '99+' : badge}
-                </span>
-              )}
-            </button>
-          ))}
+      <div className="bg-[#1E2329] border-b border-[#2B3139]">
+        <div className="overflow-x-auto"
+          style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
+          <div className="flex gap-0.5 px-2 py-1.5 min-w-max">
+            {tabs.map(({ id, label, icon: Icon, badge }) => (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                title={label}
+                className={`relative flex flex-col items-center justify-center w-10 h-10 rounded-lg transition-colors ${
+                  activeTab === id
+                    ? 'bg-yellow-500 text-black'
+                    : 'text-gray-400 hover:text-white hover:bg-[#2B3139]'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {badge && badge > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 px-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                    {badge > 99 ? '99+' : badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="px-3 pb-1.5">
+          <span className="text-yellow-400 text-xs font-medium">
+            {tabs.find(t => t.id === activeTab)?.label}
+          </span>
         </div>
       </div>
 
