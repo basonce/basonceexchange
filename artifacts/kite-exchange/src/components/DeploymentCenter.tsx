@@ -368,36 +368,26 @@ export function DeploymentCenter() {
           </button>
         </div>
 
-        {(() => {
-          const deployTabs = [
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+          {[
             { key: 'functions', label: 'Edge Functions', icon: FileCode },
             { key: 'database', label: 'Veritabani', icon: Database },
             { key: 'health', label: 'Sistem Sagligi', icon: Activity },
             { key: 'backups', label: 'Yedekleme', icon: Archive },
             { key: 'logs', label: 'Aktivite', icon: Terminal },
-          ];
-          return (
-            <div className="mb-4">
-              <div className="flex gap-1 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-                {deployTabs.map(({ key, label, icon: Icon }) => (
-                  <button
-                    key={key}
-                    onClick={() => setActiveTab(key as typeof activeTab)}
-                    title={label}
-                    className={`flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-lg transition-all ${
-                      activeTab === key ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                  </button>
-                ))}
-              </div>
-              <p className="text-blue-400 text-xs font-medium mt-1">
-                {deployTabs.find(t => t.key === activeTab)?.label}
-              </p>
-            </div>
-          );
-        })()}
+          ].map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key as typeof activeTab)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap transition-all flex-shrink-0 ${
+                activeTab === key ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}
+            >
+              <Icon className="w-4 h-4 flex-shrink-0" />
+              <span className="text-sm font-medium">{label}</span>
+            </button>
+          ))}
+        </div>
 
         {activeTab === 'functions' && (
           <div className="space-y-4">
