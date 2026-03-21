@@ -372,21 +372,21 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
   }
 
   const tabs: { id: AdminTab; label: string; icon: any; badge?: number }[] = [
-    { id: 'overview', label: 'Overview', icon: BarChart3 },
-    { id: 'wallets', label: 'Cüzdan Pool', icon: Wallet },
-    { id: 'user-wallets', label: 'Kullanici Cüzdanlari', icon: Users },
-    { id: 'incoming-funds', label: 'Cüzdana Gelenler', icon: ArrowDownRight },
-    { id: 'support', label: 'Support', icon: MessageSquare, badge: unreadSupportCount },
-    { id: 'command', label: 'Command Center', icon: Zap },
-    { id: 'agents', label: 'Agents', icon: Users },
-    { id: 'position', label: 'Position Control', icon: Target },
-    { id: 'deposits', label: 'Deposits', icon: DollarSign },
+    { id: 'overview', label: 'Genel', icon: BarChart3 },
+    { id: 'wallets', label: 'Cüzdan Havuz', icon: Wallet },
+    { id: 'user-wallets', label: 'Kullanıcı', icon: Users },
+    { id: 'incoming-funds', label: 'Gelen Fonlar', icon: ArrowDownRight },
+    { id: 'support', label: 'Destek', icon: MessageSquare, badge: unreadSupportCount },
+    { id: 'command', label: 'Komut', icon: Zap },
+    { id: 'agents', label: 'Ajanlar', icon: Users },
+    { id: 'position', label: 'Pozisyon', icon: Target },
+    { id: 'deposits', label: 'Depozit', icon: DollarSign },
     { id: 'security', label: 'Güvenlik', icon: Shield },
-    { id: 'activity', label: 'Activity Log', icon: Activity },
+    { id: 'activity', label: 'Aktivite', icon: Activity },
     { id: 'deploy', label: 'Deploy', icon: Server },
-    { id: 'ai', label: 'AI Asistan', icon: Bot },
-    { id: 'analytics', label: 'Analytics', icon: Eye },
-    { id: 'wallet-gen', label: 'Cuzdan Uretici', icon: Wallet },
+    { id: 'ai', label: 'AI Bot', icon: Bot },
+    { id: 'analytics', label: 'Analitik', icon: Eye },
+    { id: 'wallet-gen', label: 'Üretici', icon: Wallet },
     { id: 'data-protection', label: 'Veri Koruma', icon: Shield },
   ];
 
@@ -419,23 +419,24 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         </div>
       </div>
 
-      <div className="bg-[#1E2329] border-b border-[#2B3139] overflow-x-auto"
-        style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
-        <div className="flex gap-1 px-2 py-2 min-w-max">
+      <div className="bg-[#1E2329] border-b border-[#2B3139] px-2 py-2">
+        <div className="grid grid-cols-4 gap-1.5">
           {tabs.map(({ id, label, icon: Icon, badge }) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors relative ${
+              className={`relative flex flex-col items-center justify-center gap-1 px-1 py-2.5 rounded-xl transition-all ${
                 activeTab === id
                   ? 'bg-yellow-500 text-black'
-                  : 'text-gray-400 hover:text-white hover:bg-[#2B3139]'
+                  : 'bg-[#2B3139] text-gray-400 hover:text-white hover:bg-[#363D47]'
               }`}
             >
-              <Icon className="w-3.5 h-3.5 flex-shrink-0" />
-              {label}
+              <Icon className="w-5 h-5 flex-shrink-0" />
+              <span className="text-[10px] font-medium leading-tight text-center line-clamp-1 w-full px-0.5">
+                {label}
+              </span>
               {badge && badge > 0 && (
-                <span className="ml-1 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                <span className="absolute top-1 right-1 min-w-[14px] h-3.5 px-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
                   {badge > 99 ? '99+' : badge}
                 </span>
               )}
