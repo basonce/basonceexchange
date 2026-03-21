@@ -804,7 +804,7 @@ export default function IncomingFundsPanel() {
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {[
             { label: 'Bugün Gelen', value: summary.today_count, sub: `$${summary.today_usd.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`, icon: TrendingUp, color: 'emerald', pulse: summary.today_count > 0 },
             { label: 'Toplam İşlem', value: summary.total_transactions, sub: `$${summary.total_usd.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`, icon: Activity, color: 'blue' },
@@ -894,7 +894,7 @@ export default function IncomingFundsPanel() {
             <Wallet className="w-4 h-4 text-yellow-400 flex-shrink-0" />
             <span className="text-xs font-bold">Cüzdan Havuzu</span>
           </div>
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 text-center text-xs">
+          <div className="grid grid-cols-3 gap-2 text-center text-xs">
             <div><p className="font-bold text-white">{walletStats.total_wallets.toLocaleString()}</p><p className="text-gray-500">Toplam</p></div>
             <div><p className="font-bold text-blue-300">{walletStats.assigned_count.toLocaleString()}</p><p className="text-gray-500">Atandı</p></div>
             <div><p className={`font-bold ${walletStats.available_count < 100 ? 'text-red-400' : 'text-emerald-400'}`}>{walletStats.available_count.toLocaleString()}</p><p className="text-gray-500">Boş</p></div>
@@ -1075,7 +1075,7 @@ export default function IncomingFundsPanel() {
                         {expandedTx === tx.id && (
                           <tr key={`${tx.id}-exp`} className="bg-gray-50">
                             <td colSpan={7} className="px-4 py-3">
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                              <div className="grid grid-cols-2 gap-3 text-xs">
                                 <div>
                                   <p className="text-gray-500 font-medium mb-1">TX Hash</p>
                                   <div className="flex items-center gap-1">
@@ -1286,7 +1286,7 @@ export default function IncomingFundsPanel() {
             {/* Format Info */}
             <div className="bg-gray-900 rounded-xl p-4 text-white">
               <p className="text-sm font-bold mb-2 flex items-center gap-2"><FileText className="w-4 h-4 text-yellow-400" /> Dosya Formatı</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-gray-300">
+              <div className="grid grid-cols-2 gap-3 text-xs text-gray-300">
                 <div>
                   <p className="text-yellow-400 font-bold mb-1">BEP20 (BSC) Dosyası:</p>
                   <code className="bg-gray-800 block px-2.5 py-2 rounded text-green-300 font-mono">
@@ -1595,7 +1595,7 @@ export default function IncomingFundsPanel() {
             )}
             <div className="m-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
               <h4 className="text-sm font-bold text-blue-800 mb-2 flex items-center gap-2"><Activity className="w-4 h-4" /> Tarama Sistemi</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-blue-700">
+              <div className="grid grid-cols-2 gap-2 text-xs text-blue-700">
                 <ul className="space-y-1">
                   <li><span className="font-bold">BSCScan:</span> BEP20 USDT, BNB ve tüm tokenlar</li>
                   <li><span className="font-bold">Tronscan:</span> TRC20 USDT, TRX ve tüm tokenlar</li>

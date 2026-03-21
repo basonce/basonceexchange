@@ -160,7 +160,7 @@ export default function WalletSafetyPanel() {
             <p className="text-sm opacity-90">Kritik güvenlik kontrolleri ve audit log sistemi</p>
           </div>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-4">
+        <div className="grid grid-cols-2 gap-3 mt-4">
           <div className="bg-white/10 rounded-lg p-3">
             <div className="text-xs opacity-80">Toplam Cüzdan</div>
             <div className="text-2xl font-bold">{stats.totalWallets}</div>

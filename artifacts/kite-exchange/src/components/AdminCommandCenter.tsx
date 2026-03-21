@@ -214,7 +214,7 @@ export default function AdminCommandCenter() {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div className="bg-white/10 rounded-lg p-3">
             <div className="flex items-center space-x-2 mb-1">
               <Users className="w-4 h-4" />
@@ -260,45 +260,45 @@ export default function AdminCommandCenter() {
           <h3 className="font-bold text-lg">Finansal Durum</h3>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div className="p-3 bg-green-50 rounded-lg">
             <div className="text-xs text-gray-600 mb-1">Toplam Deposits</div>
-            <div className="text-base sm:text-lg md:text-xl font-bold text-green-600 truncate">
+            <div className="text-xl font-bold text-green-600 truncate">
               {formatLargeNumber(financial?.total_deposits || 0)}
             </div>
           </div>
 
           <div className="p-3 bg-red-50 rounded-lg">
             <div className="text-xs text-gray-600 mb-1">Toplam Withdrawals</div>
-            <div className="text-base sm:text-lg md:text-xl font-bold text-red-600 truncate">
+            <div className="text-xl font-bold text-red-600 truncate">
               {formatLargeNumber(financial?.total_withdrawals || 0)}
             </div>
           </div>
 
           <div className="p-3 bg-blue-50 rounded-lg">
             <div className="text-xs text-gray-600 mb-1">Net Deposits</div>
-            <div className="text-base sm:text-lg md:text-xl font-bold text-blue-600 truncate">
+            <div className="text-xl font-bold text-blue-600 truncate">
               {formatLargeNumber(financial?.net_deposits || 0)}
             </div>
           </div>
 
           <div className="p-3 bg-purple-50 rounded-lg">
             <div className="text-xs text-gray-600 mb-1">Platform P/L</div>
-            <div className={`text-base sm:text-lg md:text-xl font-bold truncate ${(financial?.platform_profit_loss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`text-xl font-bold truncate ${(financial?.platform_profit_loss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {formatLargeNumber(financial?.platform_profit_loss || 0)}
             </div>
           </div>
 
           <div className="p-3 bg-orange-50 rounded-lg">
             <div className="text-xs text-gray-600 mb-1">Liability</div>
-            <div className="text-base sm:text-lg md:text-xl font-bold text-orange-600 truncate">
+            <div className="text-xl font-bold text-orange-600 truncate">
               {formatLargeNumber(financial?.total_liability || 0)}
             </div>
           </div>
 
           <div className={`p-3 rounded-lg ${isRiskHigh ? 'bg-red-50' : 'bg-gray-50'}`}>
             <div className="text-xs text-gray-600 mb-1">Risk Ratio</div>
-            <div className={`text-base sm:text-lg md:text-xl font-bold ${isRiskHigh ? 'text-red-600' : 'text-gray-700'}`}>
+            <div className={`text-xl font-bold ${isRiskHigh ? 'text-red-600' : 'text-gray-700'}`}>
               {(financial?.risk_ratio || 0).toFixed(2)}x
             </div>
           </div>
@@ -344,7 +344,7 @@ export default function AdminCommandCenter() {
           <h3 className="font-bold">Hızlı İşlemler</h3>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2">
           <button
             onClick={handleBulkApprove}
             disabled={approving}

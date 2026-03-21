@@ -249,7 +249,7 @@ export default function AgentManagement() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 gap-3 mb-6">
         {[
           { icon: Users, label: 'Total Agents', value: agents.length, color: 'text-blue-400' },
           { icon: CheckCircle, label: 'Online', value: online, color: 'text-green-400' },
@@ -300,7 +300,7 @@ export default function AgentManagement() {
           <RefreshCw className="w-8 h-8 text-[#F0B90B] animate-spin" />
         </div>
       ) : (
-        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-3 grid-cols-1">
           {filtered.map(agent => (
             <div
               key={agent.id}
