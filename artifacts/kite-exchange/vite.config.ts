@@ -28,6 +28,10 @@ if (!basePath) {
 
 export default defineConfig({
   base: basePath,
+  define: {
+    global: 'globalThis',
+    'process.env': {},
+  },
   plugins: [
     react(),
     tailwindcss(),
