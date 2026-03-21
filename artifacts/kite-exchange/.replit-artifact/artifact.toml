@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Kite Exchange"
+version = "1.0.0"
+id = "artifacts/kite-exchange"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23857
+
+[services.development]
+run = "pnpm --filter @workspace/kite-exchange run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/kite-exchange", "run", "build" ]
+publicDir = "artifacts/kite-exchange/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23857"
+BASE_PATH = "/"

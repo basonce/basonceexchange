@@ -1,0 +1,142 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0A0C14"/>
+      <stop offset="50%" stop-color="#0D1020"/>
+      <stop offset="100%" stop-color="#060810"/>
+    </linearGradient>
+    <linearGradient id="gold-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD700"/>
+      <stop offset="30%" stop-color="#FFC200"/>
+      <stop offset="60%" stop-color="#E8A800"/>
+      <stop offset="100%" stop-color="#FFD700"/>
+    </linearGradient>
+    <linearGradient id="gold-shine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF176"/>
+      <stop offset="40%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#B8860B"/>
+    </linearGradient>
+    <linearGradient id="text-gold" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFD700"/>
+      <stop offset="50%" stop-color="#FFF176"/>
+      <stop offset="100%" stop-color="#FFD700"/>
+    </linearGradient>
+    <linearGradient id="line-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFD700" stop-opacity="0"/>
+      <stop offset="30%" stop-color="#FFD700"/>
+      <stop offset="70%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#FFD700" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="glow-center" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFD700" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#FFD700" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="soft-glow">
+      <feGaussianBlur stdDeviation="12" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg-gradient)"/>
+
+  <!-- Subtle grid pattern -->
+  <g opacity="0.04">
+    <line x1="0" y1="105" x2="1200" y2="105" stroke="#FFD700" stroke-width="0.5"/>
+    <line x1="0" y1="210" x2="1200" y2="210" stroke="#FFD700" stroke-width="0.5"/>
+    <line x1="0" y1="315" x2="1200" y2="315" stroke="#FFD700" stroke-width="0.5"/>
+    <line x1="0" y1="420" x2="1200" y2="420" stroke="#FFD700" stroke-width="0.5"/>
+    <line x1="0" y1="525" x2="1200" y2="525" stroke="#FFD700" stroke-width="0.5"/>
+    <line x1="150" y1="0" x2="150" y2="630" stroke="#FFD700" stroke-width="0.5"/>
+    <line x1="300" y1="0" x2="300" y2="630" stroke="#FFD700" stroke-width="0.5"/>
+    <line x1="450" y1="0" x2="450" y2="630" stroke="#FFD700" stroke-width="0.5"/>
+    <line x1="600" y1="0" x2="600" y2="630" stroke="#FFD700" stroke-width="0.5"/>
+    <line x1="750" y1="0" x2="750" y2="630" stroke="#FFD700" stroke-width="0.5"/>
+    <line x1="900" y1="0" x2="900" y2="630" stroke="#FFD700" stroke-width="0.5"/>
+    <line x1="1050" y1="0" x2="1050" y2="630" stroke="#FFD700" stroke-width="0.5"/>
+  </g>
+
+  <!-- Ambient glow behind logo -->
+  <ellipse cx="240" cy="280" rx="180" ry="180" fill="url(#glow-center)"/>
+
+  <!-- Top gold border line -->
+  <rect x="0" y="0" width="1200" height="3" fill="url(#line-grad)"/>
+
+  <!-- Logo image - positioned left -->
+  <image href="https://basonce-caming-soon-dz2i.bolt.host/image%20copy%20copy%20copy%20copy%20copy%20copy%20copy%20copy%20copy%20copy%20copy%20copy.png" x="60" y="80" width="360" height="360" preserveAspectRatio="xMidYMid meet"/>
+
+  <!-- Right side content -->
+  <!-- BASONCE text -->
+  <text x="500" y="210" font-family="Georgia, 'Times New Roman', serif" font-size="88" font-weight="700" fill="url(#text-gold)" letter-spacing="8" filter="url(#glow)">BASONCE</text>
+
+  <!-- EXCHANGE subtitle -->
+  <text x="502" y="258" font-family="Georgia, 'Times New Roman', serif" font-size="28" font-weight="400" fill="#C8A400" letter-spacing="22">EXCHANGE</text>
+
+  <!-- Divider line -->
+  <line x1="500" y1="285" x2="1140" y2="285" stroke="url(#line-grad)" stroke-width="1" opacity="0.6"/>
+
+  <!-- Tagline -->
+  <text x="500" y="330" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="22" font-weight="300" fill="#E8D060" letter-spacing="1">The World's Most Trusted Crypto Exchange</text>
+
+  <!-- Feature badges -->
+  <!-- Badge 1 -->
+  <rect x="500" y="370" width="148" height="44" rx="8" fill="#FFD700" fill-opacity="0.08" stroke="#FFD700" stroke-width="0.8" stroke-opacity="0.4"/>
+  <text x="574" y="397" text-anchor="middle" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="13" font-weight="600" fill="#FFD700">252+ Coins</text>
+
+  <!-- Badge 2 -->
+  <rect x="660" y="370" width="148" height="44" rx="8" fill="#FFD700" fill-opacity="0.08" stroke="#FFD700" stroke-width="0.8" stroke-opacity="0.4"/>
+  <text x="734" y="397" text-anchor="middle" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="13" font-weight="600" fill="#FFD700">Spot &amp; Futures</text>
+
+  <!-- Badge 3 -->
+  <rect x="820" y="370" width="148" height="44" rx="8" fill="#FFD700" fill-opacity="0.08" stroke="#FFD700" stroke-width="0.8" stroke-opacity="0.4"/>
+  <text x="894" y="397" text-anchor="middle" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="13" font-weight="600" fill="#FFD700">Crypto Mining</text>
+
+  <!-- Badge 4 -->
+  <rect x="980" y="370" width="148" height="44" rx="8" fill="#FFD700" fill-opacity="0.08" stroke="#FFD700" stroke-width="0.8" stroke-opacity="0.4"/>
+  <text x="1054" y="397" text-anchor="middle" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="13" font-weight="600" fill="#FFD700">Copy Trading</text>
+
+  <!-- Stats row -->
+  <!-- Stat 1 -->
+  <text x="560" y="475" text-anchor="middle" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="30" font-weight="700" fill="#FFD700" filter="url(#glow)">$2.4B+</text>
+  <text x="560" y="500" text-anchor="middle" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="14" fill="#8A7A40">Daily Volume</text>
+
+  <!-- Divider -->
+  <line x1="660" y1="455" x2="660" y2="510" stroke="#FFD700" stroke-width="0.5" opacity="0.3"/>
+
+  <!-- Stat 2 -->
+  <text x="740" y="475" text-anchor="middle" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="30" font-weight="700" fill="#FFD700" filter="url(#glow)">15M+</text>
+  <text x="740" y="500" text-anchor="middle" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="14" fill="#8A7A40">Users</text>
+
+  <!-- Divider -->
+  <line x1="840" y1="455" x2="840" y2="510" stroke="#FFD700" stroke-width="0.5" opacity="0.3"/>
+
+  <!-- Stat 3 -->
+  <text x="920" y="475" text-anchor="middle" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="30" font-weight="700" fill="#FFD700" filter="url(#glow)">200x</text>
+  <text x="920" y="500" text-anchor="middle" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="14" fill="#8A7A40">Max Leverage</text>
+
+  <!-- Divider -->
+  <line x1="1020" y1="455" x2="1020" y2="510" stroke="#FFD700" stroke-width="0.5" opacity="0.3"/>
+
+  <!-- Stat 4 -->
+  <text x="1100" y="475" text-anchor="middle" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="30" font-weight="700" fill="#FFD700" filter="url(#glow)">24/7</text>
+  <text x="1100" y="500" text-anchor="middle" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="14" fill="#8A7A40">Support</text>
+
+  <!-- Bottom line -->
+  <rect x="0" y="560" width="1200" height="1" fill="url(#line-grad)" opacity="0.3"/>
+
+  <!-- URL bar at bottom -->
+  <text x="600" y="595" text-anchor="middle" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="16" fill="#5A5030" letter-spacing="3">basonce-caming-soon-dz2i.bolt.host</text>
+
+  <!-- Bottom gold border -->
+  <rect x="0" y="627" width="1200" height="3" fill="url(#line-grad)"/>
+</svg>

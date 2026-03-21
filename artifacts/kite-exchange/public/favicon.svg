@@ -1,0 +1,23 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00D4FF" />
+      <stop offset="50%" stop-color="#0099FF" />
+      <stop offset="100%" stop-color="#0066FF" />
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="12" fill="#0B0E11"/>
+
+  <path d="M 13 50 L 13 14 L 35 14 C 41 14 45 18 45 24 C 45 27 44 30 41 32 C 45 34 48 38 48 43 C 48 49 44 50 38 50 L 13 50 Z M 21 30 L 32 30 C 34 30 36 28 36 25 C 36 22 34 20 32 20 L 21 20 L 21 30 Z M 21 44 L 33 44 C 35 44 37 42 37 39 C 37 36 35 34 33 34 L 21 34 L 21 44 Z"
+        fill="url(#logo-gradient)" />
+
+  <path d="M 49 20 L 54 32 L 49 44"
+        stroke="url(#logo-gradient)"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        fill="none" />
+
+  <circle cx="54" cy="32" r="2" fill="#00D4FF" />
+</svg>

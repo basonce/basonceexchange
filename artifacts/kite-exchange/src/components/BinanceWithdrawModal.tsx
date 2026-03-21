@@ -1,0 +1,645 @@
+import { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, Search, Trash2, ArrowUpDown, User, ScanLine, ChevronDown, Info, CheckCircle, Copy } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+
+interface Coin {
+  symbol: string;
+  name: string;
+  logo_url?: string;
+  balance: number;
+  usd_value: number;
+}
+
+interface Network {
+  id: string;
+  label: string;
+  fee: number;
+  minWithdraw: number;
+}
+
+const NETWORK_MAP: Record<string, Network[]> = {
+  USDT: [
+    { id: 'BEP20', label: 'BNB Smart Chain (BEP20)', fee: 1, minWithdraw: 10 },
+    { id: 'TRC20', label: 'Tron (TRC20)', fee: 1, minWithdraw: 10 },
+    { id: 'ERC20', label: 'Ethereum (ERC20)', fee: 4, minWithdraw: 20 },
+  ],
+  BTC: [
+    { id: 'BTC', label: 'Bitcoin', fee: 0.0001, minWithdraw: 0.001 },
+    { id: 'BEP20', label: 'BNB Smart Chain (BEP20)', fee: 0.000005, minWithdraw: 0.0001 },
+  ],
+  ETH: [
+    { id: 'ERC20', label: 'Ethereum (ERC20)', fee: 0.001, minWithdraw: 0.01 },
+    { id: 'BEP20', label: 'BNB Smart Chain (BEP20)', fee: 0.000025, minWithdraw: 0.001 },
+  ],
+  BNB: [
+    { id: 'BEP20', label: 'BNB Smart Chain (BEP20)', fee: 0.001, minWithdraw: 0.01 },
+  ],
+  USDC: [
+    { id: 'ERC20', label: 'Ethereum (ERC20)', fee: 4, minWithdraw: 20 },
+    { id: 'BEP20', label: 'BNB Smart Chain (BEP20)', fee: 1, minWithdraw: 10 },
+    { id: 'TRC20', label: 'Tron (TRC20)', fee: 1, minWithdraw: 10 },
+  ],
+  SOL: [
+    { id: 'SOL', label: 'Solana', fee: 0.01, minWithdraw: 0.1 },
+  ],
+  XRP: [
+    { id: 'XRP', label: 'XRP Ledger', fee: 0.25, minWithdraw: 5 },
+  ],
+  ADA: [
+    { id: 'ADA', label: 'Cardano', fee: 1, minWithdraw: 5 },
+  ],
+  DOGE: [
+    { id: 'DOGE', label: 'Dogecoin', fee: 5, minWithdraw: 50 },
+  ],
+  TRX: [
+    { id: 'TRC20', label: 'Tron (TRC20)', fee: 1, minWithdraw: 10 },
+  ],
+  MATIC: [
+    { id: 'MATIC', label: 'Polygon', fee: 0.1, minWithdraw: 1 },
+    { id: 'ERC20', label: 'Ethereum (ERC20)', fee: 2, minWithdraw: 10 },
+  ],
+  DOT: [
+    { id: 'DOT', label: 'Polkadot', fee: 0.1, minWithdraw: 1 },
+  ],
+  LTC: [
+    { id: 'LTC', label: 'Litecoin', fee: 0.001, minWithdraw: 0.01 },
+  ],
+  AVAX: [
+    { id: 'AVAX', label: 'Avalanche C-Chain', fee: 0.01, minWithdraw: 0.1 },
+  ],
+  LINK: [
+    { id: 'ERC20', label: 'Ethereum (ERC20)', fee: 0.5, minWithdraw: 5 },
+    { id: 'BEP20', label: 'BNB Smart Chain (BEP20)', fee: 0.05, minWithdraw: 1 },
+  ],
+  UNI: [
+    { id: 'ERC20', label: 'Ethereum (ERC20)', fee: 0.5, minWithdraw: 5 },
+    { id: 'BEP20', label: 'BNB Smart Chain (BEP20)', fee: 0.05, minWithdraw: 1 },
+  ],
+};
+
+function getNetworks(symbol: string): Network[] {
+  return NETWORK_MAP[symbol] || [
+    { id: 'BEP20', label: 'BNB Smart Chain (BEP20)', fee: 1, minWithdraw: 10 },
+  ];
+}
+
+function CoinLogo({ symbol, logoUrl, size = 36 }: { symbol: string; logoUrl?: string; size?: number }) {
+  const [error, setError] = useState(false);
+  const colors = ['#F0B90B', '#0ECB81', '#F6465D', '#1890FF', '#722ED1', '#13C2C2'];
+  const color = colors[symbol.charCodeAt(0) % colors.length];
+
+  if (logoUrl && !error) {
+    return (
+      <img
+        src={logoUrl}
+        alt={symbol}
+        width={size}
+        height={size}
+        className="rounded-full object-cover"
+        style={{ width: size, height: size }}
+        onError={() => setError(true)}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="rounded-full flex items-center justify-center font-bold text-black"
+      style={{ width: size, height: size, background: color, fontSize: size * 0.33 }}
+    >
+      {symbol.slice(0, 2)}
+    </div>
+  );
+}
+
+type Step = 'coin' | 'form' | 'success';
+
+interface SuccessData {
+  amount: string;
+  symbol: string;
+  network: string;
+  address: string;
+  fee: number;
+  receiveAmount: number;
+  txId: string;
+  date: string;
+}
+
+interface BinanceWithdrawModalProps {
+  onClose: () => void;
+}
+
+export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalProps) {
+  const [step, setStep] = useState<Step>('coin');
+  const [coins, setCoins] = useState<Coin[]>([]);
+  const [loadingCoins, setLoadingCoins] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchHistory, setSearchHistory] = useState<string[]>(['USDT', 'BNB', 'BTC']);
+  const [sortAZ, setSortAZ] = useState(false);
+  const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
+  const [address, setAddress] = useState('');
+  const [selectedNetwork, setSelectedNetwork] = useState<Network | null>(null);
+  const [showNetworkDropdown, setShowNetworkDropdown] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [successData, setSuccessData] = useState<SuccessData | null>(null);
+  const [copiedTx, setCopiedTx] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    document.body.classList.add('deposit-modal-open');
+    return () => document.body.classList.remove('deposit-modal-open');
+  }, []);
+
+  useEffect(() => {
+    loadCoins();
+  }, []);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowNetworkDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const loadCoins = async () => {
+    setLoadingCoins(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const [{ data: supportedCoins }, { data: balances }] = await Promise.all([
+        supabase.from('supported_coins').select('symbol, name, logo_url').eq('is_active', true).order('sort_order'),
+        supabase.from('user_balances').select('symbol, balance').eq('user_id', user.id),
+      ]);
+
+      const balanceMap: Record<string, number> = {};
+      (balances || []).forEach(b => {
+        balanceMap[b.symbol] = parseFloat(b.balance || '0');
+      });
+
+      const list: Coin[] = (supportedCoins || []).map(c => ({
+        symbol: c.symbol,
+        name: c.name,
+        logo_url: c.logo_url,
+        balance: balanceMap[c.symbol] || 0,
+        usd_value: balanceMap[c.symbol] || 0,
+      }));
+
+      setCoins(list);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingCoins(false);
+    }
+  };
+
+  const handleSelectCoin = (coin: Coin) => {
+    setSelectedCoin(coin);
+    const nets = getNetworks(coin.symbol);
+    setSelectedNetwork(nets[0]);
+    setAddress('');
+    setAmount('');
+    setFormError('');
+    if (!searchHistory.includes(coin.symbol)) {
+      setSearchHistory(prev => [coin.symbol, ...prev].slice(0, 5));
+    }
+    setStep('form');
+  };
+
+  const filteredCoins = coins
+    .filter(c =>
+      c.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (sortAZ) return a.symbol.localeCompare(b.symbol);
+      if (b.balance !== a.balance) return b.balance - a.balance;
+      return a.symbol.localeCompare(b.symbol);
+    });
+
+  const networks = selectedCoin ? getNetworks(selectedCoin.symbol) : [];
+  const fee = selectedNetwork?.fee || 0;
+  const amountNum = parseFloat(amount || '0');
+  const receiveAmount = Math.max(0, amountNum - fee);
+
+  const handleWithdraw = async () => {
+    setFormError('');
+
+    if (!address.trim()) {
+      setFormError('Please enter withdrawal address');
+      return;
+    }
+    if (!amount || amountNum <= 0) {
+      setFormError('Please enter a valid amount');
+      return;
+    }
+    if (!selectedNetwork) {
+      setFormError('Please select a network');
+      return;
+    }
+    if (amountNum < selectedNetwork.minWithdraw) {
+      setFormError(`Minimum withdrawal is ${selectedNetwork.minWithdraw} ${selectedCoin?.symbol}`);
+      return;
+    }
+    if (amountNum > (selectedCoin?.balance || 0)) {
+      setFormError('Insufficient balance');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const newBalance = (selectedCoin!.balance) - amountNum;
+
+      await supabase.from('user_balances')
+        .update({ balance: newBalance.toString() })
+        .eq('user_id', user.id)
+        .eq('symbol', selectedCoin!.symbol);
+
+      const txId = Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+      const now = new Date();
+
+      await supabase.from('withdrawal_transactions').insert({
+        user_id: user.id,
+        coin_symbol: selectedCoin!.symbol,
+        network: selectedNetwork.id,
+        amount: amountNum,
+        network_fee: fee,
+        receive_amount: receiveAmount,
+        destination_address: address.trim(),
+        txid: txId,
+        status: 'completed',
+        completed_at: now.toISOString(),
+      });
+
+      setSuccessData({
+        amount: amount,
+        symbol: selectedCoin!.symbol,
+        network: selectedNetwork.id,
+        address: address.trim(),
+        fee,
+        receiveAmount,
+        txId,
+        date: now.toISOString().replace('T', ' ').slice(0, 19),
+      });
+      setStep('success');
+    } catch (err: any) {
+      setFormError(err.message || 'Withdrawal failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCopyTx = () => {
+    if (successData) {
+      navigator.clipboard.writeText(successData.txId);
+      setCopiedTx(true);
+      setTimeout(() => setCopiedTx(false), 2000);
+    }
+  };
+
+  if (step === 'success' && successData) {
+    return (
+      <div className="fixed inset-0 bg-[#0B0E11] z-50 flex flex-col">
+        <div className="flex-1 overflow-y-auto px-5 pt-10 pb-6">
+          <div className="text-center mb-8">
+            <div className="text-[28px] font-bold text-white mb-2">
+              -{successData.amount} {successData.symbol}
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <CheckCircle className="w-5 h-5 text-[#0ECB81]" />
+              <span className="text-[#0ECB81] font-semibold text-base">Completed</span>
+            </div>
+            <p className="text-gray-400 text-sm mt-3 leading-relaxed">
+              Crypto has been transferred out. Please contact the recipient platform for the transaction receipt.
+            </p>
+          </div>
+
+          <div className="space-y-0 border border-[#2B3139] rounded-xl overflow-hidden">
+            {[
+              { label: 'Network', value: successData.network, badge: true },
+              { label: 'Address', value: successData.address },
+              { label: 'TxID', value: successData.txId, copyable: true },
+              { label: 'Amount', value: `${successData.amount} ${successData.symbol}` },
+              { label: 'Network fee', value: `${successData.fee.toFixed(8)} ${successData.symbol}` },
+              { label: 'Wallet', value: 'Spot Wallet' },
+              { label: 'Date', value: successData.date },
+            ].map((row, i) => (
+              <div key={i} className="flex items-start justify-between px-4 py-3.5 border-b border-[#2B3139] last:border-b-0">
+                <span className="text-gray-400 text-sm">{row.label}</span>
+                {row.badge ? (
+                  <span className="bg-[#F0B90B]/20 text-[#F0B90B] text-xs font-bold px-2 py-0.5 rounded">
+                    {row.value}
+                  </span>
+                ) : row.copyable ? (
+                  <div className="flex items-start gap-2 max-w-[55%]">
+                    <span className="text-white text-sm text-right break-all leading-relaxed underline">
+                      {row.value.slice(0, 12)}...{row.value.slice(-8)}
+                    </span>
+                    <button onClick={handleCopyTx} className="flex-shrink-0 mt-0.5">
+                      {copiedTx ? (
+                        <CheckCircle className="w-4 h-4 text-[#0ECB81]" />
+                      ) : (
+                        <Copy className="w-4 h-4 text-gray-400" />
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-white text-sm text-right max-w-[55%] break-all">{row.value}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="px-5 pb-8">
+          <button
+            onClick={onClose}
+            className="w-full bg-[#F0B90B] hover:bg-[#F0B90B]/90 text-black font-bold py-4 rounded-xl text-base transition-colors"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'form' && selectedCoin) {
+    return (
+      <div className="fixed inset-0 bg-[#0B0E11] z-50 flex flex-col">
+        <div className="flex items-center justify-between px-4 pt-5 pb-4">
+          <button onClick={() => setStep('coin')} className="text-white p-1">
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <div className="text-center">
+            <div className="text-white font-bold text-base">Send {selectedCoin.symbol}</div>
+            <div className="text-gray-400 text-xs flex items-center justify-center gap-1 mt-0.5">
+              One Time <ChevronDown className="w-3 h-3" />
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button className="text-gray-400">
+              <Info className="w-5 h-5" />
+            </button>
+            <button className="text-gray-400">
+              <ScanLine className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-5">
+          {formError && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
+              {formError}
+            </div>
+          )}
+
+          <div>
+            <div className="text-white text-sm font-medium mb-2">Address</div>
+            <div className="bg-[#1E2329] rounded-xl border border-[#2B3139] flex items-center px-4 py-3.5 gap-3">
+              <input
+                type="text"
+                value={address}
+                onChange={e => setAddress(e.target.value)}
+                placeholder="Long press to paste"
+                className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
+              />
+              <button className="text-gray-500">
+                <User className="w-5 h-5" />
+              </button>
+              <button className="text-gray-500">
+                <ScanLine className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-1 mb-2">
+              <span className="text-white text-sm font-medium">Network</span>
+              <Info className="w-3.5 h-3.5 text-gray-500" />
+            </div>
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setShowNetworkDropdown(v => !v)}
+                className="w-full bg-[#1E2329] rounded-xl border border-[#2B3139] flex items-center justify-between px-4 py-3.5 text-left"
+              >
+                <span className={`text-sm ${selectedNetwork ? 'text-white' : 'text-gray-500'}`}>
+                  {selectedNetwork ? selectedNetwork.label : 'Automatically match the network'}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showNetworkDropdown ? 'rotate-180' : ''}`} />
+              </button>
+              {showNetworkDropdown && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-[#1E2329] border border-[#2B3139] rounded-xl overflow-hidden z-10">
+                  {networks.map(net => (
+                    <button
+                      key={net.id}
+                      onClick={() => {
+                        setSelectedNetwork(net);
+                        setShowNetworkDropdown(false);
+                        setFormError('');
+                      }}
+                      className={`w-full px-4 py-3.5 text-left flex items-center justify-between hover:bg-[#2B3139] transition-colors ${selectedNetwork?.id === net.id ? 'bg-[#2B3139]' : ''}`}
+                    >
+                      <div>
+                        <div className="text-white text-sm font-medium">{net.id}</div>
+                        <div className="text-gray-500 text-xs mt-0.5">{net.label}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-gray-400 text-xs">Fee: {net.fee} {selectedCoin.symbol}</div>
+                        <div className="text-gray-500 text-xs">Min: {net.minWithdraw}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-1 mb-2">
+              <span className="text-white text-sm font-medium">Withdrawal Amount</span>
+              <Info className="w-3.5 h-3.5 text-gray-500" />
+            </div>
+            <div className="bg-[#1E2329] rounded-xl border border-[#2B3139] flex items-center px-4 py-3.5 gap-3">
+              <input
+                type="number"
+                value={amount}
+                onChange={e => { setAmount(e.target.value); setFormError(''); }}
+                placeholder="Minimum 0"
+                className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
+                min="0"
+                step="any"
+              />
+              <span className="text-gray-400 text-sm font-medium">{selectedCoin.symbol}</span>
+              <button
+                onClick={() => {
+                  const maxAmount = Math.max(0, selectedCoin.balance - fee);
+                  setAmount(maxAmount.toFixed(8).replace(/\.?0+$/, '') || '0');
+                }}
+                className="text-[#F0B90B] text-sm font-bold"
+              >
+                Max
+              </button>
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-gray-500 text-xs">Available</span>
+              <span className="text-gray-400 text-xs">
+                {selectedCoin.balance.toFixed(8).replace(/\.?0+$/, '') || '0'} {selectedCoin.symbol}
+              </span>
+            </div>
+          </div>
+
+          <div className="text-xs text-gray-500 space-y-1.5 pt-2">
+            <div className="flex items-start gap-2">
+              <span className="text-gray-600 mt-0.5">•</span>
+              <span>Do not withdraw directly to a crowdfund or ICO. We will not credit your account with tokens from that sale.</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-gray-600 mt-0.5">•</span>
+              <span>
+                Do not transact with Sanctioned Entities.{' '}
+                <span className="text-[#F0B90B]">Learn more</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-[#2B3139] px-5 pt-4 pb-8 space-y-3 bg-[#0B0E11]">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500 text-sm">Receive amount</span>
+            <span className="text-white font-bold text-base">
+              {amountNum > 0 ? receiveAmount.toFixed(8).replace(/\.?0+$/, '') : '0.00'} {selectedCoin.symbol}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500 text-sm">Network fee</span>
+            <span className="text-gray-400 text-sm">
+              {amountNum > 0 ? fee : '0.00'} {selectedCoin.symbol}
+            </span>
+          </div>
+          <button
+            onClick={handleWithdraw}
+            disabled={submitting}
+            className="w-full bg-[#F0B90B] hover:bg-[#F0B90B]/90 disabled:opacity-60 disabled:cursor-not-allowed text-black font-bold py-4 rounded-xl text-base transition-colors mt-1"
+          >
+            {submitting ? 'Processing...' : 'Withdraw'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-[#0B0E11] z-50 flex flex-col">
+      <div className="flex items-center px-4 pt-5 pb-3 gap-4">
+        <button onClick={onClose} className="text-white p-1">
+          <ArrowLeft className="w-6 h-6" />
+        </button>
+        <h1 className="text-white font-bold text-lg flex-1 text-center mr-8">Select Coin</h1>
+      </div>
+
+      <div className="px-4 pb-3">
+        <div className="bg-[#1E2329] rounded-xl flex items-center gap-3 px-4 py-3 border border-[#2B3139]">
+          <Search className="w-4 h-4 text-gray-500 flex-shrink-0" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search Coins"
+            className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
+          />
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 pb-6">
+        {!searchQuery && (
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-white text-sm font-semibold">Search History</span>
+              <button
+                onClick={() => setSearchHistory([])}
+                className="text-gray-500 hover:text-gray-300"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+            {searchHistory.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {searchHistory.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => {
+                      const coin = coins.find(c => c.symbol === s);
+                      if (coin) handleSelectCoin(coin);
+                    }}
+                    className="bg-[#2B3139] hover:bg-[#353D47] text-white text-sm px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <span className="text-gray-600 text-sm">No search history</span>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-white text-sm font-semibold">Coin List</span>
+          <button
+            onClick={() => setSortAZ(v => !v)}
+            className={`flex items-center gap-1 text-xs ${sortAZ ? 'text-[#F0B90B]' : 'text-gray-500'} hover:text-white transition-colors`}
+          >
+            <ArrowUpDown className="w-3.5 h-3.5" />
+            A-Z
+          </button>
+        </div>
+
+        {loadingCoins ? (
+          <div className="flex justify-center py-10">
+            <div className="w-6 h-6 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : filteredCoins.length === 0 ? (
+          <div className="text-center py-10 text-gray-500 text-sm">No coins found</div>
+        ) : (
+          <div className="space-y-0">
+            {filteredCoins.map(coin => (
+              <button
+                key={coin.symbol}
+                onClick={() => handleSelectCoin(coin)}
+                className="w-full flex items-center gap-3 py-3.5 border-b border-[#1E2329] hover:bg-[#1E2329] -mx-1 px-1 transition-colors rounded-lg"
+              >
+                <CoinLogo symbol={coin.symbol} logoUrl={coin.logo_url} size={36} />
+                <div className="flex-1 text-left">
+                  <div className="text-white font-semibold text-sm">{coin.symbol}</div>
+                  <div className="text-gray-500 text-xs mt-0.5 truncate max-w-[140px]">{coin.name}</div>
+                </div>
+                <div className="text-right">
+                  {coin.balance > 0 ? (
+                    <>
+                      <div className="text-white text-sm font-medium">
+                        {coin.balance < 0.00001 ? coin.balance.toExponential(2) : coin.balance.toFixed(coin.balance < 1 ? 8 : 4).replace(/\.?0+$/, '')}
+                      </div>
+                      <div className="text-gray-500 text-xs mt-0.5">
+                        ≈ ${coin.usd_value.toFixed(2)}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-gray-600 text-sm">0</div>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
