@@ -239,6 +239,7 @@ function TraderProfileModal({ trader, liveStats, onClose }: TraderProfileModalPr
   const [takeProfit, setTakeProfit] = useState('');
   const [copyLoading, setCopyLoading] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const [usdtBalance, setUsdtBalance] = useState<number | null>(null);
   const [user, setUser] = useState<any>(null);
   const profitHistory = useMemo(() => generateProfitHistory(trader.roi), [trader.id]);
@@ -269,6 +270,7 @@ function TraderProfileModal({ trader, liveStats, onClose }: TraderProfileModalPr
     if (isNaN(amount) || amount < 10 || !user) return;
     if (usdtBalance !== null && amount > usdtBalance) return;
     setCopyLoading(true);
+    setCopyError(null);
     try {
       const { error } = await supabase.rpc('start_copy_trading_by_name', {
         p_user_id: user.id,
@@ -280,7 +282,15 @@ function TraderProfileModal({ trader, liveStats, onClose }: TraderProfileModalPr
         p_stop_loss: stopLoss ? parseFloat(stopLoss) : null,
         p_take_profit: takeProfit ? parseFloat(takeProfit) : null,
       });
-      if (error) throw error;
+      if (error) {
+        const msg = error.message || '';
+        if (msg.includes('Insufficient balance')) {
+          setCopyError('Insufficient USDT balance.');
+        } else {
+          setCopyError(msg || 'Something went wrong. Please try again.');
+        }
+        return;
+      }
       const { data: bal } = await supabase
         .from('user_balances')
         .select('balance')
@@ -294,7 +304,8 @@ function TraderProfileModal({ trader, liveStats, onClose }: TraderProfileModalPr
         setShowCopySetup(false);
         onClose();
       }, 2000);
-    } catch (_err) {
+    } catch (err: any) {
+      setCopyError(err?.message || 'Something went wrong. Please try again.');
     } finally {
       setCopyLoading(false);
     }
@@ -529,10 +540,20 @@ function TraderProfileModal({ trader, liveStats, onClose }: TraderProfileModalPr
                 </div>
 
                 <button onClick={handleStartCopy}
-                  disabled={copyLoading || !investAmount || parseFloat(investAmount) < 10}
-                  className="w-full py-3 bg-[#FCD535] text-[#181A20] rounded-lg text-[14px] font-bold disabled:opacity-40 flex items-center justify-center gap-2">
-                  {copyLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Starting...</> : <>Start Copy - ${investAmount} USDT</>}
+                  disabled={copyLoading || !user || !investAmount || parseFloat(investAmount) < 10 || (usdtBalance !== null && parseFloat(investAmount) > usdtBalance)}
+                  className="w-full py-3 bg-[#FCD535] text-[#181A20] rounded-lg text-[14px] font-bold disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:brightness-90 transition-all">
+                  {copyLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Starting...</> : !user ? <>Please log in to copy trade</> : <>Start Copy - ${investAmount} USDT</>}
                 </button>
+
+                {usdtBalance !== null && parseFloat(investAmount) > usdtBalance && user && (
+                  <div className="text-[#F6465D] text-[11px] text-center mt-2">Insufficient balance</div>
+                )}
+                {parseFloat(investAmount) < 10 && investAmount !== '' && (
+                  <div className="text-[#F6465D] text-[11px] text-center mt-2">Minimum investment: $10 USDT</div>
+                )}
+                {copyError && (
+                  <div className="text-[#F6465D] text-[11px] text-center mt-2 bg-[#F6465D]/10 rounded px-2 py-1.5">{copyError}</div>
+                )}
               </div>
             )}
           </div>

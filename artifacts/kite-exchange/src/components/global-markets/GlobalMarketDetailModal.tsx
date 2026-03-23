@@ -9,6 +9,14 @@ import {
   formatGlobalPrice,
   CATEGORY_CONFIG,
 } from '../../lib/global-markets-data';
+import MetalIcon, { isMetalSymbol } from '../MetalIcon';
+
+const GM_SPRITE_SRC = '/dd3b1d1b-6b3b-4bba-a2ac-625f191db8c0.png';
+const GM_SPRITE_MAP: Record<string, [number, number]> = {
+  SPX500: [0, 0], NAS100: [1, 0], US30:   [2, 0],
+  BRENT:  [0, 1], USOIL:  [0, 1], NATGAS: [1, 1],
+  CORN:   [2, 1], SUGAR:  [0, 2], COFFEE: [1, 2], COCOA: [2, 2],
+};
 
 interface Props {
   asset: GlobalAsset;
@@ -257,7 +265,36 @@ function CandlestickChart({ asset, range, livePrice, chartType, showMA, showVolu
 function AssetIcon({ asset, size = 40 }: { asset: GlobalAsset; size?: number }) {
   const [logoOk, setLogoOk] = useState(true);
   const [flagOk, setFlagOk] = useState(true);
-  const radius = size * 0.2;
+  const radius = size * 0.5;
+
+  if (asset.category === 'metals' && isMetalSymbol(asset.symbol)) {
+    return <MetalIcon symbol={asset.symbol} size={size} />;
+  }
+
+  const spritePos = GM_SPRITE_MAP[asset.symbol];
+  if (spritePos) {
+    const [col, row] = spritePos;
+    const cellW = 1536 / 3;
+    const cellH = 1024 / 3;
+    const scaleX = size / cellW;
+    const scaleY = size / cellH;
+    return (
+      <div
+        className="flex-shrink-0"
+        style={{
+          width: size, height: size, borderRadius: radius,
+          backgroundImage: `url(${GM_SPRITE_SRC})`,
+          backgroundSize: `${1536 * scaleX}px ${1024 * scaleY}px`,
+          backgroundPosition: `${-(col * size)}px ${-(row * size)}px`,
+          backgroundRepeat: 'no-repeat',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
+          border: '1.5px solid rgba(255,255,255,0.15)',
+          overflow: 'hidden',
+        }}
+      />
+    );
+  }
+
   if (asset.logoUrl && logoOk) {
     return (
       <div className="flex-shrink-0 flex items-center justify-center overflow-hidden"
@@ -271,7 +308,7 @@ function AssetIcon({ asset, size = 40 }: { asset: GlobalAsset; size?: number }) 
   if (asset.flagUrl && flagOk) {
     return (
       <div className="flex-shrink-0 overflow-hidden"
-        style={{ width: size, height: size, borderRadius: radius, border: '1px solid rgba(255,255,255,0.08)' }}>
+        style={{ width: size, height: size, borderRadius: radius, border: '2px solid rgba(255,255,255,0.15)', boxShadow: '0 2px 12px rgba(0,0,0,0.5)' }}>
         <img src={asset.flagUrl} alt={asset.displayName}
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           onError={() => setFlagOk(false)} />

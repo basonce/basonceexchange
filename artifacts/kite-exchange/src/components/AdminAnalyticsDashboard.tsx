@@ -187,7 +187,7 @@ export default function AdminAnalyticsDashboard({ onClose }: { onClose: () => vo
 
         <div className="p-6 space-y-6">
           {/* Summary Stats */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="bg-gradient-to-br from-green-900/50 to-green-800/30 rounded-xl p-4 border border-green-700/30">
               <div className="flex items-center justify-between">
                 <div>
@@ -254,7 +254,7 @@ export default function AdminAnalyticsDashboard({ onClose }: { onClose: () => vo
           </div>
 
           {/* Online Users & Countries */}
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Online Users */}
             <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-6">
               <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
@@ -317,7 +317,7 @@ export default function AdminAnalyticsDashboard({ onClose }: { onClose: () => vo
           </div>
 
           {/* Top Pages & Conversion Funnel */}
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Top Pages */}
             <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-6">
               <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">

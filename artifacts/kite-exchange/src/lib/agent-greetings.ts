@@ -154,9 +154,14 @@ const greetingTemplates: GreetingTemplates = {
   ],
 };
 
-export function getAgentGreeting(agent: Agent): string {
-  const languageCode = agent.language_code || 'en';
-  const templates = greetingTemplates[languageCode] || greetingTemplates['en'];
+export function getAgentGreeting(agent: Agent, overrideLanguage?: string): string {
+  const browserLang = typeof navigator !== 'undefined'
+    ? navigator.language.split('-')[0].toLowerCase()
+    : 'en';
+  const supported = Object.keys(greetingTemplates);
+  const langCode = overrideLanguage
+    || (supported.includes(browserLang) ? browserLang : 'en');
+  const templates = greetingTemplates[langCode] || greetingTemplates['en'];
 
   const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
 

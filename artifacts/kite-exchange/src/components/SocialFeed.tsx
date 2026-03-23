@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Heart, MessageCircle, Share2, Radio, Crown, Lock, Sparkles, Users, BookOpen, BarChart2, MessageSquare, Newspaper, Zap, TrendingUp, TrendingDown, ExternalLink, Shield, Globe } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Radio, Crown, Lock, Sparkles, Users, BookOpen, BarChart2, MessageSquare, Newspaper, Zap, TrendingUp, TrendingDown, ExternalLink, Shield, Globe, Repeat2, BarChart } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PriceCache } from '../lib/price-cache';
 import LiveRoomModal from './LiveRoomModal';
@@ -13,6 +13,17 @@ import PromoBanner from './feed/PromoBanner';
 import FeedPositionCard from './feed/FeedPositionCard';
 import CopyTradingCarousel from './CopyTradingCarousel';
 import BasonceNewsCard, { BASONCE_NEWS_POOL, type BasonceNewsItem } from './feed/BasonceNewsCard';
+import FeedGainersCard, { generateGainersRows } from './feed/FeedGainersCard';
+import FeedTraderProfileCard from './feed/FeedTraderProfileCard';
+import { generateRandomRichPost, type GeneratedPost } from '../lib/feed-post-generators';
+
+function hashStringToInt(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
 
 interface CoinTag { symbol: string; change: number; }
 
@@ -34,6 +45,8 @@ interface SocialPost {
   likes_count: number;
   comments_count: number;
   shares_count: number;
+  view_count?: number;
+  repost_count?: number;
   is_bullish: boolean;
   created_at: string;
   coin_tags?: CoinTag[];
@@ -42,6 +55,11 @@ interface SocialPost {
   sub_positions?: any[];
   live_room_data?: any;
   sentiment?: string;
+  gainers_mode?: 'gainers' | 'losers';
+  gainers_rows?: any[];
+  meme_images?: string[];
+  image_url_3?: string | null;
+  extra_data?: any;
 }
 
 interface LiveRoom {
@@ -88,7 +106,7 @@ const CRYPTO_NEWS_POOL: Omit<LiveNewsItem, 'id' | 'age'>[] = [
   { title: 'Chainlink CCIP processes $10B cross-chain volume milestone', summary: 'The Cross-Chain Interoperability Protocol has enabled over $10 billion in secure cross-chain transactions since launch.', coin: 'LINK', category: 'TECHNOLOGY', sentiment: 'bullish', change: 5.9, source: 'Chainlink' },
   { title: 'Crypto fear & greed index hits 89 — extreme greed territory', summary: 'Market sentiment remains at extreme greed for 12 consecutive days, historically preceding corrections but also prolonged bull runs.', coin: 'BTC', category: 'MARKET', sentiment: 'neutral', source: 'Alternative.me' },
   { title: 'Injective Protocol burns 400,000 INJ tokens in weekly auction', summary: 'The deflationary burn mechanism destroys tokens worth $8.4M, reducing total supply by 0.18% this week.', coin: 'INJ', category: 'DeFi', sentiment: 'bullish', change: 6.1, source: 'Injective' },
-  { title: 'PEPE memecoin community votes on major protocol upgrade', summary: 'Governance vote passes with 78% majority to implement staking rewards, sending PEPE up 34% in 24 hours.', coin: 'PEPE', category: 'BREAKING', sentiment: 'bullish', change: 34.2, source: 'PEPE DAO' },
+  { title: 'Solana ecosystem TVL surpasses $12B as DeFi activity explodes', summary: 'SOL-based protocols see record inflows as Jupiter, Raydium, and Marinade lead the charge. SOL price up 18% this week.', coin: 'SOL', category: 'DeFi', sentiment: 'bullish', change: 18.4, source: 'DeFiLlama' },
   { title: 'Arbitrum TVL surpasses $25B, becomes largest L2 by assets', summary: 'Arbitrum One overtakes Polygon as the leading Ethereum Layer 2 by total value locked, driven by DeFi and gaming.', coin: 'ARB', category: 'DeFi', sentiment: 'bullish', change: 4.3, source: 'L2Beat' },
   { title: 'Market correction: BTC drops 8% on profit-taking at resistance', summary: 'Bitcoin faces selling pressure at the $98,000 resistance level as short-term holders lock in profits. Support seen at $89K.', coin: 'BTC', category: 'MARKET', sentiment: 'bearish', change: -8.1, source: 'TradingView' },
   { title: 'SEC investigates 3 major DeFi protocols for unregistered securities', summary: 'The SEC sends subpoenas to Uniswap, Compound, and Balancer over governance token distributions.', coin: 'ETH', category: 'REGULATION', sentiment: 'bearish', change: -3.2, source: 'WSJ' },
@@ -192,22 +210,22 @@ function InFeedNewsCard({ item }: { item: LiveNewsItem }) {
 const MULTI_GRID_COINS = [
   'BTC','ETH','SOL','BNB','XRP','AVAX','DOGE','MATIC','LINK','DOT',
   'ADA','TON','TRX','NEAR','OP','ARB','INJ','SUI','APT','ATOM',
-  'FTM','LTC','BCH','PEPE','WIF','BONK','FLOKI','SEI','TIA','ONDO',
+  'FTM','LTC','BCH','WLD','WIF','BONK','FLOKI','SEI','TIA','ONDO',
 ];
 
 const MULTI_GRID_USERS = [
-  { username: 'Crypto3894', avatar: 'https://i.pravatar.cc/150?img=70' },
-  { username: 'AlphaTrader77', avatar: 'https://i.pravatar.cc/150?img=71' },
-  { username: 'BullRunKing', avatar: 'https://i.pravatar.cc/150?img=72' },
-  { username: 'SwingMaster9', avatar: 'https://i.pravatar.cc/150?img=73' },
-  { username: 'VolumeProfile', avatar: 'https://i.pravatar.cc/150?img=74' },
-  { username: 'CryptoWhale88', avatar: 'https://i.pravatar.cc/150?img=75' },
-  { username: 'LongOnlyBull', avatar: 'https://i.pravatar.cc/150?img=76' },
-  { username: 'DeltaNeutral', avatar: 'https://i.pravatar.cc/150?img=77' },
-  { username: 'FuturesKing', avatar: 'https://i.pravatar.cc/150?img=78' },
-  { username: 'OnChainOG', avatar: 'https://i.pravatar.cc/150?img=79' },
-  { username: 'RektProof', avatar: 'https://i.pravatar.cc/150?img=80' },
-  { username: 'MoonMathBot', avatar: 'https://i.pravatar.cc/150?img=81' },
+  { username: 'Crypto3894', avatar: 'https://randomuser.me/api/portraits/men/20.jpg' },
+  { username: 'AlphaTrader77', avatar: 'https://randomuser.me/api/portraits/men/21.jpg' },
+  { username: 'BullRunKing', avatar: 'https://randomuser.me/api/portraits/men/22.jpg' },
+  { username: 'SwingMaster9', avatar: 'https://randomuser.me/api/portraits/women/20.jpg' },
+  { username: 'VolumeProfile', avatar: 'https://randomuser.me/api/portraits/men/23.jpg' },
+  { username: 'CryptoWhale88', avatar: 'https://randomuser.me/api/portraits/men/24.jpg' },
+  { username: 'LongOnlyBull', avatar: 'https://randomuser.me/api/portraits/men/25.jpg' },
+  { username: 'DeltaNeutral', avatar: 'https://randomuser.me/api/portraits/men/64.jpg' },
+  { username: 'FuturesKing', avatar: 'https://randomuser.me/api/portraits/men/26.jpg' },
+  { username: 'OnChainOG', avatar: 'https://randomuser.me/api/portraits/men/27.jpg' },
+  { username: 'RektProof', avatar: 'https://randomuser.me/api/portraits/men/28.jpg' },
+  { username: 'MoonMathBot', avatar: 'https://randomuser.me/api/portraits/men/29.jpg' },
 ];
 
 const MULTI_GRID_CAPTIONS = [
@@ -224,6 +242,100 @@ const MULTI_GRID_CAPTIONS = [
 ];
 
 const LEVERAGES = [5, 10, 15, 20, 25, 50, 75, 100];
+
+const GAINERS_POST_USERS = [
+  { username: 'BlockchainEmpire', avatar: 'https://randomuser.me/api/portraits/men/33.jpg' },
+  { username: 'CryptoMarketLens', avatar: 'https://randomuser.me/api/portraits/men/34.jpg' },
+  { username: 'DoctorMedia_Crypto', avatar: 'https://randomuser.me/api/portraits/men/35.jpg' },
+  { username: 'SyndicateOfficial', avatar: 'https://randomuser.me/api/portraits/women/21.jpg' },
+  { username: 'BullishSignals', avatar: 'https://randomuser.me/api/portraits/men/37.jpg' },
+  { username: 'WhaleWatcher99', avatar: 'https://randomuser.me/api/portraits/men/38.jpg' },
+  { username: 'CryptoZeroAnalysis', avatar: 'https://randomuser.me/api/portraits/men/39.jpg' },
+  { username: 'AltSeasonTracker', avatar: 'https://randomuser.me/api/portraits/men/40.jpg' },
+];
+
+const GAINERS_CAPTIONS = [
+  'Today Top Gainers',
+  'Today Top Losers — be careful',
+  'These are pumping RIGHT NOW',
+  'Market snapshot — biggest movers',
+  'Hot coins today. Which one are you trading?',
+  'Top performers this session',
+  'Gainers leading the charge today',
+  'Watch these coins closely',
+];
+
+const MEME_POST_USERS = [
+  { username: 'Crypto_Memes_Daily', avatar: 'https://randomuser.me/api/portraits/men/41.jpg' },
+  { username: 'DoktorProfit', avatar: 'https://randomuser.me/api/portraits/men/42.jpg' },
+  { username: 'BullRunMemes', avatar: 'https://randomuser.me/api/portraits/men/43.jpg' },
+  { username: 'HodlNation', avatar: 'https://randomuser.me/api/portraits/women/22.jpg' },
+  { username: 'DegenTrader9000', avatar: 'https://randomuser.me/api/portraits/men/45.jpg' },
+  { username: 'SatoshiDisciple', avatar: 'https://randomuser.me/api/portraits/men/46.jpg' },
+  { username: 'NightOwlTrader', avatar: 'https://randomuser.me/api/portraits/men/47.jpg' },
+];
+
+const MEME_CONTENT_POOL: Array<{ content: string; tags: string[]; sentiment: 'bullish' | 'bearish' | 'neutral' }> = [
+  { content: 'I make 1.6M$ from $BTC this cycle. Bought myself a reminder.', tags: ['BTC', 'ETH'], sentiment: 'bullish' },
+  { content: 'New Lamborghini Urus. $SOL futures made this possible.', tags: ['SOL', 'BTC'], sentiment: 'bullish' },
+  { content: 'Rolex Daytona. The day $BTC crossed $100K. Never forgetting.', tags: ['BTC'], sentiment: 'bullish' },
+  { content: 'When your $ETH gains pay for the car outright with cash. Different life.', tags: ['ETH', 'SOL'], sentiment: 'bullish' },
+  { content: 'Private jet to Dubai. $BTC $SOL doing the work so I don\'t have to.', tags: ['BTC', 'SOL'], sentiment: 'bullish' },
+  { content: 'Working from my yacht this week. $ETH $SOL paying for everything.', tags: ['ETH', 'SOL'], sentiment: 'bullish' },
+  { content: 'They said crypto was a scam. This is my 4th Rolex. $BTC $ETH', tags: ['BTC', 'ETH'], sentiment: 'bullish' },
+  { content: 'Started with $500. Now I can afford this. $SOL changed my life completely.', tags: ['SOL', 'BTC'], sentiment: 'bullish' },
+  { content: 'JUST IN: $2T wiped from U.S. stock market. $BTC holding strong. $TRUMP $SOL', tags: ['BTC', 'SOL'], sentiment: 'bearish' },
+  { content: '$XRP can make you rich. $500 becomes $50,000. One day the chart will shock everyone.', tags: ['XRP', 'BTC'], sentiment: 'bullish' },
+  { content: 'BREAKING: BlackRock BTC ETF record $3.2B inflow. Institutions are here. $BTC', tags: ['BTC', 'ETH'], sentiment: 'bullish' },
+  { content: 'Ferrari F8 delivered. $BNB $SOL portfolio doing the work. 0 regrets.', tags: ['BNB', 'SOL'], sentiment: 'bullish' },
+  { content: 'Porsche 911 Turbo S. Entry was $1,800. Exit was $4,200. Do the math. $ETH', tags: ['ETH'], sentiment: 'bullish' },
+  { content: 'Maldives overwater bungalow. Third one this year. $SOL made this the base case.', tags: ['SOL', 'ARB'], sentiment: 'bullish' },
+  { content: 'McLaren 720S last weekend. $SOL options did most of the heavy lifting.', tags: ['SOL'], sentiment: 'bullish' },
+  { content: 'AP Royal Oak. The gains from $ETH staking funded this. Patience pays.', tags: ['ETH'], sentiment: 'bullish' },
+  { content: 'Penthouse in Singapore for Q1. $SOL $TIA funding the whole trip.', tags: ['SOL', 'TIA'], sentiment: 'bullish' },
+  { content: 'Beach villa in Bali for the month. $ETH yield farming pays for the rent.', tags: ['ETH'], sentiment: 'bullish' },
+  { content: 'JUST IN: US-China trade war escalates — 60% tariffs announced. $BTC $BNB', tags: ['BTC', 'BNB'], sentiment: 'bearish' },
+  { content: 'BREAKING: SEC drops charges against DeFi. $ETH $UNI surging 15%+ in minutes.', tags: ['ETH', 'BTC'], sentiment: 'bullish' },
+  { content: 'My portfolio just hit $1M. First thing I did was book this trip. $BTC', tags: ['BTC'], sentiment: 'bullish' },
+  { content: 'Charter yacht in Croatia. $WIF $BONK memecoins funded this trip honestly.', tags: ['WIF', 'BONK'], sentiment: 'bullish' },
+  { content: 'Island hopping Greece. $SOL $TIA covering every expense without touching principal.', tags: ['SOL', 'TIA'], sentiment: 'bullish' },
+  { content: 'New Lamborghini Urus. $APT $ARB gains. Altseason is real. Period.', tags: ['APT', 'ARB'], sentiment: 'bullish' },
+  { content: 'Woke up to a $PEPE 300% candle. Life is beautiful from the yacht.', tags: ['PEPE', 'ETH'], sentiment: 'bullish' },
+  { content: 'Third bull run. Third car upgrade. Pattern recognition is a skill. $BTC $SOL', tags: ['BTC', 'SOL'], sentiment: 'bullish' },
+];
+
+const LUXURY_WEALTH_IMAGES = [
+  'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/1545743/pexels-photo-1545743.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/2127733/pexels-photo-2127733.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/112460/pexels-photo-112460.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/358070/pexels-photo-358070.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/170811/pexels-photo-170811.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/3972755/pexels-photo-3972755.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/1592384/pexels-photo-1592384.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/1268871/pexels-photo-1268871.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/1430676/pexels-photo-1430676.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/163236/pexels-photo-163236.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/3278818/pexels-photo-3278818.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/2599124/pexels-photo-2599124.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/2161448/pexels-photo-2161448.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/9978741/pexels-photo-9978741.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/277390/pexels-photo-277390.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/190819/pexels-photo-190819.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/2113994/pexels-photo-2113994.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/1579240/pexels-photo-1579240.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/618833/pexels-photo-618833.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/2253870/pexels-photo-2253870.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/1438761/pexels-photo-1438761.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/1450363/pexels-photo-1450363.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/244206/pexels-photo-244206.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/1545743/pexels-photo-1545743.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/2127733/pexels-photo-2127733.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/170811/pexels-photo-170811.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/1268871/pexels-photo-1268871.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/2527130/pexels-photo-2527130.jpeg?auto=compress&cs=tinysrgb&w=800',
+];
 
 function pickRandom<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
 
@@ -295,6 +407,215 @@ function generateMultiGridPost(pc: PriceCache): SocialPost | null {
   };
 }
 
+function generateGainersPost(pc: PriceCache): SocialPost {
+  const mode = Math.random() < 0.7 ? 'gainers' : 'losers';
+  const rows = generateGainersRows(mode, pc, 5);
+  const user = pickRandom(GAINERS_POST_USERS);
+  const fakeNow = new Date();
+  fakeNow.setSeconds(fakeNow.getSeconds() - Math.floor(Math.random() * 120));
+  const coinTags = rows.slice(0, 3).map(r => ({ symbol: r.symbol, change: r.change }));
+  return {
+    id: `gainers_${Date.now()}_${Math.random()}`,
+    username: user.username,
+    avatar_url: user.avatar,
+    content: pickRandom(GAINERS_CAPTIONS),
+    coin_symbol: rows[0]?.symbol || 'BTC',
+    trade_type: 'long',
+    entry_price: 0,
+    exit_price: 0,
+    profit_loss: 0,
+    profit_loss_percent: 0,
+    leverage: 1,
+    image_url: null,
+    likes_count: Math.floor(2 + Math.random() * 120),
+    comments_count: Math.floor(1 + Math.random() * 40),
+    shares_count: Math.floor(1 + Math.random() * 30),
+    view_count: Math.floor(100 + Math.random() * 80000),
+    repost_count: Math.floor(1 + Math.random() * 25),
+    is_bullish: mode === 'gainers',
+    created_at: fakeNow.toISOString(),
+    post_type: 'market_gainers',
+    coin_tags: coinTags,
+    sentiment: mode === 'gainers' ? 'bullish' : 'bearish',
+    gainers_mode: mode,
+    gainers_rows: rows,
+  };
+}
+
+const SINGLE_POS_USERS = [
+  { username: 'CryptoKing_X', avatar: 'https://randomuser.me/api/portraits/men/50.jpg' },
+  { username: 'FuturesAlpha9', avatar: 'https://randomuser.me/api/portraits/men/51.jpg' },
+  { username: 'BullishOG', avatar: 'https://randomuser.me/api/portraits/men/52.jpg' },
+  { username: 'TradeMasterPro', avatar: 'https://randomuser.me/api/portraits/men/53.jpg' },
+  { username: 'LeverageGod', avatar: 'https://randomuser.me/api/portraits/women/30.jpg' },
+  { username: 'DegenKing100x', avatar: 'https://randomuser.me/api/portraits/men/54.jpg' },
+  { username: 'WhaleDumpling', avatar: 'https://randomuser.me/api/portraits/men/55.jpg' },
+  { username: 'PerpMaster_OG', avatar: 'https://randomuser.me/api/portraits/men/56.jpg' },
+  { username: 'SoloBull2025', avatar: 'https://randomuser.me/api/portraits/men/57.jpg' },
+  { username: 'CryptoScalper', avatar: 'https://randomuser.me/api/portraits/women/31.jpg' },
+  { username: 'LongOnlyVibes', avatar: 'https://randomuser.me/api/portraits/men/58.jpg' },
+  { username: 'BreakevenNever', avatar: 'https://randomuser.me/api/portraits/men/59.jpg' },
+  { username: 'EntryMasterX', avatar: 'https://randomuser.me/api/portraits/men/60.jpg' },
+  { username: 'NightFutures', avatar: 'https://randomuser.me/api/portraits/men/61.jpg' },
+  { username: 'MomentumRider', avatar: 'https://randomuser.me/api/portraits/women/32.jpg' },
+  { username: 'BitcoinMaximalist', avatar: 'https://randomuser.me/api/portraits/men/62.jpg' },
+  { username: 'AltcoinProfessor', avatar: 'https://randomuser.me/api/portraits/men/63.jpg' },
+  { username: 'PnL_Printer99', avatar: 'https://randomuser.me/api/portraits/men/65.jpg' },
+  { username: 'TrendFollower22', avatar: 'https://randomuser.me/api/portraits/men/66.jpg' },
+  { username: 'RiskRewardKing', avatar: 'https://randomuser.me/api/portraits/women/33.jpg' },
+];
+
+const SINGLE_POS_CAPTIONS = [
+  'Clean entry. Letting it run.',
+  'Structure confirmed. Position sized accordingly.',
+  'Been patient on this setup for days. Finally triggered.',
+  'Risk/reward on this one is insane.',
+  'Adding to winners. This is the way.',
+  'Stop already moved to BE. Pure profits from here.',
+  'Volume confirmation + breakout. Opened full size.',
+  'Macro trend aligned with micro structure. High conviction.',
+  'Took the trade. Results speak for themselves.',
+  'Waited 3 days for this entry. Worth every minute.',
+  'Pure technical setup. Nothing else needed.',
+  'This coin had written all over it. Position open.',
+  'Early in the move. Leverage sized correctly.',
+  'Checklist complete. Trade is live.',
+  'Thesis intact. Not moving until target.',
+];
+
+const SINGLE_POS_COINS = [
+  'BTC','ETH','SOL','BNB','XRP','AVAX','DOGE','LINK','DOT','ADA',
+  'TON','TRX','NEAR','OP','ARB','INJ','SUI','APT','ATOM','WLD',
+  'WIF','BONK','SEI','TIA','FTM','LTC','ONDO','PEPE','SHIB','FLOKI',
+];
+
+function generateSinglePositionPost(pc: PriceCache): SocialPost | null {
+  const coin = pickRandom(SINGLE_POS_COINS);
+  const cached = pc.getBySymbol(coin);
+  if (!cached || cached.price <= 0) return null;
+  const markPrice = cached.price;
+  const leverage = pickRandom(LEVERAGES);
+  const isWin = Math.random() < 0.82;
+  const roi = isWin ? 8 + Math.random() * 320 : -(3 + Math.random() * 28);
+  const tradeType: 'long' | 'short' = Math.random() < 0.72 ? 'long' : 'short';
+  const entryPrice = tradeType === 'long'
+    ? markPrice / (1 + roi / 100 / leverage)
+    : markPrice / (1 - roi / 100 / leverage);
+  const marginTier = Math.random();
+  const margin = marginTier < 0.55
+    ? 500 + Math.random() * 4500
+    : marginTier < 0.85
+      ? 5000 + Math.random() * 20000
+      : 25000 + Math.random() * 75000;
+  const pnl = (roi / 100) * margin;
+  const user = pickRandom(SINGLE_POS_USERS);
+  const fakeNow = new Date();
+  fakeNow.setSeconds(fakeNow.getSeconds() - Math.floor(Math.random() * 60));
+  const coinTag: CoinTag = { symbol: coin, change: Number(((roi / leverage) * 0.6 + (Math.random() * 2 - 0.5)).toFixed(2)) };
+  return {
+    id: `single_${Date.now()}_${Math.random()}`,
+    username: user.username,
+    avatar_url: user.avatar,
+    content: pickRandom(SINGLE_POS_CAPTIONS),
+    coin_symbol: coin,
+    trade_type: tradeType,
+    entry_price: entryPrice,
+    exit_price: markPrice,
+    profit_loss: pnl,
+    profit_loss_percent: roi,
+    leverage,
+    image_url: null,
+    likes_count: Math.floor(5 + Math.random() * 600),
+    comments_count: Math.floor(2 + Math.random() * 120),
+    shares_count: Math.floor(3 + Math.random() * 200),
+    view_count: Math.floor(200 + Math.random() * 120000),
+    repost_count: Math.floor(1 + Math.random() * 80),
+    is_bullish: tradeType === 'long' ? roi > 0 : roi < 0,
+    created_at: fakeNow.toISOString(),
+    post_type: 'trade_share',
+    coin_tags: [coinTag],
+    sentiment: roi > 0 ? 'bullish' : 'bearish',
+  };
+}
+
+function generateMemePost(pc: PriceCache, pickImage?: () => string | null): SocialPost {
+  const meme = pickRandom(MEME_CONTENT_POOL);
+  const user = pickRandom(MEME_POST_USERS);
+  const fakeNow = new Date();
+  fakeNow.setSeconds(fakeNow.getSeconds() - Math.floor(Math.random() * 180));
+  const imageCount = Math.random() < 0.4 ? 2 : 1;
+  // DB fotoğraf pool'u varsa önce oradan al, yoksa hardcoded listeden
+  const img1 = (pickImage && pickImage()) || pickRandom(LUXURY_WEALTH_IMAGES);
+  const img2 = imageCount > 1 ? ((pickImage && pickImage()) || pickRandom(LUXURY_WEALTH_IMAGES.filter(i => i !== img1))) : null;
+  const coinTags = meme.tags.map(sym => {
+    const cached = pc.getBySymbol(sym);
+    const change = cached?.change24h !== undefined
+      ? Number(cached.change24h.toFixed(2))
+      : Number(((Math.random() * 10 - 3)).toFixed(2));
+    return { symbol: sym, change };
+  });
+  return {
+    id: `meme_${Date.now()}_${Math.random()}`,
+    username: user.username,
+    avatar_url: user.avatar,
+    content: meme.content,
+    coin_symbol: meme.tags[0] || 'BTC',
+    trade_type: 'long',
+    entry_price: 0,
+    exit_price: 0,
+    profit_loss: 0,
+    profit_loss_percent: 0,
+    leverage: 1,
+    image_url: img1,
+    image_url_2: img2,
+    likes_count: Math.floor(5 + Math.random() * 500),
+    comments_count: Math.floor(3 + Math.random() * 120),
+    shares_count: Math.floor(2 + Math.random() * 80),
+    view_count: Math.floor(200 + Math.random() * 120000),
+    repost_count: Math.floor(2 + Math.random() * 45),
+    is_bullish: meme.sentiment !== 'bearish',
+    created_at: fakeNow.toISOString(),
+    post_type: 'meme',
+    coin_tags: coinTags,
+    sentiment: meme.sentiment,
+  };
+}
+
+function richPostToSocialPost(gp: GeneratedPost): SocialPost {
+  return {
+    id: gp.id,
+    username: gp.username,
+    avatar_url: gp.avatar_url,
+    content: gp.content,
+    coin_symbol: gp.coin_symbol,
+    trade_type: gp.trade_type,
+    entry_price: gp.entry_price,
+    exit_price: gp.exit_price,
+    profit_loss: gp.profit_loss,
+    profit_loss_percent: gp.profit_loss_percent,
+    leverage: gp.leverage,
+    image_url: gp.image_url,
+    image_url_2: gp.image_url_2,
+    image_url_3: gp.image_url_3,
+    post_type: gp.post_type,
+    likes_count: gp.likes_count,
+    comments_count: gp.comments_count,
+    shares_count: gp.shares_count,
+    view_count: gp.view_count,
+    repost_count: gp.repost_count,
+    is_bullish: gp.is_bullish,
+    created_at: gp.created_at,
+    coin_tags: gp.coin_tags,
+    asset_change_30d: gp.asset_change_30d,
+    sub_positions: gp.sub_positions,
+    live_room_data: gp.live_room_data,
+    sentiment: gp.sentiment,
+    gainers_mode: gp.gainers_mode,
+    gainers_rows: gp.gainers_rows,
+    extra_data: gp.extra_data,
+  };
+}
+
 type FeedItem =
   | { kind: 'post'; data: SocialPost }
   | { kind: 'news'; data: LiveNewsItem }
@@ -314,14 +635,37 @@ function makeBasonceItem(idx: number): BasonceNewsItem {
   };
 }
 
-function buildInitialFeed(posts: SocialPost[], newsPool: LiveNewsItem[]): FeedItem[] {
+function buildInitialFeed(posts: SocialPost[], newsPool: LiveNewsItem[], pc?: PriceCache, pickImage?: () => string | null): FeedItem[] {
   const items: FeedItem[] = [];
   let ni = 0;
   let bi = 0;
+  const seenContents = new Set<string>();
+  const usernameLastPos = new Map<string, number>();
+  let postPos = 0;
   posts.forEach((post, idx) => {
+    const contentKey = post.content?.slice(0, 60) ?? '';
+    const lastPos = usernameLastPos.get(post.username) ?? -999;
+    if (seenContents.has(contentKey) || (postPos - lastPos) < 12) return;
+    seenContents.add(contentKey);
+    usernameLastPos.set(post.username, postPos);
+    postPos++;
     items.push({ kind: 'post', data: post });
     if ((idx + 1) % 4 === 0) {
       items.push({ kind: 'basonce', data: makeBasonceItem(bi++) });
+    }
+    if ((idx + 1) % 2 === 0 && pc) {
+      const sp = generateSinglePositionPost(pc);
+      if (sp) items.push({ kind: 'post', data: sp });
+    }
+    if ((idx + 1) % 3 === 0 && pc) {
+      const mg = generateMultiGridPost(pc);
+      if (mg) items.push({ kind: 'post', data: mg });
+    }
+    if ((idx + 1) % 8 === 0 && pc) {
+      items.push({ kind: 'post', data: generateMemePost(pc, pickImage) });
+    }
+    if ((idx + 1) % 10 === 0 && pc) {
+      items.push({ kind: 'post', data: richPostToSocialPost(generateRandomRichPost(pc)) });
     }
     if ((idx + 1) % 7 === 0 && newsPool.length > 0) {
       items.push({ kind: 'news', data: newsPool[ni % newsPool.length] });
@@ -332,7 +676,14 @@ function buildInitialFeed(posts: SocialPost[], newsPool: LiveNewsItem[]): FeedIt
 }
 
 export default function SocialFeed() {
-  const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
+  const [feedItems, setFeedItemsState] = useState<FeedItem[]>([]);
+  const setFeedItems = (updater: FeedItem[] | ((prev: FeedItem[]) => FeedItem[])) => {
+    setFeedItemsState(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      feedItemsRef.current = next;
+      return next;
+    });
+  };
   const [liveRooms, setLiveRooms] = useState<LiveRoom[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -341,12 +692,21 @@ export default function SocialFeed() {
   const [, setPriceVersion] = useState(0);
   const allPostsRef = useRef<SocialPost[]>([]);
   const initializedRef = useRef(false);
+  const shownPostIdsRef = useRef<Set<string>>(new Set());
+  const postCycleIndexRef = useRef(0);
+  const viewCountMapRef = useRef<Map<string, number>>(new Map());
+  const feedItemsRef = useRef<FeedItem[]>([]);
   const dbNewsPoolRef = useRef<BasonceNewsItem[]>([]);
   const dbNewsIndexRef = useRef(0);
 
   const pricesAdjustedRef = useRef(false);
   const adjustPostRef = useRef<(p: SocialPost) => SocialPost>(() => ({} as SocialPost));
   const ensureWinBiasRef = useRef<(p: SocialPost) => SocialPost>(() => ({} as SocialPost));
+  // DB'den gelen fotoğraf pool'u - 2433 foto döngüsel kullanım
+  const dbImagePoolRef = useRef<string[]>([]);
+  const dbImageIndexRef = useRef(0);
+  const usedImageCooldownRef = useRef<Map<string, number>>(new Map());
+  const IMAGE_COOLDOWN_MS = 5 * 60 * 1000; // 5 dakika - 2433 foto var, cooldown kisa tutulur
 
   const fetchRealNews = async () => {
     try {
@@ -399,9 +759,16 @@ export default function SocialFeed() {
         const cached = testCoin ? pc.getBySymbol(testCoin) : null;
         if (cached && cached.price > 0) {
           pricesAdjustedRef.current = true;
-          const readjusted = allPostsRef.current.map(p => ensureWinBiasRef.current(adjustPostRef.current(p)));
+          const readjusted = allPostsRef.current.map(p => {
+            const base = ensureWinBiasRef.current(adjustPostRef.current(p));
+            if (base.post_type === 'meme' && !base.image_url) {
+              const img = pickDbImage();
+              if (img) return { ...base, image_url: img };
+            }
+            return base;
+          });
           allPostsRef.current = readjusted;
-          setFeedItems(buildInitialFeed(readjusted.slice(0, 50), newsPoolRef.current));
+          setFeedItems(buildInitialFeed(readjusted.slice(0, 50), newsPoolRef.current, pc, () => pickDbImage()));
         }
       }
     });
@@ -409,7 +776,8 @@ export default function SocialFeed() {
   }, []);
 
   useEffect(() => {
-    fetchPosts();
+    // fetchDbImages önce yüklensin ki buildInitialFeed sırasında pool hazır olsun
+    fetchDbImages().then(() => fetchPosts());
     fetchLiveRooms();
     fetchRealNews();
 
@@ -419,11 +787,20 @@ export default function SocialFeed() {
     const listenerInterval = setInterval(() => {
       setLiveRooms(prev => prev.map(room => ({
         ...room,
-        listener_count: Math.max(100, room.listener_count + Math.floor(Math.random() * 40) - 20),
+        listener_count: Math.max(100, room.listener_count + Math.floor(Math.random() * 40) - 5),
       })));
     }, 15000);
 
-    const recentInjectIds = new Set<string>();
+    const viewCountInterval = setInterval(() => {
+      const vcMap = viewCountMapRef.current;
+      if (vcMap.size === 0) return;
+      vcMap.forEach((val, key) => {
+        const increment = Math.floor(Math.random() * 8) + 1;
+        vcMap.set(key, val + increment);
+      });
+      setPriceVersion(v => v + 1);
+    }, 12000);
+
     let autoInjectCount = 0;
     const autoInjectInterval = setInterval(() => {
       const posts = allPostsRef.current;
@@ -441,24 +818,54 @@ export default function SocialFeed() {
         } else {
           bItem = makeBasonceItem(autoInjectCount);
         }
-        setFeedItems(prev => [{ kind: 'basonce', data: bItem }, ...prev.slice(0, 300)]);
+        setFeedItems(prev => [{ kind: 'basonce', data: bItem }, ...prev.slice(0, 400)]);
         return;
       }
 
       const r = Math.random();
       let newPost: SocialPost | null = null;
 
-      if (r < 0.35) {
+      if (r < 0.40) {
+        newPost = generateSinglePositionPost(pc);
+      } else if (r < 0.65) {
         newPost = generateMultiGridPost(pc);
+      } else if (r < 0.78) {
+        newPost = generateMemePost(pc, () => pickDbImage());
+      } else if (r < 0.88) {
+        newPost = richPostToSocialPost(generateRandomRichPost(pc));
       } else {
-        const candidates = posts.filter(p => !recentInjectIds.has(p.id));
-        if (candidates.length === 0) { recentInjectIds.clear(); return; }
-        const pick = candidates[Math.floor(Math.random() * candidates.length)];
-        recentInjectIds.add(pick.id);
-        if (recentInjectIds.size > 60) {
-          const first = recentInjectIds.values().next().value;
-          if (first) recentInjectIds.delete(first);
+        // Pick next unseen post from cycle - skip if same user posted same content recently
+        let cycleIdx = postCycleIndexRef.current;
+        if (cycleIdx >= posts.length) {
+          // Full cycle complete - reset
+          shownPostIdsRef.current = new Set();
+          cycleIdx = 0;
         }
+        let pick = posts[cycleIdx];
+        let skips = 0;
+        // Build a lookup from the last 50 injected posts: content fingerprints + username last-seen time
+        const recentInjected = feedItemsRef.current
+          .filter(fi => fi.kind === 'post')
+          .slice(0, 50)
+          .map(fi => fi.data as SocialPost);
+        const recentContentSet = new Set(recentInjected.map(p => p.content?.slice(0, 60) ?? ''));
+        const usernameLastIndex = new Map<string, number>();
+        recentInjected.forEach((p, i) => {
+          if (!usernameLastIndex.has(p.username)) usernameLastIndex.set(p.username, i);
+        });
+        while (skips < 30) {
+          const contentKey = pick.content?.slice(0, 60) ?? '';
+          const isDupeContent = recentContentSet.has(contentKey);
+          // Same user must be at least 15 posts apart in the feed
+          const lastIdx = usernameLastIndex.get(pick.username) ?? 999;
+          const sameUserTooRecent = lastIdx < 15;
+          if (!isDupeContent && !sameUserTooRecent) break;
+          cycleIdx = (cycleIdx + 1) % posts.length;
+          pick = posts[cycleIdx];
+          skips++;
+        }
+        postCycleIndexRef.current = cycleIdx + 1;
+        shownPostIdsRef.current.add(pick.id);
         const fakeNow = new Date();
         fakeNow.setSeconds(fakeNow.getSeconds() - Math.floor(Math.random() * 30));
         let built: SocialPost = {
@@ -499,9 +906,9 @@ export default function SocialFeed() {
       }
 
       if (newPost) {
-        setFeedItems(prev => [{ kind: 'post', data: newPost! }, ...prev.slice(0, 300)]);
+        setFeedItems(prev => [{ kind: 'post', data: newPost! }, ...prev.slice(0, 400)]);
       }
-    }, 30000);
+    }, 18000);
 
     const newsRefreshInterval = setInterval(() => {
       const pool = newsPoolRef.current;
@@ -523,6 +930,7 @@ export default function SocialFeed() {
       clearInterval(postsInterval);
       clearInterval(roomsInterval);
       clearInterval(listenerInterval);
+      clearInterval(viewCountInterval);
       clearInterval(autoInjectInterval);
       clearInterval(newsRefreshInterval);
       clearInterval(newsRefetchInterval);
@@ -532,7 +940,8 @@ export default function SocialFeed() {
   const isValidTradingPost = (post: SocialPost): boolean => {
     const hasPosition = post.profit_loss_percent !== 0 && post.leverage > 1 && post.coin_symbol;
     const hasMultiPos = post.post_type === 'multi_position' && post.sub_positions && post.sub_positions.length > 0;
-    return hasPosition || hasMultiPos;
+    const isMemeOrNews = (post.post_type === 'meme' || post.post_type === 'news') && !!post.content && !!post.coin_symbol;
+    return hasPosition || hasMultiPos || isMemeOrNews;
   };
 
   const adjustPost = (post: SocialPost): SocialPost => {
@@ -591,13 +1000,55 @@ export default function SocialFeed() {
   };
   ensureWinBiasRef.current = ensureWinBias;
 
+  const fetchDbImages = async () => {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_all_meme_image_urls');
+      if (error) throw error;
+      if (data && Array.isArray(data) && data.length > 0) {
+        const urls: string[] = data.filter((u: any) => typeof u === 'string' && u.length > 0);
+        const shuffled = [...urls].sort(() => Math.random() - 0.5);
+        dbImagePoolRef.current = shuffled;
+        dbImageIndexRef.current = 0;
+      }
+    } catch (e) {
+      console.error('[fetchDbImages] error:', e);
+    }
+  };
+
+  const pickDbImage = (): string | null => {
+    const pool = dbImagePoolRef.current;
+    if (pool.length === 0) return null;
+    const now = Date.now();
+    // Temizle: süresi dolmuş cooldown kayıtları
+    usedImageCooldownRef.current.forEach((ts, url) => {
+      if (now - ts > IMAGE_COOLDOWN_MS) usedImageCooldownRef.current.delete(url);
+    });
+    // Cooldown'da olmayan bir foto bul (max 50 deneme)
+    let tries = 0;
+    while (tries < 50) {
+      const idx = dbImageIndexRef.current % pool.length;
+      dbImageIndexRef.current++;
+      const url = pool[idx];
+      if (!usedImageCooldownRef.current.has(url)) {
+        usedImageCooldownRef.current.set(url, now);
+        return url;
+      }
+      tries++;
+    }
+    // Tüm fotolar cooldown'daysa en eskisini kullan
+    const idx = dbImageIndexRef.current % pool.length;
+    dbImageIndexRef.current++;
+    return pool[idx];
+  };
+
   const fetchPosts = async () => {
     try {
       const { data, error } = await supabase
         .from('social_posts')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(3243);
       if (error) throw error;
       const filtered = (data || []).filter(isValidTradingPost);
       const pc = priceCacheRef.current;
@@ -605,11 +1056,25 @@ export default function SocialFeed() {
         const c = p.coin_symbol ? pc.getBySymbol(p.coin_symbol) : null;
         return c && c.price > 0;
       });
-      const adjusted = filtered.map(p => ensureWinBias(pricesReady ? adjustPost(p) : p));
-      allPostsRef.current = adjusted;
+      // image_url olmayan meme postlara pool'dan resim ata
+      const withImages = filtered.map(p => {
+        if (p.post_type === 'meme' && !p.image_url) {
+          const img = pickDbImage();
+          if (img) return { ...p, image_url: img };
+        }
+        return p;
+      });
+      const adjusted = withImages.map(p => ensureWinBias(pricesReady ? adjustPost(p) : p));
+      // Shuffle so each session is different
+      const shuffled = [...adjusted].sort(() => Math.random() - 0.5);
+      allPostsRef.current = shuffled;
+      shownPostIdsRef.current = new Set();
+      postCycleIndexRef.current = 0;
       if (!initializedRef.current) {
         initializedRef.current = true;
-        setFeedItems(buildInitialFeed(adjusted.slice(0, 50), newsPoolRef.current));
+        setFeedItems(buildInitialFeed(shuffled.slice(0, 60), newsPoolRef.current, pc, () => pickDbImage()));
+        shuffled.slice(0, 60).forEach(p => shownPostIdsRef.current.add(p.id));
+        postCycleIndexRef.current = 60;
       }
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -745,46 +1210,72 @@ export default function SocialFeed() {
     }
     if (item.kind === 'post') {
       const post = item.data;
+      const vcMap = viewCountMapRef.current;
+      if (!vcMap.has(post.id)) {
+        const base = post.view_count
+          ? post.view_count
+          : Math.floor(post.likes_count * 8 + (hashStringToInt(post.id) % 5000));
+        vcMap.set(post.id, base);
+      }
+      const viewCount = vcMap.get(post.id)!;
+      const repostCount = post.repost_count ?? Math.floor(post.shares_count * 0.4 + 1);
       return (
         <div key={key} className="bg-[#181A20] border-b border-[#2B3139] px-4 py-4 hover:bg-[#1E2026] transition-colors">
           <div className="flex items-start gap-3">
             <div className="relative flex-shrink-0">
-              <img src={post.avatar_url} alt={post.username} className="w-10 h-10 rounded-full object-cover" />
+              <img
+                src={post.avatar_url}
+                alt={post.username}
+                className="w-10 h-10 rounded-full object-cover"
+                onError={e => { (e.currentTarget as HTMLImageElement).src = `https://i.pravatar.cc/40?u=${post.username}`; }}
+              />
               {post.post_type === 'live_embed' && (
                 <div className="absolute -bottom-0.5 -left-0.5 bg-[#F6465D] text-white text-[7px] font-bold px-1 rounded">LIVE</div>
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <span className="font-semibold text-sm">{post.username}</span>
+              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                <span className="font-semibold text-sm text-white">{post.username}</span>
                 {getPostTypeIcon(post.post_type) && (
                   <span className="text-[#F0B90B]">{getPostTypeIcon(post.post_type)}</span>
                 )}
                 <span className="text-xs text-gray-500">{formatTimeAgo(post.created_at)}</span>
                 {getSentimentBadge(post)}
               </div>
-              <p className="text-sm leading-relaxed mb-3 whitespace-pre-line">{post.content}</p>
-              {post.coin_symbol && post.leverage > 1 && (
-                <div className="mb-3">
-                  <FeedCoinTags tags={adjustCoinTags([{ symbol: post.coin_symbol, change: 0 }], priceCacheRef.current)} />
-                </div>
-              )}
+              <p className="text-sm leading-relaxed mb-2 whitespace-pre-line text-gray-100">{post.content}</p>
               {renderPostContent(post, priceCacheRef.current)}
-              {post.coin_tags && Array.isArray(post.coin_tags) && post.coin_tags.length > 0 && (
-                <FeedCoinTags tags={adjustCoinTags(post.coin_tags, priceCacheRef.current)} />
-              )}
-              <div className="flex items-center gap-6 text-sm text-gray-400 mt-3">
+              {(() => {
+                const baseTags = post.coin_tags && Array.isArray(post.coin_tags) && post.coin_tags.length > 0
+                  ? post.coin_tags
+                  : (post.coin_symbol ? [{ symbol: post.coin_symbol, change: 0 }] : null);
+                if (!baseTags) return null;
+                const seen = new Set<string>();
+                const unique = baseTags.filter(t => {
+                  if (seen.has(t.symbol)) return false;
+                  seen.add(t.symbol);
+                  return true;
+                });
+                return <FeedCoinTags tags={adjustCoinTags(unique, priceCacheRef.current)} />;
+              })()}
+              <div className="flex items-center gap-4 text-[13px] text-gray-500 mt-3">
                 <button className="flex items-center gap-1.5 hover:text-white transition-colors">
-                  <MessageCircle className="w-4 h-4" /><span>{post.comments_count}</span>
+                  <MessageCircle className="w-[15px] h-[15px]" />
+                  <span>{post.comments_count}</span>
                 </button>
-                <button className="flex items-center gap-1.5 hover:text-white transition-colors">
-                  <Share2 className="w-4 h-4" /><span>{post.shares_count}</span>
+                <button className="flex items-center gap-1.5 hover:text-[#0ECB81] transition-colors">
+                  <Repeat2 className="w-[15px] h-[15px]" />
+                  <span>{repostCount}</span>
                 </button>
                 <button className="flex items-center gap-1.5 hover:text-[#F6465D] transition-colors">
-                  <Heart className="w-4 h-4" /><span>{post.likes_count}</span>
+                  <Heart className="w-[15px] h-[15px]" />
+                  <span>{post.likes_count}</span>
                 </button>
-                <button className="flex items-center gap-1.5 hover:text-white transition-colors">
-                  <MessageSquare className="w-4 h-4" /><span>{Math.floor(post.shares_count / 3)}</span>
+                <button className="flex items-center gap-1.5 hover:text-[#F0B90B] transition-colors">
+                  <BarChart className="w-[15px] h-[15px]" />
+                  <span>{viewCount >= 1000 ? `${(viewCount / 1000).toFixed(1)}K` : viewCount}</span>
+                </button>
+                <button className="ml-auto flex items-center gap-1 hover:text-white transition-colors">
+                  <Share2 className="w-[14px] h-[14px]" />
                 </button>
               </div>
             </div>
@@ -837,6 +1328,88 @@ function renderPostContent(post: SocialPost, priceCache: PriceCache) {
       return <FeedEventCard content={post.content} />;
     case 'news':
       return <FeedNewsCard content={post.content} coinSymbol={post.coin_symbol} />;
+    case 'market_gainers': {
+      if (!post.gainers_rows || post.gainers_rows.length === 0) return null;
+      return (
+        <FeedGainersCard
+          mode={post.gainers_mode || 'gainers'}
+          rows={post.gainers_rows}
+          title={post.content}
+        />
+      );
+    }
+    case 'trader_invite': {
+      if (!post.extra_data?.traderProfile) return null;
+      return <FeedTraderProfileCard traderProfile={post.extra_data.traderProfile} />;
+    }
+    case 'wealth_flex':
+    case 'breaking_news':
+    case 'lifestyle':
+    case 'geopolitical_news':
+    case 'chart_analysis': {
+      const imgs = [post.image_url, post.image_url_2, post.image_url_3].filter(Boolean) as string[];
+      if (imgs.length === 0) return null;
+      if (imgs.length === 1) {
+        return (
+          <img
+            src={imgs[0]}
+            alt=""
+            className="w-full rounded-xl mb-2 object-cover"
+            style={{ maxHeight: '300px' }}
+            onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
+        );
+      }
+      if (imgs.length === 2) {
+        return (
+          <div className="grid grid-cols-2 gap-1 mb-2 rounded-xl overflow-hidden">
+            {imgs.map((src, i) => (
+              <img key={i} src={src} alt="" className="w-full h-[170px] object-cover"
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+            ))}
+          </div>
+        );
+      }
+      return (
+        <div className="grid grid-cols-2 gap-1 mb-2 rounded-xl overflow-hidden">
+          <img src={imgs[0]} alt="" className="col-span-1 w-full h-[200px] object-cover"
+            onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+          <div className="flex flex-col gap-1">
+            <img src={imgs[1]} alt="" className="w-full h-[98px] object-cover"
+              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+            <img src={imgs[2]} alt="" className="w-full h-[98px] object-cover"
+              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+          </div>
+        </div>
+      );
+    }
+    case 'meme': {
+      if (!post.image_url && !post.image_url_2) return null;
+      const imgs = [post.image_url, post.image_url_2].filter(Boolean) as string[];
+      if (imgs.length === 1) {
+        return (
+          <img
+            src={imgs[0]}
+            alt=""
+            className="w-full rounded-xl mb-2 max-h-[280px] object-cover"
+            onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
+        );
+      }
+      return (
+        <div className="grid grid-cols-2 gap-1 mb-2 rounded-xl overflow-hidden">
+          {imgs.map((src, i) => (
+            <img
+              key={i}
+              src={src}
+              alt=""
+              className="w-full h-[160px] object-cover"
+              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            />
+          ))}
+        </div>
+      );
+    }
     case 'multi_position': {
       if (!post.sub_positions || post.sub_positions.length === 0) return null;
       const adjusted = post.sub_positions.map((pos: any) => {
@@ -891,8 +1464,12 @@ function renderPostContent(post: SocialPost, priceCache: PriceCache) {
             />
           )}
           {post.image_url && (
-            <img src={post.image_url} alt=""
-              className="w-full rounded-xl mb-3 max-h-[300px] object-cover" />
+            <img
+              src={post.image_url}
+              alt=""
+              className="w-full rounded-xl mb-2 max-h-[300px] object-cover"
+              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            />
           )}
         </>
       );

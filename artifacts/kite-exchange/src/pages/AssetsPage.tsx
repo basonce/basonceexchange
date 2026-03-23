@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { Eye, EyeOff, Search, ScanLine, ChevronDown, X, Camera } from 'lucide-react';
+import { Eye, EyeOff, Search, ScanLine, ChevronDown, X, Camera, History } from 'lucide-react';
+import AssetsHistoryModal from '../components/AssetsHistoryModal';
 import DepositModal from '../components/DepositModal';
 import WithdrawalModal from '../components/WithdrawalModal';
 import TransactionHistory from '../components/TransactionHistory';
@@ -17,6 +18,7 @@ import { RealtimePnLService, RealtimePnL } from '../lib/realtime-pnl-service';
 import PnLDropdown from '../components/PnLDropdown';
 import { EarnQuestPriceManager } from '../lib/earnquest-price';
 import { PriceCache } from '../lib/price-cache';
+import WithdrawalProcessingBanner from '../components/WithdrawalProcessingBanner';
 
 interface Balance {
   symbol: string;
@@ -49,6 +51,12 @@ export default function AssetsPage() {
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyType>('USDT');
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [scannedResult, setScannedResult] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const scanIntervalRef = useRef<number | null>(null);
   const [realtimePnL, setRealtimePnL] = useState<RealtimePnL>({
     currentTotalValue: 0,
     startingValue: 0,
@@ -75,6 +83,8 @@ export default function AssetsPage() {
   const [depositMethodModal, setDepositMethodModal] = useState(false);
   const [sendMethodModal, setSendMethodModal] = useState(false);
   const [transferModal, setTransferModal] = useState(false);
+  const [gbpRate, setGbpRate] = useState(0.82);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   useEffect(() => {
     fetchBalances();
@@ -83,6 +93,16 @@ export default function AssetsPage() {
     const unsubscribe = pnlService.subscribe((pnl) => {
       setRealtimePnL(pnl);
     });
+
+    const priceCache = PriceCache.getInstance();
+    const updateGbpRate = () => {
+      const gbpUsd = priceCache.get('GBPUSDT');
+      if (gbpUsd && gbpUsd.price > 0) {
+        setGbpRate(gbpUsd.price);
+      }
+    };
+    updateGbpRate();
+    const unsubPrice = priceCache.subscribe(updateGbpRate);
 
     const channel = supabase
       .channel('balance_changes')
@@ -94,6 +114,7 @@ export default function AssetsPage() {
 
     return () => {
       unsubscribe();
+      unsubPrice();
       channel.unsubscribe();
     };
   }, []);
@@ -197,6 +218,85 @@ export default function AssetsPage() {
     }
   };
 
+  const stopCamera = useCallback(() => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setCameraActive(false);
+    setCameraError(null);
+  }, []);
+
+  const closeQRScanner = useCallback(() => {
+    stopCamera();
+    setScannedResult(null);
+    setShowQRScanner(false);
+  }, [stopCamera]);
+
+  const startCamera = useCallback(async () => {
+    setCameraError(null);
+    setScannedResult(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+        setCameraActive(true);
+
+        const tryBarcodeDetector = async () => {
+          if (!('BarcodeDetector' in window)) return false;
+          try {
+            const detector = new (window as unknown as { BarcodeDetector: new (opts: object) => { detect: (src: HTMLVideoElement) => Promise<Array<{ rawValue: string }>> } }).BarcodeDetector({ formats: ['qr_code'] });
+            scanIntervalRef.current = window.setInterval(async () => {
+              if (!videoRef.current || videoRef.current.readyState < 2) return;
+              try {
+                const barcodes = await detector.detect(videoRef.current);
+                if (barcodes.length > 0) {
+                  setScannedResult(barcodes[0].rawValue);
+                  stopCamera();
+                }
+              } catch {
+                // continue scanning
+              }
+            }, 300);
+            return true;
+          } catch {
+            return false;
+          }
+        };
+
+        const detected = await tryBarcodeDetector();
+        if (!detected) {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          scanIntervalRef.current = window.setInterval(async () => {
+            if (!videoRef.current || videoRef.current.readyState < 2 || !ctx) return;
+            canvas.width = videoRef.current.videoWidth;
+            canvas.height = videoRef.current.videoHeight;
+            ctx.drawImage(videoRef.current, 0, 0);
+            if ('BarcodeDetector' in window) return;
+          }, 500);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Camera access denied';
+      if (msg.includes('Permission') || msg.includes('NotAllowed')) {
+        setCameraError('Camera permission denied. Please allow camera access in your browser settings.');
+      } else if (msg.includes('NotFound') || msg.includes('Devices')) {
+        setCameraError('No camera found on this device.');
+      } else {
+        setCameraError('Could not access camera. ' + msg);
+      }
+    }
+  }, [stopCamera]);
+
   const totalValueUSDT = realtimePnL.currentTotalValue > 0
     ? realtimePnL.currentTotalValue
     : balances.reduce((sum, b) => sum + (b.balance * b.price), 0);
@@ -241,6 +341,14 @@ export default function AssetsPage() {
           </div>
           <div className="flex items-center gap-1">
             <button
+              onClick={() => setShowHistoryModal(true)}
+              className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors relative"
+            >
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <History className="w-4 h-4 text-gray-300" />
+              </div>
+            </button>
+            <button
               onClick={() => setShowQRScanner(true)}
               className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors"
             >
@@ -269,36 +377,26 @@ export default function AssetsPage() {
             <div className="relative">
               <button
                 onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
-                className="flex items-center gap-1 text-gray-400 hover:text-gray-200 transition-colors"
+                className="flex items-center gap-1 text-gray-300 hover:text-white transition-colors"
               >
-                <span className="text-lg font-semibold">{selectedCurrency}</span>
-                <ChevronDown className="w-3.5 h-3.5" />
+                <span className="text-base font-bold">{selectedCurrency}</span>
+                <ChevronDown className="w-4 h-4" />
               </button>
               {showCurrencyDropdown && (
                 <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setShowCurrencyDropdown(false)}
-                  />
-                  <div className="absolute top-full right-0 mt-2 bg-[#2B3139] rounded-lg shadow-xl z-50 border border-[#363D47] min-w-[120px]">
+                  <div className="fixed inset-0 z-40" onClick={() => setShowCurrencyDropdown(false)} />
+                  <div className="absolute top-full left-0 mt-2 bg-[#2B3139] rounded-lg shadow-xl z-50 border border-[#363D47] min-w-[120px]">
                     {(['USDT', 'BTC', 'ETH', 'BNB'] as CurrencyType[]).map((currency) => (
                       <button
                         key={currency}
-                        onClick={() => {
-                          setSelectedCurrency(currency);
-                          setShowCurrencyDropdown(false);
-                        }}
-                        className={`w-full px-4 py-3 text-left hover:bg-[#363D47] transition-colors flex items-center justify-between ${
-                          currency === (['USDT', 'BTC', 'ETH', 'BNB'] as CurrencyType[])[0] ? 'rounded-t-lg' : ''
-                        } ${
-                          currency === (['USDT', 'BTC', 'ETH', 'BNB'] as CurrencyType[])[3] ? 'rounded-b-lg' : ''
-                        }`}
+                        onClick={() => { setSelectedCurrency(currency); setShowCurrencyDropdown(false); }}
+                        className="w-full px-4 py-3 text-left hover:bg-[#363D47] transition-colors flex items-center justify-between first:rounded-t-lg last:rounded-b-lg"
                       >
-                        <span className={`${selectedCurrency === currency ? 'text-[#F0B90B]' : 'text-white'}`}>
+                        <span className={selectedCurrency === currency ? 'text-[#F0B90B]' : 'text-white'}>
                           {currency}
                         </span>
                         {selectedCurrency === currency && (
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="text-[#F0B90B]">
+                          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="text-[#F0B90B]">
                             <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/>
                           </svg>
                         )}
@@ -309,8 +407,8 @@ export default function AssetsPage() {
               )}
             </div>
           </div>
-          <div className="text-sm text-gray-400 mt-0.5 leading-tight">
-            ≈ £{hideBalance ? '****' : (totalValueUSDT * 0.82).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <div className="text-xs text-gray-400 leading-tight">
+            ≈ £{hideBalance ? '****' : (totalValueUSDT * gbpRate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         </div>
 
@@ -335,7 +433,7 @@ export default function AssetsPage() {
           hideBalance={hideBalance}
         />
 
-        <div className="grid grid-cols-3 gap-2 mb-6">
+        <div className="grid grid-cols-3 gap-2 mb-4">
           <button
             onClick={() => setDepositMethodModal(true)}
             className="bg-[#F0B90B] text-black font-semibold py-3 rounded-lg hover:bg-[#F0B90B]/90 transition-colors text-sm"
@@ -356,6 +454,7 @@ export default function AssetsPage() {
           </button>
         </div>
 
+        <WithdrawalProcessingBanner />
 
         <div className="flex items-center gap-4 mb-6 border-gray-800 overflow-x-auto">
           <button
@@ -478,70 +577,145 @@ export default function AssetsPage() {
         onClose={() => setTransferModal(false)}
       />
 
+      {showHistoryModal && (
+        <AssetsHistoryModal onClose={() => setShowHistoryModal(false)} />
+      )}
+
       {showQRScanner && (
-        <div className="fixed inset-0 bg-black/95 z-50 flex flex-col">
+        <div className="fixed inset-0 bg-black z-50 flex flex-col">
           <div className="flex items-center justify-between p-4 border-b border-gray-800">
             <h2 className="text-lg font-semibold text-white">Scan QR Code</h2>
             <button
-              onClick={() => setShowQRScanner(false)}
+              onClick={closeQRScanner}
               className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
             >
               <X className="w-6 h-6 text-gray-400" />
             </button>
           </div>
 
-          <div className="flex-1 flex flex-col items-center justify-center p-6">
-            <div className="relative w-full max-w-sm aspect-square">
-              <div className="absolute inset-0 border-2 border-[#F0B90B] rounded-2xl overflow-hidden">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Camera className="w-20 h-20 text-gray-600" />
+          <div className="flex-1 flex flex-col items-center justify-center p-6 overflow-hidden">
+            {scannedResult ? (
+              <div className="w-full max-w-sm space-y-4">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <p className="text-white font-semibold text-lg mb-1">QR Code Scanned</p>
+                  <p className="text-gray-400 text-sm">Address detected</p>
                 </div>
-
-                <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-[#F0B90B] rounded-tl-2xl"></div>
-                <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-[#F0B90B] rounded-tr-2xl"></div>
-                <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-[#F0B90B] rounded-bl-2xl"></div>
-                <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-[#F0B90B] rounded-br-2xl"></div>
-
-                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2">
-                  <div className="h-0.5 bg-[#F0B90B]/50 animate-pulse"></div>
+                <div className="bg-[#2B3139] rounded-xl p-4 border border-[#363D47]">
+                  <p className="text-xs text-gray-400 mb-1">Scanned address:</p>
+                  <p className="text-white text-sm font-mono break-all">{scannedResult}</p>
                 </div>
+                <button
+                  onClick={closeQRScanner}
+                  className="w-full bg-[#F0B90B] text-black font-semibold py-4 rounded-xl"
+                >
+                  Done
+                </button>
+                <button
+                  onClick={() => { setScannedResult(null); startCamera(); }}
+                  className="w-full bg-gray-800 text-gray-300 font-medium py-3 rounded-xl"
+                >
+                  Scan Again
+                </button>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="relative w-full max-w-sm aspect-square rounded-2xl overflow-hidden bg-black">
+                  <video
+                    ref={videoRef}
+                    className="w-full h-full object-cover"
+                    playsInline
+                    muted
+                    autoPlay
+                    style={{ display: cameraActive ? 'block' : 'none' }}
+                  />
+                  {!cameraActive && !cameraError && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-[#181A20]">
+                      <Camera className="w-20 h-20 text-gray-600" />
+                    </div>
+                  )}
+                  {cameraError && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-[#181A20] p-4">
+                      <div className="text-center">
+                        <Camera className="w-12 h-12 text-red-400 mx-auto mb-3" />
+                        <p className="text-red-400 text-sm">{cameraError}</p>
+                      </div>
+                    </div>
+                  )}
 
-            <div className="mt-8 text-center space-y-3 max-w-sm">
-              <p className="text-gray-300 text-sm font-medium">
-                Position the QR code within the frame
-              </p>
-              <p className="text-gray-500 text-xs">
-                We'll automatically detect wallet addresses, payment codes, or deposit QR codes
-              </p>
+                  <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute top-4 left-4 w-10 h-10 border-t-4 border-l-4 border-[#F0B90B] rounded-tl-xl"></div>
+                    <div className="absolute top-4 right-4 w-10 h-10 border-t-4 border-r-4 border-[#F0B90B] rounded-tr-xl"></div>
+                    <div className="absolute bottom-4 left-4 w-10 h-10 border-b-4 border-l-4 border-[#F0B90B] rounded-bl-xl"></div>
+                    <div className="absolute bottom-4 right-4 w-10 h-10 border-b-4 border-r-4 border-[#F0B90B] rounded-br-xl"></div>
+                    {cameraActive && (
+                      <div
+                        className="absolute left-4 right-4 h-0.5 bg-[#F0B90B]"
+                        style={{
+                          top: '50%',
+                          boxShadow: '0 0 8px 2px rgba(240,185,11,0.6)',
+                          animation: 'scanLine 2s ease-in-out infinite',
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
 
-              <button
-                onClick={() => {
-                  alert('Camera access requested. In a production app, this would activate the device camera using the MediaDevices API to scan QR codes in real-time.');
-                  setShowQRScanner(false);
-                }}
-                className="w-full mt-6 bg-[#F0B90B] text-black font-semibold py-4 px-6 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
-              >
-                <Camera className="w-5 h-5" />
-                Activate Camera
-              </button>
+                <style>{`
+                  @keyframes scanLine {
+                    0% { transform: translateY(-80px); opacity: 0.4; }
+                    50% { transform: translateY(80px); opacity: 1; }
+                    100% { transform: translateY(-80px); opacity: 0.4; }
+                  }
+                `}</style>
 
-              <button
-                onClick={() => setShowQRScanner(false)}
-                className="w-full mt-3 bg-gray-800 text-gray-300 font-medium py-3 px-6 rounded-xl transition-all hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-            </div>
+                <div className="mt-6 text-center space-y-3 w-full max-w-sm">
+                  {cameraActive ? (
+                    <>
+                      <p className="text-gray-300 text-sm font-medium">
+                        Align the QR code within the frame
+                      </p>
+                      <p className="text-gray-500 text-xs">Scanning automatically...</p>
+                      <button
+                        onClick={stopCamera}
+                        className="w-full mt-4 bg-gray-800 text-gray-300 font-medium py-3 px-6 rounded-xl transition-all hover:bg-gray-700"
+                      >
+                        Stop Camera
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-gray-300 text-sm font-medium">
+                        Scan a wallet address or payment QR code
+                      </p>
+                      <button
+                        onClick={startCamera}
+                        className="w-full mt-4 bg-[#F0B90B] text-black font-semibold py-4 px-6 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                      >
+                        <Camera className="w-5 h-5" />
+                        Activate Camera
+                      </button>
+                      <button
+                        onClick={closeQRScanner}
+                        className="w-full bg-gray-800 text-gray-300 font-medium py-3 px-6 rounded-xl transition-all hover:bg-gray-700"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           <div className="p-4 bg-gray-900/50 border-t border-gray-800">
             <div className="flex items-start gap-3 text-xs text-gray-400">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#F0B90B] mt-1.5"></div>
-              <p>
-                Supported: Wallet addresses (BTC, ETH, USDT, etc.), Payment QR codes, Deposit addresses
-              </p>
+              <div className="w-1.5 h-1.5 rounded-full bg-[#F0B90B] mt-1.5 flex-shrink-0"></div>
+              <p>Supported: Wallet addresses (BTC, ETH, USDT, TRX, etc.), payment QR codes, deposit addresses</p>
             </div>
           </div>
         </div>

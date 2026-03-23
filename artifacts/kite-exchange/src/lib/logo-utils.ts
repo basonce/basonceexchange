@@ -89,9 +89,88 @@ export function getFallbackLogoUrl(symbol: string): string {
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(symbol.slice(0, 2))}&background=${colors[idx]}&color=fff&size=128&bold=true`;
 }
 
+const BNB_TRADFI = (t: string) => `https://bin.bnbstatic.com/static/images/common/tradfi/${t}.svg`;
+const WVL        = (slug: string) => `https://cdn.worldvectorlogo.com/logos/${slug}.svg`;
+const GL         = (domain: string) => `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=128`;
+const CMC_LOGO   = (t: string) => `https://companiesmarketcap.com/img/company-logos/256/${t}.webp`;
+
+const TRADFI_LOGO_URLS: Record<string, string[]> = {
+  // Metals - BNB CDN
+  XAU:    [BNB_TRADFI('XAU')],
+  XAG:    [BNB_TRADFI('XAG')],
+  XPT:    [BNB_TRADFI('XPT')],
+  XPD:    [BNB_TRADFI('XPD')],
+  COPPER: [BNB_TRADFI('COPPER')],
+
+  // Commodities - BNB CDN
+  WTI:    [BNB_TRADFI('OIL')],
+  BRENT:  [BNB_TRADFI('BRENT')],
+  NATGAS: [BNB_TRADFI('NATGAS')],
+  COFFEE: [BNB_TRADFI('COFFEE')],
+  COCOA:  [BNB_TRADFI('COCOA')],
+  SUGAR:  [BNB_TRADFI('SUGAR')],
+  WHEAT:  [BNB_TRADFI('WHEAT')],
+  CORN:   [BNB_TRADFI('CORN')],
+  SOYBEAN:[BNB_TRADFI('SOYBEAN')],
+
+  // Indices - BNB CDN
+  SPX:    [BNB_TRADFI('SPX')],
+  NDX:    [BNB_TRADFI('NDX')],
+  DJI:    [BNB_TRADFI('DJI')],
+  DAX:    [BNB_TRADFI('DAX')],
+  FTSE:   [BNB_TRADFI('FTSE')],
+  NKY:    [BNB_TRADFI('NKY')],
+
+  // Forex - BNB CDN
+  'EUR/USD': [BNB_TRADFI('EURUSD')],
+  'GBP/USD': [BNB_TRADFI('GBPUSD')],
+  'USD/JPY': [BNB_TRADFI('USDJPY')],
+  'USD/TRY': [BNB_TRADFI('USDTRY')],
+  'AUD/USD': [BNB_TRADFI('AUDUSD')],
+  'USD/CAD': [BNB_TRADFI('USDCAD')],
+
+  // ETFs
+  SPY:    [BNB_TRADFI('SPY'),  GL('ssga.com'),           CMC_LOGO('SPY')],
+  QQQ:    [BNB_TRADFI('QQQ'),  GL('invesco.com'),         CMC_LOGO('QQQ')],
+  GLD:    [BNB_TRADFI('GLD'),  GL('spdrgoldshares.com'),  CMC_LOGO('GLD')],
+  SLV:    [BNB_TRADFI('SLV'),  GL('ishares.com'),         CMC_LOGO('SLV')],
+  ARKK:   [BNB_TRADFI('ARKK'), GL('ark-invest.com'),      CMC_LOGO('ARKK')],
+
+  // Stocks - WorldVectorLogo SVG ilk, Google favicon ikinci, CMC üçüncü
+  TSLA:   [WVL('tesla-motors'),            GL('tesla.com'),             CMC_LOGO('TSLA')],
+  AAPL:   [WVL('apple'),                   GL('apple.com'),             CMC_LOGO('AAPL')],
+  AMZN:   [WVL('amazon'),                  GL('amazon.com'),            CMC_LOGO('AMZN')],
+  NVDA:   [WVL('nvidia'),                  GL('nvidia.com'),            CMC_LOGO('NVDA')],
+  MSFT:   [WVL('microsoft'),               GL('microsoft.com'),         CMC_LOGO('MSFT')],
+  GOOGL:  [WVL('google-g-2015'),           GL('google.com'),            CMC_LOGO('GOOGL')],
+  META:   [WVL('meta-1'),                  GL('meta.com'),              CMC_LOGO('META')],
+  NFLX:   [WVL('netflix-4'),              GL('netflix.com'),           CMC_LOGO('NFLX')],
+  AMD:    [WVL('amd'),                     GL('amd.com'),               CMC_LOGO('AMD')],
+  COIN:   [WVL('coinbase-1'),              GL('coinbase.com'),          CMC_LOGO('COIN')],
+  HOOD:   [WVL('robinhood'),               GL('robinhood.com'),         CMC_LOGO('HOOD')],
+  INTC:   [WVL('intel'),                   GL('intel.com'),             CMC_LOGO('INTC')],
+  PLTR:   [WVL('palantir'),                GL('palantir.com'),          CMC_LOGO('PLTR')],
+  MSTR:   [WVL('microstrategy'),           GL('strategy.com'),          CMC_LOGO('MSTR')],
+  CRCL:   [WVL('circle-2'),               GL('circle.com'),            CMC_LOGO('CRCL')],
+  DIS:    [WVL('disney'),                  GL('disney.com'),            CMC_LOGO('DIS')],
+  JPM:    [WVL('jpmorgan-chase'),          GL('jpmorgan.com'),          CMC_LOGO('JPM')],
+  BAC:    [WVL('bank-of-america'),         GL('bankofamerica.com'),     CMC_LOGO('BAC')],
+  GS:     [WVL('goldman-sachs'),           GL('goldmansachs.com'),      CMC_LOGO('GS')],
+  'BRK.B':[WVL('berkshire-hathaway'),      GL('berkshirehathaway.com'), CMC_LOGO('BRK-B')],
+  V:      [WVL('visa-2'),                  GL('visa.com'),              CMC_LOGO('V')],
+  MA:     [WVL('mastercard-4'),            GL('mastercard.com'),        CMC_LOGO('MA')],
+  UBER:   [WVL('uber-1'),                  GL('uber.com'),              CMC_LOGO('UBER')],
+  SPOT:   [WVL('spotify-1'),               GL('spotify.com'),           CMC_LOGO('SPOT')],
+  SNAP:   [WVL('snapchat'),                GL('snap.com'),              CMC_LOGO('SNAP')],
+};
+
 export function buildLogoChain(symbol: string, dbUrl?: string | null): string[] {
   if (symbol === 'EQ') return ['/earnquest-logo-icon-2.png'];
   if (symbol === 'BNC') return ['/ChatGPT_Image_28_Sub_2026_03_53_59 copy.png'];
+
+  if (TRADFI_LOGO_URLS[symbol]) {
+    return TRADFI_LOGO_URLS[symbol];
+  }
 
   const urls: string[] = [];
 
@@ -107,8 +186,6 @@ export function buildLogoChain(symbol: string, dbUrl?: string | null): string[] 
   const lc = symbol.toLowerCase();
   urls.push(`https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/color/${lc}.png`);
   urls.push(`https://raw.githubusercontent.com/ErikThiart/cryptocurrency-icons/master/32/${lc}.png`);
-
-  // Storage URL is skipped - files may contain wrong logos (e.g. Binance logo instead of coin logo)
 
   const colors = ['F0B90B', '0ECB81', '3861FB', 'E8831D', '00D1FF', 'FF6B35', '14b8a6', '8b5cf6'];
   const idx = (symbol.charCodeAt(0) + (symbol.charCodeAt(1) || 0)) % colors.length;

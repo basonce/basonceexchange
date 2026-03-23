@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { ChevronDown, Menu, Gift, BarChart3, Calculator, MoreVertical, Plus, Minus, ChevronUp, Settings, Zap } from 'lucide-react';
 import FuturesPositionCard from '../components/FuturesPositionCard';
+import CoinLogo from '../components/CoinLogo';
+import MetalIcon, { isMetalSymbol } from '../components/MetalIcon';
 import LeverageModal from '../components/LeverageModal';
 import FuturesMarketSelector from '../components/FuturesMarketSelector';
 import FuturesRecentTrades from '../components/FuturesRecentTrades';
@@ -29,6 +31,8 @@ import {
   isPositionLiquidated,
 } from '../lib/futures-calculator';
 import { getProxiedLogoUrl } from '../lib/logo-utils';
+import { isTradFiSymbol, getTradFiAsset } from '../lib/tradfi-data';
+import { getCachedTradFiPrice, startTradFiPriceUpdater, subscribeTradFiPrice } from '../lib/tradfi-price-service';
 
 const INDEPENDENT_PRICE_MANAGERS: Record<string, () => number> = {
   EQUSDT: () => EarnQuestPriceManager.getInstance().getPrice(),
@@ -45,6 +49,11 @@ const INDEPENDENT_PRICE_TABLES: Record<string, { table: string; idCol: string; i
 };
 
 async function fetchFreshPrice(symbol: string): Promise<number> {
+  if (isTradFiSymbol(symbol)) {
+    const liveData = getCachedTradFiPrice(symbol);
+    if (liveData && liveData.price > 0) return liveData.price;
+  }
+
   const dbSource = INDEPENDENT_PRICE_TABLES[symbol];
   if (dbSource) {
     try {
@@ -132,8 +141,123 @@ interface Order {
   created_at: string;
 }
 
-export default function FuturesPage() {
-  const [selectedSymbol, setSelectedSymbol] = useState('BTCUSDT');
+const STOCK_LOGO_CHAIN: Record<string, string[]> = {
+  TSLA:  ['https://logo.clearbit.com/tesla.com',        'https://www.google.com/s2/favicons?domain=tesla.com&sz=64'],
+  AAPL:  ['https://logo.clearbit.com/apple.com',        'https://www.google.com/s2/favicons?domain=apple.com&sz=64'],
+  AMZN:  ['https://logo.clearbit.com/amazon.com',       'https://www.google.com/s2/favicons?domain=amazon.com&sz=64'],
+  MSTR:  ['https://logo.clearbit.com/microstrategy.com','https://www.google.com/s2/favicons?domain=microstrategy.com&sz=64'],
+  HOOD:  ['https://logo.clearbit.com/robinhood.com',    'https://www.google.com/s2/favicons?domain=robinhood.com&sz=64'],
+  INTC:  ['https://logo.clearbit.com/intel.com',        'https://www.google.com/s2/favicons?domain=intel.com&sz=64'],
+  CRCL:  ['https://logo.clearbit.com/circle.com',       'https://www.google.com/s2/favicons?domain=circle.com&sz=64'],
+  COIN:  ['https://logo.clearbit.com/coinbase.com',     'https://www.google.com/s2/favicons?domain=coinbase.com&sz=64'],
+  PLTR:  ['https://logo.clearbit.com/palantir.com',     'https://www.google.com/s2/favicons?domain=palantir.com&sz=64'],
+  NVDA:  ['https://logo.clearbit.com/nvidia.com',       'https://www.google.com/s2/favicons?domain=nvidia.com&sz=64'],
+  GOOGL: ['https://logo.clearbit.com/google.com',       'https://www.google.com/s2/favicons?domain=google.com&sz=64'],
+  META:  ['https://logo.clearbit.com/meta.com',         'https://www.google.com/s2/favicons?domain=meta.com&sz=64'],
+  MSFT:  ['https://logo.clearbit.com/microsoft.com',    'https://www.google.com/s2/favicons?domain=microsoft.com&sz=64'],
+};
+
+function TradFiHeaderLogo({ displayName }: { displayName: string }) {
+  const asset = getTradFiAsset(displayName);
+  const chain = STOCK_LOGO_CHAIN[displayName] ?? [];
+  const [idx, setIdx] = useState(0);
+  const [logoErr, setLogoErr] = useState(false);
+  const directLogo = asset?.logoUrl;
+  const src = chain[idx];
+
+  if (directLogo?.startsWith('sprite:')) {
+    const spriteKey = directLogo.replace('sprite:', '');
+    const spriteSources: Record<string, { src: string; col: number; row: number; cols: number; rows: number }> = {
+      oil:     { src: '/EN copy copy copy copy.png',                                             col: 0, row: 0, cols: 3, rows: 1 },
+      natgas:  { src: '/EN copy copy copy copy.png',                                             col: 1, row: 0, cols: 3, rows: 1 },
+      sugar:   { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 0, row: 0, cols: 3, rows: 2 },
+      wheat:   { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 1, row: 0, cols: 3, rows: 2 },
+      corn:    { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 2, row: 0, cols: 3, rows: 2 },
+      soybean: { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 0, row: 1, cols: 3, rows: 2 },
+      coffee:  { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 1, row: 1, cols: 3, rows: 2 },
+      cocoa:   { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 2, row: 1, cols: 3, rows: 2 },
+      sp500:   { src: '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png', col: 0, row: 0, cols: 3, rows: 1 },
+      nas100:  { src: '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png', col: 1, row: 0, cols: 3, rows: 1 },
+      djia30:  { src: '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png', col: 2, row: 0, cols: 3, rows: 1 },
+    };
+    const entry = spriteSources[spriteKey];
+    if (entry) {
+      const { src, col, row, cols, rows } = entry;
+      const px = 24;
+      const totalW = cols * px;
+      const totalH = rows * px;
+      return (
+        <div
+          className="w-full h-full rounded-full overflow-hidden"
+          style={{
+            backgroundImage: `url(${src})`,
+            backgroundSize: `${totalW}px ${totalH}px`,
+            backgroundPosition: `${-(col * px)}px ${-(row * px)}px`,
+            backgroundRepeat: 'no-repeat',
+          }}
+        />
+      );
+    }
+  }
+
+  if (directLogo && !logoErr) {
+    const isPhoto = directLogo.includes('pexels.com');
+    const isFlag = directLogo.includes('flagcdn.com');
+    if (isPhoto) {
+      return (
+        <img
+          src={directLogo}
+          alt={displayName}
+          className="w-full h-full rounded-full object-cover"
+          loading="eager"
+          onError={() => setLogoErr(true)}
+        />
+      );
+    }
+    if (isFlag) {
+      return (
+        <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center" style={{ background: asset?.bgColor ?? '#1a1a2a' }}>
+          <img
+            src={directLogo}
+            alt={displayName}
+            style={{ width: '100%', height: '62%', objectFit: 'cover', borderRadius: 1 }}
+            onError={() => setLogoErr(true)}
+          />
+        </div>
+      );
+    }
+    return (
+      <img
+        src={directLogo}
+        alt={displayName}
+        className="w-full h-full rounded-full object-cover bg-white"
+        loading="eager"
+        onError={() => setLogoErr(true)}
+      />
+    );
+  }
+
+  if (!src) {
+    return (
+      <div className="w-full h-full rounded-full bg-[#2B3139] flex items-center justify-center text-[8px] font-black text-white">
+        {displayName.slice(0, 2)}
+      </div>
+    );
+  }
+  return (
+    <img
+      key={src}
+      src={src}
+      alt={displayName}
+      className="w-full h-full rounded-full object-cover bg-white"
+      loading="eager"
+      onError={() => setIdx(i => i + 1)}
+    />
+  );
+}
+
+export default function FuturesPage({ initialSymbol }: { initialSymbol?: string }) {
+  const [selectedSymbol, setSelectedSymbol] = useState(initialSymbol || 'BTCUSDT');
   const [selectedCoinLogo, setSelectedCoinLogo] = useState('https://cryptologos.cc/logos/bitcoin-btc-logo.png');
   const [currentPrice, setCurrentPrice] = useState(78023.0);
   const [priceChange, setPriceChange] = useState(-7.17);
@@ -181,6 +305,8 @@ export default function FuturesPage() {
   const [fundingRate, setFundingRate] = useState(0);
   const [fundingCountdown, setFundingCountdown] = useState('01:08:01');
   const [orderBookSize, setOrderBookSize] = useState(0.1);
+  const [showOrderBookSizeMenu, setShowOrderBookSizeMenu] = useState(false);
+  const [orderBookLayout, setOrderBookLayout] = useState<'both' | 'asks' | 'bids'>('both');
   const [closeResult, setCloseResult] = useState<{
     success: boolean;
     symbol: string;
@@ -196,15 +322,19 @@ export default function FuturesPage() {
   const [showCloseResult, setShowCloseResult] = useState(false);
 
   const lastDepthFetchRef = useRef<number>(0);
+  const asksRef = useRef<OrderBookEntry[]>([]);
+  useEffect(() => { asksRef.current = asks; }, [asks]);
 
   const generateOrderBook = useCallback(async (price: number = currentPrice) => {
     if (price <= 0) return;
 
     const isIndep = INDEPENDENT_PRICE_MANAGERS[selectedSymbol] !== undefined;
+    const isTradFi = isTradFiSymbol(selectedSymbol);
+    const skipBinance = isIndep || isTradFi;
     const now = Date.now();
     const sinceDepth = now - lastDepthFetchRef.current;
 
-    if (!isIndep && sinceDepth >= 2000) {
+    if (!skipBinance && sinceDepth >= 2000) {
       try {
         lastDepthFetchRef.current = now;
         const { fetchBinanceDepth } = await import('../lib/binance');
@@ -232,10 +362,10 @@ export default function FuturesPage() {
           return;
         }
       } catch {}
-    } else if (!isIndep && sinceDepth < 2000) {
+    } else if (!skipBinance && sinceDepth < 2000) {
       setAskAmounts(prev => prev.map(a => a * (0.97 + Math.random() * 0.06)));
       setBidAmounts(prev => prev.map(a => a * (0.97 + Math.random() * 0.06)));
-      if (asks.length > 0) return;
+      if (asksRef.current.length > 0) return;
     }
 
     const newAsks: OrderBookEntry[] = [];
@@ -243,8 +373,8 @@ export default function FuturesPage() {
     const decimals = getPriceDecimals(price);
     const rawTick = Math.pow(10, -decimals);
     const tickSize = rawTick;
-    const askBase = price > 1000 ? 800 : price > 10 ? 2000 : 8000;
-    const bidBase = price > 1000 ? 5000 : price > 10 ? 15000 : 60000;
+    const askBase = isTradFi ? (price > 1000 ? 600 : price > 100 ? 1500 : price > 10 ? 3000 : 8000) : (price > 1000 ? 800 : price > 10 ? 2000 : 8000);
+    const bidBase = isTradFi ? (price > 1000 ? 4000 : price > 100 ? 12000 : price > 10 ? 25000 : 60000) : (price > 1000 ? 5000 : price > 10 ? 15000 : 60000);
 
     const organicQty = (base: number, idx: number): number => {
       const spike = Math.random() < 0.12 ? (2.2 + Math.random() * 3.5) : 1;
@@ -264,7 +394,7 @@ export default function FuturesPage() {
     setBids(newBids);
     setAskAmounts(newAsks.map(e => e.price * e.amount));
     setBidAmounts(newBids.map(e => e.price * e.amount));
-  }, [selectedSymbol, asks.length]);
+  }, [selectedSymbol]);
 
   const currentPriceRef = useRef(currentPrice);
   useEffect(() => { currentPriceRef.current = currentPrice; }, [currentPrice]);
@@ -276,6 +406,19 @@ export default function FuturesPage() {
   const loadPriceData = useCallback(async () => {
     try {
       let newPrice = currentPriceRef.current;
+
+      if (isTradFiSymbol(selectedSymbol)) {
+        const liveData = getCachedTradFiPrice(selectedSymbol);
+        if (liveData && liveData.price > 0) {
+          setCurrentPrice(liveData.price);
+          setPriceChange(liveData.change);
+          setMarkPrice(liveData.price);
+          setLastPrice(liveData.price);
+          setPrice(liveData.price.toFixed(getPriceDecimals(liveData.price)));
+          await generateOrderBook(liveData.price);
+        }
+        return;
+      }
 
       const indepGetter = INDEPENDENT_PRICE_MANAGERS[selectedSymbol];
       if (indepGetter) {
@@ -426,6 +569,7 @@ export default function FuturesPage() {
     setBids([]);
     setAskAmounts([]);
     setBidAmounts([]);
+    asksRef.current = [];
     lastBinanceFetchRef.current = 0;
     binancePriceRef.current = 0;
     binanceChangeRef.current = 0;
@@ -457,14 +601,25 @@ export default function FuturesPage() {
 
     fetchCoinLogo();
 
-    const indepGetter = INDEPENDENT_PRICE_MANAGERS[selectedSymbol];
-    if (indepGetter) {
-      const p = indepGetter();
-      if (p > 0) {
-        setCurrentPrice(p);
-        setMarkPrice(p);
-        setLastPrice(p);
-        setPrice(p.toFixed(getPriceDecimals(p)));
+    if (isTradFiSymbol(selectedSymbol)) {
+      const cached = getCachedTradFiPrice(selectedSymbol);
+      if (cached && cached.price > 0) {
+        setCurrentPrice(cached.price);
+        setMarkPrice(cached.price);
+        setLastPrice(cached.price);
+        setPrice(cached.price.toFixed(getPriceDecimals(cached.price)));
+        setPriceChange(cached.change);
+      }
+    } else {
+      const indepGetter = INDEPENDENT_PRICE_MANAGERS[selectedSymbol];
+      if (indepGetter) {
+        const p = indepGetter();
+        if (p > 0) {
+          setCurrentPrice(p);
+          setMarkPrice(p);
+          setLastPrice(p);
+          setPrice(p.toFixed(getPriceDecimals(p)));
+        }
       }
     }
 
@@ -473,6 +628,17 @@ export default function FuturesPage() {
     const priceInterval = setInterval(loadPriceData, 2000);
 
     let unsubscribeFn: (() => void) | null = null;
+
+    if (isTradFiSymbol(selectedSymbol)) {
+      unsubscribeFn = subscribeTradFiPrice(selectedSymbol, () => { loadPriceData(); });
+      const stopUpdater = startTradFiPriceUpdater();
+      return () => {
+        clearInterval(priceInterval);
+        if (unsubscribeFn) unsubscribeFn();
+        stopUpdater();
+      };
+    }
+
     const symBase = selectedSymbol.replace('USDT', '');
     let mgr: any = null;
     if (symBase === 'EQ') mgr = EarnQuestPriceManager.getInstance();
@@ -1106,17 +1272,18 @@ export default function FuturesPage() {
             onClick={() => setShowMarketSelector(true)}
             className="flex items-center gap-1.5"
           >
-            {selectedCoinLogo && (
-              <img
-                src={selectedCoinLogo}
-                alt={selectedSymbol}
-                className="w-5 h-5 rounded-full"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                }}
-              />
-            )}
+            <div className="w-6 h-6 flex-shrink-0">
+              {isMetalSymbol(selectedSymbol) ? (
+                <MetalIcon symbol={selectedSymbol} size={24} />
+              ) : (() => {
+                const baseSymbol = selectedSymbol.replace('USDT', '');
+                const tradFiAsset = getTradFiAsset(selectedSymbol) || getTradFiAsset(baseSymbol);
+                if (tradFiAsset) {
+                  return <TradFiHeaderLogo displayName={tradFiAsset.displayName} />;
+                }
+                return <CoinLogo symbol={baseSymbol} dbUrl={selectedCoinLogo} eager />;
+              })()}
+            </div>
             <span className="text-base font-bold">{selectedSymbol}</span>
             <span className="text-gray-500">Perp</span>
             <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
@@ -1542,27 +1709,30 @@ export default function FuturesPage() {
           </div>
 
           <div className="overflow-x-hidden">
-            <div className="space-y-0">
-              {(() => {
-                const maxVal = Math.max(...askAmounts, 1);
-                return asks.map((ask, i) => {
-                  const usdtVal = askAmounts[i] ?? ask.price * ask.amount;
-                  const ratio = usdtVal / maxVal;
-                  const fillPct = ratio * 100;
-                  const isLarge = ratio > 0.6;
-                  return (
-                    <div key={`ask-${i}`} className="relative flex items-center justify-between px-2 py-[3.5px] text-[11px]">
-                      <div
-                        className={`absolute right-0 top-0 bottom-0 bg-[#F6465D]/[0.13]${isLarge ? ' ob-sway' : ''}`}
-                        style={{ width: `${fillPct}%` }}
-                      />
-                      <span className="relative z-10 text-[#F6465D] font-medium">{formatPrice(ask.price)}</span>
-                      <span className="relative z-10 text-white font-medium">{formatAmount(usdtVal)}</span>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
+            {orderBookLayout !== 'bids' && (
+              <div className="space-y-0">
+                {(() => {
+                  const maxVal = Math.max(...askAmounts, 1);
+                  const displayAsks = orderBookLayout === 'asks' ? asks : asks;
+                  return displayAsks.map((ask, i) => {
+                    const usdtVal = askAmounts[i] ?? ask.price * ask.amount;
+                    const ratio = usdtVal / maxVal;
+                    const fillPct = ratio * 100;
+                    const isLarge = ratio > 0.6;
+                    return (
+                      <div key={`ask-${i}`} className="relative flex items-center justify-between px-2 py-[3.5px] text-[11px]">
+                        <div
+                          className={`absolute right-0 top-0 bottom-0 bg-[#F6465D]/[0.13]${isLarge ? ' ob-sway' : ''}`}
+                          style={{ width: `${fillPct}%` }}
+                        />
+                        <span className="relative z-10 text-[#F6465D] font-medium">{formatPrice(ask.price)}</span>
+                        <span className="relative z-10 text-white font-medium">{formatAmount(usdtVal)}</span>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            )}
 
             <div className="py-2 px-2 bg-[#0B0E11] rounded">
               <div className={`font-bold text-sm ${priceChange >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
@@ -1571,27 +1741,29 @@ export default function FuturesPage() {
               <div className="text-gray-500 text-[10px]">{formatPrice(currentPrice)}</div>
             </div>
 
-            <div className="space-y-0">
-              {(() => {
-                const maxVal = Math.max(...bidAmounts, 1);
-                return bids.map((bid, i) => {
-                  const usdtVal = bidAmounts[i] ?? bid.price * bid.amount;
-                  const ratio = usdtVal / maxVal;
-                  const fillPct = ratio * 100;
-                  const isLarge = ratio > 0.6;
-                  return (
-                    <div key={`bid-${i}`} className="relative flex items-center justify-between px-2 py-[3.5px] text-[11px]">
-                      <div
-                        className={`absolute right-0 top-0 bottom-0 bg-[#0ECB81]/[0.13]${isLarge ? ' ob-sway' : ''}`}
-                        style={{ width: `${fillPct}%` }}
-                      />
-                      <span className="relative z-10 text-[#0ECB81] font-medium">{formatPrice(bid.price)}</span>
-                      <span className="relative z-10 text-white font-medium">{formatAmount(usdtVal)}</span>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
+            {orderBookLayout !== 'asks' && (
+              <div className="space-y-0">
+                {(() => {
+                  const maxVal = Math.max(...bidAmounts, 1);
+                  return bids.map((bid, i) => {
+                    const usdtVal = bidAmounts[i] ?? bid.price * bid.amount;
+                    const ratio = usdtVal / maxVal;
+                    const fillPct = ratio * 100;
+                    const isLarge = ratio > 0.6;
+                    return (
+                      <div key={`bid-${i}`} className="relative flex items-center justify-between px-2 py-[3.5px] text-[11px]">
+                        <div
+                          className={`absolute right-0 top-0 bottom-0 bg-[#0ECB81]/[0.13]${isLarge ? ' ob-sway' : ''}`}
+                          style={{ width: `${fillPct}%` }}
+                        />
+                        <span className="relative z-10 text-[#0ECB81] font-medium">{formatPrice(bid.price)}</span>
+                        <span className="relative z-10 text-white font-medium">{formatAmount(usdtVal)}</span>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            )}
           </div>
 
           <div className="px-2 py-2 border-[#2B3139]">
@@ -1604,22 +1776,74 @@ export default function FuturesPage() {
               <span className="text-[#F6465D] font-medium text-[11px]">{askPercentage.toFixed(2)}%</span>
             </div>
             <div className="flex items-center justify-between">
-              <button className="flex items-center gap-1 text-gray-400">
-                {orderBookSize}
-                <ChevronDown className="w-3 h-3" />
-              </button>
-              <div className="flex items-center gap-2">
-                <Settings className="w-3.5 h-3.5 text-gray-400" />
-                <div className="flex flex-col gap-0.5">
-                  <div className="flex gap-0.5">
-                    <div className="w-1.5 h-1.5 bg-[#0ECB81]"></div>
-                    <div className="w-1.5 h-1.5 bg-[#F6465D]"></div>
+              <div className="relative">
+                <button
+                  onClick={() => setShowOrderBookSizeMenu(v => !v)}
+                  className="flex items-center gap-0.5 text-[9px] text-gray-400 hover:text-white transition-colors"
+                >
+                  {orderBookSize}
+                  <ChevronDown className="w-2.5 h-2.5" />
+                </button>
+                {showOrderBookSizeMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowOrderBookSizeMenu(false)} />
+                    <div className="absolute bottom-full left-0 mb-1 bg-[#2B3139] border border-[#363D47] rounded-lg shadow-xl z-50 min-w-[64px]">
+                      {[0.01, 0.1, 1, 10].map(size => (
+                        <button
+                          key={size}
+                          onClick={() => { setOrderBookSize(size); setShowOrderBookSizeMenu(false); }}
+                          className={`w-full px-3 py-1.5 text-left text-[10px] hover:bg-[#363D47] transition-colors first:rounded-t-lg last:rounded-b-lg ${orderBookSize === size ? 'text-[#F0B90B]' : 'text-white'}`}
+                        >
+                          {size}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setOrderBookLayout('both')}
+                  title="Both"
+                  className={`flex flex-col gap-[2px] p-1 rounded transition-colors ${orderBookLayout === 'both' ? 'bg-[#363D47]' : 'hover:bg-[#2B3139]'}`}
+                >
+                  <div className="flex gap-[2px]">
+                    <div className="w-[5px] h-[5px] bg-[#F6465D] rounded-sm"></div>
+                    <div className="w-[5px] h-[5px] bg-[#F6465D] rounded-sm"></div>
                   </div>
-                  <div className="flex gap-0.5">
-                    <div className="w-1.5 h-1.5 bg-[#0ECB81]"></div>
-                    <div className="w-1.5 h-1.5 bg-[#F6465D]"></div>
+                  <div className="flex gap-[2px]">
+                    <div className="w-[5px] h-[5px] bg-[#0ECB81] rounded-sm"></div>
+                    <div className="w-[5px] h-[5px] bg-[#0ECB81] rounded-sm"></div>
                   </div>
-                </div>
+                </button>
+                <button
+                  onClick={() => setOrderBookLayout('asks')}
+                  title="Asks only"
+                  className={`flex flex-col gap-[2px] p-1 rounded transition-colors ${orderBookLayout === 'asks' ? 'bg-[#363D47]' : 'hover:bg-[#2B3139]'}`}
+                >
+                  <div className="flex gap-[2px]">
+                    <div className="w-[5px] h-[5px] bg-[#F6465D] rounded-sm"></div>
+                    <div className="w-[5px] h-[5px] bg-[#F6465D] rounded-sm"></div>
+                  </div>
+                  <div className="flex gap-[2px]">
+                    <div className="w-[5px] h-[5px] bg-[#363D47] rounded-sm"></div>
+                    <div className="w-[5px] h-[5px] bg-[#363D47] rounded-sm"></div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setOrderBookLayout('bids')}
+                  title="Bids only"
+                  className={`flex flex-col gap-[2px] p-1 rounded transition-colors ${orderBookLayout === 'bids' ? 'bg-[#363D47]' : 'hover:bg-[#2B3139]'}`}
+                >
+                  <div className="flex gap-[2px]">
+                    <div className="w-[5px] h-[5px] bg-[#363D47] rounded-sm"></div>
+                    <div className="w-[5px] h-[5px] bg-[#363D47] rounded-sm"></div>
+                  </div>
+                  <div className="flex gap-[2px]">
+                    <div className="w-[5px] h-[5px] bg-[#0ECB81] rounded-sm"></div>
+                    <div className="w-[5px] h-[5px] bg-[#0ECB81] rounded-sm"></div>
+                  </div>
+                </button>
               </div>
             </div>
           </div>
@@ -1727,14 +1951,12 @@ export default function FuturesPage() {
         </button>
       </div>
 
-      {showMarketSelector && (
-        <FuturesMarketSelector
-          isOpen={showMarketSelector}
-          onClose={() => setShowMarketSelector(false)}
-          currentSymbol={selectedSymbol}
-          onSelectSymbol={setSelectedSymbol}
-        />
-      )}
+      <FuturesMarketSelector
+        isOpen={showMarketSelector}
+        onClose={() => setShowMarketSelector(false)}
+        currentSymbol={selectedSymbol}
+        onSelectSymbol={setSelectedSymbol}
+      />
 
       {showLeverageModal && (
         <LeverageModal

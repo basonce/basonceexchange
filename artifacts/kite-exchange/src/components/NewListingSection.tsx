@@ -5,6 +5,9 @@ import { PowerAIPriceManager } from '../lib/powerai-price';
 import { SZNPPriceManager } from '../lib/sznp-price';
 import { PunchPriceManager } from '../lib/punch-price';
 import { fetchBinanceTicker } from '../lib/binance';
+import { subscribeAllTradFiPrices, getAllTradFiPrices } from '../lib/tradfi-price-service';
+import { TRADFI_ASSETS, CATEGORY_STYLES, type TradFiAsset } from '../lib/tradfi-data';
+import MetalIcon, { isMetalSymbol } from './MetalIcon';
 
 interface ListingCoin {
   symbol: string;
@@ -87,8 +90,8 @@ function getIndependentChange(symbol: string): number {
 
 function formatPrice(price: number): string {
   if (!price || price === 0) return '---';
-  if (price >= 10000) return price.toFixed(2);
-  if (price >= 1000)  return price.toFixed(3);
+  if (price >= 10000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (price >= 1000)  return price.toFixed(2);
   if (price >= 1)     return price.toFixed(4);
   if (price >= 0.1)   return price.toFixed(5);
   if (price >= 0.01)  return price.toFixed(5);
@@ -125,12 +128,67 @@ function CoinLogoWithFallback({ logoUrls, symbol }: { logoUrls: string[]; symbol
   );
 }
 
-type TabType = 'crypto' | 'futures';
+function TradFiLogoIcon({ asset, size = 36 }: { asset: TradFiAsset; size?: number }) {
+  const [imgErr, setImgErr] = useState(false);
+  const metalKey = asset.displayName === 'COPPER' ? 'COPPER' : asset.displayName;
+
+  if (isMetalSymbol(metalKey)) {
+    return <MetalIcon symbol={metalKey} size={size} />;
+  }
+
+  if (asset.logoUrl?.includes('flagcdn.com')) {
+    return (
+      <div className="flex-shrink-0 rounded-full overflow-hidden flex items-center justify-center"
+        style={{ width: size, height: size, background: asset.bgColor ?? '#1a1a2a', border: '2px solid rgba(255,255,255,0.2)', boxShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
+        <img src={asset.logoUrl} alt={asset.displayName} style={{ width: '100%', height: '62%', objectFit: 'cover', borderRadius: 2 }} />
+      </div>
+    );
+  }
+
+  if (!asset.logoUrl || asset.logoUrl.startsWith('sprite:')) {
+    const style = CATEGORY_STYLES[asset.category];
+    return (
+      <div className={`flex-shrink-0 rounded-full flex items-center justify-center font-extrabold ${style.bg}`}
+        style={{ width: size, height: size, border: '2px solid rgba(255,255,255,0.15)', fontSize: size * 0.27, letterSpacing: '-0.5px' }}>
+        <span className={style.text}>{asset.displayName.slice(0, 3)}</span>
+      </div>
+    );
+  }
+
+  if (!imgErr) {
+    return (
+      <div className="flex-shrink-0 rounded-full overflow-hidden flex items-center justify-center"
+        style={{ width: size, height: size, background: '#fff', border: '2px solid rgba(255,255,255,0.12)', boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
+        <img src={asset.logoUrl} alt={asset.displayName}
+          style={{ width: '90%', height: '90%', objectFit: 'contain' }}
+          onError={() => setImgErr(true)} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-shrink-0 rounded-full flex items-center justify-center font-extrabold"
+      style={{ width: size, height: size, background: asset.bgColor ?? '#1e2329', border: '2px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: size * 0.27, letterSpacing: '-0.5px' }}>
+      {asset.displayName.slice(0, 3)}
+    </div>
+  );
+}
+
+type TabType = 'crypto' | 'tradfi';
+
+interface TradFiRow {
+  asset: TradFiAsset;
+  price: number;
+  change24h: number;
+}
 
 export default function NewListingSection() {
   const [activeTab, setActiveTab] = useState<TabType>('crypto');
   const [coins, setCoins] = useState<ListingCoin[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tradFiListings, setTradFiListings] = useState<TradFiRow[]>(() =>
+    TRADFI_ASSETS.map(asset => ({ asset, price: asset.basePrice, change24h: 0 }))
+  );
 
   const buildIndependentCoins = useCallback((): ListingCoin[] => {
     return INDEPENDENT_COINS.map(c => {
@@ -190,18 +248,32 @@ export default function NewListingSection() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const sync = () => {
+      const prices = getAllTradFiPrices();
+      setTradFiListings(prev => prev.map(row => {
+        const d = prices.get(row.asset.symbol);
+        if (!d) return row;
+        return { ...row, price: d.price, change24h: d.change24h };
+      }));
+    };
+    sync();
+    const unsub = subscribeAllTradFiPrices(sync);
+    return () => unsub();
+  }, []);
+
   const handleCoinClick = (symbol: string) => {
     window.dispatchEvent(new CustomEvent('navigate-to-trade', { detail: { symbol: `${symbol}USDT` } }));
   };
 
-  const displayCoins = activeTab === 'futures'
-    ? coins.filter(c => c.isIndependent)
-    : coins;
+  const handleTradFiClick = (asset: TradFiAsset) => {
+    window.dispatchEvent(new CustomEvent('navigate-to-futures', { detail: { symbol: asset.displayName } }));
+  };
 
   return (
     <div className="min-h-[400px] bg-[#1E2329]">
       <div className="flex items-center gap-1 px-3 mb-3 pt-3">
-        {(['crypto', 'futures'] as TabType[]).map(tab => (
+        {(['crypto', 'tradfi'] as TabType[]).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -211,59 +283,107 @@ export default function NewListingSection() {
                 : 'text-[#848E9C]'
             }`}
           >
-            {tab === 'crypto' ? 'Crypto' : 'Futures'}
+            {tab === 'crypto' ? 'Crypto' : 'TradFi'}
           </button>
         ))}
       </div>
 
       <div className="px-3">
         <div className="grid grid-cols-[1fr_auto_auto] items-center mb-2">
-          <span className="text-[#848E9C] text-[12px]">Name</span>
+          <span className="text-[#848E9C] text-[12px]">Name / Vol</span>
           <span className="text-[#848E9C] text-[12px] text-right pr-3">Last Price</span>
           <span className="text-[#848E9C] text-[12px] text-right w-[80px]">24h chg%</span>
         </div>
 
-        {loading ? (
-          <div>
-            {[...Array(7)].map((_, i) => (
-              <div key={i} className="grid grid-cols-[1fr_auto_auto] items-center py-3 border-b border-[#2B3139] animate-pulse">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-[#2B3139] flex-shrink-0" />
-                  <div className="w-16 h-4 bg-[#2B3139] rounded" />
-                </div>
-                <div className="w-20 h-8 bg-[#2B3139] rounded mr-3" />
-                <div className="w-[80px] h-8 bg-[#2B3139] rounded-md" />
+        {activeTab === 'crypto' ? (
+          <>
+            {loading ? (
+              <div>
+                {[...Array(7)].map((_, i) => (
+                  <div key={i} className="grid grid-cols-[1fr_auto_auto] items-center py-3 border-b border-[#2B3139] animate-pulse">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-[#2B3139] flex-shrink-0" />
+                      <div className="w-16 h-4 bg-[#2B3139] rounded" />
+                    </div>
+                    <div className="w-20 h-8 bg-[#2B3139] rounded mr-3" />
+                    <div className="w-[80px] h-8 bg-[#2B3139] rounded-md" />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            ) : (
+              <div>
+                {coins.map((coin) => {
+                  const isPositive = coin.change24h >= 0;
+                  const usdtStr = formatUsdtEquiv(coin.usdtEquiv);
+
+                  return (
+                    <button
+                      key={coin.symbol}
+                      onClick={() => handleCoinClick(coin.symbol)}
+                      className="w-full grid grid-cols-[1fr_auto_auto] items-center py-3 border-b border-[#2B3139] last:border-0 active:bg-[#2B3139]/40 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full overflow-hidden bg-[#2B3139] flex-shrink-0">
+                          <CoinLogoWithFallback logoUrls={coin.logoUrls} symbol={coin.symbol} />
+                        </div>
+                        <span className="text-white text-[14px] font-semibold">{coin.symbol}</span>
+                      </div>
+
+                      <div className="text-right pr-3">
+                        <div className="text-white text-[14px] font-medium tabular-nums">
+                          {formatPrice(coin.price)}
+                        </div>
+                        {usdtStr && (
+                          <div className="text-[#848E9C] text-[11px] tabular-nums mt-0.5">
+                            ₮{usdtStr}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex justify-end w-[80px]">
+                        <div
+                          className="w-full h-[32px] flex items-center justify-center rounded-[4px] text-[12px] font-bold tabular-nums"
+                          style={{ background: isPositive ? '#0ECB81' : '#F6465D', color: '#fff' }}
+                        >
+                          {isPositive ? '+' : ''}{coin.change24h.toFixed(2)}%
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </>
         ) : (
           <div>
-            {displayCoins.map((coin) => {
-              const isPositive = coin.change24h >= 0;
-              const usdtStr = formatUsdtEquiv(coin.usdtEquiv);
+            {tradFiListings.map((row) => {
+              const isPositive = row.change24h >= 0;
+              const catStyle = CATEGORY_STYLES[row.asset.category];
 
               return (
                 <button
-                  key={coin.symbol}
-                  onClick={() => handleCoinClick(coin.symbol)}
-                  className="w-full grid grid-cols-[1fr_auto_auto] items-center py-3 border-b border-[#2B3139] last:border-0 active:bg-[#2B3139]/40 transition-colors text-left"
+                  key={row.asset.symbol}
+                  onClick={() => handleTradFiClick(row.asset)}
+                  className="w-full grid grid-cols-[1fr_auto_auto] items-center py-2.5 border-b border-[#2B3139] last:border-0 active:bg-[#2B3139]/40 transition-colors text-left"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full overflow-hidden bg-[#2B3139] flex-shrink-0">
-                      <CoinLogoWithFallback logoUrls={coin.logoUrls} symbol={coin.symbol} />
+                    <TradFiLogoIcon asset={row.asset} size={36} />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-white text-[13px] font-bold leading-tight">{row.asset.symbol}</span>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#2B3139] text-[#848E9C] leading-none">Perp</span>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm leading-tight ${catStyle.bg} ${catStyle.text}`}>
+                          {catStyle.label}
+                        </span>
+                      </div>
+                      <span className="text-[#848E9C] text-[11px] leading-tight truncate block">{row.asset.displayName}</span>
                     </div>
-                    <span className="text-white text-[14px] font-semibold">{coin.symbol}</span>
                   </div>
 
                   <div className="text-right pr-3">
                     <div className="text-white text-[14px] font-medium tabular-nums">
-                      {formatPrice(coin.price)}
+                      {formatPrice(row.price)}
                     </div>
-                    {usdtStr && (
-                      <div className="text-[#848E9C] text-[11px] tabular-nums mt-0.5">
-                        ₮{usdtStr}
-                      </div>
-                    )}
                   </div>
 
                   <div className="flex justify-end w-[80px]">
@@ -271,7 +391,7 @@ export default function NewListingSection() {
                       className="w-full h-[32px] flex items-center justify-center rounded-[4px] text-[12px] font-bold tabular-nums"
                       style={{ background: isPositive ? '#0ECB81' : '#F6465D', color: '#fff' }}
                     >
-                      {isPositive ? '+' : ''}{coin.change24h.toFixed(2)}%
+                      {isPositive ? '+' : ''}{row.change24h.toFixed(2)}%
                     </div>
                   </div>
                 </button>

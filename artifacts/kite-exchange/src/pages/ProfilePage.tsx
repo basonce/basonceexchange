@@ -20,9 +20,10 @@ import { QRCodeSVG } from 'qrcode.react';
 
 interface ProfilePageProps {
   onNavigateToAdmin?: () => void;
+  onBack?: () => void;
 }
 
-export default function ProfilePage({ onNavigateToAdmin }: ProfilePageProps) {
+export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePageProps) {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [statistics, setStatistics] = useState<any>(null);
@@ -392,7 +393,9 @@ export default function ProfilePage({ onNavigateToAdmin }: ProfilePageProps) {
   return (
     <div className="min-h-screen bg-[#181A20] pb-20">
       <div className="bg-[#181A20] border-gray-800 p-4 flex items-center justify-between">
-        <ArrowLeft className="w-6 h-6 text-gray-400" />
+        <button onClick={onBack} className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
+          <ArrowLeft className="w-6 h-6" />
+        </button>
         <div className="flex items-center gap-4">
           <button onClick={() => setShowQRModal(true)} className="text-gray-400 hover:text-white transition-colors">
             <QrCode className="w-6 h-6" />
@@ -680,6 +683,11 @@ export default function ProfilePage({ onNavigateToAdmin }: ProfilePageProps) {
       <SupportModal
         isOpen={showSupportModal}
         onClose={() => setShowSupportModal(false)}
+        prefillData={user ? {
+          customerId: String(profile?.user_id || ''),
+          email: profile?.email || user?.email || '',
+          skipToForm: true,
+        } : undefined}
       />
 
       <ReferralModal

@@ -264,7 +264,7 @@ export default function DataProtectionPanel() {
       </div>
 
       {/* Durum Kartlari */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-green-50 border border-green-200 rounded-xl p-3">
           <div className="flex items-center gap-2 mb-1">
             <CheckCircle className="w-4 h-4 text-green-600" />
@@ -726,7 +726,7 @@ export default function DataProtectionPanel() {
               ) : backupData ? (
                 <div className="space-y-4">
                   {/* Ozet */}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {Object.entries(backupData).filter(([k]) => !['backup_time', 'backup_version'].includes(k)).map(([key, val]) => (
                       <div key={key} className="bg-gray-50 rounded-lg p-3 text-center">
                         <p className="text-lg font-bold text-gray-900">{Array.isArray(val) ? val.length : '-'}</p>

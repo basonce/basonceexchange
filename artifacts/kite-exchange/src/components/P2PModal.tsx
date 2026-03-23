@@ -41,17 +41,63 @@ const PAYMENT_METHODS: Record<string, string[]> = {
   TR: ['Ziraat Bankası', 'İş Bankası', 'Garanti BBVA', 'Papara', 'Akbank'],
 };
 
+const PAYMENT_COLORS: Record<string, string> = {
+  'Bank Transfer': '#F0B90B',
+  'Zelle': '#6C2DC7',
+  'Venmo': '#3D95CE',
+  'PayPal': '#003087',
+  'Cash App': '#00D64F',
+  'SEPA Transfer': '#0070BA',
+  'N26': '#48AC98',
+  'Revolut': '#191C1F',
+  'Wise': '#9FE870',
+  'SEPA': '#0070BA',
+  'Western Union': '#FDBB30',
+  'Remitly': '#E8445A',
+  'Al Fardan': '#8B0000',
+  'Opay': '#00A859',
+  'Kuda': '#60269E',
+  'Moniepoint': '#0033A0',
+  'PalmPay': '#006B3F',
+  'UPI': '#097939',
+  'IMPS': '#2196F3',
+  'Paytm': '#00BAF2',
+  'PhonePe': '#5F259F',
+  'Google Pay': '#4285F4',
+  'PIX': '#32BCAD',
+  'TED': '#004B87',
+  'Nubank': '#820AD1',
+  'Itaú': '#EC7000',
+  'Bradesco': '#CC0000',
+  'MoMo': '#A50064',
+  'ZaloPay': '#0068FF',
+  'ViettelPay': '#EE0033',
+  'Vietcombank': '#007B3A',
+  'GCash': '#007DFF',
+  'Maya': '#4ECDC4',
+  'Unionbank': '#0047AB',
+  'BDO': '#003087',
+  'AirTM': '#00C4CC',
+  'Whish MONEY': '#E30613',
+  'Banco Pichincha': '#F0B90B',
+  'Produbanco': '#E8445A',
+  'Banco Guayaquil': '#FF6B35',
+  'Banco del Pacífico': '#0070BA',
+  'Banco Internacional': '#003087',
+  'Monzo': '#FF6B6B',
+};
+
 const MERCHANT_DATA = [
-  { name: 'AlphaTrader_99', pravatarId: 11, orders: 2312, rate: 99.4 },
-  { name: 'CryptoKing_Pro', pravatarId: 22, orders: 891, rate: 98.7 },
-  { name: 'FastDeal_FX', pravatarId: 33, orders: 1580, rate: 99.1 },
-  { name: 'SafeExchange', pravatarId: 44, orders: 3247, rate: 99.6 },
-  { name: 'TrustSwap_VIP', pravatarId: 55, orders: 677, rate: 98.2 },
-  { name: 'CoinPro_Elite', pravatarId: 66, orders: 2103, rate: 99.3 },
-  { name: 'EliteFX_Desk', pravatarId: 77, orders: 1134, rate: 97.9 },
-  { name: 'RapidCoin_Pro', pravatarId: 88, orders: 789, rate: 98.9 },
-  { name: 'GlobalP2P_Hub', pravatarId: 12, orders: 4450, rate: 99.7 },
-  { name: 'SwiftTrade_HQ', pravatarId: 24, orders: 543, rate: 97.5 },
+  { name: 'GuilleTurboCrypto', pravatarId: 11, orders: 1013, rate: 99.4, completionRate: 100.0 },
+  { name: 'Xaviercripto1', pravatarId: 22, orders: 500, rate: 99.54, completionRate: 99.9 },
+  { name: 'PRIMEVA-Wise', pravatarId: 33, orders: 741, rate: 100.0, completionRate: 98.3 },
+  { name: 'Khaled-Khadija', pravatarId: 44, orders: 1927, rate: 100.0, completionRate: 100.0 },
+  { name: 'CryptoKing_Pro', pravatarId: 55, orders: 891, rate: 98.7, completionRate: 98.7 },
+  { name: 'FastDeal_FX', pravatarId: 66, orders: 1580, rate: 99.1, completionRate: 99.1 },
+  { name: 'SafeExchange', pravatarId: 77, orders: 3247, rate: 99.6, completionRate: 99.6 },
+  { name: 'TrustSwap_VIP', pravatarId: 88, orders: 677, rate: 98.2, completionRate: 98.2 },
+  { name: 'GlobalP2P_Hub', pravatarId: 12, orders: 4450, rate: 99.7, completionRate: 99.7 },
+  { name: 'SwiftTrade_HQ', pravatarId: 24, orders: 543, rate: 97.5, completionRate: 97.5 },
 ];
 
 function getMerchants(country: typeof COUNTRIES[0], coin: string, type: 'buy' | 'sell') {
@@ -63,7 +109,7 @@ function getMerchants(country: typeof COUNTRIES[0], coin: string, type: 'buy' | 
     const avail = parseFloat((Math.floor((i + 3) * 12000 + 2000) / 100).toFixed(2));
     const minO = Math.floor((200 + i * 50) * country.rate);
     const maxO = Math.floor((5000 + i * 1000) * country.rate);
-    const pmethods = PAYMENT_METHODS[country.code].slice(0, (i % 2) + 2);
+    const pmethods = PAYMENT_METHODS[country.code].slice(0, Math.min((i % 3) + 2, PAYMENT_METHODS[country.code].length));
     return { ...m, id: i, price, available: avail, minOrder: minO, maxOrder: maxO, payment: pmethods };
   });
 }
@@ -80,6 +126,7 @@ interface Merchant {
   pravatarId: number;
   orders: number;
   rate: number;
+  completionRate: number;
   price: number;
   available: number;
   minOrder: number;
@@ -218,57 +265,84 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
               </div>
             </div>
 
-            {/* Headers */}
-            <div className="grid grid-cols-12 px-4 pb-2 shrink-0">
-              <span className="col-span-5 text-[11px] text-gray-600 font-medium">Advertiser</span>
-              <span className="col-span-3 text-[11px] text-gray-600 font-medium text-right">Price</span>
-              <span className="col-span-2 text-[11px] text-gray-600 font-medium text-right">Avail.</span>
-              <span className="col-span-2 text-[11px] text-gray-600 font-medium text-right"></span>
-            </div>
-
             {/* Merchant list */}
-            <div className="flex-1 overflow-y-auto px-4 space-y-2 pb-4">
+            <div className="flex-1 overflow-y-auto pb-4">
               {filteredMerchants.length === 0 && (
                 <div className="text-center py-12 text-gray-600 text-sm">No merchants match your filters</div>
               )}
               {filteredMerchants.map(m => (
-                <div key={m.id} className="bg-[#12151C] rounded-xl p-3 border border-[#1C1F27] hover:border-[#2A2F3A] transition-all">
-                  <div className="grid grid-cols-12 items-start gap-1">
-                    <div className="col-span-5 flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <img src={`https://i.pravatar.cc/40?img=${m.pravatarId}`} alt={m.name}
-                          className="w-7 h-7 rounded-full object-cover shrink-0 ring-1 ring-[#22262E]" />
-                        <div>
-                          <div className="text-white text-[11px] font-semibold leading-tight">{m.name}</div>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <Shield className="w-2.5 h-2.5 text-[#0ECB81]" />
-                            <span className="text-[10px] text-[#0ECB81] font-semibold">{m.rate}%</span>
-                            <span className="text-[10px] text-gray-600">{formatNum(m.orders)}</span>
+                <div key={m.id} className="px-4 py-4 border-b border-[#1C1F27] hover:bg-[#12151C]/60 transition-colors">
+                  <div className="flex items-start justify-between gap-3">
+                    {/* Left: merchant info + price */}
+                    <div className="flex-1 min-w-0">
+                      {/* Avatar + name row */}
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <div className="relative shrink-0">
+                          <div className="w-9 h-9 rounded-full bg-[#2B3139] flex items-center justify-center overflow-hidden">
+                            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                              <circle cx="10" cy="10" r="4" fill="white" fillOpacity="0.9"/>
+                              <path d="M2 22c0-4.418 3.582-8 8-8s8 3.582 8 8" fill="white" fillOpacity="0.9"/>
+                              <circle cx="20" cy="10" r="3.2" fill="white" fillOpacity="0.65"/>
+                              <path d="M14.5 22c0-3.038 1.96-5.636 4.7-6.66A7.97 7.97 0 0 1 22 15c3.866 0 7 2.91 7 6.5" fill="white" fillOpacity="0.65"/>
+                            </svg>
+                          </div>
+                          <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-[#0ECB81] rounded-full border-2 border-[#0B0E11]" />
+                        </div>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="bg-[#1C1F27] text-white text-[11px] font-bold px-2 py-0.5 rounded-sm truncate max-w-[130px]">{m.name}</span>
+                          <div className="w-4 h-4 rounded-full bg-[#F0B90B]/20 border border-[#F0B90B]/40 flex items-center justify-center shrink-0">
+                            <Star className="w-2 h-2 text-[#F0B90B] fill-[#F0B90B]" />
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-1 mt-0.5">
+                      {/* Trade count + completion */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-gray-500 text-[11px]">Trade: <span className="text-gray-400">{formatNum(m.orders)} Trades ({m.completionRate.toFixed(2)}%)</span></span>
+                        <span className="text-gray-600">|</span>
+                        <div className="flex items-center gap-1">
+                          <svg className="w-3 h-3 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z" />
+                            <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+                          </svg>
+                          <span className="text-gray-400 text-[11px]">{m.rate}%</span>
+                        </div>
+                      </div>
+                      {/* Price - large */}
+                      <div className="mb-2">
+                        <span className="text-white font-bold text-[22px] tabular-nums leading-none">
+                          $ {m.price >= 10000 ? formatNum(m.price) : m.price >= 1 ? m.price.toFixed(3) : m.price.toFixed(5)}
+                        </span>
+                        <span className="text-gray-500 text-sm ml-1">/{selectedCoin}</span>
+                      </div>
+                      {/* Limit + Available */}
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1.5 text-[11px]">
+                          <span className="text-gray-600">Limit</span>
+                          <span className="text-gray-400">{formatNum(m.minOrder)} - {formatNum(m.maxOrder)} {selectedCountry.currency}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[11px]">
+                          <span className="text-gray-600">Available</span>
+                          <span className="text-gray-300 font-medium">{m.available >= 10000 ? formatNum(m.available, 2) : m.available.toFixed(2)} {selectedCoin}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right: payment methods + timer + button */}
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <div className="flex flex-col items-end gap-1">
                         {m.payment.map(p => (
-                          <span key={p} className="text-[9px] bg-[#1C1F27] text-gray-400 px-1.5 py-0.5 rounded-md">{p}</span>
+                          <div key={p} className="flex items-center gap-1.5">
+                            <span className="text-gray-300 text-[11px]">{p}</span>
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PAYMENT_COLORS[p] ?? '#888' }} />
+                          </div>
                         ))}
                       </div>
-                      <span className="text-[10px] text-gray-600">{formatNum(m.minOrder)}-{formatNum(m.maxOrder)} {selectedCountry.currency}</span>
-                    </div>
-                    <div className="col-span-3 text-right pt-1">
-                      <div className="text-white text-sm font-bold tabular-nums">
-                        {m.price >= 10000 ? formatNum(m.price) : m.price >= 1 ? m.price.toFixed(2) : m.price.toFixed(4)}
+                      <div className="flex items-center gap-1 text-gray-600 text-[11px]">
+                        <Clock className="w-3 h-3" />
+                        <span>15 min</span>
                       </div>
-                      <div className="text-[10px] text-gray-600 mt-0.5">{selectedCountry.currency}</div>
-                    </div>
-                    <div className="col-span-2 text-right pt-1">
-                      <div className="text-gray-300 text-xs font-medium tabular-nums">
-                        {m.available >= 10000 ? formatNum(m.available) : m.available.toFixed(2)}
-                      </div>
-                      <div className="text-[10px] text-gray-600">{selectedCoin}</div>
-                    </div>
-                    <div className="col-span-2 flex items-start justify-end pt-1">
                       <button onClick={() => openTrade(m)}
-                        className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all active:scale-95 ${tab === 'buy' ? 'bg-[#0ECB81] hover:bg-[#00B06D] text-black' : 'bg-[#F6465D] hover:bg-[#D93A4F] text-white'}`}>
+                        className={`mt-1 px-5 py-2 rounded-lg text-sm font-bold transition-all active:scale-95 ${tab === 'buy' ? 'bg-[#0ECB81] hover:bg-[#00B06D] text-black' : 'bg-[#F6465D] hover:bg-[#D93A4F] text-white'}`}>
                         {tab === 'buy' ? 'Buy' : 'Sell'}
                       </button>
                     </div>
@@ -310,8 +384,14 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
               <div className="bg-[#12151C] rounded-2xl p-4 border border-[#1C1F27]">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="relative">
-                    <img src={`https://i.pravatar.cc/48?img=${activeMerchant.pravatarId}`} alt={activeMerchant.name}
-                      className="w-12 h-12 rounded-full object-cover ring-2 ring-[#F0B90B]/30" />
+                    <div className="w-12 h-12 rounded-full bg-[#2B3139] flex items-center justify-center ring-2 ring-[#F0B90B]/30">
+                      <svg width="34" height="34" viewBox="0 0 28 28" fill="none">
+                        <circle cx="10" cy="10" r="4" fill="white" fillOpacity="0.9"/>
+                        <path d="M2 22c0-4.418 3.582-8 8-8s8 3.582 8 8" fill="white" fillOpacity="0.9"/>
+                        <circle cx="20" cy="10" r="3.2" fill="white" fillOpacity="0.65"/>
+                        <path d="M14.5 22c0-3.038 1.96-5.636 4.7-6.66A7.97 7.97 0 0 1 22 15c3.866 0 7 2.91 7 6.5" fill="white" fillOpacity="0.65"/>
+                      </svg>
+                    </div>
                     <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-[#0ECB81] rounded-full border-2 border-[#12151C]" />
                   </div>
                   <div className="flex-1">
@@ -449,8 +529,14 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
 
               <div className="bg-[#12151C] rounded-2xl p-4 border border-[#1C1F27]">
                 <div className="flex items-center gap-3">
-                  <img src={`https://i.pravatar.cc/40?img=${activeMerchant.pravatarId}`} alt={activeMerchant.name}
-                    className="w-10 h-10 rounded-full object-cover" />
+                  <div className="w-10 h-10 rounded-full bg-[#2B3139] flex items-center justify-center shrink-0">
+                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                      <circle cx="10" cy="10" r="4" fill="white" fillOpacity="0.9"/>
+                      <path d="M2 22c0-4.418 3.582-8 8-8s8 3.582 8 8" fill="white" fillOpacity="0.9"/>
+                      <circle cx="20" cy="10" r="3.2" fill="white" fillOpacity="0.65"/>
+                      <path d="M14.5 22c0-3.038 1.96-5.636 4.7-6.66A7.97 7.97 0 0 1 22 15c3.866 0 7 2.91 7 6.5" fill="white" fillOpacity="0.65"/>
+                    </svg>
+                  </div>
                   <div>
                     <div className="text-white font-semibold text-sm">{activeMerchant.name}</div>
                     <div className="flex items-center gap-1 mt-0.5">
@@ -525,8 +611,14 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
               <div className="bg-[#12151C] rounded-2xl p-4 border border-[#1C1F27]">
                 <div className="text-gray-500 text-xs font-medium mb-3">SELLER</div>
                 <div className="flex items-center gap-3">
-                  <img src={`https://i.pravatar.cc/48?img=${activeMerchant.pravatarId}`} alt={activeMerchant.name}
-                    className="w-11 h-11 rounded-full object-cover ring-2 ring-[#0ECB81]/30" />
+                  <div className="w-11 h-11 rounded-full bg-[#2B3139] flex items-center justify-center ring-2 ring-[#0ECB81]/30 shrink-0">
+                    <svg width="30" height="30" viewBox="0 0 28 28" fill="none">
+                      <circle cx="10" cy="10" r="4" fill="white" fillOpacity="0.9"/>
+                      <path d="M2 22c0-4.418 3.582-8 8-8s8 3.582 8 8" fill="white" fillOpacity="0.9"/>
+                      <circle cx="20" cy="10" r="3.2" fill="white" fillOpacity="0.65"/>
+                      <path d="M14.5 22c0-3.038 1.96-5.636 4.7-6.66A7.97 7.97 0 0 1 22 15c3.866 0 7 2.91 7 6.5" fill="white" fillOpacity="0.65"/>
+                    </svg>
+                  </div>
                   <div>
                     <div className="text-white font-bold text-sm">{activeMerchant.name}</div>
                     <div className="text-xs text-gray-500 mt-0.5">{activeMerchant.orders} orders · {activeMerchant.rate}% rate</div>

@@ -56,17 +56,28 @@ export default function CopyTradingSection({ currentSymbol, currentPrice, onActi
   const [showStopConfirm, setShowStopConfirm] = useState<string | null>(null);
   const [stoppingId, setStoppingId] = useState<string | null>(null);
   const [showMyCopies, setShowMyCopies] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
 
   useEffect(() => {
     const getUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (data.user) {
-        setUser(data.user);
-        fetchBalance(data.user.id);
-        fetchActiveCopies(data.user.id);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUser(session.user);
+        fetchBalance(session.user.id);
+        fetchActiveCopies(session.user.id);
       }
     };
     getUser();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+        fetchBalance(session.user.id);
+        fetchActiveCopies(session.user.id);
+      } else {
+        setUser(null);
+      }
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -98,8 +109,8 @@ export default function CopyTradingSection({ currentSymbol, currentPrice, onActi
   }, [activeCopies.length]);
 
   const fetchBalance = async (uid: string) => {
-    const { data } = await supabase.from('user_balances').select('usdt_balance').eq('user_id', uid).maybeSingle();
-    if (data) setUsdtBalance(Number(data.usdt_balance));
+    const { data } = await supabase.from('user_balances').select('balance').eq('user_id', uid).eq('symbol', 'USDT').maybeSingle();
+    if (data) setUsdtBalance(Number(data.balance));
   };
 
   const fetchActiveCopies = async (uid: string) => {
@@ -141,7 +152,13 @@ export default function CopyTradingSection({ currentSymbol, currentPrice, onActi
     if (isNaN(amount) || amount < 10) return;
 
     setCopyLoading(true);
+    setCopyError(null);
     try {
+      if (usdtBalance < amount) {
+        setCopyError('Insufficient USDT balance.');
+        return;
+      }
+
       const { data, error } = await supabase.rpc('start_copy_trading', {
         p_user_id: user.id,
         p_trader_id: showDetail.id,
@@ -150,7 +167,17 @@ export default function CopyTradingSection({ currentSymbol, currentPrice, onActi
         p_take_profit: takeProfit ? parseFloat(takeProfit) : null
       });
 
-      if (error) throw error;
+      if (error) {
+        const msg = error.message || '';
+        if (msg.includes('Insufficient balance')) {
+          setCopyError('Insufficient USDT balance.');
+        } else if (msg.includes('Trader not found')) {
+          setCopyError('Trader not found. Please refresh and try again.');
+        } else {
+          setCopyError(msg || 'Something went wrong. Please try again.');
+        }
+        return;
+      }
 
       setCopySuccess(true);
       fetchBalance(user.id);
@@ -159,10 +186,11 @@ export default function CopyTradingSection({ currentSymbol, currentPrice, onActi
       setTimeout(() => {
         setShowCopySetup(false);
         setCopySuccess(false);
+        setCopyError(null);
         setShowDetail(null);
       }, 2000);
     } catch (err: any) {
-      console.error(err);
+      setCopyError(err?.message || 'Something went wrong. Please try again.');
     } finally {
       setCopyLoading(false);
     }
@@ -516,21 +544,26 @@ export default function CopyTradingSection({ currentSymbol, currentPrice, onActi
 
                 <button
                   onClick={handleStartCopy}
-                  disabled={copyLoading || !investAmount || parseFloat(investAmount) < 10 || parseFloat(investAmount) > usdtBalance}
+                  disabled={copyLoading || !user || !investAmount || parseFloat(investAmount) < 10 || parseFloat(investAmount) > usdtBalance}
                   className="w-full py-3 bg-[#FCD535] text-[#181A20] rounded-lg text-[14px] font-bold disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:brightness-90 transition-all"
                 >
                   {copyLoading ? (
                     <><Loader2 className="w-4 h-4 animate-spin" /> Starting Copy...</>
+                  ) : !user ? (
+                    <>Please log in to copy trade</>
                   ) : (
                     <>Start Copy - ${investAmount} USDT</>
                   )}
                 </button>
 
-                {parseFloat(investAmount) > usdtBalance && (
+                {parseFloat(investAmount) > usdtBalance && user && (
                   <div className="text-[#F6465D] text-[11px] text-center mt-2">Insufficient balance</div>
                 )}
                 {parseFloat(investAmount) < 10 && investAmount !== '' && (
                   <div className="text-[#F6465D] text-[11px] text-center mt-2">Minimum investment: $10 USDT</div>
+                )}
+                {copyError && (
+                  <div className="text-[#F6465D] text-[11px] text-center mt-2 bg-[#F6465D]/10 rounded px-2 py-1.5">{copyError}</div>
                 )}
               </div>
             )}

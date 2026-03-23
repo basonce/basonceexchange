@@ -2,23 +2,24 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Search, Star, TrendingUp, TrendingDown, Globe, ChevronDown, ChevronUp, Bell, Settings } from 'lucide-react';
 import {
   GlobalAsset, AssetCategory, CATEGORY_CONFIG,
-  getBaseAssets, formatGlobalPrice, generateSparkline, seededRandom
+  getBaseAssets, getAssetsWithDbLogos, formatGlobalPrice, generateSparkline, seededRandom
 } from '../lib/global-markets-data';
 import GlobalMarketDetailModal from '../components/global-markets/GlobalMarketDetailModal';
+import MetalIcon, { isMetalSymbol } from '../components/MetalIcon';
 
 const FAVS_KEY = 'gm_favs_v9';
 const TICK_MS = 1200;
 
 type SortMode = 'default' | 'gainers' | 'losers' | 'volume';
 
-const CATS: { id: 'all' | AssetCategory; label: string }[] = [
+const CATS: { id: 'all' | AssetCategory; label: string; icon?: string }[] = [
   { id: 'all',         label: 'All' },
   { id: 'forex',       label: 'Forex' },
-  { id: 'indices',     label: 'Indices' },
+  { id: 'indices',     label: 'Indices',     icon: '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png' },
   { id: 'stocks',      label: 'Stocks' },
   { id: 'metals',      label: 'Metals' },
-  { id: 'energy',      label: 'Energy' },
-  { id: 'agriculture', label: 'Agriculture' },
+  { id: 'energy',      label: 'Energy',      icon: '/Enerji_kaynaklari_simgeleri.png' },
+  { id: 'agriculture', label: 'Agriculture', icon: '/Altin_cerceveli_gida_ikonlari.png' },
 ];
 
 function useLivePrices(base: GlobalAsset[]) {
@@ -73,46 +74,167 @@ function ForexFlag({ symbol }: { symbol: string }) {
   const b = CC[base] || 'us';
   const q = CC[quote] || 'us';
   return (
-    <div className="relative flex-shrink-0" style={{ width: 44, height: 44 }}>
-      <div className="absolute inset-0 rounded-xl overflow-hidden border border-white/10" style={{ background: '#1a2030' }}>
+    <div className="relative flex-shrink-0" style={{ width: 46, height: 46 }}>
+      <div className="absolute inset-0 rounded-full overflow-hidden border-2 border-white/15" style={{ background: '#1a2030', boxShadow: '0 3px 16px rgba(0,0,0,0.6)' }}>
         <img src={`https://flagcdn.com/w80/${b}.png`} alt={b}
-          className="absolute top-1 left-1 rounded shadow-md object-cover border border-white/20"
-          style={{ width: 26, height: 18 }}
+          className="absolute top-1 left-1 rounded-sm shadow-lg object-cover border border-white/25"
+          style={{ width: 28, height: 19 }}
           onError={e => { (e.target as HTMLImageElement).style.opacity = '0'; }} />
         <img src={`https://flagcdn.com/w80/${q}.png`} alt={q}
-          className="absolute bottom-1 right-1 rounded shadow-md object-cover border border-white/20"
-          style={{ width: 26, height: 18 }}
+          className="absolute bottom-1 right-1 rounded-sm shadow-lg object-cover border border-white/25"
+          style={{ width: 28, height: 19 }}
           onError={e => { (e.target as HTMLImageElement).style.opacity = '0'; }} />
       </div>
     </div>
   );
 }
 
-const PEXELS_IMAGES: Record<string, string> = {
-  XAUUSD:  'https://images.pexels.com/photos/47047/gold-bar-gold-ingot-ingot-gold-47047.jpeg?auto=compress&cs=tinysrgb&w=200',
-  XAGUSD:  'https://images.pexels.com/photos/8391288/pexels-photo-8391288.jpeg?auto=compress&cs=tinysrgb&w=200',
-  XPTUSD:  'https://images.pexels.com/photos/3873209/pexels-photo-3873209.jpeg?auto=compress&cs=tinysrgb&w=200',
-  XPDUSD:  'https://images.pexels.com/photos/3873209/pexels-photo-3873209.jpeg?auto=compress&cs=tinysrgb&w=200',
-  COPPER:  'https://images.pexels.com/photos/1108572/pexels-photo-1108572.jpeg?auto=compress&cs=tinysrgb&w=200',
-  XRHRUSD: 'https://images.pexels.com/photos/3873209/pexels-photo-3873209.jpeg?auto=compress&cs=tinysrgb&w=200',
-  BRENT:   'https://images.pexels.com/photos/247763/pexels-photo-247763.jpeg?auto=compress&cs=tinysrgb&w=200',
-  USOIL:   'https://images.pexels.com/photos/162568/oil-pump-oil-pump-jack-oilfield-oil-field-162568.jpeg?auto=compress&cs=tinysrgb&w=200',
-  NATGAS:  'https://images.pexels.com/photos/459728/pexels-photo-459728.jpeg?auto=compress&cs=tinysrgb&w=200',
-  GASOIL:  'https://images.pexels.com/photos/1108572/pexels-photo-1108572.jpeg?auto=compress&cs=tinysrgb&w=200',
-  HEAT:    'https://images.pexels.com/photos/266403/pexels-photo-266403.jpeg?auto=compress&cs=tinysrgb&w=200',
-  RBOB:    'https://images.pexels.com/photos/1108572/pexels-photo-1108572.jpeg?auto=compress&cs=tinysrgb&w=200',
-  WHEAT:   'https://images.pexels.com/photos/326082/pexels-photo-326082.jpeg?auto=compress&cs=tinysrgb&w=200',
-  CORN:    'https://images.pexels.com/photos/547263/pexels-photo-547263.jpeg?auto=compress&cs=tinysrgb&w=200',
-  SOYBEAN: 'https://images.pexels.com/photos/1459339/pexels-photo-1459339.jpeg?auto=compress&cs=tinysrgb&w=200',
-  COFFEE:  'https://images.pexels.com/photos/312418/pexels-photo-312418.jpeg?auto=compress&cs=tinysrgb&w=200',
-  COTTON:  'https://images.pexels.com/photos/5247/cotton-wool-white-nature.jpg?auto=compress&cs=tinysrgb&w=200',
-  SUGAR:   'https://images.pexels.com/photos/65882/sugar-sweet-delicious-white-65882.jpeg?auto=compress&cs=tinysrgb&w=200',
-  COCOA:   'https://images.pexels.com/photos/5765/chocolate-cake-dark.jpg?auto=compress&cs=tinysrgb&w=200',
-  OJ:      'https://images.pexels.com/photos/158053/fresh-orange-juice-squeezed-refreshing-citrus-158053.jpeg?auto=compress&cs=tinysrgb&w=200',
-  LUMBER:  'https://images.pexels.com/photos/129733/pexels-photo-129733.jpeg?auto=compress&cs=tinysrgb&w=200',
-  LHOG:    'https://images.pexels.com/photos/1300375/pexels-photo-1300375.jpeg?auto=compress&cs=tinysrgb&w=200',
-  FCATTLE: 'https://images.pexels.com/photos/735977/pexels-photo-735977.jpeg?auto=compress&cs=tinysrgb&w=200',
+type StockDef = { bg: string; text: string; shape: 'letter' | 'svg'; content?: string; svgContent?: string; textSize?: number };
+
+const STOCK_BADGE_DEFS: Record<string, StockDef> = {
+  AAPL:  { bg: 'linear-gradient(145deg,#2a2a2a,#111)', text: '#f0f0f0', shape: 'svg',
+    svgContent: '<path d="M22 17.5c-.1 2.1.9 3.7 2.8 4.9-.5 1.4-1.1 2.7-2 3.8-.8 1.1-1.6 2.2-2.9 2.2-1.2 0-1.7-.7-3-.7-1.4 0-1.9.7-3.1.7s-2-.9-3-2.3c-1.1-1.5-2-3.9-2-6.2 0-4.4 2.9-6.7 5.7-6.7 1.3 0 2.5.8 3.3.8.7 0 2.1-.8 3.6-.8.8 0 2.5.2 3.7 1.8-.1.1-2.2 1.3-2.1 3.5zm-3.7-6.8c.9-1 1.4-2.4 1.3-3.7-1.2.1-2.6.8-3.5 1.8-.8.9-1.5 2.3-1.3 3.6 1.3.1 2.6-.6 3.5-1.7z" fill="#f0f0f0"/>' },
+  MSFT:  { bg: 'linear-gradient(145deg,#0067c0,#004a90)', text: '#fff', shape: 'svg',
+    svgContent: '<rect x="10" y="10" width="10" height="10" fill="#f25022"/><rect x="22" y="10" width="10" height="10" fill="#7fba00"/><rect x="10" y="22" width="10" height="10" fill="#00a4ef"/><rect x="22" y="22" width="10" height="10" fill="#ffb900"/>' },
+  NVDA:  { bg: 'linear-gradient(145deg,#5a9a00,#3d6e00)', text: '#fff', shape: 'svg',
+    svgContent: '<text x="16" y="25" font-family="Arial Black,Arial" font-weight="900" font-size="14" fill="#76B900" letter-spacing="-1">NV</text>' },
+  GOOGL: { bg: 'linear-gradient(145deg,#4285F4,#2a6bd0)', text: '#fff', shape: 'svg',
+    svgContent: '<text x="14.5" y="26" font-family="Arial,sans-serif" font-weight="700" font-size="20" fill="#fff">G</text>' },
+  AMZN:  { bg: 'linear-gradient(145deg,#232f3e,#111820)', text: '#FF9900', shape: 'svg',
+    svgContent: '<text x="9" y="26" font-family="Arial Black,Arial" font-weight="900" font-size="13" fill="#FF9900">amzn</text>' },
+  META:  { bg: 'linear-gradient(145deg,#0082FB,#0060c0)', text: '#fff', shape: 'svg',
+    svgContent: '<path d="M8 20c0-3.3 2.5-8 4.5-8 1 0 2 1.2 3.5 3.5 1.5-2.4 2.5-3.5 3.5-3.5 2 0 4.5 4.7 4.5 8 0 2-1 3-2 3-1.2 0-2.5-2-2.5-2s-1.3 2-3.5 2c-2.2 0-3.5-2-3.5-2S10 23 8 23c-1 0-2-1-2-3h2z" fill="#fff"/>' },
+  TSLA:  { bg: 'linear-gradient(145deg,#CC0000,#900000)', text: '#fff', shape: 'svg',
+    svgContent: '<path d="M16 8c-4 0-7 .8-8 1.5.5.6 1.5 1 3 1.2L16 28l5-17.3c1.5-.2 2.5-.6 3-1.2-1-.7-4-1.5-8-1.5zm0 0c-1.5 0-2.5.2-3 .4l3 .6 3-.6c-.5-.2-1.5-.4-3-.4z" fill="#fff"/>' },
+  JPM:   { bg: 'linear-gradient(145deg,#003087,#001a55)', text: '#fff', shape: 'letter', content: 'JPM', textSize: 10 },
+  V:     { bg: 'linear-gradient(145deg,#1A1F71,#0d1248)', text: '#fff', shape: 'svg',
+    svgContent: '<text x="12" y="27" font-family="Arial,sans-serif" font-weight="900" font-size="21" fill="#fff" letter-spacing="-1">VISA</text>' },
+  MA:    { bg: 'linear-gradient(145deg,#252525,#111)', text: '#fff', shape: 'svg',
+    svgContent: '<circle cx="13" cy="20" r="8" fill="#EB001B" opacity="0.9"/><circle cx="23" cy="20" r="8" fill="#F79E1B" opacity="0.9"/><ellipse cx="18" cy="20" rx="3" ry="6.5" fill="#FF5F00" opacity="0.9"/>' },
+  BAC:   { bg: 'linear-gradient(145deg,#E31837,#a00020)', text: '#fff', shape: 'letter', content: 'BAC', textSize: 10 },
+  GS:    { bg: 'linear-gradient(145deg,#4a6fa5,#2a4a80)', text: '#fff', shape: 'letter', content: 'GS', textSize: 14 },
+  AMD:   { bg: 'linear-gradient(145deg,#ED1C24,#a00015)', text: '#fff', shape: 'svg',
+    svgContent: '<text x="9" y="26" font-family="Arial Black,Arial" font-weight="900" font-size="14" fill="#fff">AMD</text>' },
+  NFLX:  { bg: 'linear-gradient(145deg,#E50914,#a00008)', text: '#fff', shape: 'svg',
+    svgContent: '<text x="10" y="26" font-family="Arial Black,Arial" font-weight="900" font-size="12" fill="#fff">NET</text><rect x="8" y="12" width="3.5" height="16" rx="1" fill="#fff"/><rect x="24.5" y="12" width="3.5" height="16" rx="1" fill="#fff"/><path d="M11.5 12 L24.5 28" stroke="#fff" stroke-width="3.5"/>' },
+  DIS:   { bg: 'linear-gradient(145deg,#1d3461,#0d1a35)', text: '#fff', shape: 'letter', content: 'DIS', textSize: 11 },
+  JNJ:   { bg: 'linear-gradient(145deg,#CC0000,#800000)', text: '#fff', shape: 'letter', content: 'J&J', textSize: 12 },
+  WMT:   { bg: 'linear-gradient(145deg,#0071CE,#004a90)', text: '#fff', shape: 'svg',
+    svgContent: '<circle cx="18" cy="18" r="3" fill="#FFC220"/><line x1="18" y1="8" x2="18" y2="13" stroke="#FFC220" stroke-width="2.5"/><line x1="18" y1="23" x2="18" y2="28" stroke="#FFC220" stroke-width="2.5"/><line x1="8" y1="18" x2="13" y2="18" stroke="#FFC220" stroke-width="2.5"/><line x1="23" y1="18" x2="28" y2="18" stroke="#FFC220" stroke-width="2.5"/><line x1="11" y1="11" x2="14.5" y2="14.5" stroke="#FFC220" stroke-width="2.5"/><line x1="21.5" y1="21.5" x2="25" y2="25" stroke="#FFC220" stroke-width="2.5"/><line x1="25" y1="11" x2="21.5" y2="14.5" stroke="#FFC220" stroke-width="2.5"/><line x1="14.5" y1="21.5" x2="11" y2="25" stroke="#FFC220" stroke-width="2.5"/>' },
+  XOM:   { bg: 'linear-gradient(145deg,#CC0000,#800000)', text: '#fff', shape: 'letter', content: 'XOM', textSize: 11 },
+  KO:    { bg: 'linear-gradient(145deg,#F40009,#a80006)', text: '#fff', shape: 'svg',
+    svgContent: '<text x="11" y="26" font-family="Arial,sans-serif" font-weight="900" font-size="16" fill="#fff">KO</text>' },
+  PFE:   { bg: 'linear-gradient(145deg,#003087,#001a55)', text: '#fff', shape: 'letter', content: 'PFE', textSize: 11 },
+  SAP:   { bg: 'linear-gradient(145deg,#003366,#001a40)', text: '#1CAAFF', shape: 'svg',
+    svgContent: '<text x="9" y="26" font-family="Arial Black,Arial" font-weight="900" font-size="14" fill="#1CAAFF">SAP</text>' },
+  ASML:  { bg: 'linear-gradient(145deg,#009FDF,#006fa0)', text: '#fff', shape: 'letter', content: 'ASML', textSize: 9 },
+  NESN:  { bg: 'linear-gradient(145deg,#009A44,#005a28)', text: '#fff', shape: 'letter', content: 'NESN', textSize: 9 },
+  LVMH:  { bg: 'linear-gradient(145deg,#2a1f10,#1a1208)', text: '#D4A843', shape: 'letter', content: 'LVMH', textSize: 9 },
+  TM:    { bg: 'linear-gradient(145deg,#CC0000,#800000)', text: '#fff', shape: 'svg',
+    svgContent: '<ellipse cx="18" cy="18" rx="10" ry="7" fill="none" stroke="#fff" stroke-width="2.5"/><ellipse cx="18" cy="18" rx="6" ry="7" fill="none" stroke="#fff" stroke-width="2.5"/><line x1="8" y1="18" x2="28" y2="18" stroke="#fff" stroke-width="2.5"/>' },
+  TSM:   { bg: 'linear-gradient(145deg,#003087,#001a55)', text: '#fff', shape: 'letter', content: 'TSM', textSize: 11 },
+  BABA:  { bg: 'linear-gradient(145deg,#FF6A00,#c04a00)', text: '#fff', shape: 'svg',
+    svgContent: '<text x="12" y="26" font-family="Arial Black,Arial" font-weight="900" font-size="13" fill="#fff">ALI</text>' },
+  NVO:   { bg: 'linear-gradient(145deg,#003087,#001a55)', text: '#fff', shape: 'letter', content: 'NVO', textSize: 11 },
+  INTC:  { bg: 'linear-gradient(145deg,#0068B5,#00468a)', text: '#fff', shape: 'svg',
+    svgContent: '<text x="7" y="26" font-family="Arial,sans-serif" font-weight="900" font-size="12" fill="#fff">intel</text>' },
+  COIN:  { bg: 'linear-gradient(145deg,#1652F0,#0a38c0)', text: '#fff', shape: 'svg',
+    svgContent: '<path d="M18 8c-5.5 0-10 4.5-10 10s4.5 10 10 10 10-4.5 10-10-4.5-10-10-10zm3.5 14c-.8.5-1.8.8-3 .8-3.3 0-5.8-2.5-5.8-5.8s2.5-5.8 5.8-5.8c1.2 0 2.2.3 3 .8l-1.5 2.5c-.4-.2-.9-.4-1.5-.4-1.8 0-3 1.3-3 3s1.2 3 3 3c.6 0 1.1-.2 1.5-.4l1.5 2.3z" fill="#fff"/>' },
+  PLTR:  { bg: 'linear-gradient(145deg,#1a1a1a,#0a0a0a)', text: '#7ec8e3', shape: 'letter', content: 'PLTR', textSize: 8 },
+  SPOT:  { bg: 'linear-gradient(145deg,#1DB954,#128040)', text: '#fff', shape: 'svg',
+    svgContent: '<circle cx="18" cy="18" r="9" fill="none" stroke="#fff" stroke-width="2"/><path d="M14 15.5h8M13 18h10M14 20.5h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/>' },
+  SNAP:  { bg: 'linear-gradient(145deg,#FFFC00,#c0c000)', text: '#222', shape: 'svg',
+    svgContent: '<path d="M18 9c-2 0-4 1-5 2.5-.8 1.2-1 2.5-.9 3.5-1 0-2 .3-2 1s1 1.5 2 1.5c.2.5.5 1 1 1.3-.3.3-.8.5-1.5.7 1 .8 2.5 1 3.5.5.5.3 1.2.5 2 .5s1.5-.2 2-.5c1 .5 2.5.3 3.5-.5-.7-.2-1.2-.4-1.5-.7.5-.3.8-.8 1-1.3 1 0 2-.8 2-1.5s-1-1-2-1c.1-1-.1-2.3-.9-3.5-1-1.5-3-2.5-5-2.5z" fill="#222"/>' },
+  MSTR:  { bg: 'linear-gradient(145deg,#f97316,#c05500)', text: '#fff', shape: 'letter', content: 'MSTR', textSize: 8 },
+  HOOD:  { bg: 'linear-gradient(145deg,#00C805,#008a04)', text: '#fff', shape: 'letter', content: 'HOOD', textSize: 9 },
+  CRCL:  { bg: 'linear-gradient(145deg,#2775CA,#1a55a0)', text: '#fff', shape: 'letter', content: 'CRCL', textSize: 9 },
+  UBER:  { bg: 'linear-gradient(145deg,#1a1a1a,#000)', text: '#fff', shape: 'svg',
+    svgContent: '<text x="8" y="26" font-family="Arial Black,Arial" font-weight="900" font-size="13" fill="#fff">UBER</text>' },
+  BRKB:  { bg: 'linear-gradient(145deg,#4E3629,#2e1e15)', text: '#f0d080', shape: 'letter', content: 'BRK', textSize: 11 },
+  SPY:   { bg: 'linear-gradient(145deg,#B22222,#7a1515)', text: '#fff', shape: 'letter', content: 'SPY', textSize: 11 },
+  QQQ:   { bg: 'linear-gradient(145deg,#003087,#001a55)', text: '#fff', shape: 'letter', content: 'QQQ', textSize: 11 },
+  GLD:   { bg: 'linear-gradient(145deg,#c8a800,#8a7200)', text: '#fff', shape: 'letter', content: 'GLD', textSize: 11 },
+  SLV:   { bg: 'linear-gradient(145deg,#888,#555)', text: '#fff', shape: 'letter', content: 'SLV', textSize: 11 },
+  ARKK:  { bg: 'linear-gradient(145deg,#1a1a2e,#0d0d20)', text: '#7ec8e3', shape: 'letter', content: 'ARKK', textSize: 9 },
 };
+
+const SYMBOL_ICONS: Record<string, { bg: string; svgContent: string }> = {
+  SPX500:  { bg: 'linear-gradient(145deg,#1a2a4a,#0d1830)', svgContent: '<text x="8" y="23" font-family="Arial Black,Arial" font-weight="900" font-size="10" fill="#4a9eff">S&P</text><text x="8" y="33" font-family="Arial Black,Arial" font-weight="900" font-size="10" fill="#fff">500</text>' },
+  NAS100:  { bg: 'linear-gradient(145deg,#1a2a4a,#0d1830)', svgContent: '<text x="7" y="22" font-family="Arial Black,Arial" font-weight="900" font-size="9" fill="#4a9eff">NAS</text><text x="7" y="32" font-family="Arial Black,Arial" font-weight="900" font-size="9" fill="#fff">100</text>' },
+  US30:    { bg: 'linear-gradient(145deg,#1a2a4a,#0d1830)', svgContent: '<text x="11" y="22" font-family="Arial Black,Arial" font-weight="900" font-size="9" fill="#4a9eff">DOW</text><text x="12" y="32" font-family="Arial Black,Arial" font-weight="900" font-size="9" fill="#fff">30</text>' },
+  GER40:   { bg: 'linear-gradient(145deg,#1a1500,#0d0d00)', svgContent: '<rect x="9" y="10" width="18" height="5.5" rx="1" fill="#000"/><rect x="9" y="16.5" width="18" height="5.5" rx="1" fill="#DD0000"/><rect x="9" y="22" width="18" height="5.5" rx="1" fill="#FFCE00"/>' },
+  UK100:   { bg: 'linear-gradient(145deg,#00007a,#00004a)', svgContent: '<rect x="9" y="10" width="18" height="16" rx="1" fill="#012169"/><path d="M9 10 L27 26 M27 10 L9 26" stroke="#fff" stroke-width="3"/><path d="M9 10 L27 26 M27 10 L9 26" stroke="#C8102E" stroke-width="1.5"/><rect x="16" y="10" width="4" height="16" fill="#fff"/><rect x="9" y="16" width="18" height="4" fill="#fff"/><rect x="16.5" y="10" width="3" height="16" fill="#C8102E"/><rect x="9" y="16.5" width="18" height="3" fill="#C8102E"/>' },
+  JP225:   { bg: 'linear-gradient(145deg,#2a0000,#1a0000)', svgContent: '<rect x="9" y="10" width="18" height="16" rx="1" fill="#fff"/><circle cx="18" cy="18" r="5" fill="#BC002D"/>' },
+  FR40:    { bg: 'linear-gradient(145deg,#001050,#000830)', svgContent: '<rect x="9" y="10" width="6" height="16" rx="1" fill="#002395"/><rect x="15" y="10" width="6" height="16" fill="#fff"/><rect x="21" y="10" width="6" height="16" rx="1" fill="#ED2939"/>' },
+  EU50:    { bg: 'linear-gradient(145deg,#003399,#001a66)', svgContent: '<rect x="9" y="10" width="18" height="16" rx="1" fill="#003399"/><text x="14" y="22" font-family="Arial" font-size="14" fill="#FFDD00">★</text>' },
+  AUS200:  { bg: 'linear-gradient(145deg,#00205B,#001238)', svgContent: '<rect x="9" y="10" width="18" height="16" rx="1" fill="#00205B"/><text x="14.5" y="22" font-family="Arial" font-size="13" fill="#fff">✦</text>' },
+  HK50:    { bg: 'linear-gradient(145deg,#8B0000,#5a0000)', svgContent: '<rect x="9" y="10" width="18" height="16" rx="1" fill="#DE2910"/><path d="M18 12 Q19 16 23 16 Q19 17 20 21 Q18 17 14 18 Q17 16 16 12 Q18 14 18 12z" fill="#FFDE00"/>' },
+  BRENT:   { bg: 'linear-gradient(145deg,#1a1200,#0d0a00)', svgContent: '<ellipse cx="18" cy="22" rx="9" ry="6" fill="#1a1a1a" stroke="#555" stroke-width="1"/><rect x="15" y="10" width="6" height="14" rx="2" fill="#555"/><rect x="13" y="9" width="10" height="3" rx="1.5" fill="#666"/>' },
+  USOIL:   { bg: 'linear-gradient(145deg,#1a1200,#0d0a00)', svgContent: '<ellipse cx="18" cy="22" rx="9" ry="6" fill="#2a2a2a" stroke="#666" stroke-width="1"/><rect x="15" y="10" width="6" height="14" rx="2" fill="#666"/><rect x="13" y="9" width="10" height="3" rx="1.5" fill="#777"/>' },
+  NATGAS:  { bg: 'linear-gradient(145deg,#001a3a,#000d20)', svgContent: '<path d="M18 28 C14 24 12 20 15 16 C16 14 15 12 17 10 C17 14 20 14 20 17 C22 15 21 13 22 11 C25 15 24 20 20 24 C21 22 22 21 22 22 C22 25 20 27 18 28z" fill="#ff9500"/><path d="M18 26 C16 23 15 20 17 17 C18 19 19 19 19 21 C20 19 20 18 21 17 C22 20 21 23 18 26z" fill="#ffce00"/>' },
+  COFFEE:  { bg: 'linear-gradient(145deg,#3a1a08,#1a0804)', svgContent: '<path d="M12 14 Q18 10 24 14 L23 24 Q18 28 13 24 Z" fill="#4a2010" stroke="#8B4513" stroke-width="1"/><path d="M24 15 Q28 15 28 18 Q28 21 24 20" fill="none" stroke="#8B4513" stroke-width="1.5"/><path d="M15 11 Q16 8 17 11" fill="none" stroke="#ccc" stroke-width="1.5"/><path d="M18 10 Q19 7 20 10" fill="none" stroke="#ccc" stroke-width="1.5"/>' },
+  COCOA:   { bg: 'linear-gradient(145deg,#3a1a08,#1a0804)', svgContent: '<ellipse cx="18" cy="20" rx="8" ry="6" fill="#5C3317"/><path d="M18 9 C16 12 15 15 15 18 Q18 14 21 18 C21 15 20 12 18 9z" fill="#3d7a00"/><line x1="18" y1="16" x2="18" y2="20" stroke="#3d7a00" stroke-width="1"/>' },
+  SUGAR:   { bg: 'linear-gradient(145deg,#3a1040,#1a0820)', svgContent: '<circle cx="14" cy="16" r="3" fill="#fff" opacity="0.9"/><circle cx="22" cy="14" r="2.5" fill="#fff" opacity="0.8"/><circle cx="18" cy="21" r="3.5" fill="#fff" opacity="0.9"/><circle cx="12" cy="22" r="2" fill="#fff" opacity="0.7"/><circle cx="24" cy="21" r="2.5" fill="#fff" opacity="0.8"/>' },
+  WHEAT:   { bg: 'linear-gradient(145deg,#4a3010,#2a1808)', svgContent: '<line x1="18" y1="28" x2="18" y2="10" stroke="#c8a000" stroke-width="2"/><ellipse cx="18" cy="14" rx="3" ry="5" fill="#c8a000"/><ellipse cx="14" cy="17" rx="2.5" ry="4" fill="#d4b010" transform="rotate(-20 14 17)"/><ellipse cx="22" cy="17" rx="2.5" ry="4" fill="#d4b010" transform="rotate(20 22 17)"/>' },
+  CORN:    { bg: 'linear-gradient(145deg,#4a3010,#2a1808)', svgContent: '<path d="M15 27 Q13 20 14 14 Q18 10 22 14 Q23 20 21 27 Z" fill="#c8a000"/><path d="M14 12 Q12 10 10 12 Q10 8 14 10 Z" fill="#2a6a00"/><path d="M22 12 Q24 10 26 12 Q26 8 22 10 Z" fill="#2a6a00"/><line x1="14" y1="14" x2="22" y2="14" stroke="#aa8800" stroke-width="1"/><line x1="14" y1="17" x2="22" y2="17" stroke="#aa8800" stroke-width="1"/><line x1="14" y1="20" x2="22" y2="20" stroke="#aa8800" stroke-width="1"/><line x1="14" y1="23" x2="22" y2="23" stroke="#aa8800" stroke-width="1"/>' },
+  SOYBEAN: { bg: 'linear-gradient(145deg,#1a3a10,#0d2008)', svgContent: '<ellipse cx="18" cy="18" rx="9" ry="7" fill="#4a8a20"/><ellipse cx="18" cy="18" rx="7" ry="5" fill="#5aaa2a"/><path d="M12 15 Q18 12 24 15 Q18 24 12 15z" fill="#3a7a18"/>' },
+  LUMBER:  { bg: 'linear-gradient(145deg,#3a2010,#1a1008)', svgContent: '<rect x="9" y="14" width="18" height="5" rx="1" fill="#8B6914"/><rect x="9" y="20.5" width="18" height="5" rx="1" fill="#a07a20"/><line x1="13" y1="14" x2="13" y2="25.5" stroke="#6a4a00" stroke-width="1"/><line x1="17" y1="14" x2="17" y2="25.5" stroke="#6a4a00" stroke-width="1"/><line x1="21" y1="14" x2="21" y2="25.5" stroke="#6a4a00" stroke-width="1"/><line x1="25" y1="14" x2="25" y2="25.5" stroke="#6a4a00" stroke-width="1"/>' },
+  FCATTLE: { bg: 'linear-gradient(145deg,#2a3a1a,#1a2a0d)', svgContent: '<text x="13" y="25" font-family="Arial" font-size="20">🐄</text>' },
+  LHOG:    { bg: 'linear-gradient(145deg,#3a1a1a,#2a0d10)', svgContent: '<text x="13" y="25" font-family="Arial" font-size="20">🥩</text>' },
+};
+
+function PremiumSVGIcon({ size, bg, svgContent }: { size: number; bg: string; svgContent: string }) {
+  return (
+    <div
+      className="flex-shrink-0"
+      style={{
+        width: size, height: size,
+        borderRadius: '50%',
+        background: bg,
+        boxShadow: '0 3px 16px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.12)',
+        border: '1.5px solid rgba(255,255,255,0.13)',
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <svg viewBox="0 0 36 36" width={size - 2} height={size - 2} xmlns="http://www.w3.org/2000/svg"
+        dangerouslySetInnerHTML={{ __html: svgContent }} />
+    </div>
+  );
+}
+
+function LetterBadge({ size, bg, text, textColor, textSize = 11 }: { size: number; bg: string; text: string; textColor: string; textSize?: number }) {
+  const len = text.length;
+  const fs = len <= 2 ? 15 : len <= 3 ? 12 : textSize;
+  return (
+    <div
+      className="flex-shrink-0 flex items-center justify-center"
+      style={{
+        width: size, height: size,
+        borderRadius: '50%',
+        background: bg,
+        boxShadow: '0 3px 16px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.12)',
+        border: '1.5px solid rgba(255,255,255,0.13)',
+        overflow: 'hidden',
+      }}
+    >
+      <span style={{
+        color: textColor,
+        fontSize: fs,
+        fontWeight: 900,
+        fontFamily: 'Arial Black, Arial, sans-serif',
+        letterSpacing: len >= 4 ? '-0.5px' : '0',
+        lineHeight: 1,
+        textAlign: 'center',
+        userSelect: 'none',
+      }}>
+        {text}
+      </span>
+    </div>
+  );
+}
 
 const FLAG_INDICES: Record<string, string> = {
   US30: 'us', SPX500: 'us', NAS100: 'us', GER40: 'de', UK100: 'gb',
@@ -120,84 +242,83 @@ const FLAG_INDICES: Record<string, string> = {
   CHINA50: 'cn', IT40: 'it', ES35: 'es', RUS2000: 'us', VIX: 'us',
 };
 
-const STOCK_LOGOS: Record<string, { url: string; bg: string }> = {
-  AAPL:  { url: 'https://logo.clearbit.com/apple.com', bg: '#1c1c1c' },
-  MSFT:  { url: 'https://logo.clearbit.com/microsoft.com', bg: '#fff' },
-  NVDA:  { url: 'https://logo.clearbit.com/nvidia.com', bg: '#1a1a1a' },
-  GOOGL: { url: 'https://logo.clearbit.com/google.com', bg: '#fff' },
-  AMZN:  { url: 'https://logo.clearbit.com/amazon.com', bg: '#fff' },
-  META:  { url: 'https://logo.clearbit.com/meta.com', bg: '#fff' },
-  TSLA:  { url: 'https://logo.clearbit.com/tesla.com', bg: '#1c1c1e' },
-  BRKB:  { url: 'https://logo.clearbit.com/berkshirehathaway.com', bg: '#fff' },
-  JPM:   { url: 'https://logo.clearbit.com/jpmorganchase.com', bg: '#fff' },
-  V:     { url: 'https://logo.clearbit.com/visa.com', bg: '#1a1f71' },
-  JNJ:   { url: 'https://logo.clearbit.com/jnj.com', bg: '#fff' },
-  WMT:   { url: 'https://logo.clearbit.com/walmart.com', bg: '#0071ce' },
-  XOM:   { url: 'https://logo.clearbit.com/exxonmobil.com', bg: '#fff' },
-  BAC:   { url: 'https://logo.clearbit.com/bankofamerica.com', bg: '#012169' },
-  KO:    { url: 'https://logo.clearbit.com/coca-cola.com', bg: '#f40000' },
-  PFE:   { url: 'https://logo.clearbit.com/pfizer.com', bg: '#0068a5' },
-  SAP:   { url: 'https://logo.clearbit.com/sap.com', bg: '#fff' },
-  ASML:  { url: 'https://logo.clearbit.com/asml.com', bg: '#006db6' },
-  NESN:  { url: 'https://logo.clearbit.com/nestle.com', bg: '#fff' },
-  LVMH:  { url: 'https://logo.clearbit.com/lvmh.com', bg: '#1a1000' },
-  TM:    { url: 'https://logo.clearbit.com/toyota.com', bg: '#fff' },
-  TSM:   { url: 'https://logo.clearbit.com/tsmc.com', bg: '#fff' },
-  BABA:  { url: 'https://logo.clearbit.com/alibaba.com', bg: '#ff6a00' },
-  NVO:   { url: 'https://logo.clearbit.com/novonordisk.com', bg: '#001a2a' },
-};
-
 function AssetIcon({ asset }: { asset: GlobalAsset }) {
-  const [err, setErr] = useState(false);
+  const [imgErr, setImgErr] = useState(false);
+  const SIZE = 46;
 
   if (asset.category === 'forex') {
     return <ForexFlag symbol={asset.symbol} />;
   }
 
+  if (asset.category === 'metals' && isMetalSymbol(asset.symbol)) {
+    return <MetalIcon symbol={asset.symbol} size={SIZE} />;
+  }
+
+  const symbolDef = SYMBOL_ICONS[asset.symbol];
+  if (symbolDef) {
+    return <PremiumSVGIcon size={SIZE} bg={symbolDef.bg} svgContent={symbolDef.svgContent} />;
+  }
+
   if (asset.category === 'indices') {
     const flag = FLAG_INDICES[asset.symbol];
-    if (flag && !err) {
+    if (flag && !imgErr) {
       return (
-        <div className="flex-shrink-0 rounded-xl overflow-hidden border border-white/10" style={{ width: 44, height: 44 }}>
-          <img src={`https://flagcdn.com/w80/${flag}.png`} alt={asset.symbol}
-            className="w-full h-full object-cover" onError={() => setErr(true)} />
+        <div className="flex-shrink-0 rounded-full overflow-hidden"
+          style={{ width: SIZE, height: SIZE, boxShadow: '0 3px 16px rgba(0,0,0,0.65)', border: '2px solid rgba(255,255,255,0.18)' }}>
+          <img src={`https://flagcdn.com/w160/${flag}.png`} alt={asset.symbol}
+            className="w-full h-full object-cover" onError={() => setImgErr(true)} />
         </div>
       );
     }
+    return <LetterBadge size={SIZE} bg="linear-gradient(145deg,#1a2a4a,#0d1830)" text={asset.displayName.slice(0, 4)} textColor="#4a9eff" textSize={9} />;
   }
 
   if (asset.category === 'stocks') {
-    const logo = STOCK_LOGOS[asset.symbol];
-    if (logo && !err) {
+    const def = STOCK_BADGE_DEFS[asset.symbol];
+    if (def) {
+      if (def.shape === 'svg' && def.svgContent) {
+        return <PremiumSVGIcon size={SIZE} bg={def.bg} svgContent={def.svgContent} />;
+      }
+      return <LetterBadge size={SIZE} bg={def.bg} text={def.content ?? asset.displayName.slice(0,4)} textColor={def.text} textSize={def.textSize} />;
+    }
+    if (asset.logoUrl && !imgErr) {
       return (
-        <div className="flex-shrink-0 flex items-center justify-center rounded-xl overflow-hidden border border-white/10"
-          style={{ width: 44, height: 44, background: logo.bg }}>
-          <img src={logo.url} alt={asset.symbol}
-            style={{ width: 30, height: 30, objectFit: 'contain' }}
-            onError={() => setErr(true)} />
+        <div className="flex-shrink-0 flex items-center justify-center overflow-hidden rounded-full"
+          style={{ width: SIZE, height: SIZE, background: asset.bgColor || '#0d1830', boxShadow: '0 3px 16px rgba(0,0,0,0.65)', border: '1.5px solid rgba(255,255,255,0.13)' }}>
+          <img src={asset.logoUrl} alt={asset.symbol}
+            style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: '50%' }}
+            onError={() => setImgErr(true)} />
         </div>
       );
     }
+    return <LetterBadge size={SIZE} bg="linear-gradient(145deg,#1e2d45,#0d1830)" text={asset.displayName.slice(0,4)} textColor="#7ec8e3" textSize={10} />;
   }
 
-  const imgUrl = PEXELS_IMAGES[asset.symbol];
-  if (imgUrl && !err) {
+  if (asset.category === 'energy') {
+    const def = SYMBOL_ICONS[asset.symbol];
+    if (def) return <PremiumSVGIcon size={SIZE} bg={def.bg} svgContent={def.svgContent} />;
+    return <LetterBadge size={SIZE} bg="linear-gradient(145deg,#2a1a00,#150d00)" text={asset.displayName.slice(0,4)} textColor="#ff9500" textSize={10} />;
+  }
+
+  if (asset.category === 'agriculture') {
+    const def = SYMBOL_ICONS[asset.symbol];
+    if (def) return <PremiumSVGIcon size={SIZE} bg={def.bg} svgContent={def.svgContent} />;
+    return <LetterBadge size={SIZE} bg="linear-gradient(145deg,#1a3a10,#0d2008)" text={asset.displayName.slice(0,4)} textColor="#7acc30" textSize={10} />;
+  }
+
+  if (asset.logoUrl && !imgErr) {
     return (
-      <div className="flex-shrink-0 rounded-xl overflow-hidden border border-white/10" style={{ width: 44, height: 44 }}>
-        <img src={imgUrl} alt={asset.symbol}
-          className="w-full h-full object-cover" onError={() => setErr(true)} />
+      <div className="flex-shrink-0 flex items-center justify-center overflow-hidden rounded-full"
+        style={{ width: SIZE, height: SIZE, background: asset.bgColor || '#1a1a1a', boxShadow: '0 3px 16px rgba(0,0,0,0.65)', border: '1.5px solid rgba(255,255,255,0.13)' }}>
+        <img src={asset.logoUrl} alt={asset.symbol}
+          style={{ width: 32, height: 32, objectFit: 'contain' }}
+          onError={() => setImgErr(true)} />
       </div>
     );
   }
 
   const cfg = CATEGORY_CONFIG[asset.category];
-  const initials = asset.displayName.slice(0, 3).toUpperCase();
-  return (
-    <div className="flex-shrink-0 rounded-xl flex items-center justify-center border border-white/10 font-black text-[10px]"
-      style={{ width: 44, height: 44, background: cfg.bgColor, color: cfg.color }}>
-      {initials}
-    </div>
-  );
+  return <LetterBadge size={46} bg={cfg.bgColor || '#1a1a2e'} text={asset.displayName.slice(0, 4)} textColor={cfg.color || '#fff'} textSize={10} />;
 }
 
 function MiniChart({ points, up, width = 70, height = 28 }: { points: number[]; up: boolean; width?: number; height?: number }) {
@@ -313,6 +434,12 @@ function Row({ asset, flash, isFav, onFav, onOpen, spark }: RowProps) {
   );
 }
 
+const SECTION_ICONS: Record<string, string> = {
+  'Indices':     '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png',
+  'Energy':      '/Enerji_kaynaklari_simgeleri.png',
+  'Agriculture': '/Altin_cerceveli_gida_ikonlari.png',
+};
+
 function Section({
   title, color, assets, flashes, favs, onFav, onOpen, sparks, sortMode, defaultOpen = true
 }: {
@@ -329,6 +456,7 @@ function Section({
   const [open, setOpen] = useState(defaultOpen);
   const ups = assets.filter(a => a.changePercent >= 0).length;
   const downs = assets.length - ups;
+  const sectionIcon = SECTION_ICONS[title];
 
   const sorted = useMemo(() => {
     const arr = [...assets];
@@ -342,10 +470,19 @@ function Section({
     <div>
       <button
         onClick={() => setOpen(p => !p)}
-        className="w-full flex items-center gap-2.5 px-4 py-2.5"
+        className="w-full flex items-center gap-2.5 px-4 py-2"
         style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
       >
-        <div className="w-0.5 h-4 rounded-full flex-shrink-0" style={{ background: color }} />
+        {sectionIcon ? (
+          <div className="flex-shrink-0 rounded-lg overflow-hidden"
+            style={{ width: 32, height: 22, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <img src={sectionIcon} alt={title}
+              className="w-full h-full object-contain"
+              style={{ objectPosition: 'center' }} />
+          </div>
+        ) : (
+          <div className="w-0.5 h-4 rounded-full flex-shrink-0" style={{ background: color }} />
+        )}
         <span className="text-[11px] font-black text-white uppercase tracking-widest">{title}</span>
         <span className="text-[10px] px-1.5 py-0.5 rounded-full ml-0.5" style={{ background: 'rgba(255,255,255,0.07)', color: '#9ca3af' }}>{assets.length}</span>
         <div className="flex items-center gap-2 ml-1">
@@ -373,7 +510,7 @@ function Section({
 
 function SummaryCard({ label, value, sub, color }: { label: string; value: string; sub: string; color: string }) {
   return (
-    <div className="flex-shrink-0 rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', minWidth: 100 }}>
+    <div className="flex-shrink-0 rounded-full p-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', minWidth: 100 }}>
       <div className="text-[9px] uppercase tracking-widest font-bold mb-1" style={{ color: '#6b7280' }}>{label}</div>
       <div className="text-[16px] font-black leading-none" style={{ color }}>{value}</div>
       <div className="text-[9px] font-semibold mt-0.5 truncate" style={{ color: '#4b5563' }}>{sub}</div>
@@ -382,8 +519,12 @@ function SummaryCard({ label, value, sub, color }: { label: string; value: strin
 }
 
 export default function GlobalMarketsPage() {
-  const base = useMemo(() => getBaseAssets(), []);
+  const [base, setBase] = useState<GlobalAsset[]>(() => getBaseAssets());
   const { assets, flashes } = useLivePrices(base);
+
+  useEffect(() => {
+    getAssetsWithDbLogos().then(data => setBase(data));
+  }, []);
   const [favs, setFavs] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem(FAVS_KEY) || '[]')); }
     catch { return new Set(); }
@@ -541,13 +682,20 @@ export default function GlobalMarketsPage() {
               <button
                 key={c.id}
                 onClick={() => setCat(c.id as any)}
-                className="flex-shrink-0 flex items-center gap-1 text-[12px] font-semibold transition-all whitespace-nowrap relative"
+                className="flex-shrink-0 flex items-center gap-1.5 text-[12px] font-semibold transition-all whitespace-nowrap relative"
                 style={{
-                  padding: '10px 14px',
+                  padding: '8px 12px',
                   color: active ? '#fff' : '#6b7280',
                   borderBottom: active ? '2px solid #3b82f6' : '2px solid transparent',
                 }}
               >
+                {c.icon && (
+                  <div className="rounded overflow-hidden flex-shrink-0"
+                    style={{ width: 20, height: 14, opacity: active ? 1 : 0.5 }}>
+                    <img src={c.icon} alt={c.label}
+                      className="w-full h-full object-contain" />
+                  </div>
+                )}
                 {c.label}
                 <span className="text-[9px]" style={{ color: active ? '#93c5fd' : '#374151' }}>{count}</span>
               </button>

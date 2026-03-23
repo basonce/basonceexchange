@@ -82,14 +82,14 @@ function useCountdown(endsAt: string | null, durationHours = 24) {
 
 function TimerBox({ value, label, accent }: { value: number; label: string; accent: string }) {
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center flex-1">
       <div
-        className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg"
-        style={{ backgroundColor: accent + '22', color: accent, border: `1px solid ${accent}44` }}
+        className="w-full h-16 rounded-2xl flex items-center justify-center font-black text-2xl"
+        style={{ backgroundColor: accent + '22', color: accent, border: `1.5px solid ${accent}55` }}
       >
         {String(value).padStart(2, '0')}
       </div>
-      <span className="text-[10px] text-gray-500 mt-1 font-medium uppercase tracking-wide">{label}</span>
+      <span className="text-[11px] text-gray-500 mt-1.5 font-bold uppercase tracking-widest">{label}</span>
     </div>
   );
 }
@@ -99,7 +99,8 @@ type ClaimState = 'idle' | 'loading' | 'checking' | 'claimed' | 'already_claimed
 export default function CampaignDetailModal({ campaign, onClose }: Props) {
   const [claimState, setClaimState] = useState<ClaimState>('idle');
   const [claimMsg, setClaimMsg] = useState('');
-  const countdown = useCountdown(campaign?.ends_at ?? null, campaign?.duration_hours ?? 24);
+  const fallbackEndsAt = campaign?.ends_at ?? new Date(Date.now() + 7 * 86400000).toISOString();
+  const countdown = useCountdown(fallbackEndsAt, campaign?.duration_hours ?? 168);
 
   useEffect(() => {
     if (campaign) {
@@ -411,21 +412,15 @@ export default function CampaignDetailModal({ campaign, onClose }: Props) {
                   <Clock className="w-4 h-4" style={{ color: theme.accent }} />
                   <span className="text-sm font-bold" style={{ color: theme.accent }}>Time Remaining</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  {countdown.days > 0 && <TimerBox value={countdown.days} label="days" accent={theme.accent} />}
-                  <TimerBox value={countdown.hours} label="hrs" accent={theme.accent} />
-                  <TimerBox value={countdown.mins} label="min" accent={theme.accent} />
-                  {countdown.days === 0 && <TimerBox value={countdown.secs} label="sec" accent={theme.accent} />}
+                <div className="flex items-center gap-4">
+                  <TimerBox value={countdown.days} label="DAYS" accent={theme.accent} />
+                  <TimerBox value={countdown.hours} label="HRS" accent={theme.accent} />
+                  <TimerBox value={countdown.mins} label="MIN" accent={theme.accent} />
+                  <TimerBox value={countdown.secs} label="SEC" accent={theme.accent} />
                 </div>
               </div>
             )}
 
-            {!campaign.ends_at && (
-              <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#0ECB81] animate-pulse" />
-                <span className="text-sm text-[#0ECB81] font-semibold">Ongoing Campaign</span>
-              </div>
-            )}
 
             <div>
               <div className="flex items-center justify-between mb-2">

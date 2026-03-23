@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Users,
   DollarSign,
@@ -26,6 +26,7 @@ import {
   Home,
   AlertCircle,
   Eye,
+  Image,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import GlobalAIToggle from './GlobalAIToggle';
@@ -44,6 +45,8 @@ import WalletGeneratorPage from '../pages/WalletGeneratorPage';
 import DataProtectionPanel from './DataProtectionPanel';
 import UserWalletAssignments from './UserWalletAssignments';
 import IncomingFundsPanel from './IncomingFundsPanel';
+import WithdrawalApprovalPanel from './WithdrawalApprovalPanel';
+import TradfiLogosPanel from './TradfiLogosPanel';
 
 interface UserProfile {
   id: string;
@@ -86,7 +89,7 @@ const cryptoSymbols = [
   'AVAX', 'DOT', 'MATIC', 'LINK', 'UNI', 'LTC', 'ATOM', 'PEPE', 'SHIB', 'WIF', 'BONK'
 ];
 
-type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds';
+type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos';
 
 export default function AdminDashboard({ onBack }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
@@ -380,7 +383,8 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'command', label: 'Komut', icon: Zap },
     { id: 'agents', label: 'Ajanlar', icon: Users },
     { id: 'position', label: 'Pozisyon', icon: Target },
-    { id: 'deposits', label: 'Depozit', icon: DollarSign },
+    { id: 'deposits', label: 'Yatırım', icon: DollarSign },
+    { id: 'withdrawals', label: 'Çekim', icon: ArrowUpRight },
     { id: 'security', label: 'Güvenlik', icon: Shield },
     { id: 'activity', label: 'Aktivite', icon: Activity },
     { id: 'deploy', label: 'Deploy', icon: Server },
@@ -388,6 +392,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'analytics', label: 'Analitik', icon: Eye },
     { id: 'wallet-gen', label: 'Üretici', icon: Wallet },
     { id: 'data-protection', label: 'Veri Koruma', icon: Shield },
+    { id: 'tradfi-logos', label: 'TradeFi', icon: Image },
   ];
 
   return (
@@ -420,7 +425,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
       </div>
 
       <div className="bg-[#1E2329] border-b border-[#2B3139] px-2 py-2">
-        <div className="grid grid-cols-4 gap-1.5">
+        <div className="grid grid-cols-5 gap-1">
           {tabs.map(({ id, label, icon: Icon, badge }) => (
             <button
               key={id}
@@ -431,12 +436,12 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                   : 'bg-[#2B3139] text-gray-400 hover:text-white hover:bg-[#363D47]'
               }`}
             >
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              <span className="text-[10px] font-medium leading-tight text-center line-clamp-1 w-full px-0.5">
+              <Icon className="w-4 h-4 flex-shrink-0" />
+              <span className="text-[9px] font-medium leading-tight text-center w-full px-0.5 truncate">
                 {label}
               </span>
               {badge && badge > 0 && (
-                <span className="absolute top-1 right-1 min-w-[14px] h-3.5 px-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                <span className="absolute top-1 right-1 min-w-[13px] h-3.5 px-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
                   {badge > 99 ? '99+' : badge}
                 </span>
               )}
@@ -703,6 +708,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
           </div>
         )}
 
+        {activeTab === 'withdrawals' && (
+          <WithdrawalApprovalPanel />
+        )}
+
         {activeTab === 'security' && (
           <div>
             <h2 className="text-xl font-bold text-gray-900 mb-4">Güvenlik</h2>
@@ -737,6 +746,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
 
         {activeTab === 'data-protection' && (
           <DataProtectionPanel />
+        )}
+
+        {activeTab === 'tradfi-logos' && (
+          <TradfiLogosPanel />
         )}
 
         {activeTab === 'analytics' && (

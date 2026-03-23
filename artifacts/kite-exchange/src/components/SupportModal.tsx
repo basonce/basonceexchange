@@ -3,8 +3,34 @@ import { X, Send, Check, CheckCheck, ChevronRight, Shield, Clock, Star, Zap, Mes
 import { supabase } from '../lib/supabase';
 import { detectUserCountry } from '../lib/geolocation';
 import { assignBestAgent, getAgentStats, type Agent } from '../lib/agent-assignment';
-import { getAgentGreeting } from '../lib/agent-greetings';
 import { verifyUserAndGetContext, type UserProfile, type UserContextData } from '../lib/ai-support-engine';
+
+function detectMessageLanguage(text: string): string {
+  if (!text || text.trim().length < 2) return 'en';
+  const arabicPattern = /[\u0600-\u06FF\u0750-\u077F]/;
+  if (arabicPattern.test(text)) return 'ar';
+  const chinesePattern = /[\u4E00-\u9FFF]/;
+  if (chinesePattern.test(text)) return 'zh';
+  const japanesePattern = /[\u3040-\u309F\u30A0-\u30FF]/;
+  if (japanesePattern.test(text)) return 'ja';
+  const koreanPattern = /[\uAC00-\uD7AF]/;
+  if (koreanPattern.test(text)) return 'ko';
+  const russianPattern = /[\u0400-\u04FF]/;
+  if (russianPattern.test(text)) return 'ru';
+  const turkishChars = /[çşğıöüÇŞĞİÖÜ]/;
+  if (turkishChars.test(text)) return 'tr';
+  const turkishWords = /\b(merhaba|selam|nasıl|neden|niye|teşekkür|lütfen|para|çekim|yatırım|hesap|sorun|yardım|evet|hayır|tamam|bilgi|destek|işlem|bakiye)\b/i;
+  if (turkishWords.test(text)) return 'tr';
+  const germanChars = /[äöüßÄÖÜ]/;
+  if (germanChars.test(text)) return 'de';
+  const germanWords = /\b(hallo|danke|bitte|hilfe|guten|ich|nicht|oder|aber|wenn)\b/i;
+  if (germanWords.test(text)) return 'de';
+  const frenchWords = /\b(bonjour|merci|s'il vous|je|nous|vous|pourquoi|comment|aide|problème)\b/i;
+  if (frenchWords.test(text)) return 'fr';
+  const spanishWords = /\b(hola|gracias|por favor|ayuda|problema|no puedo|necesito|cómo|qué|por qué)\b/i;
+  if (spanishWords.test(text)) return 'es';
+  return 'en';
+}
 
 interface SupportMessage {
   id: string;
@@ -17,9 +43,17 @@ interface SupportMessage {
   original_language?: string;
 }
 
+interface PrefillData {
+  customerId?: string;
+  email?: string;
+  initialMessage?: string;
+  skipToForm?: boolean;
+}
+
 interface SupportModalProps {
   isOpen: boolean;
   onClose: () => void;
+  prefillData?: PrefillData;
 }
 
 const FAQ_ITEMS = [
@@ -53,10 +87,11 @@ const COUNTRIES_GRID = [
   { flag: '🇰🇷', name: 'South Korea', count: 41 },
 ];
 
-export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
+export default function SupportModal({ isOpen, onClose, prefillData }: SupportModalProps) {
   const [step, setStep] = useState<'home' | 'form' | 'chat'>('home');
-  const [customerId, setCustomerId] = useState('');
-  const [email, setEmail] = useState('');
+  const [customerId, setCustomerId] = useState(prefillData?.customerId || '');
+  const [email, setEmail] = useState(prefillData?.email || '');
+  const pendingInitialMessageRef = useRef<string | null>(prefillData?.initialMessage || null);
   const [ticketId, setTicketId] = useState<string | null>(null);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -110,6 +145,12 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
       ticketIdRef.current = null;
       customerIdRef.current = '';
       customerLanguageRef.current = 'ai';
+      pendingInitialMessageRef.current = null;
+    } else {
+      if (prefillData?.customerId) setCustomerId(prefillData.customerId);
+      if (prefillData?.email) setEmail(prefillData.email);
+      if (prefillData?.initialMessage) pendingInitialMessageRef.current = prefillData.initialMessage;
+      if (prefillData?.skipToForm) setStep('form');
     }
   }, [isOpen]);
 
@@ -326,6 +367,26 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
       setMessages([]);
       setStep('chat');
       setAgentConnecting(false);
+
+      const activeTicketId = ticket.id;
+
+      if (pendingInitialMessageRef.current) {
+        const initMsg = pendingInitialMessageRef.current;
+        pendingInitialMessageRef.current = null;
+        setTimeout(async () => {
+          const senderId = userId;
+          await supabase.from('support_messages').insert({
+            ticket_id: activeTicketId,
+            sender_type: 'customer',
+            sender_name: senderId,
+            message: initMsg,
+            original_message: initMsg,
+            original_language: detectMessageLanguage(initMsg),
+            read: false,
+          });
+          setIsAgentTyping(true);
+        }, 1400);
+      }
     } catch (error) {
       console.error('Error creating ticket:', error);
       setFormError('Could not start chat. Please try again.');
@@ -347,7 +408,7 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
     if (text === undefined) setNewMessage('');
 
     const senderId = customerIdRef.current || customerId || 'user';
-    const lang = 'ai';
+    const lang = detectMessageLanguage(messageText);
 
     const optimisticId = `opt_${Date.now()}`;
     const optimisticMsg: SupportMessage = {

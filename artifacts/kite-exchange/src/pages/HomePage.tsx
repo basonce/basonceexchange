@@ -1,6 +1,7 @@
-import React, { useState, lazy, Suspense, useEffect } from 'react';
+import React, { useState, lazy, Suspense, useEffect, useRef } from 'react';
 import { Menu, Headphones, Shield, X, Gift, Zap, TrendingUp, Star, Users } from 'lucide-react';
 import HomeMarketList from '../components/HomeMarketList';
+import FuturesMarketList from '../components/FuturesMarketList';
 import NewListingSection from '../components/NewListingSection';
 import MenuDrawer from '../components/MenuDrawer';
 import FuturesCampaignModal from '../components/FuturesCampaignModal';
@@ -34,6 +35,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
   const [discoverTab, setDiscoverTab] = useState<'discover' | 'following' | 'campaign' | 'announcement'>('discover');
   const [mainTab, setMainTab] = useState<'exchange' | 'wallet'>('exchange');
   const [showSupportModal, setShowSupportModal] = useState(false);
+  const [supportUserInfo, setSupportUserInfo] = useState<{ userId: string; email: string } | null>(null);
   const [showAlphaEvents, setShowAlphaEvents] = useState(false);
   const [showReferral, setShowReferral] = useState(false);
   const [showEarn, setShowEarn] = useState(false);
@@ -50,6 +52,8 @@ export default function HomePage({ onNavigate }: HomePageProps) {
   const [dbCampaigns, setDbCampaigns] = useState<CampaignDetailData[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<CampaignDetailData | null>(null);
 
+  const SLIDE_BASE = useRef(Date.now()).current;
+
   const promoSlides = [
     {
       title: 'Trade Futures & Win',
@@ -64,6 +68,8 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         </svg>
       ),
       content: 'Share 110M PUMP & 920K KITE!',
+      participants: 778432,
+      endsAt: SLIDE_BASE + 6 * 86400000 + 2 * 3600000,
       btnLabel: 'Join',
       btnAction: () => setShowFuturesCampaign(true),
     },
@@ -80,6 +86,8 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         </div>
       ),
       content: 'Zero Maker Fees & 50% Off Taker Fees',
+      participants: 1243890,
+      endsAt: SLIDE_BASE + 3 * 86400000 + 20 * 3600000,
       btnLabel: 'Trade',
       btnAction: () => { if (onNavigate) onNavigate('futures'); },
     },
@@ -95,11 +103,30 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         </div>
       ),
       content: 'OPN',
-      subContent: 'Warming 5H : 58M',
+      participants: 892340,
+      endsAt: SLIDE_BASE + 4 * 86400000 + 6 * 3600000,
       btnLabel: 'Join',
       btnAction: () => setShowLaunchpool(true),
     },
   ];
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('user_id, email')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (profile) {
+        setSupportUserInfo({ userId: String(profile.user_id || ''), email: profile.email || user.email || '' });
+      } else {
+        setSupportUserInfo({ userId: '', email: user.email || '' });
+      }
+    };
+    fetchUser();
+  }, []);
 
   useEffect(() => {
     supabase
@@ -270,7 +297,9 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               }),
             ];
             const totalSlides = allSlides.length;
-            const slide = allSlides[promoSlide % totalSlides];
+            const slide = allSlides[promoSlide % totalSlides] as any;
+            const slideParticipants: number | null = slide.participants ?? null;
+            const fmtParts = (n: number) => n >= 1000000 ? `${(n/1000000).toFixed(1)}M` : n >= 1000 ? `${(n/1000).toFixed(0)}K` : `${n}`;
             return (
               <div className="mx-4 mt-3 mb-1 bg-[#1E2329] rounded-2xl px-4 pt-3 pb-4 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 opacity-5 pointer-events-none">
@@ -289,8 +318,11 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                   <div className="flex-shrink-0">{slide.icon}</div>
                   <div className="flex-1 min-w-0">
                     <div className="text-white font-bold text-[15px] leading-snug">{slide.content}</div>
-                    {slide.subContent && (
-                      <div className="text-[#848E9C] text-[13px] mt-0.5">{slide.subContent}</div>
+                    {slideParticipants && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <Users className="w-2.5 h-2.5 text-[#848E9C]" />
+                        <span className="text-[#848E9C] text-[10px] font-semibold">{fmtParts(slideParticipants)} joined</span>
+                      </div>
                     )}
                   </div>
                   <button
@@ -335,7 +367,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
 
             </div>
 
-            {activeTab !== 'new-listing' && (
+            {activeTab !== 'new-listing' && activeTab !== 'futures' && (
               <div className="flex items-center gap-1.5 mb-1.5 overflow-x-auto scrollbar-hide -mx-4 px-4">
                 {[
                   { id: 'gainers', label: 'Gainers' },
@@ -363,6 +395,8 @@ export default function HomePage({ onNavigate }: HomePageProps) {
           <Suspense fallback={null}>
           {activeTab === 'new-listing' ? (
             <NewListingSection />
+          ) : activeTab === 'futures' ? (
+            <FuturesMarketList />
           ) : activeFilter === 'alpha' ? (
             <BasonceAlpha />
           ) : (
@@ -406,7 +440,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         </>
       )}
 
-      {showSupportModal && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><SupportModal isOpen={showSupportModal} onClose={() => setShowSupportModal(false)} /></Suspense>}
+      {showSupportModal && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><SupportModal isOpen={showSupportModal} onClose={() => setShowSupportModal(false)} prefillData={supportUserInfo ? { customerId: supportUserInfo.userId, email: supportUserInfo.email, skipToForm: true } : undefined} /></Suspense>}
       {showAlphaEvents && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><AlphaEventsModal isOpen={showAlphaEvents} onClose={() => setShowAlphaEvents(false)} /></Suspense>}
       {showReferral && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><ReferralModal isOpen={showReferral} onClose={() => setShowReferral(false)} /></Suspense>}
       {showEarn && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><EarnModal isOpen={showEarn} onClose={() => setShowEarn(false)} /></Suspense>}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Trophy, Zap, Gift, TrendingUp, Star, Shield } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trophy, Zap, Gift, TrendingUp, Star, Shield, Users } from 'lucide-react';
 import CampaignDetailModal, { type CampaignDetailData } from '../CampaignDetailModal';
 
 interface PromoItem {
@@ -13,8 +13,12 @@ interface PromoItem {
   accentColor: string;
   badge?: string;
   dotColor: string;
+  endsAt: number;
+  participants: number;
   campaignData: CampaignDetailData;
 }
+
+const BASE_TIME = Date.now();
 
 const PROMO_ITEMS: PromoItem[] = [
   {
@@ -22,12 +26,14 @@ const PROMO_ITEMS: PromoItem[] = [
     type: 'pool',
     icon: <Trophy className="w-6 h-6" />,
     title: '38,000,000 FOGO Reward Pool',
-    subtitle: 'Limited time offer — ends soon',
+    subtitle: 'Share the pool — top traders win big',
     highlight: 'JOIN NOW',
     gradient: 'from-[#F0B90B] via-[#F8D12F] to-[#E6A800]',
     accentColor: '#F0B90B',
     badge: 'LIMITED',
     dotColor: '#F0B90B',
+    endsAt: BASE_TIME + 6 * 86400000 + 2 * 3600000,
+    participants: 778432,
     campaignData: {
       id: 'promo-p1',
       title: '38,000,000 FOGO Grand Reward Pool',
@@ -37,9 +43,9 @@ const PROMO_ITEMS: PromoItem[] = [
       reward_label: '38,000,000 FOGO',
       badge_color: 'yellow',
       campaign_type: 'trading',
-      participants: 24817,
-      max_participants: 50000,
-      ends_at: new Date(Date.now() + 6 * 86400000 + 2 * 3600000).toISOString(),
+      participants: 778432,
+      max_participants: null,
+      ends_at: new Date(BASE_TIME + 6 * 86400000 + 2 * 3600000).toISOString(),
       requirements: [
         { text: 'Complete identity verification (KYC Level 1 or above)' },
         { text: 'Trade a minimum cumulative volume of $500 across Spot or Futures' },
@@ -60,6 +66,8 @@ const PROMO_ITEMS: PromoItem[] = [
     accentColor: '#0ECB81',
     badge: 'EVENT',
     dotColor: '#0ECB81',
+    endsAt: BASE_TIME + 3 * 86400000 + 20 * 3600000,
+    participants: 1243890,
     campaignData: {
       id: 'promo-p2',
       title: 'Zero Maker Fee — Full Week Event',
@@ -69,9 +77,9 @@ const PROMO_ITEMS: PromoItem[] = [
       reward_label: '0% MAKER FEE',
       badge_color: 'green',
       campaign_type: 'trading',
-      participants: 89432,
+      participants: 1243890,
       max_participants: null,
-      ends_at: new Date(Date.now() + 3 * 86400000 + 20 * 3600000).toISOString(),
+      ends_at: new Date(BASE_TIME + 3 * 86400000 + 20 * 3600000).toISOString(),
       requirements: [
         { text: 'Available to all registered users — no minimum balance required' },
         { text: 'Applies to all Futures trading pairs including BTC, ETH, SOL, and 200+ altcoins' },
@@ -92,6 +100,8 @@ const PROMO_ITEMS: PromoItem[] = [
     accentColor: '#3B82F6',
     badge: 'NEW',
     dotColor: '#3B82F6',
+    endsAt: BASE_TIME + 5 * 86400000 + 8 * 3600000,
+    participants: 2187650,
     campaignData: {
       id: 'promo-p3',
       title: 'New User Welcome Bonus: Up to $500',
@@ -101,9 +111,9 @@ const PROMO_ITEMS: PromoItem[] = [
       reward_label: 'Up to $500',
       badge_color: 'blue',
       campaign_type: 'deposit',
-      participants: 142300,
+      participants: 2187650,
       max_participants: null,
-      ends_at: null,
+      ends_at: new Date(BASE_TIME + 5 * 86400000 + 8 * 3600000).toISOString(),
       requirements: [
         { text: 'Register a new account and verify your email address (+$10 bonus)' },
         { text: 'Complete KYC identity verification (+$50 bonus)' },
@@ -124,6 +134,8 @@ const PROMO_ITEMS: PromoItem[] = [
     accentColor: '#F97316',
     badge: 'NEW',
     dotColor: '#F97316',
+    endsAt: BASE_TIME + 7 * 86400000 + 14 * 3600000,
+    participants: 456720,
     campaignData: {
       id: 'promo-p4',
       title: 'FOGO/USDT Launch Trading Race',
@@ -133,9 +145,9 @@ const PROMO_ITEMS: PromoItem[] = [
       reward_label: '500,000 FOGO',
       badge_color: 'orange',
       campaign_type: 'trading',
-      participants: 3847,
-      max_participants: 10000,
-      ends_at: new Date(Date.now() + 2 * 86400000 + 7 * 3600000).toISOString(),
+      participants: 456720,
+      max_participants: null,
+      ends_at: new Date(BASE_TIME + 7 * 86400000 + 14 * 3600000).toISOString(),
       requirements: [
         { text: 'Trade the FOGO/USDT pair on Spot or Futures markets' },
         { text: 'Minimum single trade volume of $50 to qualify for the leaderboard' },
@@ -156,6 +168,8 @@ const PROMO_ITEMS: PromoItem[] = [
     accentColor: '#F59E0B',
     badge: 'VIP',
     dotColor: '#F59E0B',
+    endsAt: BASE_TIME + 4 * 86400000 + 6 * 3600000,
+    participants: 892340,
     campaignData: {
       id: 'promo-p5',
       title: 'VIP Mining Upgrade — 50% OFF',
@@ -165,9 +179,9 @@ const PROMO_ITEMS: PromoItem[] = [
       reward_label: '50% OFF VIP',
       badge_color: 'yellow',
       campaign_type: 'mining',
-      participants: 2193,
-      max_participants: 5000,
-      ends_at: new Date(Date.now() + 10 * 86400000 + 18 * 3600000).toISOString(),
+      participants: 892340,
+      max_participants: null,
+      ends_at: new Date(BASE_TIME + 4 * 86400000 + 6 * 3600000).toISOString(),
       requirements: [
         { text: 'Purchase any VIP mining machine during the promotion period at 50% off' },
         { text: 'VIP machines include: GPU Farm, ASIC Cluster, Quantum Rig, and AI Mining Array' },
@@ -188,6 +202,8 @@ const PROMO_ITEMS: PromoItem[] = [
     accentColor: '#EC4899',
     badge: 'ACTIVE',
     dotColor: '#EC4899',
+    endsAt: BASE_TIME + 8 * 86400000 + 12 * 3600000,
+    participants: 1567430,
     campaignData: {
       id: 'promo-p6',
       title: 'Community Vote: Next Listed Token',
@@ -197,9 +213,9 @@ const PROMO_ITEMS: PromoItem[] = [
       reward_label: '+50 EQ / VOTE',
       badge_color: 'pink',
       campaign_type: 'social',
-      participants: 31540,
+      participants: 1567430,
       max_participants: null,
-      ends_at: new Date(Date.now() + 4 * 86400000 + 12 * 3600000).toISOString(),
+      ends_at: new Date(BASE_TIME + 8 * 86400000 + 12 * 3600000).toISOString(),
       requirements: [
         { text: 'Must have a verified account to cast a vote' },
         { text: 'Each user can cast one vote for one of 8 shortlisted tokens' },
@@ -210,6 +226,12 @@ const PROMO_ITEMS: PromoItem[] = [
     },
   },
 ];
+
+function formatParticipants(n: number): string {
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(0)}K`;
+  return n.toString();
+}
 
 export default function PromoBanner() {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -227,7 +249,9 @@ export default function PromoBanner() {
 
   useEffect(() => {
     startAutoPlay();
-    return () => { if (autoPlayRef.current) clearInterval(autoPlayRef.current); };
+    return () => {
+      if (autoPlayRef.current) clearInterval(autoPlayRef.current);
+    };
   }, []);
 
   const goTo = (index: number) => {
@@ -271,7 +295,6 @@ export default function PromoBanner() {
             <div className="absolute inset-0 overflow-hidden">
               <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-white/10 blur-2xl transform translate-x-10 -translate-y-10" />
               <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full bg-white/10 blur-xl transform -translate-x-6 translate-y-6" />
-              <div className="absolute top-1/2 left-1/3 w-20 h-20 rounded-full bg-white/5 blur-lg" />
             </div>
 
             <div className="relative flex items-center gap-0 px-3 py-2.5">
@@ -287,13 +310,18 @@ export default function PromoBanner() {
               </div>
 
               <div className="flex-1 min-w-0 mx-1">
-                {item.badge && (
-                  <span className="inline-block text-[9px] font-black px-1.5 py-0.5 rounded mb-0.5 bg-white/30 text-white backdrop-blur-sm leading-none">
-                    {item.badge}
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  {item.badge && (
+                    <span className="inline-block text-[9px] font-black px-1.5 py-0.5 rounded bg-white/30 text-white backdrop-blur-sm leading-none">
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
                 <h3 className="text-white font-black text-[12px] leading-tight truncate">{item.title}</h3>
-                <p className="text-white/80 text-[10px] leading-tight truncate">{item.subtitle}</p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <Users className="w-2.5 h-2.5 text-white/70" />
+                  <span className="text-white/80 text-[10px] font-semibold">{formatParticipants(item.participants)} joined</span>
+                </div>
               </div>
 
               <button

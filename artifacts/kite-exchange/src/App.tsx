@@ -88,6 +88,7 @@ function App() {
   const [selectedCrypto, setSelectedCrypto] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [futuresInitialSymbol, setFuturesInitialSymbol] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const refCode = new URLSearchParams(window.location.search).get('ref');
@@ -196,6 +197,21 @@ function App() {
     return () => window.removeEventListener('navigate-to-trade', handleNavigateToTrade);
   }, []);
 
+  useEffect(() => {
+    const handleNavigateToFutures = (e: any) => {
+      const symbol = e.detail?.symbol;
+      if (symbol) {
+        const normalized = symbol.endsWith('USDT') ? symbol : symbol + 'USDT';
+        setFuturesInitialSymbol(normalized);
+      }
+      setPrevTab(prev => prev !== 'futures' ? prev : 'markets');
+      setMobileTab('futures');
+    };
+
+    window.addEventListener('navigate-to-futures', handleNavigateToFutures);
+    return () => window.removeEventListener('navigate-to-futures', handleNavigateToFutures);
+  }, []);
+
   const handleNavigate = (page: Page) => {
     if (page === 'admin' && !isAdmin) {
       alert('Erişim reddedildi. Admin yetkisi gerekli.');
@@ -256,13 +272,16 @@ function App() {
             {mobileTab === 'home' && <PageErrorBoundary name="home"><HomePage /></PageErrorBoundary>}
             {mobileTab === 'markets' && <PageErrorBoundary name="markets"><MarketsPage /></PageErrorBoundary>}
             {mobileTab === 'trade' && <PageErrorBoundary name="trade"><TradePage onBack={() => { setMobileTab(prevTab !== 'trade' ? prevTab : 'markets'); }} /></PageErrorBoundary>}
-            {mobileTab === 'futures' && <PageErrorBoundary name="futures"><FuturesPage /></PageErrorBoundary>}
+            {mobileTab === 'futures' && <PageErrorBoundary name="futures"><FuturesPage initialSymbol={futuresInitialSymbol} /></PageErrorBoundary>}
             {mobileTab === 'aibot' && <PageErrorBoundary name="aibot"><AIBotPage /></PageErrorBoundary>}
             {mobileTab === 'mining' && <PageErrorBoundary name="mining"><MiningPage /></PageErrorBoundary>}
             {mobileTab === 'assets' && <PageErrorBoundary name="assets"><AssetsPage /></PageErrorBoundary>}
             {mobileTab === 'profile' && (
               <PageErrorBoundary name="profile">
-                <ProfilePage onNavigateToAdmin={() => handleNavigate('admin')} />
+                <ProfilePage
+                  onNavigateToAdmin={() => handleNavigate('admin')}
+                  onBack={() => setMobileTab(prevTab !== 'profile' ? prevTab : 'home')}
+                />
               </PageErrorBoundary>
             )}
           </main>

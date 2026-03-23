@@ -3,6 +3,7 @@ import { ChevronRight, MessageCircle, Cpu, Zap, DollarSign, HelpCircle, Shield, 
 import { supabase } from '../../lib/supabase';
 import { detectUserCountry } from '../../lib/geolocation';
 import { assignBestAgent, type Agent } from '../../lib/agent-assignment';
+import { getAgentGreeting } from '../../lib/agent-greetings';
 import { verifyUserAndGetContext, type UserContextData } from '../../lib/ai-support-engine';
 
 interface SupportMessage {
@@ -111,6 +112,25 @@ export default function SupportTab() {
       setLiveAgentCount(prev => Math.max(410, Math.min(432, prev + (Math.random() > 0.5 ? 1 : -1))));
     }, 3000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('user_id, email')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (profile) {
+        setCustomerId(String(profile.user_id || ''));
+        setEmail(profile.email || user.email || '');
+      } else {
+        setEmail(user.email || '');
+      }
+    };
+    fetchUser();
   }, []);
 
   useEffect(() => {
@@ -286,6 +306,20 @@ export default function SupportTab() {
       setMessages([]);
       setStep('chat');
       setAgentConnecting(false);
+
+      const activeTicketId = ticket.id;
+      const greetingText = getAgentGreeting(assignedAgent);
+      setTimeout(async () => {
+        await supabase.from('support_messages').insert({
+          ticket_id: activeTicketId,
+          sender_type: 'admin',
+          sender_name: assignedAgent.name,
+          message: greetingText,
+          original_message: greetingText,
+          original_language: 'ai',
+          read: false,
+        });
+      }, 600);
 
       if (pendingQuestion) {
         const q = pendingQuestion;

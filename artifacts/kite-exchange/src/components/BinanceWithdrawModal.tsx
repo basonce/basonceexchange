@@ -275,8 +275,7 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
         receive_amount: receiveAmount,
         destination_address: address.trim(),
         txid: txId,
-        status: 'completed',
-        completed_at: now.toISOString(),
+        status: 'pending',
       });
 
       setSuccessData({
@@ -306,57 +305,47 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
   };
 
   if (step === 'success' && successData) {
+    const receiveFormatted = successData.receiveAmount % 1 === 0
+      ? successData.receiveAmount.toFixed(0)
+      : parseFloat(successData.receiveAmount.toFixed(8)).toString();
+    const estimatedTime = new Date(Date.now() + 2 * 60 * 1000)
+      .toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      .replace(',', '');
+
     return (
-      <div className="fixed inset-0 bg-[#0B0E11] z-50 flex flex-col">
-        <div className="flex-1 overflow-y-auto px-5 pt-10 pb-6">
-          <div className="text-center mb-8">
-            <div className="text-[28px] font-bold text-white mb-2">
-              -{successData.amount} {successData.symbol}
-            </div>
-            <div className="flex items-center justify-center gap-2">
-              <CheckCircle className="w-5 h-5 text-[#0ECB81]" />
-              <span className="text-[#0ECB81] font-semibold text-base">Completed</span>
-            </div>
-            <p className="text-gray-400 text-sm mt-3 leading-relaxed">
-              Crypto has been transferred out. Please contact the recipient platform for the transaction receipt.
-            </p>
+      <div className="fixed inset-0 bg-[#12161C] z-50 flex flex-col">
+        <div className="flex items-center px-4 pt-5 pb-3">
+          <button onClick={onClose} className="text-white p-1">
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+          <div className="mb-8">
+            <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="20" y="8" width="56" height="8" rx="3" fill="white" opacity="0.9"/>
+              <rect x="20" y="80" width="56" height="8" rx="3" fill="white" opacity="0.9"/>
+              <path d="M24 16 L48 52 L72 16 Z" fill="none" stroke="white" strokeWidth="2.5" opacity="0.8"/>
+              <path d="M24 80 L48 48 L72 80 Z" fill="none" stroke="white" strokeWidth="2.5" opacity="0.8"/>
+              <path d="M30 22 L48 50 L66 22 Z" fill="white" opacity="0.15"/>
+              <ellipse cx="48" cy="52" rx="10" ry="6" fill="#F0B90B" opacity="0.9"/>
+              <path d="M38 52 Q48 62 58 52" fill="#F0B90B" opacity="0.6"/>
+              <circle cx="48" cy="56" r="3" fill="#F0B90B"/>
+            </svg>
           </div>
 
-          <div className="space-y-0 border border-[#2B3139] rounded-xl overflow-hidden">
-            {[
-              { label: 'Network', value: successData.network, badge: true },
-              { label: 'Address', value: successData.address },
-              { label: 'TxID', value: successData.txId, copyable: true },
-              { label: 'Amount', value: `${successData.amount} ${successData.symbol}` },
-              { label: 'Network fee', value: `${successData.fee.toFixed(8)} ${successData.symbol}` },
-              { label: 'Wallet', value: 'Spot Wallet' },
-              { label: 'Date', value: successData.date },
-            ].map((row, i) => (
-              <div key={i} className="flex items-start justify-between px-4 py-3.5 border-b border-[#2B3139] last:border-b-0">
-                <span className="text-gray-400 text-sm">{row.label}</span>
-                {row.badge ? (
-                  <span className="bg-[#F0B90B]/20 text-[#F0B90B] text-xs font-bold px-2 py-0.5 rounded">
-                    {row.value}
-                  </span>
-                ) : row.copyable ? (
-                  <div className="flex items-start gap-2 max-w-[55%]">
-                    <span className="text-white text-sm text-right break-all leading-relaxed underline">
-                      {row.value.slice(0, 12)}...{row.value.slice(-8)}
-                    </span>
-                    <button onClick={handleCopyTx} className="flex-shrink-0 mt-0.5">
-                      {copiedTx ? (
-                        <CheckCircle className="w-4 h-4 text-[#0ECB81]" />
-                      ) : (
-                        <Copy className="w-4 h-4 text-gray-400" />
-                      )}
-                    </button>
-                  </div>
-                ) : (
-                  <span className="text-white text-sm text-right max-w-[55%] break-all">{row.value}</span>
-                )}
-              </div>
-            ))}
+          <h1 className="text-white text-xl font-bold mb-4">Withdrawal Processing</h1>
+
+          <div className="text-[32px] font-black text-white mb-6 tracking-tight">
+            {receiveFormatted} {successData.symbol}
           </div>
+
+          <p className="text-gray-400 text-sm leading-relaxed max-w-xs">
+            Estimated completion time: {estimatedTime}
+            <br />
+            <br />
+            You will receive an email once withdrawal is completed. View history for the latest updates.
+          </p>
         </div>
 
         <div className="px-5 pb-8">
@@ -364,7 +353,7 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
             onClick={onClose}
             className="w-full bg-[#F0B90B] hover:bg-[#F0B90B]/90 text-black font-bold py-4 rounded-xl text-base transition-colors"
           >
-            Done
+            View History
           </button>
         </div>
       </div>

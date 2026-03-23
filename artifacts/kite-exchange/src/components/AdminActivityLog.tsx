@@ -161,7 +161,7 @@ export default function AdminActivityLog() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {summary.slice(0, 4).map((item, idx) => (
             <div key={idx} className="bg-white/10 rounded-lg p-3">
               <div className="text-xs opacity-80">{item.action_category}</div>

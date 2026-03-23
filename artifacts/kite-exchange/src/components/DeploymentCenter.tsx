@@ -368,7 +368,7 @@ export function DeploymentCenter() {
           </button>
         </div>
 
-        <div className="flex gap-2 mb-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           {[
             { key: 'functions', label: 'Edge Functions', icon: FileCode },
             { key: 'database', label: 'Veritabani', icon: Database },
@@ -379,11 +379,11 @@ export function DeploymentCenter() {
             <button
               key={key}
               onClick={() => setActiveTab(key as typeof activeTab)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap transition-all flex-shrink-0 ${
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg whitespace-nowrap transition-all ${
                 activeTab === key ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
               }`}
             >
-              <Icon className="w-4 h-4 flex-shrink-0" />
+              <Icon className="w-4 h-4" />
               <span className="text-sm font-medium">{label}</span>
             </button>
           ))}
@@ -407,13 +407,13 @@ export function DeploymentCenter() {
               </button>
             </div>
 
-            <div className="grid gap-3 grid-cols-1">
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {functions.map((func) => (
                 <div key={func.id} className="bg-gray-800 rounded-xl p-4 border border-gray-700 hover:border-blue-500 transition-all">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-white text-sm mb-1">{func.name}</h3>
-                      <p className="text-xs text-gray-500 font-mono">{func.slug}</p>
+                      <h3 className="font-bold text-white text-sm mb-1 truncate">{func.name}</h3>
+                      <p className="text-xs text-gray-500 font-mono truncate">{func.slug}</p>
                     </div>
                     <div className={`flex items-center gap-1 px-2 py-1 rounded-full ml-2 flex-shrink-0 ${
                       func.testResult === 'ok' ? 'bg-green-500/20' :
@@ -578,7 +578,7 @@ export function DeploymentCenter() {
 
         {activeTab === 'health' && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-blue-600 rounded-xl p-4 border border-blue-500">
                 <div className="flex items-center gap-2 mb-2">
                   <Server className="w-5 h-5 text-white" />
