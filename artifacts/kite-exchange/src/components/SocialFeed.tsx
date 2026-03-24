@@ -1507,7 +1507,7 @@ const LiveRoomsScroller = memo(function LiveRoomsScroller({ rooms, onRoomClick }
     return () => ro.disconnect();
   }, [rooms.length]);
 
-  const speedSec = Math.max(30, rooms.length * 1.3);
+  const speedSec = Math.max(40, rooms.length * 2.2);
 
   return (
     <div className="bg-[#0d0f14] border-b border-[#1E2329]">
