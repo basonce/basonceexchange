@@ -9,6 +9,23 @@ import AlphaPriceManager from '../../lib/alpha-price-manager';
 
 const GRADIENT_COLORS = ['#F0B90B', '#0ECB81', '#3861FB', '#E8831D', '#627EEA', '#00D1FF', '#FF6B35'];
 const NETWORK_COLORS: Record<string, string> = { BNC: '#F0B90B', BSC: '#F0B90B', Ethereum: '#627EEA', Solana: '#00D1FF', Base: '#0052FF' };
+
+const _CMC = 'https://s2.coinmarketcap.com/static/img/coins/64x64';
+const _CG  = 'https://assets.coingecko.com/coins/images';
+const _TAG_LOGOS: Record<string, string[]> = {
+  Meme:   [`${_CG}/29850/small/pepe-token.jpeg`,`${_CG}/5/small/dogecoin.png`,`${_CG}/11939/small/shiba.png`,`${_CG}/33566/small/dogwifhat.jpg`,`${_CG}/16746/small/PNG_image.png`,`${_CG}/28600/small/bonk.jpg`,`${_CG}/24383/small/apecoin.jpg`,`${_CMC}/36048.png`,`${_CG}/33764/small/image.png`,`${_CG}/33831/small/myro.jpg`],
+  AI:     [`${_CG}/5681/small/Fetch.jpg`,`${_CG}/2138/small/singularitynet.png`,`${_CG}/11636/small/rndr.png`,`${_CG}/3687/small/ocean-protocol-logo.jpg`,`${_CG}/12785/small/akash-logo.png`,`${_CG}/34057/small/VIRTUAL_Token_Icon.png`,`${_CMC}/22974.png`],
+  Gaming: [`${_CG}/13029/small/axie_infinity_logo.png`,`${_CG}/18229/small/ygg_logo.png`,`${_CG}/12129/small/sandbox_logo.jpg`,`${_CG}/9441/small/Decentraland_MANA_Logo.png`,`${_CG}/14468/small/ILV.JPG`,`${_CG}/17139/small/10631.png`],
+  DeFi:   [`${_CG}/12504/small/uniswap-uni.png`,`${_CG}/12645/small/AAVE.png`,`${_CG}/12124/small/Curve.png`,`${_CG}/11849/small/yfi-192x192.png`,`${_CG}/12271/small/512x512_Logo_no_chop.png`,`${_CG}/10775/small/COMP.png`,`${_CG}/11683/small/Balancer.png`,`${_CG}/13469/small/1inch-token.png`],
+  Layer2: [`${_CMC}/24091.png`,`${_CG}/25244/small/Optimism.png`,`${_CG}/4713/small/matic-token-icon.png`,`${_CG}/16547/small/photo_2023-03-29_18.09.49.jpeg`,`${_CG}/26433/small/starknet.png`],
+  RWA:    [`${_CG}/9519/small/paxg.PNG`,`${_CG}/877/small/chainlink-new-logo.png`,`${_CG}/6319/small/usdc.png`,`${_CG}/1364/small/Mark_Maker.png`,`${_CG}/26580/small/ONDO.png`],
+};
+const _DEFAULT_LOGOS = [`${_CG}/29850/small/pepe-token.jpeg`,`${_CG}/5/small/dogecoin.png`,`${_CMC}/36048.png`,`${_CG}/12504/small/uniswap-uni.png`,`${_CMC}/24091.png`];
+function _getTagFallbackLogo(tag: string | null, id: string): string {
+  const pool = _TAG_LOGOS[tag ?? ''] ?? _DEFAULT_LOGOS;
+  const seed = id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  return pool[seed % pool.length];
+}
 const HOLDER_COLORS = ['#F0B90B', '#0ECB81', '#3861FB', '#E8831D', '#627EEA', '#00D1FF', '#F6465D', '#FF6B35', '#9B59B6', '#1ABC9C'];
 
 const AI_ANALYSES = [
@@ -362,7 +379,7 @@ export default function AlphaTokenDetail({ token: initialToken, isOpen, onClose 
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden relative" style={{ background: `linear-gradient(135deg, ${GRADIENT_COLORS[idx]}dd, ${GRADIENT_COLORS[(idx + 3) % GRADIENT_COLORS.length]}aa)` }}>
               <span className="absolute inset-0 flex items-center justify-center text-white text-[9px] font-black">{liveToken.symbol.slice(0, 2)}</span>
-              {liveToken.logo_url && <img src={liveToken.logo_url} alt="" className="w-full h-full object-cover relative z-10" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />}
+              <img src={liveToken.logo_url || _getTagFallbackLogo(liveToken.tag, liveToken.id)} alt="" className="w-full h-full object-cover relative z-10" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
             </div>
             <div className="text-center">
               <span className="font-bold text-white text-sm block leading-tight">{liveToken.name}</span>

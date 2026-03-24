@@ -6,6 +6,78 @@ const NETWORK_COLORS: Record<string, string> = {
   BNC: '#F0B90B', BSC: '#F0B90B', Ethereum: '#627EEA', Solana: '#00D1FF', Base: '#0052FF',
 };
 
+const CMC = 'https://s2.coinmarketcap.com/static/img/coins/64x64';
+const CG  = 'https://assets.coingecko.com/coins/images';
+
+const TAG_LOGOS: Record<string, string[]> = {
+  Meme:    [
+    `${CG}/29850/small/pepe-token.jpeg`,
+    `${CG}/5/small/dogecoin.png`,
+    `${CG}/11939/small/shiba.png`,
+    `${CG}/33566/small/dogwifhat.jpg`,
+    `${CG}/16746/small/PNG_image.png`,
+    `${CG}/28600/small/bonk.jpg`,
+    `${CG}/24383/small/apecoin.jpg`,
+    `${CMC}/36048.png`,
+    `${CG}/33764/small/image.png`,
+    `${CG}/33831/small/myro.jpg`,
+  ],
+  AI:      [
+    `${CG}/5681/small/Fetch.jpg`,
+    `${CG}/2138/small/singularitynet.png`,
+    `${CG}/11636/small/rndr.png`,
+    `${CG}/3687/small/ocean-protocol-logo.jpg`,
+    `${CG}/12785/small/akash-logo.png`,
+    `${CG}/34057/small/VIRTUAL_Token_Icon.png`,
+    `${CMC}/22974.png`,
+  ],
+  Gaming:  [
+    `${CG}/13029/small/axie_infinity_logo.png`,
+    `${CG}/18229/small/ygg_logo.png`,
+    `${CG}/12129/small/sandbox_logo.jpg`,
+    `${CG}/9441/small/Decentraland_MANA_Logo.png`,
+    `${CG}/14468/small/ILV.JPG`,
+    `${CG}/17139/small/10631.png`,
+  ],
+  DeFi:    [
+    `${CG}/12504/small/uniswap-uni.png`,
+    `${CG}/12645/small/AAVE.png`,
+    `${CG}/12124/small/Curve.png`,
+    `${CG}/11849/small/yfi-192x192.png`,
+    `${CG}/12271/small/512x512_Logo_no_chop.png`,
+    `${CG}/10775/small/COMP.png`,
+    `${CG}/11683/small/Balancer.png`,
+    `${CG}/13469/small/1inch-token.png`,
+  ],
+  Layer2:  [
+    `${CMC}/24091.png`,
+    `${CG}/25244/small/Optimism.png`,
+    `${CG}/4713/small/matic-token-icon.png`,
+    `${CG}/16547/small/photo_2023-03-29_18.09.49.jpeg`,
+    `${CG}/26433/small/starknet.png`,
+  ],
+  RWA:     [
+    `${CG}/9519/small/paxg.PNG`,
+    `${CG}/877/small/chainlink-new-logo.png`,
+    `${CG}/6319/small/usdc.png`,
+    `${CG}/1364/small/Mark_Maker.png`,
+    `${CG}/26580/small/ONDO.png`,
+  ],
+};
+const DEFAULT_LOGOS = [
+  `${CG}/29850/small/pepe-token.jpeg`,
+  `${CG}/5/small/dogecoin.png`,
+  `${CMC}/36048.png`,
+  `${CG}/12504/small/uniswap-uni.png`,
+  `${CMC}/24091.png`,
+];
+
+function getTagFallbackLogo(tag: string | null, tokenId: string): string {
+  const pool = TAG_LOGOS[tag ?? ''] ?? DEFAULT_LOGOS;
+  const seed = tokenId.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  return pool[seed % pool.length];
+}
+
 const TAG_COLORS: Record<string, string> = {
   Meme: '#F0B90B', AI: '#00D1FF', Gaming: '#0ECB81', DeFi: '#E8831D',
   Layer2: '#627EEA', RWA: '#9B59B6',
@@ -110,6 +182,7 @@ function TokenLogo({ token }: { token: AlphaToken }) {
   const ringColors = RING_GRADIENTS[seed % RING_GRADIENTS.length];
   const bgSeed = (seed * 3) % RING_GRADIENTS.length;
   const bgColors = RING_GRADIENTS[bgSeed];
+  const logoSrc = token.logo_url || getTagFallbackLogo(token.tag, token.id);
 
   return (
     <div className="relative flex-shrink-0 w-[46px] h-[46px]">
@@ -124,14 +197,12 @@ function TokenLogo({ token }: { token: AlphaToken }) {
           <span className="text-white text-sm font-black leading-none select-none">
             {token.symbol.slice(0, 2)}
           </span>
-          {token.logo_url && (
-            <img
-              src={token.logo_url}
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover rounded-full"
-              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-            />
-          )}
+          <img
+            src={logoSrc}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover rounded-full"
+            onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
         </div>
       </div>
     </div>
