@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, memo, useCallback } from 'react';
-import { Heart, MessageCircle, Share2, Radio, Crown, Lock, Sparkles, Users, BookOpen, BarChart2, MessageSquare, Newspaper, Zap, TrendingUp, TrendingDown, ExternalLink, Shield, Globe, Repeat2, BarChart } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Radio, Crown, Lock, Sparkles, Users, BookOpen, BarChart2, MessageSquare, Newspaper, Zap, TrendingUp, TrendingDown, ExternalLink, Shield, Globe, Repeat2, BarChart, Gift } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PriceCache } from '../lib/price-cache';
 import LiveRoomModal from './LiveRoomModal';
@@ -302,6 +302,92 @@ const MEME_CONTENT_POOL: Array<{ content: string; tags: string[]; sentiment: 'bu
   { content: 'New Lamborghini Urus. $APT $ARB gains. Altseason is real. Period.', tags: ['APT', 'ARB'], sentiment: 'bullish' },
   { content: 'Woke up to a $PEPE 300% candle. Life is beautiful from the yacht.', tags: ['PEPE', 'ETH'], sentiment: 'bullish' },
   { content: 'Third bull run. Third car upgrade. Pattern recognition is a skill. $BTC $SOL', tags: ['BTC', 'SOL'], sentiment: 'bullish' },
+  { content: '🚨 Trump just said "Bitcoin is the greatest financial invention in history." $BTC 🏛️🔥', tags: ['BTC', 'ETH'], sentiment: 'bullish' },
+  { content: 'Bull run ❌\nBear run ✅\n😅\n$TRUMP $DOGE $SHIB\nHistory repeating itself rn.', tags: ['TRUMP', 'DOGE', 'SHIB'], sentiment: 'bearish' },
+  { content: 'Me eating steak on the yacht while $RIVER flies 🥩🔥 No one can keep up and I\'m just chilling counting profit 😎', tags: ['BTC', 'SOL'], sentiment: 'bullish' },
+  { content: 'I will take 10,000x from:\n$LUNC\n$LUNA\nAnd $XRP 💰🚀🚀\nThen I will leave the world 👇', tags: ['XRP', 'LUNC'], sentiment: 'bullish' },
+  { content: 'BREAKING: Congress passes Bitcoin Strategic Reserve Act. USA officially holds BTC. $BTC 🏛️🟠', tags: ['BTC', 'ETH', 'BNB'], sentiment: 'bullish' },
+  { content: '🔴 JUST IN: $2T wiped from U.S. stocks since Iran conflict began. $BTC still standing. $SOL $BNB', tags: ['BTC', 'SOL', 'BNB'], sentiment: 'neutral' },
+  { content: 'Ate the best steak of my life in Dubai. $ETH farming covered all expenses. Never touching fiat again.', tags: ['ETH', 'BNB'], sentiment: 'bullish' },
+  { content: 'Chart analysis: same setup as 2021. Different players. Same result. $BTC $SOL loading 🎯', tags: ['BTC', 'SOL'], sentiment: 'bullish' },
+  { content: '⚡️ SEC drops ALL crypto enforcement actions. New era begins. $ETH $XRP $SOL pumping as we speak.', tags: ['ETH', 'XRP', 'SOL'], sentiment: 'bullish' },
+  { content: 'Russia & China just settled $50B trade in Bitcoin. Sovereign adoption is here. $BTC 🌍', tags: ['BTC', 'XRP'], sentiment: 'bullish' },
+  { content: 'They laughed when I bought $PEPE at launch. They\'re not laughing now. Quiet money moves. 🐸', tags: ['PEPE', 'WIF', 'BONK'], sentiment: 'bullish' },
+  { content: 'How to read the most popular candlestick patterns and why most traders get them wrong 📊 $BTC $ETH', tags: ['BTC', 'ETH'], sentiment: 'neutral' },
+  { content: 'War in Ukraine, war in Middle East, trade war with China. And $BTC is UP. Coincidence? 🤔', tags: ['BTC', 'SOL'], sentiment: 'bullish' },
+  { content: 'Crypto for beginners: Earn $3 to $9 daily even without investment. Here\'s how 👇 $XRP $BTC $DOGE', tags: ['XRP', 'BTC', 'DOGE'], sentiment: 'bullish' },
+];
+
+const NEWS_POST_CONTENT = [
+  { headline: '🚨 JUST IN: $2T wiped from U.S. stock market since Iran war began.', body: 'Bitcoin acting as safe haven asset. Digital gold narrative confirmed.', tags: ['BTC', 'TRUMP', 'BNB'], sentiment: 'bearish' as const },
+  { headline: '🇺🇸 Trump signs executive order: BTC becomes U.S. strategic reserve asset.', body: 'Senate vote passed 67-33. Markets react violently. BTC up 18%.', tags: ['BTC', 'ETH', 'SOL'], sentiment: 'bullish' as const },
+  { headline: '🔴 ALERT: China bans all US tech imports. Trade war escalation triggers crypto rally.', body: 'Bitcoin up 8% as traditional markets bleed red. Safe haven flows increase.', tags: ['BTC', 'BNB', 'XRP'], sentiment: 'bullish' as const },
+  { headline: '📈 BlackRock BTC ETF: $3.2B single-day inflow — new all-time high.', body: 'Institutional FOMO is real. Spot ETFs absorb massive buying pressure. Accumulation continues.', tags: ['BTC', 'ETH'], sentiment: 'bullish' as const },
+  { headline: '⚡️ BREAKING: SEC drops ALL crypto enforcement cases under new chairman.', body: 'DeFi protocols surge 20-40% in hours. XRP, SOL lead the charge.', tags: ['ETH', 'SOL', 'XRP'], sentiment: 'bullish' as const },
+  { headline: '🇺🇸 Trump at G20: "The dollar will be backed by Bitcoin."', body: 'BTC dominance hits 68%. Global markets shocked. Altcoins surge with delay.', tags: ['BTC', 'TRUMP'], sentiment: 'bullish' as const },
+  { headline: '🏦 Federal Reserve cuts rates to 0.25%. Inflation fears reignite crypto demand.', body: 'Stablecoin supply hits record. BTC buying pressure intensifies. Miners hold.', tags: ['BTC', 'ETH', 'BNB'], sentiment: 'bullish' as const },
+  { headline: '🌍 BREAKING: Russia & China settle $50B trade bilateral in Bitcoin.', body: 'First sovereign BTC transaction ever recorded on-chain. De-dollarization accelerates.', tags: ['BTC', 'XRP'], sentiment: 'bullish' as const },
+  { headline: '🔴 FLASH CRASH: Leverage liquidations hit $1.8B in 4 hours.', body: 'Cascading liquidations wipe over-leveraged positions. Smart money buys the dip.', tags: ['BTC', 'ETH', 'SOL'], sentiment: 'bearish' as const },
+  { headline: '⚡️ JUST IN: Binance receives full US regulatory approval. Expansion begins.', body: 'Largest crypto exchange back in US market. Volume expected to triple in 30 days.', tags: ['BNB', 'BTC'], sentiment: 'bullish' as const },
+  { headline: '🇮🇷 Iran-US tensions escalate. Oil hits $135. Crypto safe haven demand surges.', body: 'BTC hashrate at all-time high. Middle East conflict pushing capital into digital assets.', tags: ['BTC', 'ETH'], sentiment: 'neutral' as const },
+  { headline: '📊 How to read candlestick patterns — why most traders get them wrong.', body: 'Understanding wicks, bodies, and volume context is what separates winners from losers.', tags: ['BTC', 'ETH'], sentiment: 'neutral' as const },
+];
+
+const NEWS_IMAGES_A = [
+  'https://images.pexels.com/photos/1352398/pexels-photo-1352398.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/1199516/pexels-photo-1199516.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/3769138/pexels-photo-3769138.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/1181672/pexels-photo-1181672.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/590022/pexels-photo-590022.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/3184418/pexels-photo-3184418.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/1549280/pexels-photo-1549280.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/221036/pexels-photo-221036.jpeg?auto=compress&cs=tinysrgb&w=600',
+];
+
+const NEWS_IMAGES_B = [
+  'https://images.pexels.com/photos/6801874/pexels-photo-6801874.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/6802042/pexels-photo-6802042.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/7567443/pexels-photo-7567443.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/6801645/pexels-photo-6801645.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/6802049/pexels-photo-6802049.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/534216/pexels-photo-534216.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/210607/pexels-photo-210607.jpeg?auto=compress&cs=tinysrgb&w=600',
+];
+
+const NEWS_POST_USERS = [
+  { username: 'DoctorMedia_Crypto', avatar: 'https://randomuser.me/api/portraits/men/35.jpg' },
+  { username: 'BlockchainEmpire', avatar: 'https://randomuser.me/api/portraits/men/33.jpg' },
+  { username: 'CryptoMarketLens', avatar: 'https://randomuser.me/api/portraits/men/34.jpg' },
+  { username: 'DoctorProfit88', avatar: 'https://randomuser.me/api/portraits/men/42.jpg' },
+  { username: 'GlobalCryptoAlert', avatar: 'https://randomuser.me/api/portraits/men/38.jpg' },
+  { username: 'WhaleWatcher99', avatar: 'https://randomuser.me/api/portraits/men/39.jpg' },
+  { username: 'CryptoNewsFlash', avatar: 'https://randomuser.me/api/portraits/women/21.jpg' },
+  { username: 'OGCryptoTrading', avatar: 'https://randomuser.me/api/portraits/men/22.jpg' },
+];
+
+const GIVEAWAY_IMAGES = [
+  'https://images.pexels.com/photos/4386373/pexels-photo-4386373.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/1796817/pexels-photo-1796817.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/4968391/pexels-photo-4968391.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/259200/pexels-photo-259200.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/6802043/pexels-photo-6802043.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'https://images.pexels.com/photos/5466280/pexels-photo-5466280.jpeg?auto=compress&cs=tinysrgb&w=600',
+];
+
+const GIVEAWAY_AMOUNTS = [
+  { amount: '79.00', currency: 'USDT', caption: 'Crypto for Beginners: Earn $3 to $9 daily, even without investment!' },
+  { amount: '500.00', currency: 'USDT', caption: '🎁 Giveaway time! 500 USDT to 5 lucky winners. Follow + RT to enter!' },
+  { amount: '1,000.00', currency: 'USDT', caption: 'Celebrating 100K followers. 1000 USDT giveaway. Drop your wallet below.' },
+  { amount: '250.00', currency: 'USDT', caption: '250 USDT reward for the top 3 traders this week. Compete now!' },
+  { amount: '2,500.00', currency: 'USDT', caption: 'New year new bull run. Giving away $2500 to the community 🔥' },
+  { amount: '100.00', currency: 'USDT', caption: 'Daily task reward: 100 USDT for anyone who completes the challenge!' },
+];
+
+const GIVEAWAY_USERS = [
+  { username: 'CryptoMarketLens', avatar: 'https://randomuser.me/api/portraits/men/34.jpg' },
+  { username: 'BasonceOfficial', avatar: '/BASONCE_LOGO_SON_BITEN copy.png' },
+  { username: 'WhaleDrops_OG', avatar: 'https://randomuser.me/api/portraits/men/37.jpg' },
+  { username: 'RewardKingCrypto', avatar: 'https://randomuser.me/api/portraits/women/22.jpg' },
 ];
 
 const LUXURY_WEALTH_IMAGES = [
@@ -581,6 +667,86 @@ function generateMemePost(pc: PriceCache, pickImage?: () => string | null): Soci
   };
 }
 
+function generateNewsPost(pc: PriceCache): SocialPost {
+  const news = pickRandom(NEWS_POST_CONTENT);
+  const user = pickRandom(NEWS_POST_USERS);
+  const fakeNow = new Date();
+  fakeNow.setSeconds(fakeNow.getSeconds() - Math.floor(Math.random() * 120));
+  const imgA = pickRandom(NEWS_IMAGES_A);
+  const useDoubleImg = Math.random() < 0.72;
+  const imgB = useDoubleImg ? pickRandom(NEWS_IMAGES_B) : null;
+  const coinTags = news.tags.map(sym => {
+    const cached = pc.getBySymbol(sym);
+    const change = cached?.change24h !== undefined
+      ? Number(cached.change24h.toFixed(2))
+      : Number(((Math.random() * 14 - 3)).toFixed(2));
+    return { symbol: sym, change };
+  });
+  return {
+    id: `news_post_${Date.now()}_${Math.random()}`,
+    username: user.username,
+    avatar_url: user.avatar,
+    content: `${news.headline}\n${news.body}`,
+    coin_symbol: news.tags[0] || 'BTC',
+    trade_type: 'long',
+    entry_price: 0,
+    exit_price: 0,
+    profit_loss: 0,
+    profit_loss_percent: 0,
+    leverage: 1,
+    image_url: imgA,
+    image_url_2: imgB,
+    likes_count: Math.floor(5 + Math.random() * 400),
+    comments_count: Math.floor(2 + Math.random() * 80),
+    shares_count: Math.floor(3 + Math.random() * 200),
+    view_count: Math.floor(1000 + Math.random() * 300000),
+    repost_count: Math.floor(5 + Math.random() * 120),
+    is_bullish: news.sentiment === 'bullish',
+    created_at: fakeNow.toISOString(),
+    post_type: 'geopolitical_news',
+    coin_tags: coinTags,
+    sentiment: news.sentiment,
+  };
+}
+
+function generateGiveawayPost(): SocialPost {
+  const gw = pickRandom(GIVEAWAY_AMOUNTS);
+  const user = pickRandom(GIVEAWAY_USERS);
+  const img = pickRandom(GIVEAWAY_IMAGES);
+  const fakeNow = new Date();
+  fakeNow.setSeconds(fakeNow.getSeconds() - Math.floor(Math.random() * 240));
+  const coinTags = pickRandom([
+    [{ symbol: 'BTC', change: Number(((Math.random() * 6 - 1)).toFixed(2)) }],
+    [{ symbol: 'XRP', change: Number(((Math.random() * 6 - 0.5)).toFixed(2)) }, { symbol: 'DOGE', change: Number(((Math.random() * 8 - 1)).toFixed(2)) }],
+    [{ symbol: 'BTC', change: Number(((Math.random() * 4 - 0.5)).toFixed(2)) }, { symbol: 'ETH', change: Number(((Math.random() * 5 - 1)).toFixed(2)) }],
+  ]);
+  return {
+    id: `giveaway_${Date.now()}_${Math.random()}`,
+    username: user.username,
+    avatar_url: user.avatar,
+    content: gw.caption,
+    coin_symbol: 'USDT',
+    trade_type: 'long',
+    entry_price: 0,
+    exit_price: 0,
+    profit_loss: 0,
+    profit_loss_percent: 0,
+    leverage: 1,
+    image_url: img,
+    likes_count: Math.floor(50 + Math.random() * 3000),
+    comments_count: Math.floor(20 + Math.random() * 600),
+    shares_count: Math.floor(10 + Math.random() * 400),
+    view_count: Math.floor(5000 + Math.random() * 500000),
+    repost_count: Math.floor(15 + Math.random() * 200),
+    is_bullish: true,
+    created_at: fakeNow.toISOString(),
+    post_type: 'giveaway',
+    coin_tags: coinTags,
+    sentiment: 'bullish',
+    extra_data: { giveaway_amount: gw.amount, giveaway_currency: gw.currency },
+  };
+}
+
 function richPostToSocialPost(gp: GeneratedPost): SocialPost {
   return {
     id: gp.id,
@@ -661,8 +827,14 @@ function buildInitialFeed(posts: SocialPost[], newsPool: LiveNewsItem[], pc?: Pr
       const mg = generateMultiGridPost(pc);
       if (mg) items.push({ kind: 'post', data: mg });
     }
+    if ((idx + 1) % 5 === 0 && pc) {
+      items.push({ kind: 'post', data: generateNewsPost(pc) });
+    }
     if ((idx + 1) % 8 === 0 && pc) {
       items.push({ kind: 'post', data: generateMemePost(pc, pickImage) });
+    }
+    if ((idx + 1) % 12 === 0) {
+      items.push({ kind: 'post', data: generateGiveawayPost() });
     }
     if ((idx + 1) % 10 === 0 && pc) {
       items.push({ kind: 'post', data: richPostToSocialPost(generateRandomRichPost(pc)) });
@@ -908,6 +1080,13 @@ export default function SocialFeed() {
       if (newPost) {
         setFeedItems(prev => [{ kind: 'post', data: newPost! }, ...prev.slice(0, 400)]);
       }
+
+      const rng = Math.random();
+      if (rng < 0.18 && pc) {
+        setFeedItems(prev => [{ kind: 'post', data: generateNewsPost(pc) }, ...prev.slice(0, 400)]);
+      } else if (rng < 0.25) {
+        setFeedItems(prev => [{ kind: 'post', data: generateGiveawayPost() }, ...prev.slice(0, 400)]);
+      }
     }, 18000);
 
     const newsRefreshInterval = setInterval(() => {
@@ -1120,12 +1299,14 @@ export default function SocialFeed() {
       case 'live_embed': return <Radio className="w-3 h-3" />;
       case 'multi_position': return <BarChart2 className="w-3 h-3" />;
       case 'news': return <Newspaper className="w-3 h-3" />;
+      case 'geopolitical_news': return <Globe className="w-3 h-3" />;
+      case 'giveaway': return <Gift className="w-3 h-3" style={{ color: '#F0B90B' }} />;
       default: return null;
     }
   };
 
   const getSentimentBadge = (post: SocialPost) => {
-    if (['educational', 'event', 'personal'].includes(post.post_type || '')) return null;
+    if (['educational', 'event', 'personal', 'giveaway'].includes(post.post_type || '')) return null;
     const s = post.sentiment || (post.is_bullish ? 'bullish' : 'bearish');
     if (s === 'bullish') return <span className="text-[#0ECB81] text-xs font-semibold">Bullish</span>;
     if (s === 'bearish') return <span className="text-[#F6465D] text-xs font-semibold">Bearish</span>;
@@ -1428,6 +1609,44 @@ function renderPostContent(post: SocialPost, priceCache: PriceCache) {
         return { ...pos, entry, mark, liq, pnl };
       });
       return <FeedMultiPosition positions={adjusted} assetChange30d={post.asset_change_30d} />;
+    }
+    case 'giveaway': {
+      const amount = post.extra_data?.giveaway_amount || '79.00';
+      const currency = post.extra_data?.giveaway_currency || 'USDT';
+      return (
+        <div className="mb-2 rounded-xl overflow-hidden border border-[#F0B90B]/40" style={{ background: 'linear-gradient(135deg, #1a1400 0%, #2a1f00 50%, #1a1400 100%)' }}>
+          {post.image_url && (
+            <div className="relative">
+              <img
+                src={post.image_url}
+                alt=""
+                className="w-full object-cover"
+                style={{ maxHeight: '180px' }}
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#1a1400]/90 to-transparent" />
+              <div className="absolute bottom-2 left-3 right-3">
+                <div className="text-[28px] font-black text-[#F0B90B] leading-none" style={{ textShadow: '0 0 20px rgba(240,185,11,0.5)' }}>
+                  {amount} <span className="text-[18px]">{currency}</span>
+                </div>
+                <div className="text-xs text-[#F0B90B]/70 mt-0.5">≈ ${amount} USD</div>
+              </div>
+            </div>
+          )}
+          {!post.image_url && (
+            <div className="px-4 py-5 text-center">
+              <div className="text-[32px] font-black text-[#F0B90B]">{amount} {currency}</div>
+              <div className="text-xs text-[#F0B90B]/70">≈ ${amount} USD</div>
+            </div>
+          )}
+          <div className="px-3 py-2 flex items-center gap-2">
+            <div className="flex items-center gap-1 bg-[#F0B90B]/20 px-2 py-0.5 rounded text-[10px] text-[#F0B90B] font-bold">
+              <Gift className="w-3 h-3" /> Giveaway
+            </div>
+            <span className="text-xs text-[#F0B90B]/80 font-semibold truncate">Tap to participate</span>
+          </div>
+        </div>
+      );
     }
     case 'live_embed':
       return post.live_room_data ? <FeedLiveEmbed data={post.live_room_data} /> : null;
