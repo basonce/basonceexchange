@@ -1493,19 +1493,32 @@ const ROOM_PALETTES = [
 
 const LiveRoomsScroller = memo(function LiveRoomsScroller({ rooms, onRoomClick }: { rooms: LiveRoom[]; onRoomClick: (id: string) => void }) {
   const trackRef = useRef<HTMLDivElement>(null);
+  const [counts, setCounts] = useState<Map<string, number>>(() => {
+    const m = new Map<string, number>();
+    rooms.forEach(r => m.set(r.id, r.listener_count));
+    return m;
+  });
 
   useEffect(() => {
     const el = trackRef.current;
     if (!el || rooms.length === 0) return;
-    const measure = () => {
-      const half = el.scrollWidth / 2;
-      el.style.setProperty('--scroll-dist', `-${half}px`);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
+    const half = el.scrollWidth / 2;
+    el.style.setProperty('--scroll-dist', `-${half}px`);
   }, [rooms.length]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCounts(prev => {
+        const next = new Map(prev);
+        next.forEach((val, id) => {
+          const delta = Math.floor(Math.random() * 12) - 4;
+          next.set(id, Math.max(50, val + delta));
+        });
+        return next;
+      });
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const speedSec = Math.max(40, rooms.length * 2.2);
 
@@ -1584,7 +1597,7 @@ const LiveRoomsScroller = memo(function LiveRoomsScroller({ rooms, onRoomClick }
                     )}
                     <div className="flex items-center gap-0.5 text-white/70 text-[11px]">
                       <Users className="w-3 h-3" />
-                      <span className="font-bold">{room.listener_count.toLocaleString()}</span>
+                      <span className="font-bold">{(counts.get(room.id) ?? room.listener_count).toLocaleString()}</span>
                     </div>
                   </div>
 
