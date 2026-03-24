@@ -1479,14 +1479,16 @@ function renderPostContent(post: SocialPost, priceCache: PriceCache) {
 }
 
 const ROOM_PALETTES = [
-  { bg: 'from-[#1a4a8a] to-[#0f2d5c]', border: 'border-blue-400/70', icon: 'from-blue-300 to-blue-500', glow: 'shadow-blue-500/50', topic: 'text-blue-100' },
-  { bg: 'from-[#0d7a4e] to-[#065438]', border: 'border-emerald-400/70', icon: 'from-emerald-300 to-green-500', glow: 'shadow-emerald-500/50', topic: 'text-emerald-100' },
-  { bg: 'from-[#b91c1c] to-[#7f1d1d]', border: 'border-rose-400/70', icon: 'from-rose-300 to-red-500', glow: 'shadow-rose-500/50', topic: 'text-rose-100' },
-  { bg: 'from-[#b45309] to-[#78350f]', border: 'border-amber-400/70', icon: 'from-amber-300 to-orange-500', glow: 'shadow-amber-500/50', topic: 'text-amber-100' },
-  { bg: 'from-[#0e7490] to-[#0c4a6e]', border: 'border-cyan-400/70', icon: 'from-cyan-300 to-sky-500', glow: 'shadow-cyan-500/50', topic: 'text-cyan-100' },
-  { bg: 'from-[#a21caf] to-[#701a75]', border: 'border-fuchsia-400/70', icon: 'from-fuchsia-300 to-pink-500', glow: 'shadow-fuchsia-500/50', topic: 'text-fuchsia-100' },
-  { bg: 'from-[#047857] to-[#065f46]', border: 'border-teal-400/70', icon: 'from-teal-300 to-green-500', glow: 'shadow-teal-500/50', topic: 'text-teal-100' },
-  { bg: 'from-[#c2410c] to-[#7c2d12]', border: 'border-orange-400/70', icon: 'from-orange-300 to-red-500', glow: 'shadow-orange-500/50', topic: 'text-orange-100' },
+  { bg: 'from-[#1e3a6e] via-[#1a306b] to-[#0f1e45]', border: 'border-blue-400/50', icon: 'from-[#60a5fa] to-[#3b82f6]', iconShadow: 'shadow-blue-500/60', glow: 'shadow-blue-600/40', topic: 'text-blue-200', accent: 'text-blue-300' },
+  { bg: 'from-[#064e3b] via-[#065f46] to-[#022c22]', border: 'border-emerald-400/50', icon: 'from-[#34d399] to-[#059669]', iconShadow: 'shadow-emerald-500/60', glow: 'shadow-emerald-600/40', topic: 'text-emerald-200', accent: 'text-emerald-300' },
+  { bg: 'from-[#7f1d1d] via-[#991b1b] to-[#450a0a]', border: 'border-red-400/50', icon: 'from-[#f87171] to-[#ef4444]', iconShadow: 'shadow-red-500/60', glow: 'shadow-red-600/40', topic: 'text-red-200', accent: 'text-red-300' },
+  { bg: 'from-[#92400e] via-[#b45309] to-[#451a03]', border: 'border-amber-400/50', icon: 'from-[#fcd34d] to-[#f59e0b]', iconShadow: 'shadow-amber-500/60', glow: 'shadow-amber-600/40', topic: 'text-amber-200', accent: 'text-amber-300' },
+  { bg: 'from-[#164e63] via-[#0e7490] to-[#083344]', border: 'border-cyan-400/50', icon: 'from-[#67e8f9] to-[#06b6d4]', iconShadow: 'shadow-cyan-500/60', glow: 'shadow-cyan-600/40', topic: 'text-cyan-200', accent: 'text-cyan-300' },
+  { bg: 'from-[#581c87] via-[#7e22ce] to-[#2e1065]', border: 'border-purple-400/50', icon: 'from-[#c084fc] to-[#a855f7]', iconShadow: 'shadow-purple-500/60', glow: 'shadow-purple-600/40', topic: 'text-purple-200', accent: 'text-purple-300' },
+  { bg: 'from-[#134e4a] via-[#0f766e] to-[#042f2e]', border: 'border-teal-400/50', icon: 'from-[#5eead4] to-[#14b8a6]', iconShadow: 'shadow-teal-500/60', glow: 'shadow-teal-600/40', topic: 'text-teal-200', accent: 'text-teal-300' },
+  { bg: 'from-[#881337] via-[#be185d] to-[#4c0519]', border: 'border-pink-400/50', icon: 'from-[#f9a8d4] to-[#ec4899]', iconShadow: 'shadow-pink-500/60', glow: 'shadow-pink-600/40', topic: 'text-pink-200', accent: 'text-pink-300' },
+  { bg: 'from-[#1e1b4b] via-[#3730a3] to-[#0f0c36]', border: 'border-indigo-400/50', icon: 'from-[#a5b4fc] to-[#6366f1]', iconShadow: 'shadow-indigo-500/60', glow: 'shadow-indigo-600/40', topic: 'text-indigo-200', accent: 'text-indigo-300' },
+  { bg: 'from-[#365314] via-[#4d7c0f] to-[#1a2e05]', border: 'border-lime-400/50', icon: 'from-[#bef264] to-[#84cc16]', iconShadow: 'shadow-lime-500/60', glow: 'shadow-lime-600/40', topic: 'text-lime-200', accent: 'text-lime-300' },
 ];
 
 function LiveRoomsScroller({ rooms, onRoomClick }: { rooms: LiveRoom[]; onRoomClick: (id: string) => void }) {
@@ -1505,7 +1507,7 @@ function LiveRoomsScroller({ rooms, onRoomClick }: { rooms: LiveRoom[]; onRoomCl
     return () => ro.disconnect();
   }, [rooms.length]);
 
-  const speedSec = Math.max(10, rooms.length * 0.7);
+  const speedSec = Math.max(20, rooms.length * 1.4);
 
   return (
     <div className="bg-[#0d0f14] border-b border-[#1E2329]">
@@ -1549,40 +1551,45 @@ function LiveRoomsScroller({ rooms, onRoomClick }: { rooms: LiveRoom[]; onRoomCl
           style={{ width: 'max-content', ['--scroll-speed' as string]: `${speedSec}s` }}
         >
           {[...rooms, ...rooms].map((room, index) => {
-            const palette = room.is_vip
-              ? { bg: 'from-[#1c1500] to-[#2a1e00]', border: 'border-yellow-400/60', icon: 'from-yellow-400 to-amber-500', glow: 'shadow-yellow-500/30', topic: 'text-yellow-300' }
+            const isVip = room.is_vip;
+            const palette = isVip
+              ? { bg: 'from-[#78350f] via-[#b45309] to-[#92400e]', border: 'border-yellow-400/70', icon: 'from-[#fde68a] to-[#f59e0b]', iconShadow: 'shadow-yellow-400/70', glow: 'shadow-yellow-500/40', topic: 'text-yellow-100', accent: 'text-yellow-200' }
               : ROOM_PALETTES[index % ROOM_PALETTES.length];
             return (
               <button key={`${room.id}-${index}`} onClick={() => onRoomClick(room.id)}
-                className={`flex-shrink-0 rounded-2xl px-4 py-3 flex items-center gap-3 bg-gradient-to-br ${palette.bg} border ${palette.border} hover:scale-[1.04] hover:brightness-110 transition-all duration-200 active:scale-95 shadow-lg ${palette.glow} relative min-w-[220px]`}>
-                {room.is_vip && (
-                  <div className="absolute -top-2 -right-2 bg-gradient-to-br from-yellow-300 to-amber-500 rounded-full w-6 h-6 flex items-center justify-center shadow-lg shadow-yellow-500/50">
+                className={`flex-shrink-0 rounded-2xl px-3 py-3 flex items-center gap-3 bg-gradient-to-br ${palette.bg} border ${palette.border} hover:scale-[1.03] hover:brightness-110 transition-all duration-200 active:scale-[0.97] shadow-xl ${palette.glow} relative min-w-[210px] max-w-[210px]`}>
+
+                {isVip && (
+                  <div className="absolute -top-2.5 -right-2.5 bg-gradient-to-br from-yellow-300 to-amber-500 rounded-full w-7 h-7 flex items-center justify-center shadow-lg shadow-yellow-500/60 border-2 border-[#0d0f14]">
                     <Crown className="w-3.5 h-3.5 text-black" />
                   </div>
                 )}
-                <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${palette.icon} flex items-center justify-center shadow-md relative flex-shrink-0`}>
-                  {room.is_vip ? <Sparkles className="w-5 h-5 text-black" /> : <Radio className="w-4 h-4 text-white" />}
-                  <span className="ring-ping absolute w-3 h-3 rounded-full bg-red-500 -top-0.5 -right-0.5" />
-                  <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#0d0f14]" />
+
+                <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${palette.icon} flex items-center justify-center shadow-lg ${palette.iconShadow} relative flex-shrink-0`}>
+                  {isVip ? <Sparkles className="w-5 h-5 text-white drop-shadow" /> : <Radio className="w-5 h-5 text-white drop-shadow" />}
+                  <span className="ring-ping absolute w-3.5 h-3.5 rounded-full bg-red-500 -top-0.5 -right-0.5" />
+                  <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0d0f14]" />
                 </div>
-                <div className="text-left min-w-0">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span className="font-bold text-[13px] text-white line-clamp-1 max-w-[130px]">{room.title}</span>
-                    {room.is_vip && <Lock className="w-3 h-3 text-yellow-400 flex-shrink-0" />}
-                  </div>
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span className="live-badge-blink flex items-center gap-1 bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded tracking-wide">
+
+                <div className="text-left min-w-0 flex-1">
+                  <span className="font-black text-[13px] text-white line-clamp-1 block leading-tight mb-1.5">{room.title}</span>
+
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className="live-badge-blink flex items-center gap-1 bg-red-600/90 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md tracking-wide">
                       <span className="w-1.5 h-1.5 bg-white rounded-full" />
                       LIVE
                     </span>
-                    {room.is_vip && <span className="bg-gradient-to-r from-yellow-400 to-amber-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded tracking-wide">VIP</span>}
-                    <div className="flex items-center gap-0.5 text-gray-300 text-[11px]">
+                    {isVip && (
+                      <span className="bg-gradient-to-r from-yellow-300 to-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded-md tracking-wide">VIP</span>
+                    )}
+                    <div className="flex items-center gap-0.5 text-white/70 text-[11px]">
                       <Users className="w-3 h-3" />
-                      <span className="font-semibold">{room.listener_count.toLocaleString()}</span>
+                      <span className="font-bold">{room.listener_count.toLocaleString()}</span>
                     </div>
                   </div>
-                  <div className={`text-[10px] font-medium ${palette.topic} line-clamp-1 max-w-[150px]`}>{room.topic}</div>
-                  <div className="text-[9px] text-white/40 mt-0.5">Tap to join</div>
+
+                  <div className={`text-[10px] font-semibold ${palette.topic} line-clamp-1`}>{room.topic}</div>
+                  <div className={`text-[9px] font-medium ${palette.accent} mt-0.5 opacity-70`}>Tap to join</div>
                 </div>
               </button>
             );
