@@ -1,5 +1,20 @@
 import type { AlphaToken } from '../types/alpha';
 
+const TAG_BG_COLORS: Record<string, string> = {
+  Meme: 'F0B90B,E8831D,F6465D',
+  AI: '627EEA,00D1FF,3861FB',
+  Gaming: '0ECB81,00D1FF,17FFAC',
+  DeFi: 'E8831D,F0B90B,FF6B35',
+  Layer2: '627EEA,9B59B6,3861FB',
+  RWA: '9B59B6,627EEA,E8831D',
+};
+
+function mockLogoUrl(symbol: string, tag: string): string {
+  const bg = TAG_BG_COLORS[tag] || 'F0B90B,0ECB81,627EEA';
+  const primaryColor = bg.split(',')[0];
+  return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(symbol)}&backgroundColor=${primaryColor}`;
+}
+
 function mockToken(
   id: string,
   name: string,
@@ -12,7 +27,6 @@ function mockToken(
   holders: number,
   priceChange: number,
   communityScore: number,
-  logoEmoji?: string,
 ): AlphaToken {
   const target = network === 'Solana' ? 85 : network === 'Ethereum' ? 5 : 1000;
   const raised = target * (raisedPct / 100);
@@ -24,7 +38,7 @@ function mockToken(
     name,
     symbol,
     description: null,
-    logo_url: null,
+    logo_url: mockLogoUrl(symbol, tag),
     network,
     tag,
     website_url: null,
