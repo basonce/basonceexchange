@@ -1496,7 +1496,7 @@ function LiveRoomsScroller({ rooms, onRoomClick }: { rooms: LiveRoom[]; onRoomCl
           0% { transform: translate3d(0,0,0); }
           100% { transform: translate3d(-50%,0,0); }
         }
-        .live-scroll { animation: scroll-left 130s linear infinite; backface-visibility: hidden; will-change: transform; }
+        .live-scroll { animation: scroll-left 42s linear infinite; backface-visibility: hidden; will-change: transform; }
         .live-scroll:hover { animation-play-state: paused; }
         @keyframes live-blink {
           0%, 100% { opacity: 1; }
