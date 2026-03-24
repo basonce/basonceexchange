@@ -15,12 +15,8 @@ const globalListeners = new Set<Listener>();
 
 let fetchIntervalId: ReturnType<typeof setInterval> | null = null;
 let microIntervalId: ReturnType<typeof setInterval> | null = null;
-let lastFetchTime = 0;
-const FETCH_INTERVAL_MS = 60_000;
+const FETCH_INTERVAL_MS = 30_000;  // 30 seconds — matches server cache TTL
 const MICRO_INTERVAL_MS = 2000;
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://mgfviqdxeupajntpylig.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nZnZpcWR4ZXVwYWpudHB5bGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0NjgwNDksImV4cCI6MjA4NzA0NDA0OX0.zxca3lBfqHt4EQ1pFLGlDkZUQJY1iQXaZA0cOflJc18';
 
 function initFallbackPrices() {
   const t = Date.now() / 1000;
@@ -40,19 +36,20 @@ function initFallbackPrices() {
 
 async function fetchAllPrices() {
   try {
-    const url = `${SUPABASE_URL}/functions/v1/tradfi-prices?all=true`;
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json',
-      },
+    // Call the local API server — proxied through Vite to localhost:8080
+    const res = await fetch('/api/tradfi-prices', {
+      headers: { 'Content-Type': 'application/json' },
     });
     if (!res.ok) return;
-    const json = await res.json();
-    const data: Record<string, { price: number; change: number } | null> = json.data || {};
+
+    const json = await res.json() as {
+      success: boolean;
+      data?: Record<string, { price: number; change: number } | null>;
+    };
+    if (!json.success || !json.data) return;
 
     let anyChanged = false;
-    Object.entries(data).forEach(([sym, val]) => {
+    Object.entries(json.data).forEach(([sym, val]) => {
       if (!val || val.price <= 0) return;
       const prev = livePrice.get(sym) ?? 0;
       livePrice.set(sym, val.price);
@@ -64,10 +61,9 @@ async function fetchAllPrices() {
       }
     });
 
-    lastFetchTime = Date.now();
     if (anyChanged) globalListeners.forEach(fn => fn());
   } catch {
-    // silently fall back to simulated prices
+    // silently fall back to simulated micro-movement
   }
 }
 
@@ -81,8 +77,10 @@ function applyMicroMovement() {
     livePrice.set(asset.symbol, micro);
 
     const offset = i * 7.3;
-    const v = Math.sin(t * 0.0041 + offset) * 0.45 + Math.cos(t * 0.0073 + offset * 1.4) * 0.25;
-    liveChange.set(asset.symbol, parseFloat((v * 0.6).toFixed(2)));
+    const change = liveChange.get(asset.symbol) ?? 0;
+    // Micro-oscillate the change around actual value
+    const jitter = (Math.sin(t * 0.0041 + offset) * 0.003);
+    liveChange.set(asset.symbol, parseFloat((change + jitter).toFixed(3)));
 
     const subs = listeners.get(asset.symbol);
     if (subs && subs.size > 0) subs.forEach(fn => fn());
@@ -94,6 +92,7 @@ function ensureRunning() {
   if (fetchIntervalId) return;
 
   initFallbackPrices();
+  // Fetch real prices immediately
   fetchAllPrices();
 
   fetchIntervalId = setInterval(fetchAllPrices, FETCH_INTERVAL_MS);
