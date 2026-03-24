@@ -297,6 +297,16 @@ export default function MarketsPage() {
 
   const bidAskCacheRef = useRef<Map<string, { high: number; low: number; bid: number; ask: number; lastPrice: number }>>(new Map());
 
+  const INDEP_MGR_MAP: Record<string, any> = {
+    EQ: EarnQuestPriceManager.getInstance(),
+    BNC: BNCPriceManager.getInstance(),
+    PAYAI: PayAIPriceManager.getInstance(),
+    SGP: SGPPriceManager.getInstance(),
+    POWERAI: PowerAIPriceManager.getInstance(),
+    SZNP: SZNPPriceManager.getInstance(),
+    PUNCH: PunchPriceManager.getInstance(),
+  };
+
   const getBidAsk = (symbol: string, price: number) => {
     if (price === 0) return { high: 0, low: 0, bid: 0, ask: 0 };
     const cached = bidAskCacheRef.current.get(symbol);
@@ -308,10 +318,21 @@ export default function MarketsPage() {
         ask: price * 1.0003,
       };
     }
-    const highPct = 0.015 + Math.random() * 0.015;
-    const lowPct = 0.015 + Math.random() * 0.015;
-    const high = price * (1 + highPct);
-    const low = price * (1 - lowPct);
+    let high: number, low: number;
+    const mgr = INDEP_MGR_MAP[symbol];
+    if (mgr) {
+      const storedHigh = mgr.getHigh24h();
+      const storedLow = mgr.getLow24h();
+      high = (storedHigh > 0 && storedHigh >= price * 0.95 && storedHigh <= price * 1.5)
+        ? storedHigh
+        : price * (1.01 + Math.random() * 0.025);
+      low = (storedLow > 0 && storedLow < price)
+        ? storedLow
+        : price * (0.965 + Math.random() * 0.025);
+    } else {
+      high = price * (1 + 0.015 + Math.random() * 0.015);
+      low = price * (1 - 0.015 - Math.random() * 0.015);
+    }
     const bid = price * (1 - 0.0002 - Math.random() * 0.0003);
     const ask = price * (1 + 0.0002 + Math.random() * 0.0003);
     bidAskCacheRef.current.set(symbol, { high, low, bid, ask, lastPrice: price });

@@ -3,6 +3,13 @@ import { X, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Wallet } fro
 import TradingView from './TradingView';
 import { supabase } from '../lib/supabase';
 import { useAccount } from 'wagmi';
+import { EarnQuestPriceManager } from '../lib/earnquest-price';
+import { BNCPriceManager } from '../lib/bnc-price';
+import { PayAIPriceManager } from '../lib/payai-price';
+import { SGPPriceManager } from '../lib/sgp-price';
+import { PowerAIPriceManager } from '../lib/powerai-price';
+import { SZNPPriceManager } from '../lib/sznp-price';
+import { PunchPriceManager } from '../lib/punch-price';
 
 interface Market {
   symbol: string;
@@ -239,15 +246,41 @@ export default function MarketDetailModal({ market, isOpen, onClose, initialTab 
     setRecentTrades(prev => [newTrade, ...prev.slice(0, 19)]);
   };
 
+  const getIndepMgrForSymbol = (symbol: string) => {
+    switch (symbol) {
+      case 'EQ': return EarnQuestPriceManager.getInstance();
+      case 'BNC': return BNCPriceManager.getInstance();
+      case 'PAYAI': return PayAIPriceManager.getInstance();
+      case 'SGP': return SGPPriceManager.getInstance();
+      case 'POWERAI': return PowerAIPriceManager.getInstance();
+      case 'SZNP': return SZNPPriceManager.getInstance();
+      case 'PUNCH': return PunchPriceManager.getInstance();
+      default: return null;
+    }
+  };
+
   const updateStats = () => {
     if (!market) return;
-
+    const price = market.price;
+    const mgr = getIndepMgrForSymbol(market.symbol);
+    let high24h: number, low24h: number;
+    if (mgr) {
+      const storedHigh = mgr.getHigh24h();
+      const storedLow = mgr.getLow24h();
+      high24h = (storedHigh > 0 && storedHigh >= price * 0.95 && storedHigh <= price * 1.5)
+        ? storedHigh : price * 1.02;
+      low24h = (storedLow > 0 && storedLow < price)
+        ? storedLow : price * 0.98;
+    } else {
+      high24h = price * 1.05;
+      low24h = price * 0.95;
+    }
     setStats({
-      high24h: market.price * 1.05,
-      low24h: market.price * 0.95,
+      high24h,
+      low24h,
       volume24h: market.marketCap * 0.15,
-      bid: market.price * 0.9998,
-      ask: market.price * 1.0002
+      bid: price * 0.9998,
+      ask: price * 1.0002
     });
   };
 
