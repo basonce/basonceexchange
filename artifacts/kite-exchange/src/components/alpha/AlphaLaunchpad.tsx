@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, TrendingUp, Sparkles, ThumbsUp, Award, Search, X, Crown, Flame, Zap, Bot, Gamepad2, Layers, Coins, Globe } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Plus, TrendingUp, Sparkles, ThumbsUp, Award, Search, X, Crown, Flame, Zap, Bot, Gamepad2, Layers, Coins, Globe, Activity } from 'lucide-react';
 import type { AlphaToken } from '../../types/alpha';
 import { fetchAlphaTokens } from '../../lib/alpha-service';
+import { STATIC_MOCK_TOKENS, getNextNewListing } from '../../lib/alpha-mock-tokens';
 import AlphaLiveTicker from './AlphaLiveTicker';
 import AlphaTokenCard from './AlphaTokenCard';
 import AlphaTokenDetail from './AlphaTokenDetail';
@@ -33,8 +34,31 @@ const NETWORK_COLORS: Record<string, string> = {
   BNC: '#F0B90B', Ethereum: '#627EEA', Solana: '#00D1FF', Base: '#0052FF',
 };
 
+function mergeTokens(dbTokens: AlphaToken[], mockTokens: AlphaToken[]): AlphaToken[] {
+  const symbols = new Set(dbTokens.map(t => t.symbol.toUpperCase()));
+  const filtered = mockTokens.filter(m => !symbols.has(m.symbol.toUpperCase()));
+  return [...dbTokens, ...filtered];
+}
+
+function sortTokens(tokens: AlphaToken[], filter: string): AlphaToken[] {
+  const list = [...tokens];
+  switch (filter) {
+    case 'trending':
+      return list.sort((a, b) => (b.volume_24h + b.community_score * 10) - (a.volume_24h + a.community_score * 10));
+    case 'new':
+      return list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    case 'voted':
+      return list.sort((a, b) => b.community_score - a.community_score);
+    case 'graduated':
+      return list.filter(t => t.is_graduated).sort((a, b) => b.market_cap - a.market_cap);
+    default:
+      return list;
+  }
+}
+
 export default function AlphaLaunchpad() {
-  const [tokens, setTokens] = useState<AlphaToken[]>([]);
+  const [dbTokens, setDbTokens] = useState<AlphaToken[]>([]);
+  const [injectedTokens, setInjectedTokens] = useState<AlphaToken[]>([]);
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   const [filter, setFilter] = useState('trending');
   const [network, setNetwork] = useState('All');
@@ -46,66 +70,107 @@ export default function AlphaLaunchpad() {
   const [loading, setLoading] = useState(true);
   const [newListing, setNewListing] = useState<AlphaToken | null>(null);
   const [newListingVisible, setNewListingVisible] = useState(false);
-  const prevTokenIdsRef = useRef<Set<string>>(new Set());
+  const [liveCount, setLiveCount] = useState(0);
   const newListingTimerRef = useRef<number | null>(null);
+  const priceManagerRef = useRef<InstanceType<typeof AlphaPriceManager> | null>(null);
+
+  const allTokens = useMemo(() => {
+    const merged = mergeTokens(dbTokens, STATIC_MOCK_TOKENS);
+    return mergeTokens(merged, injectedTokens.filter(t =>
+      !merged.some(m => m.id === t.id)
+    ));
+  }, [dbTokens, injectedTokens]);
 
   const loadTokens = useCallback(async () => {
     try {
-      const data = await fetchAlphaTokens(filter, network);
-
-      const prevIds = prevTokenIdsRef.current;
-      if (prevIds.size > 0) {
-        const fresh = data.find(t => !prevIds.has(t.id));
-        if (fresh) {
-          setNewListing(fresh);
-          setNewListingVisible(true);
-          if (newListingTimerRef.current) clearTimeout(newListingTimerRef.current);
-          newListingTimerRef.current = window.setTimeout(() => setNewListingVisible(false), 5000);
-        }
-      }
-
-      prevTokenIdsRef.current = new Set(data.map(t => t.id));
-      setTokens(data);
+      const data = await fetchAlphaTokens('trending', 'All');
+      setDbTokens(data);
     } catch {
     } finally {
       setLoading(false);
     }
-  }, [filter, network]);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
     loadTokens();
-    const interval = setInterval(loadTokens, 15000);
+    const interval = setInterval(loadTokens, 30000);
     return () => clearInterval(interval);
   }, [loadTokens]);
 
   useEffect(() => {
+    if (allTokens.length === 0) return;
     const manager = AlphaPriceManager.getInstance();
+    priceManagerRef.current = manager;
+    manager.initTokens(allTokens);
     const unsub = manager.subscribe(prices => setLivePrices(prices));
     return unsub;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allTokens.length]);
+
+  useEffect(() => {
+    const counter = setInterval(() => {
+      setLiveCount(c => c + Math.floor(Math.random() * 3));
+    }, 8000);
+    return () => clearInterval(counter);
   }, []);
 
   useEffect(() => {
+    if (allTokens.length === 0) return;
+
+    const injectNew = () => {
+      const token = getNextNewListing();
+      setInjectedTokens(prev => [token, ...prev].slice(0, 30));
+      setNewListing(token);
+      setNewListingVisible(true);
+      if (newListingTimerRef.current) clearTimeout(newListingTimerRef.current);
+      newListingTimerRef.current = window.setTimeout(() => setNewListingVisible(false), 6000);
+
+      if (priceManagerRef.current) {
+        priceManagerRef.current.initTokens([token]);
+      }
+    };
+
+    const delay = 15000 + Math.random() * 10000;
+    const firstTimer = window.setTimeout(() => {
+      injectNew();
+      const interval = window.setInterval(injectNew, 22000 + Math.random() * 8000);
+      return () => clearInterval(interval);
+    }, delay);
+
     return () => {
+      clearTimeout(firstTimer);
       if (newListingTimerRef.current) clearTimeout(newListingTimerRef.current);
     };
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allTokens.length]);
 
-  const tokensWithLivePrices = tokens.map(t => ({
-    ...t,
-    current_price: livePrices[t.id] ?? t.current_price,
-  }));
+  const tokensWithLivePrices = useMemo(() =>
+    allTokens.map(t => ({
+      ...t,
+      current_price: livePrices[t.id] ?? t.current_price,
+    })),
+    [allTokens, livePrices]
+  );
+
+  const filteredByNetwork = network === 'All'
+    ? tokensWithLivePrices
+    : tokensWithLivePrices.filter(t =>
+        network === 'BNC' ? (t.network === 'BSC' || t.network === 'BNC') : t.network === network
+      );
 
   const filteredByCategory = category === 'All'
-    ? tokensWithLivePrices
-    : tokensWithLivePrices.filter(t => t.tag === category);
+    ? filteredByNetwork
+    : filteredByNetwork.filter(t => t.tag === category);
 
-  const filteredTokens = searchQuery
+  const filteredBySearch = searchQuery
     ? filteredByCategory.filter(t =>
         t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.symbol.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : filteredByCategory;
+
+  const filteredTokens = useMemo(() => sortTokens(filteredBySearch, filter), [filteredBySearch, filter]);
 
   const handleTokenCreated = async (tokenId: string) => {
     const { data } = await supabase
@@ -113,51 +178,59 @@ export default function AlphaLaunchpad() {
       .select('*')
       .eq('id', tokenId)
       .maybeSingle();
-
     if (data) {
       setSelectedToken(data);
       loadTokens();
     }
   };
 
-  const bncTokens = tokens.filter(t => t.network === 'BSC' || t.network === 'BNC');
-  const kingToken = (bncTokens.length > 0 ? bncTokens : tokens).reduce((best, t) => {
+  const bncTokens = allTokens.filter(t => t.network === 'BSC' || t.network === 'BNC');
+  const kingToken = (bncTokens.length > 0 ? bncTokens : allTokens).reduce((best, t) => {
     if (!best || t.volume_24h > best.volume_24h) return t;
     return best;
   }, null as AlphaToken | null);
 
-  const categoryCounts: Record<string, number> = { All: tokens.length };
+  const categoryCounts: Record<string, number> = { All: allTokens.length };
   CATEGORY_FILTERS.slice(1).forEach(c => {
-    categoryCounts[c.id] = tokens.filter(t => t.tag === c.id).length;
+    categoryCounts[c.id] = allTokens.filter(t => t.tag === c.id).length;
   });
+
+  const isNewlyInjected = (tokenId: string) => injectedTokens.some(t => t.id === tokenId);
 
   return (
     <div>
-      <AlphaLiveTicker tokens={tokens} />
+      <AlphaLiveTicker tokens={allTokens} />
 
       {newListingVisible && newListing && (
         <div
-          className="mx-4 mt-3 bg-gradient-to-r from-[#0ECB81]/10 to-[#00D1FF]/10 border border-[#0ECB81]/30 rounded-xl p-3 cursor-pointer active:scale-[0.99] transition-all duration-300 animate-slide-in"
+          className="mx-4 mt-3 cursor-pointer active:scale-[0.99] transition-all duration-300"
           onClick={() => setSelectedToken(newListing)}
-          style={{ animation: 'fadeSlideIn 0.4s ease-out' }}
+          style={{ animation: 'alphaSlideIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
         >
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[#0ECB81] animate-ping" />
-            <span className="text-[#0ECB81] text-[10px] font-black tracking-widest">NEW LISTING</span>
-            <div className="flex items-center gap-1.5 ml-1">
-              {newListing.logo_url ? (
-                <img src={newListing.logo_url} alt="" className="w-5 h-5 rounded-full" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-              ) : (
-                <div className="w-5 h-5 rounded-full bg-[#0ECB81]/30 flex items-center justify-center">
-                  <span className="text-[#0ECB81] text-[8px] font-black">{newListing.symbol.slice(0, 2)}</span>
+          <div className="relative overflow-hidden bg-[#0B0E11] border border-[#0ECB81]/40 rounded-xl p-3">
+            <div className="absolute inset-0 bg-gradient-to-r from-[#0ECB81]/8 via-[#0ECB81]/4 to-transparent" />
+            <div className="relative flex items-center gap-2.5">
+              <div className="relative">
+                <div className="w-2.5 h-2.5 rounded-full bg-[#0ECB81] animate-ping absolute" />
+                <div className="w-2.5 h-2.5 rounded-full bg-[#0ECB81]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[#0ECB81] text-[10px] font-black tracking-widest">🚀 NEW LISTING</span>
+                  <span className="text-white text-xs font-bold truncate">{newListing.name}</span>
+                  <span className="text-gray-500 text-[10px] font-semibold">${newListing.symbol}</span>
                 </div>
-              )}
-              <span className="text-white text-xs font-bold">{newListing.name}</span>
-              <span className="text-gray-400 text-[10px]">${newListing.symbol}</span>
+                <span className="text-gray-500 text-[10px]">Just launched on Basonce Alpha</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-gray-500 px-1.5 py-0.5 bg-[#F0B90B]/10 border border-[#F0B90B]/20 rounded font-bold text-[#F0B90B]">
+                  {newListing.network === 'BSC' ? 'BNC' : newListing.network}
+                </span>
+                <button onClick={e => { e.stopPropagation(); setNewListingVisible(false); }}>
+                  <X className="w-3.5 h-3.5 text-gray-600" />
+                </button>
+              </div>
             </div>
-            <button className="ml-auto" onClick={e => { e.stopPropagation(); setNewListingVisible(false); }}>
-              <X className="w-3.5 h-3.5 text-gray-500" />
-            </button>
           </div>
         </div>
       )}
@@ -165,9 +238,10 @@ export default function AlphaLaunchpad() {
       <div className="px-4 pt-3 pb-2">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-white font-bold text-base">Alpha Launchpad</h2>
-            <div className="px-1.5 py-0.5 bg-[#0ECB81]/15 rounded">
-              <span className="text-[#0ECB81] text-[10px] font-bold">{tokens.length} tokens</span>
+            <h2 className="text-white font-black text-base tracking-tight">Basonce Alpha</h2>
+            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-[#0ECB81]/15 rounded-md border border-[#0ECB81]/20">
+              <Activity className="w-2.5 h-2.5 text-[#0ECB81]" />
+              <span className="text-[#0ECB81] text-[10px] font-bold">{allTokens.length}</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -179,10 +253,10 @@ export default function AlphaLaunchpad() {
             </button>
             <button
               onClick={() => setShowCreate(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-[#F0B90B] to-[#F8D12F] rounded-lg active:scale-95 transition-transform shadow-lg shadow-[#F0B90B]/10"
+              className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-[#F0B90B] to-[#F8D12F] rounded-lg active:scale-95 transition-transform shadow-lg shadow-[#F0B90B]/15"
             >
               <Plus className="w-3.5 h-3.5 text-[#0B0E11]" />
-              <span className="text-[#0B0E11] text-xs font-bold">Create</span>
+              <span className="text-[#0B0E11] text-xs font-black">Create</span>
             </button>
           </div>
         </div>
@@ -205,46 +279,57 @@ export default function AlphaLaunchpad() {
 
       {kingToken && !kingToken.is_graduated && (
         <div
-          className="mx-4 mb-3 bg-gradient-to-r from-[#F0B90B]/5 via-[#F0B90B]/10 to-[#F0B90B]/5 border border-[#F0B90B]/20 rounded-xl p-3 cursor-pointer active:scale-[0.99] transition-transform"
+          className="mx-4 mb-3 cursor-pointer active:scale-[0.99] transition-transform"
           onClick={() => setSelectedToken(kingToken)}
         >
-          <div className="flex items-center gap-2 mb-1.5">
-            <Crown className="w-4 h-4 text-[#F0B90B]" />
-            <span className="text-[#F0B90B] text-[11px] font-bold">KING OF THE HILL</span>
-            <Flame className="w-3.5 h-3.5 text-[#F6465D] animate-pulse" />
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {kingToken.logo_url ? (
-                <img src={kingToken.logo_url} alt="" className="w-8 h-8 rounded-lg object-cover" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-              ) : (
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#F0B90B] to-[#E8831D] flex items-center justify-center">
-                  <span className="text-white text-[10px] font-black">{kingToken.symbol.slice(0, 2)}</span>
-                </div>
-              )}
-              <div>
-                <span className="text-white text-xs font-bold">{kingToken.name}</span>
-                <span className="text-gray-500 text-[10px] ml-1">${kingToken.symbol}</span>
+          <div className="relative overflow-hidden bg-[#0B0E11] border border-[#F0B90B]/25 rounded-xl p-3">
+            <div className="absolute inset-0 bg-gradient-to-r from-[#F0B90B]/6 via-transparent to-transparent" />
+            <div className="relative">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Crown className="w-3.5 h-3.5 text-[#F0B90B]" />
+                <span className="text-[#F0B90B] text-[10px] font-black tracking-widest">KING OF THE HILL</span>
+                <Flame className="w-3 h-3 text-[#F6465D] animate-pulse" />
               </div>
-            </div>
-            <div className="text-right">
-              <span className="text-white text-xs font-bold">${(kingToken.volume_24h / 1000).toFixed(1)}K</span>
-              <span className="text-gray-500 text-[10px] block">24h vol</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-full border-2 border-[#F0B90B]/40 overflow-hidden bg-gradient-to-br from-[#F0B90B] to-[#E8831D] flex items-center justify-center flex-shrink-0">
+                    {kingToken.logo_url ? (
+                      <img src={kingToken.logo_url} alt="" className="w-full h-full object-cover" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                    ) : (
+                      <span className="text-white text-[11px] font-black">{kingToken.symbol.slice(0, 2)}</span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-white text-[13px] font-bold">{kingToken.name}</span>
+                    <span className="text-gray-500 text-[10px] ml-1.5">${kingToken.symbol}</span>
+                    <div className="h-1.5 bg-[#181A20] rounded-full overflow-hidden mt-1 w-28">
+                      <div
+                        className="h-full bg-gradient-to-r from-[#F0B90B] to-[#F8D12F] rounded-full"
+                        style={{ width: `${Math.min((kingToken.raised_amount / kingToken.target_amount) * 100, 100).toFixed(0)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[#0ECB81] text-xs font-bold">{formatVol(kingToken.volume_24h)}</span>
+                  <span className="text-gray-600 text-[10px] block">24h vol</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      <div className="px-4 mb-2">
-        <div className="flex items-center gap-1.5 mb-2 overflow-x-auto scrollbar-hide -mx-4 px-4">
+      <div className="px-4 mb-2 space-y-2">
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide -mx-4 px-4">
           {SORT_FILTERS.map(f => (
             <button
               key={f.id}
               onClick={() => setFilter(f.id)}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex-shrink-0 ${
                 filter === f.id
-                  ? 'bg-[#F0B90B] text-[#0B0E11]'
-                  : 'bg-[#181A20] text-gray-400 hover:text-gray-300 border border-[#2B3139]/50'
+                  ? 'bg-[#F0B90B] text-[#0B0E11] shadow-md shadow-[#F0B90B]/20'
+                  : 'bg-[#181A20] text-gray-400 hover:text-gray-200 border border-[#2B3139]/60'
               }`}
             >
               <f.icon className="w-3 h-3" />
@@ -253,7 +338,7 @@ export default function AlphaLaunchpad() {
           ))}
         </div>
 
-        <div className="flex items-center gap-1.5 mb-2 overflow-x-auto scrollbar-hide -mx-4 px-4">
+        <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide -mx-4 px-4">
           {CATEGORY_FILTERS.map(c => (
             <button
               key={c.id}
@@ -261,14 +346,12 @@ export default function AlphaLaunchpad() {
               className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all flex-shrink-0 ${
                 category === c.id
                   ? 'bg-[#2B3139] text-white'
-                  : 'text-gray-500 hover:text-gray-400'
+                  : 'text-gray-500 hover:text-gray-300'
               }`}
             >
               <c.icon className="w-3 h-3" />
               {c.label}
-              {categoryCounts[c.id] !== undefined && (
-                <span className="text-[9px] opacity-60">({categoryCounts[c.id]})</span>
-              )}
+              <span className="text-[9px] opacity-50 ml-0.5">({categoryCounts[c.id] ?? 0})</span>
             </button>
           ))}
         </div>
@@ -279,42 +362,42 @@ export default function AlphaLaunchpad() {
               key={n}
               onClick={() => setNetwork(n)}
               className={`px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all flex-shrink-0 flex items-center gap-1 ${
-                network === n
-                  ? 'bg-[#2B3139] text-white'
-                  : 'text-gray-500 hover:text-gray-400'
+                network === n ? 'bg-[#2B3139] text-white' : 'text-gray-500 hover:text-gray-300'
               }`}
             >
               {n !== 'All' && (
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: NETWORK_COLORS[n] || '#666' }} />
+                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: NETWORK_COLORS[n] || '#666' }} />
               )}
-              {n === 'All' ? `All` : n === 'BNC' ? `BNC (${bncTokens.length})` : n}
+              {n === 'All' ? 'All' : n === 'BNC' ? `BNC (${bncTokens.length})` : n}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="px-4 pb-4 space-y-2">
+      <div className="px-4 pb-6 space-y-2.5">
         {loading ? (
-          [...Array(4)].map((_, i) => (
+          [...Array(5)].map((_, i) => (
             <div key={i} className="bg-[#181A20] rounded-xl p-4 animate-pulse border border-[#2B3139]/50">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-11 h-11 rounded-xl bg-[#2B3139]" />
+                <div className="w-12 h-12 rounded-full bg-[#2B3139]" />
                 <div className="flex-1">
-                  <div className="h-4 w-24 bg-[#2B3139] rounded mb-1" />
-                  <div className="h-3 w-32 bg-[#2B3139]/50 rounded" />
+                  <div className="h-4 w-28 bg-[#2B3139] rounded mb-2" />
+                  <div className="h-3 w-36 bg-[#2B3139]/50 rounded" />
                 </div>
+                <div className="w-16 h-7 bg-[#2B3139]/50 rounded" />
               </div>
-              <div className="h-2 bg-[#2B3139] rounded-full mb-3" />
-              <div className="flex gap-3">
-                <div className="h-3 w-16 bg-[#2B3139]/50 rounded" />
-                <div className="h-3 w-16 bg-[#2B3139]/50 rounded" />
-                <div className="h-3 w-16 bg-[#2B3139]/50 rounded" />
+              <div className="h-2.5 bg-[#2B3139] rounded-full mb-3" />
+              <div className="flex gap-4 pt-1">
+                <div className="h-3 w-14 bg-[#2B3139]/50 rounded" />
+                <div className="h-3 w-14 bg-[#2B3139]/50 rounded" />
+                <div className="h-3 w-14 bg-[#2B3139]/50 rounded" />
               </div>
             </div>
           ))
         ) : filteredTokens.length === 0 ? (
-          <div className="py-12 text-center">
-            <span className="text-gray-500 text-sm">
+          <div className="py-16 text-center">
+            <Sparkles className="w-8 h-8 text-gray-700 mx-auto mb-3" />
+            <span className="text-gray-500 text-sm block">
               {searchQuery ? `No tokens found for "${searchQuery}"` : 'No tokens in this category'}
             </span>
           </div>
@@ -324,6 +407,7 @@ export default function AlphaLaunchpad() {
               key={token.id}
               token={token}
               onClick={() => setSelectedToken(token)}
+              isNew={isNewlyInjected(token.id)}
             />
           ))
         )}
@@ -344,11 +428,17 @@ export default function AlphaLaunchpad() {
       />
 
       <style>{`
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(-8px); }
-          to { opacity: 1; transform: translateY(0); }
+        @keyframes alphaSlideIn {
+          from { opacity: 0; transform: translateY(-10px) scale(0.97); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
       `}</style>
     </div>
   );
+}
+
+function formatVol(val: number): string {
+  if (val >= 1e6) return `$${(val / 1e6).toFixed(1)}M`;
+  if (val >= 1e3) return `$${(val / 1e3).toFixed(0)}K`;
+  return `$${val.toFixed(0)}`;
 }

@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import type { AlphaToken } from '../types/alpha';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -8,13 +9,13 @@ type PriceSubscriber = (prices: Record<string, number>) => void;
 class AlphaPriceManager {
   private static instance: AlphaPriceManager;
   private prices: Record<string, number> = {};
+  private priceChanges: Record<string, number> = {};
   private subscribers: PriceSubscriber[] = [];
-  private updateInterval: number | null = null;
-  private isUpdating = false;
+  private simulationInterval: number | null = null;
+  private dbSyncInterval: number | null = null;
+  private initializedTokenIds: Set<string> = new Set();
 
-  private constructor() {
-    this.startUpdates();
-  }
+  private constructor() {}
 
   static getInstance(): AlphaPriceManager {
     if (!AlphaPriceManager.instance) {
@@ -23,51 +24,77 @@ class AlphaPriceManager {
     return AlphaPriceManager.instance;
   }
 
-  private async triggerPriceUpdate(): Promise<void> {
-    if (this.isUpdating) return;
-    this.isUpdating = true;
+  initTokens(tokens: AlphaToken[]): void {
+    tokens.forEach(t => {
+      if (!this.initializedTokenIds.has(t.id) && t.current_price > 0) {
+        this.prices[t.id] = t.current_price;
+        this.priceChanges[t.id] = t.price_change_24h || 0;
+        this.initializedTokenIds.add(t.id);
+      }
+    });
+    this.ensureSimulationRunning();
+  }
 
+  private ensureSimulationRunning(): void {
+    if (this.simulationInterval) return;
+    this.simulationInterval = window.setInterval(() => {
+      this.tickPrices();
+    }, 3800);
+
+    this.dbSyncInterval = window.setInterval(() => {
+      this.syncFromDB();
+    }, 30000);
+  }
+
+  private tickPrices(): void {
+    const ids = Object.keys(this.prices);
+    if (ids.length === 0) return;
+
+    ids.forEach(id => {
+      const price = this.prices[id];
+      if (!price || price <= 0) return;
+      const drift = (Math.random() - 0.46) * 0.028;
+      this.prices[id] = Math.max(price * (1 + drift), price * 0.0001);
+    });
+
+    this.notifySubscribers();
+  }
+
+  private async syncFromDB(): Promise<void> {
     try {
-      const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/alpha-price-updater`,
-        {
+      const { data } = await supabase
+        .from('alpha_tokens')
+        .select('id, current_price, price_change_24h')
+        .eq('status', 'active');
+
+      if (data && data.length > 0) {
+        data.forEach(t => {
+          if (t.current_price > 0) {
+            this.prices[t.id] = t.current_price;
+            this.priceChanges[t.id] = t.price_change_24h || 0;
+            this.initializedTokenIds.add(t.id);
+          }
+        });
+        this.notifySubscribers();
+      }
+
+      try {
+        await fetch(`${SUPABASE_URL}/functions/v1/alpha-price-updater`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({}),
-        }
-      );
-
-      if (!response.ok) return;
-
-      const { data } = await supabase
-        .from('alpha_tokens')
-        .select('id, current_price')
-        .eq('status', 'active');
-
-      if (data) {
-        data.forEach(t => { this.prices[t.id] = t.current_price; });
-        this.notifySubscribers();
-      }
-    } catch {
-    } finally {
-      this.isUpdating = false;
-    }
-  }
-
-  private startUpdates(): void {
-    this.triggerPriceUpdate();
-    this.updateInterval = window.setInterval(() => {
-      this.triggerPriceUpdate();
-    }, 30000);
+        });
+      } catch {}
+    } catch {}
   }
 
   subscribe(callback: PriceSubscriber): () => void {
     this.subscribers.push(callback);
     if (Object.keys(this.prices).length > 0) {
-      callback(this.prices);
+      callback({ ...this.prices });
     }
     return () => {
       this.subscribers = this.subscribers.filter(s => s !== callback);
@@ -75,7 +102,8 @@ class AlphaPriceManager {
   }
 
   private notifySubscribers(): void {
-    this.subscribers.forEach(s => s({ ...this.prices }));
+    const snapshot = { ...this.prices };
+    this.subscribers.forEach(s => s(snapshot));
   }
 
   getPrice(tokenId: string): number {
@@ -86,15 +114,13 @@ class AlphaPriceManager {
     return { ...this.prices };
   }
 
-  forceUpdate(): void {
-    this.triggerPriceUpdate();
+  getPriceChange(tokenId: string): number {
+    return this.priceChanges[tokenId] || 0;
   }
 
   destroy(): void {
-    if (this.updateInterval) {
-      clearInterval(this.updateInterval);
-      this.updateInterval = null;
-    }
+    if (this.simulationInterval) { clearInterval(this.simulationInterval); this.simulationInterval = null; }
+    if (this.dbSyncInterval) { clearInterval(this.dbSyncInterval); this.dbSyncInterval = null; }
     this.subscribers = [];
   }
 }
