@@ -166,7 +166,6 @@ export default function FuturesMarketSelector({
   const bncManager = BNCPriceManager.getInstance();
 
   const INDEP_MANAGERS: Record<string, { getPrice: () => number; getChange: () => number; getMarketCap: () => number; subscribe: (cb: () => void) => () => void }> = {
-    BNC: bncManager,
     PAYAI: payaiManager,
     SGP: sgpManager,
     POWERAI: poweraiManager,
