@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { Heart, MessageCircle, Share2, Radio, Crown, Lock, Sparkles, Users, BookOpen, BarChart2, MessageSquare, Newspaper, Zap, TrendingUp, TrendingDown, ExternalLink, Shield, Globe, Repeat2, BarChart } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PriceCache } from '../lib/price-cache';
@@ -1491,7 +1491,7 @@ const ROOM_PALETTES = [
   { bg: 'from-[#365314] via-[#4d7c0f] to-[#1a2e05]', border: 'border-lime-400/50', icon: 'from-[#bef264] to-[#84cc16]', iconShadow: 'shadow-lime-500/60', glow: 'shadow-lime-600/40', topic: 'text-lime-200', accent: 'text-lime-300' },
 ];
 
-function LiveRoomsScroller({ rooms, onRoomClick }: { rooms: LiveRoom[]; onRoomClick: (id: string) => void }) {
+const LiveRoomsScroller = memo(function LiveRoomsScroller({ rooms, onRoomClick }: { rooms: LiveRoom[]; onRoomClick: (id: string) => void }) {
   const trackRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -1507,7 +1507,7 @@ function LiveRoomsScroller({ rooms, onRoomClick }: { rooms: LiveRoom[]; onRoomCl
     return () => ro.disconnect();
   }, [rooms.length]);
 
-  const speedSec = Math.max(20, rooms.length * 1.4);
+  const speedSec = Math.max(15, rooms.length * 0.9);
 
   return (
     <div className="bg-[#0d0f14] border-b border-[#1E2329]">
@@ -1516,7 +1516,7 @@ function LiveRoomsScroller({ rooms, onRoomClick }: { rooms: LiveRoom[]; onRoomCl
           0% { transform: translateX(0); }
           100% { transform: translateX(var(--scroll-dist, -50%)); }
         }
-        .live-scroll { animation: scroll-left var(--scroll-speed, 30s) linear infinite; backface-visibility: hidden; will-change: transform; }
+        .live-scroll { animation: scroll-left var(--scroll-speed, 30s) linear infinite; backface-visibility: hidden; will-change: transform; transform-style: preserve-3d; }
         .live-scroll:hover { animation-play-state: paused; }
         @keyframes live-blink {
           0%, 100% { opacity: 1; }
@@ -1598,4 +1598,10 @@ function LiveRoomsScroller({ rooms, onRoomClick }: { rooms: LiveRoom[]; onRoomCl
       </div>
     </div>
   );
-}
+}, (prev, next) => {
+  if (prev.rooms.length !== next.rooms.length) return false;
+  for (let i = 0; i < prev.rooms.length; i++) {
+    if (prev.rooms[i].id !== next.rooms[i]?.id) return false;
+  }
+  return true;
+});
