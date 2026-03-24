@@ -84,7 +84,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
   };
   const safeLow = (price: number, stored: number) => {
     if (price <= 0) return stored || 0;
-    if (stored > 0 && stored >= price * 0.5 && stored <= price * 1.05) return stored;
+    if (stored > 0 && stored < price) return stored;
     return price * (0.965 + Math.random() * 0.025);
   };
 

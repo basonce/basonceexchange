@@ -3,7 +3,7 @@ class EarnQuestPriceManager {
   private price: number = 0.055;
   private change: number = 0;
   private high24h: number = 0.058;
-  private low24h: number = 0.052;
+  private low24h: number = 0.1182;
   private marketCap: number = 55000000;
   private subscribers: Array<() => void> = [];
   private updateInterval: number | null = null;
@@ -57,7 +57,8 @@ class EarnQuestPriceManager {
         this.price = parseFloat(data.current_price);
         this.change = parseFloat(data.change_percentage);
         this.high24h = parseFloat(data.high_24h);
-        this.low24h = parseFloat(data.low_24h);
+        const storedLow = parseFloat(data.low_24h);
+        this.low24h = (storedLow > 0.05) ? storedLow : 0.1182;
         this.marketCap = parseFloat(data.market_cap);
 
         this.notifySubscribers();
