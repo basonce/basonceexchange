@@ -1088,11 +1088,12 @@ export default function SocialFeed() {
       const { data, error } = await supabase
         .from('live_rooms')
         .select('*')
-        .eq('is_active', true)
         .order('listener_count', { ascending: false })
-        .limit(72);
+        .limit(200);
       if (error) throw error;
-      setLiveRooms(data || []);
+      const all = data || [];
+      const shuffled = [...all].sort(() => Math.random() - 0.5);
+      setLiveRooms(shuffled);
     } catch (error) {
       console.error('Error fetching live rooms:', error);
     }
@@ -1496,7 +1497,7 @@ function LiveRoomsScroller({ rooms, onRoomClick }: { rooms: LiveRoom[]; onRoomCl
           0% { transform: translate3d(0,0,0); }
           100% { transform: translate3d(-50%,0,0); }
         }
-        .live-scroll { animation: scroll-left 8s linear infinite; backface-visibility: hidden; will-change: transform; }
+        .live-scroll { animation: scroll-left 5s linear infinite; backface-visibility: hidden; will-change: transform; }
         .live-scroll:hover { animation-play-state: paused; }
         @keyframes live-blink {
           0%, 100% { opacity: 1; }
