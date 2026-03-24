@@ -295,12 +295,26 @@ export default function MarketsPage() {
   const formatPrice = formatPriceWithSymbol;
   const formatVolume = formatVolumeWithSymbol;
 
-  const getRandomBidAsk = (price: number) => {
+  const bidAskCacheRef = useRef<Map<string, { high: number; low: number; bid: number; ask: number; lastPrice: number }>>(new Map());
+
+  const getBidAsk = (symbol: string, price: number) => {
     if (price === 0) return { high: 0, low: 0, bid: 0, ask: 0 };
-    const high = price * (1 + Math.random() * 0.02);
-    const low = price * (1 - Math.random() * 0.02);
-    const bid = price * (1 - Math.random() * 0.001);
-    const ask = price * (1 + Math.random() * 0.001);
+    const cached = bidAskCacheRef.current.get(symbol);
+    if (cached && cached.lastPrice > 0 && Math.abs(price - cached.lastPrice) / cached.lastPrice < 0.005) {
+      return {
+        high: cached.high,
+        low: cached.low,
+        bid: price * 0.9997,
+        ask: price * 1.0003,
+      };
+    }
+    const highPct = 0.015 + Math.random() * 0.015;
+    const lowPct = 0.015 + Math.random() * 0.015;
+    const high = price * (1 + highPct);
+    const low = price * (1 - lowPct);
+    const bid = price * (1 - 0.0002 - Math.random() * 0.0003);
+    const ask = price * (1 + 0.0002 + Math.random() * 0.0003);
+    bidAskCacheRef.current.set(symbol, { high, low, bid, ask, lastPrice: price });
     return { high, low, bid, ask };
   };
 
@@ -395,7 +409,7 @@ export default function MarketsPage() {
         ) : (
           <div className="space-y-3 px-4">
             {visibleMarkets.map((market) => {
-              const { high, low, bid, ask } = getRandomBidAsk(market.price);
+              const { high, low, bid, ask } = getBidAsk(market.symbol, market.price);
 
               return (
                 <div

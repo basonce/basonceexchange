@@ -77,16 +77,27 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
     if (mgr) return mgr.getChange() || 0;
     return 0;
   });
+  const safeHigh = (price: number, stored: number) => {
+    if (price <= 0) return stored || 0;
+    if (stored > 0 && stored >= price * 0.95 && stored <= price * 1.5) return stored;
+    return price * (1.01 + Math.random() * 0.025);
+  };
+  const safeLow = (price: number, stored: number) => {
+    if (price <= 0) return stored || 0;
+    if (stored > 0 && stored >= price * 0.5 && stored <= price * 1.05) return stored;
+    return price * (0.965 + Math.random() * 0.025);
+  };
+
   const [high24h, setHigh24h] = useState(() => {
     const sym = getInitialSymbol();
     const mgr = getIndepManager(sym);
-    if (mgr) return mgr.getHigh24h() || 0;
+    if (mgr) return safeHigh(mgr.getPrice(), mgr.getHigh24h());
     return 0;
   });
   const [low24h, setLow24h] = useState(() => {
     const sym = getInitialSymbol();
     const mgr = getIndepManager(sym);
-    if (mgr) return mgr.getLow24h() || 0;
+    if (mgr) return safeLow(mgr.getPrice(), mgr.getLow24h());
     return 0;
   });
   const [volume24h, setVolume24h] = useState(() => {
@@ -163,8 +174,8 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
       const p = indepMgr.getPrice();
       setCurrentPrice(p);
       setChange24h(indepMgr.getChange());
-      setHigh24h(indepMgr.getHigh24h());
-      setLow24h(indepMgr.getLow24h());
+      setHigh24h(safeHigh(p, indepMgr.getHigh24h()));
+      setLow24h(safeLow(p, indepMgr.getLow24h()));
       setVolume24h(newSymbol === 'EQ' ? getEQVolume() : indepMgr.getMarketCap());
       setVolumeBase(newSymbol === 'EQ' ? getEQVolume() / 2 : indepMgr.getMarketCap() / 2);
       setPrice(p.toFixed(getPriceDecimals(p)));
@@ -696,8 +707,8 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
       const change = indepMgr.getChange();
       setCurrentPrice(p);
       setChange24h(change);
-      setHigh24h(indepMgr.getHigh24h());
-      setLow24h(indepMgr.getLow24h());
+      setHigh24h(safeHigh(p, indepMgr.getHigh24h()));
+      setLow24h(safeLow(p, indepMgr.getLow24h()));
       setVolume24h(targetSymbol === 'EQ' ? getEQVolume() : indepMgr.getMarketCap());
       setVolumeBase(targetSymbol === 'EQ' ? getEQVolume() / 2 : indepMgr.getMarketCap() / 2);
       setPrice(p.toFixed(getPriceDecimals(p)));
