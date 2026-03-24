@@ -216,7 +216,9 @@ export default function AlphaTokenChart({ priceHistory, currentPrice, priceChang
         rightPriceScale: {
           borderColor: 'rgba(43, 49, 57, 0.5)',
           scaleMargins: { top: 0.06, bottom: 0.26 },
-          minimumWidth: 60,
+          minimumWidth: 90,
+          visible: true,
+          textColor: '#848E9C',
         },
         timeScale: {
           borderColor: 'rgba(43, 49, 57, 0.5)',
@@ -230,6 +232,18 @@ export default function AlphaTokenChart({ priceHistory, currentPrice, priceChang
 
       chartRef.current = chart;
 
+      const priceFmt = (price: number): string => {
+        if (price === 0) return '0';
+        if (price < 0.000001)  return price.toFixed(10);
+        if (price < 0.0001)    return price.toFixed(8);
+        if (price < 0.001)     return price.toFixed(7);
+        if (price < 0.01)      return price.toFixed(6);
+        if (price < 0.1)       return price.toFixed(5);
+        if (price < 1)         return price.toFixed(4);
+        if (price < 100)       return price.toFixed(2);
+        return price.toFixed(0);
+      };
+
       const candleSeries = chart.addSeries(CandlestickSeries, {
         upColor: '#0ECB81',
         downColor: '#F6465D',
@@ -237,8 +251,13 @@ export default function AlphaTokenChart({ priceHistory, currentPrice, priceChang
         borderDownColor: '#F6465D',
         wickUpColor: '#0ECB81',
         wickDownColor: '#F6465D',
-        lastValueVisible: false,
+        lastValueVisible: true,
         priceLineVisible: false,
+        priceFormat: {
+          type: 'custom',
+          minMove: 0.000000001,
+          formatter: priceFmt,
+        },
       });
 
       const volumeSeries = chart.addSeries(HistogramSeries, {
