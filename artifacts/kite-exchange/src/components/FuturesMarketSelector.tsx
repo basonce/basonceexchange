@@ -12,6 +12,7 @@ import { BNCPriceManager } from '../lib/bnc-price';
 import { PriceCache } from '../lib/price-cache';
 import CoinLogo from './CoinLogo';
 import { getProxiedLogoUrl } from '../lib/logo-utils';
+import { getEQVolume } from '../lib/eq-volume-service';
 import { TRADFI_ASSETS, CATEGORY_STYLES, type TradFiAsset } from '../lib/tradfi-data';
 import { getAllTradFiPrices, subscribeAllTradFiPrices } from '../lib/tradfi-price-service';
 import MetalIcon, { isMetalSymbol } from './MetalIcon';
@@ -291,7 +292,7 @@ export default function FuturesMarketSelector({
       name: 'EarnQuest',
       price: priceManager.getPrice(),
       change24h: priceManager.getChange(),
-      volume24h: priceManager.getMarketCap(),
+      volume24h: getEQVolume(),
       logo: '/earnquest-logo-icon-2.png',
       isEarnQuest: true,
       direction: 'neutral'

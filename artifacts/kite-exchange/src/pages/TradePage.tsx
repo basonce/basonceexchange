@@ -20,6 +20,7 @@ import CopyTradingSection, { ActiveCopyPositions } from '../components/CopyTradi
 import { formatPrice as sharedFormatPrice, formatAmount as sharedFormatAmount, formatVolume as sharedFormatVolume, getPriceDecimals } from '../lib/format-utils';
 import CoinInfoTab from '../components/CoinInfoTab';
 import TradingDataTab from '../components/TradingDataTab';
+import { getEQVolume } from '../lib/eq-volume-service';
 
 interface OrderBookItem {
   price: number;
@@ -91,13 +92,13 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
   const [volume24h, setVolume24h] = useState(() => {
     const sym = getInitialSymbol();
     const mgr = getIndepManager(sym);
-    if (mgr) return mgr.getMarketCap() || 0;
+    if (mgr) return sym === 'EQ' ? getEQVolume() : (mgr.getMarketCap() || 0);
     return 0;
   });
   const [volumeBase, setVolumeBase] = useState(() => {
     const sym = getInitialSymbol();
     const mgr = getIndepManager(sym);
-    if (mgr) return (mgr.getMarketCap() || 0) / 2;
+    if (mgr) return sym === 'EQ' ? getEQVolume() / 2 : ((mgr.getMarketCap() || 0) / 2);
     return 0;
   });
   const [activeTab, setActiveTab] = useState<'price' | 'info' | 'trading-data' | 'square' | 'trade'>('price');
@@ -164,8 +165,8 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
       setChange24h(indepMgr.getChange());
       setHigh24h(indepMgr.getHigh24h());
       setLow24h(indepMgr.getLow24h());
-      setVolume24h(indepMgr.getMarketCap());
-      setVolumeBase(indepMgr.getMarketCap() / 2);
+      setVolume24h(newSymbol === 'EQ' ? getEQVolume() : indepMgr.getMarketCap());
+      setVolumeBase(newSymbol === 'EQ' ? getEQVolume() / 2 : indepMgr.getMarketCap() / 2);
       setPrice(p.toFixed(getPriceDecimals(p)));
     } else {
       const pc = PriceCache.getInstance();
@@ -697,8 +698,8 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
       setChange24h(change);
       setHigh24h(indepMgr.getHigh24h());
       setLow24h(indepMgr.getLow24h());
-      setVolume24h(indepMgr.getMarketCap());
-      setVolumeBase(indepMgr.getMarketCap() / 2);
+      setVolume24h(targetSymbol === 'EQ' ? getEQVolume() : indepMgr.getMarketCap());
+      setVolumeBase(targetSymbol === 'EQ' ? getEQVolume() / 2 : indepMgr.getMarketCap() / 2);
       setPrice(p.toFixed(getPriceDecimals(p)));
       generateOrderBook(p);
       generateInitialTrades(p);

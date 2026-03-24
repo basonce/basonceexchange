@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase';
 import CoinLogo from '../components/CoinLogo';
 import { getProxiedLogoUrl } from '../lib/logo-utils';
 import { formatPriceWithSymbol, formatVolumeWithSymbol } from '../lib/format-utils';
+import { getEQVolume } from '../lib/eq-volume-service';
 
 interface Market {
   symbol: string;
@@ -77,7 +78,7 @@ export default function MarketsPage() {
           ...m,
           price: priceManager.current.getPrice(),
           change24h: priceManager.current.getChange(),
-          volume: priceManager.current.getMarketCap(),
+          volume: getEQVolume(),
           direction: 'up',
           flashClass: 'animate-flash-green'
         };
@@ -139,7 +140,7 @@ export default function MarketsPage() {
             fullName: coin.name,
             price: priceManager.current.getPrice(),
             change24h: priceManager.current.getChange(),
-            volume: priceManager.current.getMarketCap(),
+            volume: getEQVolume(),
             logo: getProxiedLogoUrl(coin.logo_url) || '/earnquest-logo-icon-2.png',
             binanceSymbol: null,
             direction: 'neutral' as const,
@@ -205,7 +206,7 @@ export default function MarketsPage() {
           fullName: 'EarnQuest',
           price: priceManager.current.getPrice(),
           change24h: priceManager.current.getChange(),
-          volume: priceManager.current.getMarketCap(),
+          volume: getEQVolume(),
           logo: '/earnquest-logo-icon-2.png',
           binanceSymbol: null,
           direction: 'neutral' as const,

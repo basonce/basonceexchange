@@ -11,6 +11,7 @@ import { PriceCache } from '../lib/price-cache';
 import { FUTURES_COINS } from '../lib/coin-logos';
 import { supabase } from '../lib/supabase';
 import CoinLogo from './CoinLogo';
+import { getEQVolume } from '../lib/eq-volume-service';
 
 interface MarketCoin {
   symbol: string;
@@ -48,29 +49,6 @@ function seededRandom(seed: number): number {
   return x - Math.floor(x);
 }
 
-// EQ 24h volume: starts at $6M at midnight UTC, accumulates to $478.7M by end of day.
-// Completely independent of price — uses time-of-day only.
-function computeEQDailyVolume(): number {
-  const MIN_VOL = 6_000_000;    // $6M at day start (reset)
-  const MAX_VOL = 478_700_000;  // $478.7M maximum
-
-  const now = new Date();
-  const startOfDay = new Date(Date.UTC(
-    now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()
-  ));
-  const secondsElapsed = (now.getTime() - startOfDay.getTime()) / 1000;
-  const progress = secondsElapsed / (24 * 60 * 60); // 0 → 1 throughout the day
-
-  // Curved accumulation: grows faster mid-day, slows at night
-  const curvedProgress = 1 - Math.pow(1 - Math.min(1, progress), 1.6);
-
-  // Tiny noise that changes every 5 min — NOT correlated with price
-  const noiseSeed = Math.floor(secondsElapsed / 300);
-  const noise = (Math.sin(noiseSeed * 3.71) * 0.5 + Math.cos(noiseSeed * 2.13) * 0.5) * 0.012;
-
-  const vol = MIN_VOL + (MAX_VOL - MIN_VOL) * Math.min(1, Math.max(0, curvedProgress + noise));
-  return Math.round(vol);
-}
 
 function formatPrice(price: number): string {
   if (price >= 10000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -191,7 +169,7 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
         symbol: 'EQ',
         price: eqPrice,
         change24h: priceManager.current.getChange(),
-        volume24h: computeEQDailyVolume(),
+        volume24h: getEQVolume(),
         dbUrl: '/earnquest-logo-icon-2.png',
         name: 'EarnQuest',
       });
@@ -294,7 +272,7 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
           symbol: 'EQ',
           price: eqPrice,
           change24h: eqChange,
-          volume24h: computeEQDailyVolume(),
+          volume24h: getEQVolume(),
           dbUrl: '/earnquest-logo-icon-2.png',
           name: 'EarnQuest',
           stableChange: eqChange,
