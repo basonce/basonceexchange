@@ -7,6 +7,21 @@ import { supabase } from '../lib/supabase';
 import CoinLogo from './CoinLogo';
 import { getProxiedLogoUrl } from '../lib/logo-utils';
 
+// EQ 24h volume: starts at $6M at midnight UTC, grows to $478.7M max by end of day.
+// Completely independent of price — time-based only.
+function computeEQDailyVolume(): number {
+  const MIN_VOL = 6_000_000;
+  const MAX_VOL = 478_700_000;
+  const now = new Date();
+  const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const secondsElapsed = (now.getTime() - startOfDay.getTime()) / 1000;
+  const progress = secondsElapsed / (24 * 60 * 60);
+  const curvedProgress = 1 - Math.pow(1 - Math.min(1, progress), 1.6);
+  const noiseSeed = Math.floor(secondsElapsed / 300);
+  const noise = (Math.sin(noiseSeed * 3.71) * 0.5 + Math.cos(noiseSeed * 2.13) * 0.5) * 0.012;
+  return Math.round(MIN_VOL + (MAX_VOL - MIN_VOL) * Math.min(1, Math.max(0, curvedProgress + noise)));
+}
+
 interface MarketData {
   symbol: string;
   name: string;
@@ -135,7 +150,7 @@ export default function MarketList({ onSelectCrypto }: MarketListProps) {
             name: 'EarnQuest',
             price: priceManager.current.getPrice(),
             change24h: priceManager.current.getChange(),
-            volume: 255000000,
+            volume: computeEQDailyVolume(),
             logoUrl: getProxiedLogoUrl(coin.logo_url) || '/earnquest-logo-icon-2.png',
             isEarnQuest: true,
           });
