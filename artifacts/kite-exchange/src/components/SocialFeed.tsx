@@ -1490,14 +1490,31 @@ const ROOM_PALETTES = [
 ];
 
 function LiveRoomsScroller({ rooms, onRoomClick }: { rooms: LiveRoom[]; onRoomClick: (id: string) => void }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el || rooms.length === 0) return;
+    const measure = () => {
+      const half = el.scrollWidth / 2;
+      el.style.setProperty('--scroll-dist', `-${half}px`);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [rooms.length]);
+
+  const speedSec = Math.max(10, rooms.length * 0.7);
+
   return (
     <div className="bg-[#0d0f14] border-b border-[#1E2329]">
       <style>{`
         @keyframes scroll-left {
-          0% { transform: translate3d(0,0,0); }
-          100% { transform: translate3d(-50%,0,0); }
+          0% { transform: translateX(0); }
+          100% { transform: translateX(var(--scroll-dist, -50%)); }
         }
-        .live-scroll { animation: scroll-left 5s linear infinite; backface-visibility: hidden; will-change: transform; }
+        .live-scroll { animation: scroll-left var(--scroll-speed, 30s) linear infinite; backface-visibility: hidden; will-change: transform; }
         .live-scroll:hover { animation-play-state: paused; }
         @keyframes live-blink {
           0%, 100% { opacity: 1; }
@@ -1526,7 +1543,11 @@ function LiveRoomsScroller({ rooms, onRoomClick }: { rooms: LiveRoom[]; onRoomCl
       <p className="px-4 pb-2 text-gray-400 text-[11px]">Chat live with crypto investors, share strategies</p>
 
       <div className="overflow-hidden relative py-2">
-        <div className="flex gap-3 live-scroll min-w-max px-3">
+        <div
+          ref={trackRef}
+          className="flex gap-3 live-scroll px-3"
+          style={{ width: 'max-content', ['--scroll-speed' as string]: `${speedSec}s` }}
+        >
           {[...rooms, ...rooms].map((room, index) => {
             const palette = room.is_vip
               ? { bg: 'from-[#1c1500] to-[#2a1e00]', border: 'border-yellow-400/60', icon: 'from-yellow-400 to-amber-500', glow: 'shadow-yellow-500/30', topic: 'text-yellow-300' }

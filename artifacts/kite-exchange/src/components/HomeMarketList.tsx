@@ -473,14 +473,14 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
 
       {displayCoins.map((coin, coinIdx) => {
         const displayChange = isStableFilter ? (coin as StableCoin).stableChange : coin.change24h;
-        const priceColor = isStableFilter
-          ? displayChange >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'
-          : 'text-white';
+        const isUp = displayChange >= 0;
+        const INDEP = new Set(['EQ', 'BNC', 'PAYAI', 'SGP', 'POWERAI', 'SZNP', 'PUNCH']);
+        const isIndep = INDEP.has(coin.symbol);
 
         return (
           <div
             key={`${coin.symbol}-${tick}`}
-            className="relative px-4 py-3 border-b border-[#2B3139]/40 cursor-pointer active:bg-[#2B3139]/50 transition-colors duration-200 overflow-hidden hover:bg-[#2B3139]/20"
+            className="relative px-3 py-2.5 cursor-pointer overflow-hidden transition-all duration-200 active:scale-[0.99]"
             onClick={() => {
               localStorage.setItem('currentTab', 'trade');
               localStorage.setItem('selectedCoinSymbol', coin.symbol);
@@ -490,34 +490,49 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
               }));
             }}
           >
-            <div className="flex items-center">
+            <div className={`flex items-center rounded-2xl px-3 py-2.5 border transition-all duration-200 hover:brightness-110 ${
+              isIndep
+                ? 'bg-gradient-to-r from-[#1a1200] to-[#0f0c00] border-yellow-500/30 shadow-sm shadow-yellow-500/10'
+                : isUp
+                  ? 'bg-gradient-to-r from-[#0a1f14] to-[#0d1a10] border-[#0ECB81]/20 shadow-sm shadow-[#0ECB81]/5'
+                  : 'bg-gradient-to-r from-[#1f0a0e] to-[#1a0a0d] border-[#F6465D]/20 shadow-sm shadow-[#F6465D]/5'
+            }`}>
               <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="w-10 h-10 flex-shrink-0">
+                <div className={`w-11 h-11 flex-shrink-0 rounded-full flex items-center justify-center ring-2 ${
+                  isIndep ? 'ring-yellow-500/40' : isUp ? 'ring-[#0ECB81]/20' : 'ring-[#F6465D]/20'
+                }`}>
                   <CoinLogo symbol={coin.symbol} dbUrl={coin.dbUrl} eager={coinIdx < 8} />
                 </div>
                 <div className="min-w-0">
-                  <div className="flex items-baseline gap-1 leading-tight">
-                    <span className="font-black text-[15px] text-white">{coin.symbol}</span>
-                    <span className="text-gray-500 font-semibold text-[11px]">/USDT</span>
+                  <div className="flex items-center gap-1.5 leading-tight">
+                    <span className={`font-black text-[15px] ${isIndep ? 'text-yellow-300' : 'text-white'}`}>{coin.symbol}</span>
+                    <span className="text-gray-600 font-semibold text-[10px]">/USDT</span>
+                    {isIndep && (
+                      <span className="bg-yellow-500/20 text-yellow-400 text-[8px] font-black px-1 py-0.5 rounded tracking-wide">★ KITE</span>
+                    )}
                   </div>
-                  <div className="text-[11px] text-gray-400 font-bold mt-0.5">
-                    Vol <span className="text-white">{formatVolume(coin.volume24h)}</span>
+                  <div className="text-[11px] text-gray-500 font-semibold mt-0.5">
+                    Vol <span className={isIndep ? 'text-yellow-400/80' : 'text-gray-300'}>{formatVolume(coin.volume24h)}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="text-right mr-2.5 flex-shrink-0">
-                <div className={`font-black text-[15px] tabular-nums leading-tight transition-colors duration-300 ${priceColor}`}>
+              <div className="text-right mr-3 flex-shrink-0">
+                <div className={`font-black text-[15px] tabular-nums leading-tight ${
+                  isIndep ? 'text-yellow-300' : isUp ? 'text-[#0ECB81]' : 'text-[#F6465D]'
+                }`}>
                   ${formatPrice(coin.price)}
                 </div>
               </div>
 
-              <div className={`min-w-[80px] py-1.5 px-2.5 rounded-lg text-center font-black text-[13px] flex-shrink-0 transition-all duration-700 ${
-                displayChange >= 0
-                  ? 'bg-[#0ECB81] text-white'
-                  : 'bg-[#F6465D] text-white'
+              <div className={`min-w-[76px] py-1.5 px-2 rounded-xl text-center font-black text-[13px] flex-shrink-0 shadow-sm ${
+                isIndep
+                  ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-black shadow-yellow-500/30'
+                  : isUp
+                    ? 'bg-gradient-to-br from-[#0ECB81] to-[#09a165] text-white shadow-green-500/30'
+                    : 'bg-gradient-to-br from-[#F6465D] to-[#c9384a] text-white shadow-red-500/30'
               }`}>
-                {displayChange >= 0 ? '+' : ''}{displayChange.toFixed(2)}%
+                {isUp ? '+' : ''}{displayChange.toFixed(2)}%
               </div>
             </div>
           </div>
