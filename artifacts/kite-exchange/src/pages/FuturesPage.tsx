@@ -216,12 +216,13 @@ function TradFiHeaderLogo({ displayName }: { displayName: string }) {
       );
     }
     if (isFlag) {
+      const isTurkey = directLogo.includes('/tr.');
       return (
         <div className="w-full h-full rounded-full overflow-hidden">
           <img
             src={directLogo}
             alt={displayName}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: isTurkey ? '38% center' : 'center' }}
             onError={() => setLogoErr(true)}
           />
         </div>
