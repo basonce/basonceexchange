@@ -76,11 +76,11 @@ export const TRADFI_ASSETS: TradFiAsset[] = [
   { symbol: 'LHOGUSDT',   displayName: 'LHOG',    category: 'Agriculture', basePrice: 89.00,   volatility: 0.001,  volume24hBase: 420000,    logoUrl: '', bgColor: '#8b3a3a' },
 
   // Indices (fallback prices — real-time prices come from API server via Yahoo Finance)
-  { symbol: 'SP500USDT',  displayName: 'SPX',    category: 'Index',     basePrice: 6556.00,  volatility: 0.0005, volume24hBase: 95000000,  logoUrl: '/sp500_512.png',    bgColor: '#001a3a' },
-  { symbol: 'NAS100USDT', displayName: 'NDX',    category: 'Index',     basePrice: 24002.00, volatility: 0.0006, volume24hBase: 78000000,  logoUrl: '/nasdaq_512.png',   bgColor: '#001a3a' },
-  { symbol: 'DJIA30USDT', displayName: 'DJI',    category: 'Index',     basePrice: 46124.00, volatility: 0.0004, volume24hBase: 52000000,  logoUrl: '/dowjones_512.png', bgColor: '#001a3a' },
-  { symbol: 'DAXUSDT',    displayName: 'DAX',    category: 'Index',     basePrice: 23400.00, volatility: 0.0005, volume24hBase: 18000000,  logoUrl: 'https://flagcdn.com/w80/de.png', bgColor: '#1a1a00' },
-  { symbol: 'FTSE100USDT',displayName: 'FTSE',   category: 'Index',     basePrice: 8700.00,  volatility: 0.0004, volume24hBase: 14000000,  logoUrl: 'https://flagcdn.com/w80/gb.png', bgColor: '#1a001a' },
+  { symbol: 'SP500USDT',  displayName: 'SPX',    category: 'Index',     basePrice: 6556.00,  volatility: 0.0005, volume24hBase: 95000000,  logoUrl: 'https://bin.bnbstatic.com/static/images/common/tradfi/SPX.svg',  bgColor: '#001a3a' },
+  { symbol: 'NAS100USDT', displayName: 'NDX',    category: 'Index',     basePrice: 24002.00, volatility: 0.0006, volume24hBase: 78000000,  logoUrl: 'https://bin.bnbstatic.com/static/images/common/tradfi/NDX.svg',  bgColor: '#001a3a' },
+  { symbol: 'DJIA30USDT', displayName: 'DJI',    category: 'Index',     basePrice: 46124.00, volatility: 0.0004, volume24hBase: 52000000,  logoUrl: 'https://bin.bnbstatic.com/static/images/common/tradfi/DJI.svg',  bgColor: '#001a3a' },
+  { symbol: 'DAXUSDT',    displayName: 'DAX',    category: 'Index',     basePrice: 23400.00, volatility: 0.0005, volume24hBase: 18000000,  logoUrl: 'https://flagcdn.com/w80/de.png', bgColor: '#000a1a' },
+  { symbol: 'FTSE100USDT',displayName: 'FTSE',   category: 'Index',     basePrice: 8700.00,  volatility: 0.0004, volume24hBase: 14000000,  logoUrl: 'https://flagcdn.com/w80/gb.png', bgColor: '#0a001a' },
   { symbol: 'NI225USDT',  displayName: 'NKY',    category: 'Index',     basePrice: 38500.00, volatility: 0.0005, volume24hBase: 12000000,  logoUrl: 'https://flagcdn.com/w80/jp.png', bgColor: '#1a0000' },
 
   // Forex (fallback prices — real-time prices come from API server via Yahoo Finance)

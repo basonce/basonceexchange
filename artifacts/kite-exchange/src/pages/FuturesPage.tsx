@@ -217,11 +217,11 @@ function TradFiHeaderLogo({ displayName }: { displayName: string }) {
     }
     if (isFlag) {
       return (
-        <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center" style={{ background: asset?.bgColor ?? '#1a1a2a' }}>
+        <div className="w-full h-full rounded-full overflow-hidden">
           <img
             src={directLogo}
             alt={displayName}
-            style={{ width: '100%', height: '62%', objectFit: 'cover', borderRadius: 1 }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             onError={() => setLogoErr(true)}
           />
         </div>
