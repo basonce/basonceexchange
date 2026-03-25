@@ -191,7 +191,7 @@ function TradFiHeaderLogo({ displayName }: { displayName: string }) {
         <div
           className="w-full h-full rounded-full overflow-hidden"
           style={{
-            backgroundImage: `url(${src})`,
+            backgroundImage: `url('${src}')`,
             backgroundSize: `${totalW}px ${totalH}px`,
             backgroundPosition: `${-(col * px)}px ${-(row * px)}px`,
             backgroundRepeat: 'no-repeat',

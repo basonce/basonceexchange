@@ -46,7 +46,7 @@ function SpriteIcon({ spriteKey, size }: { spriteKey: string; size: number }) {
         width: size,
         height: size,
         borderRadius: size * 0.5,
-        backgroundImage: `url(${src})`,
+        backgroundImage: `url('${src}')`,
         backgroundSize: `${totalW}px ${totalH}px`,
         backgroundPosition: `${-(col * size)}px ${-(row * size)}px`,
         backgroundRepeat: 'no-repeat',
