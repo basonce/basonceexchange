@@ -362,11 +362,11 @@ export default function AssetsPage() {
             <div
               className="font-black tracking-tight text-white"
               style={{
-                fontSize: hideBalance ? '48px' : (
-                  formatCurrencyValue(totalValue, selectedCurrency).length > 18 ? '24px' :
-                  formatCurrencyValue(totalValue, selectedCurrency).length > 14 ? '30px' :
-                  formatCurrencyValue(totalValue, selectedCurrency).length > 10 ? '38px' :
-                  '48px'
+                fontSize: hideBalance ? '40px' : (
+                  formatCurrencyValue(totalValue, selectedCurrency).length > 18 ? '20px' :
+                  formatCurrencyValue(totalValue, selectedCurrency).length > 14 ? '26px' :
+                  formatCurrencyValue(totalValue, selectedCurrency).length > 10 ? '32px' :
+                  '40px'
                 ),
                 lineHeight: 1.05,
                 fontWeight: 900
