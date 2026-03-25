@@ -69,10 +69,9 @@ function TradFiLogo({ asset, size }: { asset: TradFiAsset; size: number }) {
   }
 
   if (asset.logoUrl?.includes('flagcdn.com')) {
-    const isTurkey = asset.logoUrl.includes('/tr.');
     return (
       <div className="flex-shrink-0 rounded-full overflow-hidden" style={{ width: size, height: size, border: '2px solid rgba(255,255,255,0.2)', boxShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
-        <img src={asset.logoUrl} alt={asset.displayName} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: isTurkey ? '38% center' : 'center' }} />
+        <img src={asset.logoUrl} alt={asset.displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       </div>
     );
   }
@@ -87,15 +86,14 @@ function TradFiLogo({ asset, size }: { asset: TradFiAsset; size: number }) {
   }
 
   const logoSrc = (!err && asset.logoUrl) ? asset.logoUrl : STOCK_LOGO(asset.displayName === 'BRK.B' ? 'BRK-B' : asset.displayName);
-  const bg = asset.bgColor ?? '#1a1a1a';
 
   return (
-    <div className="flex-shrink-0 rounded-full overflow-hidden" style={{ width: size, height: size, border: '2px solid rgba(255,255,255,0.12)', boxShadow: '0 2px 10px rgba(0,0,0,0.5)', background: bg }}>
+    <div className="flex-shrink-0 rounded-full overflow-hidden flex items-center justify-center" style={{ width: size, height: size, background: '#ffffff', border: '2px solid rgba(255,255,255,0.12)', boxShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
       <img
         key={logoSrc}
         src={logoSrc}
         alt={asset.displayName}
-        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        style={{ width: '100%', height: '100%', objectFit: 'contain', padding: size * 0.06 }}
         onError={() => { if (!err) setErr(true); }}
       />
     </div>
