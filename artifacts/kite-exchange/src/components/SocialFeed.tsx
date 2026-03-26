@@ -573,13 +573,17 @@ const SINGLE_POS_COINS = [
   'BTC','ETH','SOL','BNB','XRP','AVAX','DOGE','LINK','DOT','ADA',
   'TON','TRX','NEAR','OP','ARB','INJ','SUI','APT','ATOM','WLD',
   'WIF','BONK','SEI','TIA','FTM','LTC','ONDO','SHIB','FLOKI','TRUMP',
+  'BNC','EQ',
 ];
+
+// Custom coin fallback prices for exchange-native tokens not in live feed
+const CUSTOM_COIN_PRICES: Record<string, number> = { BNC: 12.5, EQ: 8.4 };
 
 function generateSinglePositionPost(pc: PriceCache): SocialPost | null {
   const coin = pickRandom(SINGLE_POS_COINS);
   const cached = pc.getBySymbol(coin);
-  if (!cached || cached.price <= 0) return null;
-  const markPrice = cached.price;
+  const markPrice = (cached && cached.price > 0) ? cached.price : (CUSTOM_COIN_PRICES[coin] ?? 0);
+  if (markPrice <= 0) return null;
   const leverage = pickRandom(LEVERAGES);
   const isWin = Math.random() < 0.82;
   const roi = isWin ? 8 + Math.random() * 320 : -(3 + Math.random() * 28);

@@ -118,6 +118,7 @@ const REAL_MARKET_COINS = new Set([
   'AXS','GALA','ENJ','IMX','CHZ','AUDIO','ACH','JASMY','MASK','ENS',
   'QNT','OCEAN','WLD','AGIX','ARKM','CYBER','MAGIC','PEOPLE','MEME',
   'ZRO','ZK','STRK','W','DEGO','GIGGLE','BANANAS31','BULLA','PIXEL',
+  'BNC','EQ',
 ]);
 
 /** Build a coin_tags array from an array of tag strings using live prices.
@@ -188,6 +189,9 @@ const FALLBACK_PRICES: Record<string, number> = {
   HBAR: 0.16,
   SEI: 0.68,
   STRK: 1.42,
+  // Exchange native coins
+  BNC: 12.5,
+  EQ: 8.4,
   // Exotic / meme micro-caps
   GIGGLE: 0.0024,
   BANANAS31: 0.42,
@@ -618,8 +622,12 @@ export function generateBinanceSquarePost(pc: PriceCache): GeneratedPost {
   const exitPrice = isBullish
     ? parseFloat((coinPrice * randFloat(1.05, 1.6)).toFixed(4))
     : parseFloat((coinPrice * randFloat(0.6, 0.9)).toFixed(4));
-  const pnl = exitPrice - entryPrice;
-  const pnlPct = parseFloat(((pnl / entryPrice) * 100).toFixed(2));
+  const leverage = pick([1, 1, 2, 3, 5, 10, 20]);
+  // Use margin-based PnL so amounts are always realistic (never tiny fractions)
+  const rawPct = ((exitPrice - entryPrice) / entryPrice) * 100 * leverage;
+  const pnlPct = parseFloat(rawPct.toFixed(2));
+  const marginUSDT = pick([2000, 3500, 5500, 8000, 12500, 18000, 27000, 40000]);
+  const pnl = parseFloat((marginUSDT * Math.abs(pnlPct) / 100 * (isBullish ? 1 : -1)).toFixed(2));
 
   const coinTags = buildCoinTags(pc, postData.tags);
 
@@ -636,9 +644,9 @@ export function generateBinanceSquarePost(pc: PriceCache): GeneratedPost {
     trade_type: isBullish ? 'long' : 'short',
     entry_price: entryPrice,
     exit_price: exitPrice,
-    profit_loss: parseFloat(pnl.toFixed(2)),
+    profit_loss: pnl,
     profit_loss_percent: pnlPct,
-    leverage: pick([1, 1, 1, 2, 3, 5, 10]),
+    leverage,
     image_url: imageUrl,
     image_url_2: null,
     image_url_3: null,
