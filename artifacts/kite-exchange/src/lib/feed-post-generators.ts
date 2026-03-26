@@ -17,6 +17,7 @@ import {
 } from './feed-content-pools';
 import { BS_POSTS, BS_USERS_POOL, BS_MEME_IMAGES } from './feed-content-pools-v2';
 import { BS_POSTS_POOL_V3, BS_USERS_POOL_V3, CAR_IMAGE_URLS } from './feed-content-pools-v3';
+import { LUXURY_CATEGORIES, LUXURY_CATEGORY_KEYS, LUXURY_USERS_POOL } from './feed-content-pools-luxury';
 import { PriceCache } from './price-cache';
 
 const ALL_BS_POSTS = [...BS_POSTS, ...BS_POSTS_POOL_V3];
@@ -665,7 +666,73 @@ export function generateBinanceSquarePost(pc: PriceCache): GeneratedPost {
 }
 
 // ---------------------------------------------------------
-// 8. generateRandomRichPost
+// 8. generateLuxuryLifestylePost
+// ---------------------------------------------------------
+export function generateLuxuryLifestylePost(pc: PriceCache): GeneratedPost {
+  const categoryKey = LUXURY_CATEGORY_KEYS[Math.floor(Math.random() * LUXURY_CATEGORY_KEYS.length)];
+  const category = LUXURY_CATEGORIES[categoryKey];
+  const user = LUXURY_USERS_POOL[Math.floor(Math.random() * LUXURY_USERS_POOL.length)];
+  const caption = category.captions[Math.floor(Math.random() * category.captions.length)];
+
+  // Pick 1, 2, or 3 images from the category
+  const imageCount = Math.random() < 0.4 ? 1 : Math.random() < 0.6 ? 2 : 3;
+  const shuffled = [...category.images].sort(() => Math.random() - 0.5);
+  const img1 = shuffled[0] ?? null;
+  const img2 = imageCount >= 2 ? (shuffled[1] ?? null) : null;
+  const img3 = imageCount >= 3 ? (shuffled[2] ?? null) : null;
+
+  // Merge title + desc for content
+  const content = `${caption.title}\n\n${caption.desc}`;
+
+  const primaryCoin = caption.tags[0] ?? 'BTC';
+  const coinPrice = getPrice(pc, primaryCoin, FALLBACK_PRICES[primaryCoin] ?? 50000);
+  const isBullish = Math.random() < 0.88;
+  const entryPrice = parseFloat((coinPrice * randFloat(0.68, 0.92)).toFixed(4));
+  const exitPrice = isBullish
+    ? parseFloat((coinPrice * randFloat(1.08, 1.75)).toFixed(4))
+    : parseFloat((coinPrice * randFloat(0.55, 0.88)).toFixed(4));
+  const leverage = pick([1, 1, 2, 3, 5, 10, 20]);
+  const rawPct = ((exitPrice - entryPrice) / entryPrice) * 100 * leverage;
+  const pnlPct = parseFloat(rawPct.toFixed(2));
+  const marginUSDT = pick([3500, 5000, 8000, 12000, 18000, 28000, 45000, 80000]);
+  const pnl = parseFloat((marginUSDT * Math.abs(pnlPct) / 100 * (isBullish ? 1 : -1)).toFixed(2));
+
+  const coinTags = buildCoinTags(pc, caption.tags);
+
+  const isViral = Math.random() < 0.2;
+  const isHot = Math.random() < 0.35;
+
+  return {
+    id: genId(),
+    username: user.username,
+    avatar_url: user.avatar,
+    content,
+    coin_symbol: primaryCoin,
+    trade_type: isBullish ? 'long' : 'short',
+    entry_price: entryPrice,
+    exit_price: exitPrice,
+    profit_loss: pnl,
+    profit_loss_percent: pnlPct,
+    leverage,
+    image_url: img1,
+    image_url_2: img2,
+    image_url_3: img3,
+    post_type: 'luxury_lifestyle',
+    likes_count: isViral ? randInt(5000, 80000) : isHot ? randInt(800, 8000) : randInt(40, 1200),
+    comments_count: isViral ? randInt(400, 8000) : isHot ? randInt(50, 600) : randInt(5, 150),
+    shares_count: isViral ? randInt(200, 4000) : isHot ? randInt(20, 300) : randInt(3, 80),
+    view_count: isViral ? randInt(80000, 2000000) : isHot ? randInt(8000, 150000) : randInt(500, 20000),
+    repost_count: isViral ? randInt(100, 2000) : randInt(2, 100),
+    is_bullish: isBullish,
+    created_at: recentTimestamp(480),
+    coin_tags: coinTags,
+    sentiment: isBullish ? 'bullish' : 'bearish',
+    extra_data: { luxuryCategory: categoryKey },
+  };
+}
+
+// ---------------------------------------------------------
+// 9. generateRandomRichPost
 // ---------------------------------------------------------
 export function generateRandomRichPost(pc: PriceCache): GeneratedPost {
   const generators: Array<(pc: PriceCache) => GeneratedPost> = [
@@ -676,12 +743,15 @@ export function generateRandomRichPost(pc: PriceCache): GeneratedPost {
     generateGeopoliticalPost,
     generateCryptoChartPost,
     generateBinanceSquarePost,
-    generateBinanceSquarePost, // double weight — Binance Square style most common
+    generateBinanceSquarePost, // double weight
     generateBinanceSquarePost,
+    generateLuxuryLifestylePost, // triple weight — cars, jets, yachts, villas etc.
+    generateLuxuryLifestylePost,
+    generateLuxuryLifestylePost,
   ];
 
-  // Weight distribution — BS style posts get 45% total weight
-  const weights = [15, 12, 12, 8, 8, 10, 15, 15, 15];
+  // Weight distribution — luxury and BS style posts dominate
+  const weights = [8, 8, 8, 6, 6, 8, 12, 12, 12, 14, 14, 14];
   const totalWeight = weights.reduce((a, b) => a + b, 0);
   let rand = Math.random() * totalWeight;
 

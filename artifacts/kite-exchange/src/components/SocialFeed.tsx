@@ -15,7 +15,7 @@ import CopyTradingCarousel from './CopyTradingCarousel';
 import BasonceNewsCard, { BASONCE_NEWS_POOL, type BasonceNewsItem } from './feed/BasonceNewsCard';
 import FeedGainersCard, { generateGainersRows } from './feed/FeedGainersCard';
 import FeedTraderProfileCard from './feed/FeedTraderProfileCard';
-import { generateRandomRichPost, generateBinanceSquarePost, type GeneratedPost } from '../lib/feed-post-generators';
+import { generateRandomRichPost, generateBinanceSquarePost, generateLuxuryLifestylePost, type GeneratedPost } from '../lib/feed-post-generators';
 
 function hashStringToInt(str: string): number {
   let hash = 0;
@@ -830,6 +830,11 @@ function buildInitialFeed(posts: SocialPost[], newsPool: LiveNewsItem[], pc?: Pr
     postPos++;
     items.push({ kind: 'post', data: post });
 
+    // Luxury lifestyle post — every 3rd item (Ferrari, yacht, jet, villa, etc.)
+    if ((idx + 1) % 3 === 0 && pc) {
+      const luxPost = richPostToSocialPost(generateLuxuryLifestylePost(pc));
+      if (filterBannedPost(luxPost)) items.push({ kind: 'post', data: luxPost });
+    }
     // Binance Square style post — every 2nd item in feed
     if ((idx + 1) % 2 === 0 && pc) {
       const bsPost = richPostToSocialPost(generateBinanceSquarePost(pc));
@@ -1571,7 +1576,9 @@ function renderPostContent(post: SocialPost, priceCache: PriceCache) {
     case 'breaking_news':
     case 'lifestyle':
     case 'geopolitical_news':
-    case 'chart_analysis': {
+    case 'chart_analysis':
+    case 'luxury_lifestyle':
+    case 'bs_square': {
       const imgs = [post.image_url, post.image_url_2, post.image_url_3].filter(Boolean) as string[];
       if (imgs.length === 0) return null;
       if (imgs.length === 1) {
