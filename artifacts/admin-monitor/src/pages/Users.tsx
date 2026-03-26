@@ -5,7 +5,7 @@ import GlassCard from '../components/ui/GlassCard';
 
 const SYMBOLS = ['USDT','BTC','ETH','BNB','SOL','XRP','ADA','DOGE','AVAX','LINK','EQ','BNC'];
 
-interface User { id: string; email: string; full_name: string; is_admin: boolean; is_active: boolean; created_at: string; }
+interface User { id: string; email: string; full_name: string; is_admin?: boolean; is_active?: boolean; created_at?: string; }
 interface Balance { id: string; user_id: string; symbol: string; balance: number; locked_balance: number; }
 
 export default function Users() {
@@ -248,7 +248,7 @@ export default function Users() {
 
             {/* Registration date */}
             <p className="text-xs text-center mt-4" style={{ color: 'rgba(255,255,255,0.2)' }}>
-              Kayıt: {new Date(selected.created_at).toLocaleString('tr-TR')}
+              Kayıt: {selected.created_at ? new Date(selected.created_at).toLocaleString('tr-TR') : '—'}
             </p>
           </div>
         </div>
