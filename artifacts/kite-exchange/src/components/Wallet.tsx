@@ -6,8 +6,9 @@ import {
   QrCode, AlertTriangle, Info, ArrowRight, Clock
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { RealDepositModal } from './RealDepositModal';
-import { RealWithdrawModal } from './RealWithdrawModal';
+import DepositMethodModal from './DepositMethodModal';
+import SendMethodModal from './SendMethodModal';
+import TransferModal from './TransferModal';
 import { checkWithdrawalPermission } from '../lib/withdrawal-permission';
 import CoinLogo from './CoinLogo';
 
@@ -54,6 +55,7 @@ export default function Wallet() {
   const [loading, setLoading] = useState(true);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const [isWithdrawalBlocked, setIsWithdrawalBlocked] = useState(false);
   const [currentTier, setCurrentTier] = useState(0);
   const [copiedAddress, setCopiedAddress] = useState(false);
@@ -243,7 +245,7 @@ export default function Wallet() {
               {[
                 { label: 'Deposit', icon: ArrowDownLeft, color: '#0ECB81', action: () => setShowDepositModal(true) },
                 { label: 'Withdraw', icon: ArrowUpRight, color: isWithdrawalBlocked ? '#848E9C' : '#F6465D', action: () => setShowWithdrawModal(true), locked: isWithdrawalBlocked },
-                { label: 'Transfer', icon: RefreshCw, color: '#F0B90B', action: () => { } },
+                { label: 'Transfer', icon: RefreshCw, color: '#F0B90B', action: () => setShowTransferModal(true) },
                 { label: 'History', icon: History, color: '#3B82F6', action: () => setActiveSection('history') },
               ].map(({ label, icon: Icon, color, action, locked }) => (
                 <button
@@ -493,8 +495,9 @@ export default function Wallet() {
         </div>
       </div>
 
-      {showDepositModal && <RealDepositModal onClose={() => setShowDepositModal(false)} />}
-      {showWithdrawModal && <RealWithdrawModal onClose={() => setShowWithdrawModal(false)} />}
+      <DepositMethodModal isOpen={showDepositModal} onClose={() => setShowDepositModal(false)} />
+      <SendMethodModal isOpen={showWithdrawModal} onClose={() => setShowWithdrawModal(false)} />
+      <TransferModal isOpen={showTransferModal} onClose={() => setShowTransferModal(false)} />
     </div>
   );
 }
