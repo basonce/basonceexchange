@@ -11,26 +11,34 @@ import MetalIcon, { isMetalSymbol } from './MetalIcon';
 
 const STOCK_LOGO = (ticker: string) => `https://assets.parqet.com/logos/symbol/${ticker}?format=jpg`;
 
-const SPRITE_SOURCES: Record<string, { src: string; col: number; row: number; cols: number; rows: number }> = {
-  oil:     { src: '/EN copy copy copy copy.png',                                             col: 0, row: 0, cols: 3, rows: 1 },
-  natgas:  { src: '/EN copy copy copy copy.png',                                             col: 1, row: 0, cols: 3, rows: 1 },
-  sugar:   { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 0, row: 0, cols: 3, rows: 2 },
-  wheat:   { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 1, row: 0, cols: 3, rows: 2 },
-  corn:    { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 2, row: 0, cols: 3, rows: 2 },
-  soybean: { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 0, row: 1, cols: 3, rows: 2 },
-  coffee:  { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 1, row: 1, cols: 3, rows: 2 },
-  cocoa:   { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 2, row: 1, cols: 3, rows: 2 },
-  sp500:   { src: '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png', col: 0, row: 0, cols: 3, rows: 1 },
-  nas100:  { src: '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png', col: 1, row: 0, cols: 3, rows: 1 },
-  djia30:  { src: '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png', col: 2, row: 0, cols: 3, rows: 1 },
+const SPRITE_SOURCES: Record<string, { src: string; col: number; row: number; cols: number; rows: number; zoom?: number }> = {
+  // EN energy sprite: 1536x1024, cells are 512x1024 (portrait).
+  // rows:2 makes the scale factor uniform (each cell rendered as 512x512 top crop).
+  oil:     { src: '/EN copy copy copy copy.png',                                             col: 0, row: 0, cols: 3, rows: 2 },
+  natgas:  { src: '/EN copy copy copy copy.png',                                             col: 1, row: 0, cols: 3, rows: 2 },
+  brent:   { src: '/EN copy copy copy copy.png',                                             col: 2, row: 0, cols: 3, rows: 2 },
+  // Food sprite: 1536x1024, cells are 512x512 (square) — zoom in to reduce excess padding.
+  sugar:   { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 0, row: 0, cols: 3, rows: 2, zoom: 1.28 },
+  wheat:   { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 1, row: 0, cols: 3, rows: 2, zoom: 1.28 },
+  corn:    { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 2, row: 0, cols: 3, rows: 2, zoom: 1.28 },
+  soybean: { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 0, row: 1, cols: 3, rows: 2, zoom: 1.28 },
+  coffee:  { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 1, row: 1, cols: 3, rows: 2, zoom: 1.28 },
+  cocoa:   { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 2, row: 1, cols: 3, rows: 2, zoom: 1.28 },
+  // US index sprite: 1536x1024, cells are 512x1024 (portrait). Same fix: rows:2.
+  sp500:   { src: '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png', col: 0, row: 0, cols: 3, rows: 2 },
+  nas100:  { src: '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png', col: 1, row: 0, cols: 3, rows: 2 },
+  djia30:  { src: '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png', col: 2, row: 0, cols: 3, rows: 2 },
 };
 
 function SpriteIcon({ spriteKey, size }: { spriteKey: string; size: number }) {
   const entry = SPRITE_SOURCES[spriteKey];
   if (!entry) return null;
-  const { src, col, row, cols, rows } = entry;
-  const totalW = cols * size;
-  const totalH = rows * size;
+  const { src, col, row, cols, rows, zoom = 1 } = entry;
+  const cellSize = size * zoom;
+  const totalW = cols * cellSize;
+  const totalH = rows * cellSize;
+  const posX = -(col * cellSize) + (cellSize - size) / 2;
+  const posY = -(row * cellSize) + (cellSize - size) / 2;
   return (
     <div
       className="flex-shrink-0"
@@ -40,7 +48,7 @@ function SpriteIcon({ spriteKey, size }: { spriteKey: string; size: number }) {
         borderRadius: size * 0.5,
         backgroundImage: `url('${src}')`,
         backgroundSize: `${totalW}px ${totalH}px`,
-        backgroundPosition: `${-(col * size)}px ${-(row * size)}px`,
+        backgroundPosition: `${posX}px ${posY}px`,
         backgroundRepeat: 'no-repeat',
         overflow: 'hidden',
       }}

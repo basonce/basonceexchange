@@ -60,8 +60,8 @@ export const TRADFI_ASSETS: TradFiAsset[] = [
   { symbol: 'NVOUSDT',    displayName: 'NVO',    category: 'Stock',     basePrice: 78.00,    volatility: 0.001,  volume24hBase: 2200000,   logoUrl: 'https://assets.parqet.com/logos/symbol/NVO?format=jpg' },
 
   // Commodities (fallback prices — real-time prices come from API server via Yahoo Finance)
-  { symbol: 'WTIUSDT',    displayName: 'WTI',    category: 'Commodity', basePrice: 69.00,    volatility: 0.0009, volume24hBase: 28000000,  logoUrl: 'sprite:oil',    bgColor: '#1a0e00' },
-  { symbol: 'BRENTUSDT',  displayName: 'BRENT',  category: 'Commodity', basePrice: 72.00,    volatility: 0.0009, volume24hBase: 32000000,  logoUrl: 'sprite:oil',    bgColor: '#1a1208' },
+  { symbol: 'WTIUSDT',    displayName: 'WTI',    category: 'Commodity', basePrice: 69.00,    volatility: 0.0009, volume24hBase: 28000000,  logoUrl: 'sprite:oil',   bgColor: '#1a0e00' },
+  { symbol: 'BRENTUSDT',  displayName: 'BRENT',  category: 'Commodity', basePrice: 72.00,    volatility: 0.0009, volume24hBase: 32000000,  logoUrl: 'sprite:brent', bgColor: '#1a1208' },
   { symbol: 'NATGASUSDT', displayName: 'NATGAS', category: 'Commodity', basePrice: 4.20,     volatility: 0.0015, volume24hBase: 8500000,   logoUrl: 'sprite:natgas', bgColor: '#0a1a2a' },
   { symbol: 'COFFEEUSDT', displayName: 'COFFEE', category: 'Commodity', basePrice: 380.00,   volatility: 0.0012, volume24hBase: 1200000,   logoUrl: 'sprite:coffee', bgColor: '#2a1004' },
   { symbol: 'COCOAUSDT',  displayName: 'COCOA',  category: 'Commodity', basePrice: 7200.00,  volatility: 0.0014, volume24hBase: 980000,    logoUrl: 'sprite:cocoa',  bgColor: '#1a0a04' },
