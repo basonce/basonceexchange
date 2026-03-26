@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { Trash2, CheckCheck, Bell, BellOff } from 'lucide-react';
 import { useStore, AlertCategory, AlertSeverity } from '../lib/store';
-import AlertBadge from '../components/AlertBadge';
+import { isMuted } from '../lib/store';
+import { stopAlarm } from '../lib/audio';
 
 const CAT_ICONS: Record<AlertCategory, string> = {
   user: '👤', finance: '💰', security: '🛡️', support: '💬', system: '⚙️', visitor: '👁️',
@@ -8,131 +10,155 @@ const CAT_ICONS: Record<AlertCategory, string> = {
 const CAT_LABELS: Record<AlertCategory, string> = {
   user: 'Üye', finance: 'Finans', security: 'Güvenlik', support: 'Destek', system: 'Sistem', visitor: 'Ziyaretçi',
 };
-
+const SEV_COLOR: Record<AlertSeverity, string> = {
+  critical: '#FF4757', high: '#FF9800', medium: '#F0B90B', low: '#3D7FFF', info: '#888',
+};
+const SEV_BG: Record<AlertSeverity, string> = {
+  critical: 'rgba(255,71,87,0.1)', high: 'rgba(255,152,0,0.1)', medium: 'rgba(240,185,11,0.08)', low: 'rgba(61,127,255,0.08)', info: 'rgba(136,136,136,0.06)',
+};
+const SEV_BORDER: Record<AlertSeverity, string> = {
+  critical: 'rgba(255,71,87,0.3)', high: 'rgba(255,152,0,0.25)', medium: 'rgba(240,185,11,0.2)', low: 'rgba(61,127,255,0.2)', info: 'rgba(136,136,136,0.15)',
+};
+const SEV_LABEL: Record<AlertSeverity, string> = {
+  critical: 'KRİTİK', high: 'YÜKSEK', medium: 'ORTA', low: 'DÜŞÜK', info: 'BİLGİ',
+};
 const SEV_ORDER: Record<AlertSeverity, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 
 export default function Alerts() {
-  const { alerts, markRead, markAllRead, dismiss, clearAll } = useStore();
-  const [filter, setFilter] = useState<AlertCategory | 'all'>('all');
+  const { alerts, markRead, markAllRead, dismiss, clearAll, settings, updateSettings } = useStore();
+  const [catFilter, setCatFilter] = useState<AlertCategory | 'all'>('all');
   const [sevFilter, setSevFilter] = useState<AlertSeverity | 'all'>('all');
+
+  const muted = isMuted(settings);
+  const unread = alerts.filter(a => !a.read && !a.dismissed).length;
 
   const visible = alerts
     .filter(a => !a.dismissed)
-    .filter(a => filter === 'all' || a.category === filter)
+    .filter(a => catFilter === 'all' || a.category === catFilter)
     .filter(a => sevFilter === 'all' || a.severity === sevFilter)
     .sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity] || b.ts - a.ts);
 
-  const unread = alerts.filter(a => !a.read && !a.dismissed).length;
-
   function timeAgo(ts: number) {
-    const diff = Date.now() - ts;
-    if (diff < 60000) return 'Az önce';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} dk önce`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)} sa önce`;
+    const d = Date.now() - ts;
+    if (d < 60000) return 'Az önce';
+    if (d < 3600000) return `${Math.floor(d/60000)} dk`;
+    if (d < 86400000) return `${Math.floor(d/3600000)} sa`;
     return new Date(ts).toLocaleDateString('tr-TR');
   }
 
+  function toggleMute() {
+    if (!settings.muteAll) { stopAlarm(); }
+    updateSettings({ muteAll: !settings.muteAll });
+  }
+
   return (
-    <div className="flex flex-col pb-24">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 pt-6">
-        <div>
-          <h1 className="text-lg font-bold text-white">Alarmlar</h1>
-          {unread > 0 && <p className="text-xs text-yellow-400">{unread} okunmamış</p>}
-        </div>
-        <div className="flex gap-2">
-          {unread > 0 && (
-            <button onClick={markAllRead} className="text-xs text-gray-400 bg-[#111] px-3 py-1.5 rounded-xl">
-              Tümü oku
-            </button>
-          )}
-          <button onClick={clearAll} className="text-xs text-red-400 bg-red-500/10 px-3 py-1.5 rounded-xl">
-            Temizle
-          </button>
-        </div>
-      </div>
-
-      {/* Category filter */}
-      <div className="flex gap-2 px-4 overflow-x-auto pb-2 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
-        {(['all', 'user', 'finance', 'security', 'support', 'system'] as const).map(c => (
-          <button
-            key={c}
-            onClick={() => setFilter(c)}
-            className={`flex-none px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
-              filter === c ? 'bg-yellow-400 text-black' : 'bg-[#111] text-gray-400'
-            }`}
-          >
-            {c === 'all' ? 'Tümü' : `${CAT_ICONS[c]} ${CAT_LABELS[c]}`}
-          </button>
-        ))}
-      </div>
-
-      {/* Severity filter */}
-      <div className="flex gap-2 px-4 overflow-x-auto pb-3 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
-        {(['all', 'critical', 'high', 'medium', 'low', 'info'] as const).map(s => (
-          <button
-            key={s}
-            onClick={() => setSevFilter(s)}
-            className={`flex-none px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
-              sevFilter === s ? 'bg-white/10 text-white' : 'text-gray-600'
-            }`}
-          >
-            {s === 'all' ? 'Hepsi' : s === 'critical' ? '🔴 Kritik' : s === 'high' ? '🟠 Yüksek' : s === 'medium' ? '🟡 Orta' : s === 'low' ? '🔵 Düşük' : '⚪ Bilgi'}
-          </button>
-        ))}
-      </div>
-
-      {/* Alert list */}
-      <div className="flex flex-col gap-2 px-4">
-        {visible.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-4xl mb-3">✅</p>
-            <p className="text-gray-400">Alarm yok</p>
-            <p className="text-gray-600 text-sm mt-1">Her şey normal</p>
+    <div className="flex flex-col pb-28">
+      <div className="p-4 pt-6 flex flex-col gap-4">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs font-semibold tracking-widest mb-1" style={{ color: '#FF4757', letterSpacing: '0.08em' }}>BİLDİRİM MERKEZİ</p>
+            <h1 className="text-2xl font-black text-white">Alarmlar</h1>
+            {unread > 0 && <p className="text-sm mt-0.5" style={{ color: '#FF4757' }}>{unread} okunmamış</p>}
           </div>
-        ) : visible.map(alert => (
-          <div
-            key={alert.id}
-            onClick={() => markRead(alert.id)}
-            className={`rounded-2xl p-4 border transition-all ${
-              !alert.read
-                ? 'bg-[#151515] border-yellow-400/20'
-                : 'bg-[#0f0f0f] border-white/5'
-            } ${alert.severity === 'critical' ? 'border-red-500/30' : ''}`}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-start gap-3 flex-1 min-w-0">
-                <span className="text-xl mt-0.5">{CAT_ICONS[alert.category]}</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleMute}
+              className="p-2.5 rounded-xl transition-colors"
+              style={{ background: muted ? 'rgba(255,71,87,0.15)' : 'rgba(255,255,255,0.06)', border: muted ? '1px solid rgba(255,71,87,0.3)' : '1px solid transparent' }}
+            >
+              {muted ? <BellOff size={16} color="#FF4757" /> : <Bell size={16} color="rgba(255,255,255,0.5)" />}
+            </button>
+            {unread > 0 && (
+              <button onClick={markAllRead} className="px-3 py-2.5 rounded-xl text-xs font-semibold" style={{ background: 'rgba(240,185,11,0.1)', color: '#F0B90B', border: '1px solid rgba(240,185,11,0.2)' }}>
+                <CheckCheck size={14} />
+              </button>
+            )}
+            <button onClick={clearAll} className="px-3 py-2.5 rounded-xl text-xs font-semibold" style={{ background: 'rgba(255,71,87,0.1)', color: '#FF4757', border: '1px solid rgba(255,71,87,0.2)' }}>
+              <Trash2 size={14} />
+            </button>
+          </div>
+        </div>
+
+        {/* Mute banner */}
+        {muted && (
+          <div className="rounded-2xl px-4 py-3 flex items-center gap-3" style={{ background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.2)' }}>
+            <BellOff size={16} color="#FF4757" />
+            <p className="text-sm" style={{ color: '#FF4757' }}>Sesler susturuldu — yeni alarmlar sessiz kaydediliyor</p>
+            <button onClick={toggleMute} className="ml-auto text-xs font-medium px-2.5 py-1 rounded-lg" style={{ background: 'rgba(255,71,87,0.2)', color: '#FF4757' }}>Aç</button>
+          </div>
+        )}
+
+        {/* Category pills */}
+        <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+          {(['all', 'user', 'finance', 'security', 'support', 'system'] as const).map(c => (
+            <button key={c} onClick={() => setCatFilter(c)}
+              className="flex-none px-3.5 py-2 rounded-xl text-xs font-semibold transition-all"
+              style={{ background: catFilter === c ? 'rgba(240,185,11,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${catFilter === c ? 'rgba(240,185,11,0.3)' : 'rgba(255,255,255,0.07)'}`, color: catFilter === c ? '#F0B90B' : 'rgba(255,255,255,0.4)' }}>
+              {c === 'all' ? 'Tümü' : `${CAT_ICONS[c]} ${CAT_LABELS[c]}`}
+            </button>
+          ))}
+        </div>
+
+        {/* Severity pills */}
+        <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+          {(['all', 'critical', 'high', 'medium', 'low', 'info'] as const).map(s => (
+            <button key={s} onClick={() => setSevFilter(s)}
+              className="flex-none px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all"
+              style={{ background: sevFilter === s && s !== 'all' ? `${SEV_COLOR[s]}22` : sevFilter === s ? 'rgba(255,255,255,0.1)' : 'transparent', color: s === 'all' ? (sevFilter === s ? 'white' : 'rgba(255,255,255,0.3)') : (sevFilter === s ? SEV_COLOR[s] : 'rgba(255,255,255,0.3)') }}>
+              {s === 'all' ? 'Hepsi' : `● ${SEV_LABEL[s]}`}
+            </button>
+          ))}
+        </div>
+
+        {/* Alert list */}
+        <div className="flex flex-col gap-2.5">
+          {visible.length === 0 ? (
+            <div className="rounded-2xl p-10 text-center" style={{ background: 'rgba(0,220,130,0.04)', border: '1px solid rgba(0,220,130,0.1)' }}>
+              <p className="text-3xl mb-3">✅</p>
+              <p className="text-sm font-semibold" style={{ color: '#00DC82' }}>Temiz — alarm yok</p>
+              <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.3)' }}>İzleme aktif, bekleniyor…</p>
+            </div>
+          ) : visible.map(a => (
+            <div
+              key={a.id}
+              onClick={() => markRead(a.id)}
+              className="rounded-2xl p-4 transition-all cursor-pointer active:scale-[0.99]"
+              style={{ background: SEV_BG[a.severity], border: `1px solid ${!a.read ? SEV_BORDER[a.severity] : 'rgba(255,255,255,0.06)'}` }}
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-none" style={{ background: `${SEV_COLOR[a.severity]}20` }}>
+                  {CAT_ICONS[a.category]}
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <p className={`text-sm font-semibold ${!alert.read ? 'text-white' : 'text-gray-300'}`}>
-                      {alert.title}
-                    </p>
-                    <AlertBadge severity={alert.severity} />
-                    {!alert.read && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />}
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className={`text-sm font-bold ${a.read ? 'text-gray-300' : 'text-white'}`}>{a.title}</p>
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: `${SEV_COLOR[a.severity]}22`, color: SEV_COLOR[a.severity] }}>
+                        {SEV_LABEL[a.severity]}
+                      </span>
+                      {!a.read && <span className="w-1.5 h-1.5 rounded-full flex-none" style={{ background: '#F0B90B' }} />}
+                    </div>
+                    <button onClick={e => { e.stopPropagation(); dismiss(a.id); }} className="flex-none p-1 rounded-lg" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                      ×
+                    </button>
                   </div>
-                  <p className="text-gray-500 text-xs">{alert.body}</p>
-                  {alert.meta && Object.keys(alert.meta).length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {Object.entries(alert.meta).slice(0, 3).map(([k, v]) => (
-                        <span key={k} className="bg-white/5 text-gray-400 text-[10px] px-1.5 py-0.5 rounded">
-                          {k}: {String(v)}
+                  <p className="text-xs mb-2" style={{ color: 'rgba(255,255,255,0.45)' }}>{a.body}</p>
+                  {a.meta && Object.keys(a.meta).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {Object.entries(a.meta).slice(0, 4).map(([k, v]) => (
+                        <span key={k} className="text-[10px] px-2 py-0.5 rounded-lg font-mono" style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}>
+                          {k}: {String(v).slice(0, 20)}
                         </span>
                       ))}
                     </div>
                   )}
-                  <p className="text-gray-600 text-[11px] mt-2">{timeAgo(alert.ts)}</p>
+                  <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.25)' }}>{timeAgo(a.ts)}</p>
                 </div>
               </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); dismiss(alert.id); }}
-                className="text-gray-600 text-sm p-1 hover:text-gray-400"
-              >
-                ×
-              </button>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );

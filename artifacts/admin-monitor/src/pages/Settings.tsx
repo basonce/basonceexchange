@@ -1,15 +1,52 @@
 import { useState } from 'react';
+import { Volume2, VolumeX, Bell, BellOff, Shield, Moon, Zap, X, RefreshCw } from 'lucide-react';
 import { useStore } from '../lib/store';
-import { requestNotificationPermission } from '../lib/audio';
-import { stopAlarm } from '../lib/audio';
+import { requestNotificationPermission, stopAlarm, sounds } from '../lib/audio';
+import { isMuted } from '../lib/store';
+
+function Toggle({ on, onChange, label, sub, icon }: { on: boolean; onChange: (v: boolean) => void; label: string; sub?: string; icon?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="flex items-center gap-3">
+        {icon && <span>{icon}</span>}
+        <div>
+          <p className="text-sm font-medium text-white">{label}</p>
+          {sub && <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>{sub}</p>}
+        </div>
+      </div>
+      <button
+        onClick={() => onChange(!on)}
+        className="relative transition-all flex-none"
+        style={{ width: 48, height: 26 }}
+      >
+        <div className="absolute inset-0 rounded-full transition-colors" style={{ background: on ? '#F0B90B' : 'rgba(255,255,255,0.1)' }} />
+        <div className="absolute top-1 w-5 h-5 rounded-full bg-white transition-all shadow-md" style={{ left: on ? 'calc(100% - 24px)' : 4, transform: 'translateX(0)' }} />
+      </button>
+    </div>
+  );
+}
+
+function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      <div className="flex items-center gap-2.5 px-4 pt-4 pb-2">
+        <span style={{ color: '#F0B90B' }}>{icon}</span>
+        <p className="text-xs font-bold tracking-widest" style={{ color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em' }}>{title}</p>
+      </div>
+      <div className="px-4 pb-2">{children}</div>
+    </div>
+  );
+}
 
 export default function Settings() {
   const { settings, updateSettings } = useStore();
   const [pinMode, setPinMode] = useState(false);
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
-  const [pinError, setPinError] = useState('');
+  const [pinErr, setPinErr] = useState('');
   const [saved, setSaved] = useState(false);
+
+  const muted = isMuted(settings);
 
   function save(patch: Partial<typeof settings>) {
     updateSettings(patch);
@@ -18,198 +55,157 @@ export default function Settings() {
   }
 
   function changePin() {
-    if (newPin.length < 4) { setPinError('En az 4 hane'); return; }
-    if (newPin !== confirmPin) { setPinError('PIN\'ler eşleşmiyor'); return; }
-    updateSettings({ pin: newPin });
-    setNewPin('');
-    setConfirmPin('');
-    setPinMode(false);
-    setPinError('');
+    if (newPin.length < 4) { setPinErr('En az 4 hane girilmeli'); return; }
+    if (newPin !== confirmPin) { setPinErr('PIN\'ler eşleşmiyor'); return; }
+    save({ pin: newPin });
+    setNewPin(''); setConfirmPin(''); setPinMode(false); setPinErr('');
+  }
+
+  function testSound() {
+    try { sounds.deposit(); } catch {}
   }
 
   const notifStatus = 'Notification' in window ? Notification.permission : 'not-supported';
 
   return (
-    <div className="flex flex-col pb-24">
-      <div className="p-4 pt-6">
-        <h1 className="text-lg font-bold text-white mb-6">Ayarlar</h1>
+    <div className="flex flex-col pb-28">
+      <div className="p-4 pt-6 flex flex-col gap-4">
+        {/* Header */}
+        <div>
+          <p className="text-xs font-semibold tracking-widest mb-1" style={{ color: '#888', letterSpacing: '0.08em' }}>UYGULAMA AYARLARI</p>
+          <h1 className="text-2xl font-black text-white">Ayarlar</h1>
+        </div>
 
+        {/* Saved toast */}
         {saved && (
-          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 mb-4 text-green-400 text-sm text-center">
+          <div className="rounded-2xl px-4 py-3 text-sm font-medium text-center fade-in" style={{ background: 'rgba(0,220,130,0.1)', border: '1px solid rgba(0,220,130,0.2)', color: '#00DC82' }}>
             ✓ Kaydedildi
           </div>
         )}
 
-        {/* Sound settings */}
-        <Section title="🔊 Ses Ayarları">
-          <Toggle
-            label="Alarm Sesleri"
-            desc="Yeni olay olduğunda ses çalsın"
-            value={settings.alertSounds}
-            onChange={v => save({ alertSounds: v })}
-          />
-          <Toggle
-            label="Tüm Sesleri Kapat"
-            desc="Geçici olarak tüm sesleri sustur"
-            value={settings.muteAll}
-            onChange={v => { save({ muteAll: v }); if (v) stopAlarm(); }}
-          />
+        {/* Sound */}
+        <Section title="SES" icon={<Volume2 size={15} />}>
+          <Toggle on={settings.alertSounds} onChange={v => { save({ alertSounds: v }); if (!v) stopAlarm(); }}
+            label="Alarm Sesleri" sub="Her yeni olay için sesli bildirim" />
+          <Toggle on={settings.muteAll} onChange={v => { save({ muteAll: v }); if (v) stopAlarm(); }}
+            label="Tüm Sesleri Sustur" sub="Geçici olarak tüm sesleri devre dışı bırak" />
+          <div className="pb-3 pt-2">
+            <button onClick={testSound} className="px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2"
+              style={{ background: 'rgba(240,185,11,0.1)', border: '1px solid rgba(240,185,11,0.2)', color: '#F0B90B' }}>
+              <Zap size={13} /> Ses Testi
+            </button>
+          </div>
         </Section>
 
         {/* Mute hours */}
-        <Section title="🌙 Sessiz Saatler">
-          <p className="text-xs text-gray-500 mb-3">Bu saatler arasında ses ve bildirim çıkmaz</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Başlangıç</p>
-              <input
-                type="time"
-                value={settings.muteFrom}
-                onChange={e => save({ muteFrom: e.target.value })}
-                className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none"
-              />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Bitiş</p>
-              <input
-                type="time"
-                value={settings.muteTo}
-                onChange={e => save({ muteTo: e.target.value })}
-                className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none"
-              />
-            </div>
+        <Section title="SESSİZ SAATLER" icon={<Moon size={15} />}>
+          <p className="text-xs py-2" style={{ color: 'rgba(255,255,255,0.35)' }}>Bu saat aralığında ses ve bildirim çıkmaz</p>
+          <div className="grid grid-cols-2 gap-3 pb-3">
+            {[['muteFrom', 'Başlangıç'], ['muteTo', 'Bitiş']].map(([key, lbl]) => (
+              <div key={key}>
+                <p className="text-xs mb-1.5" style={{ color: 'rgba(255,255,255,0.3)' }}>{lbl}</p>
+                <input type="time"
+                  value={settings[key as 'muteFrom' | 'muteTo']}
+                  onChange={e => save({ [key]: e.target.value })}
+                  className="w-full rounded-xl px-3 py-2.5 text-white text-sm outline-none"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }} />
+              </div>
+            ))}
+          </div>
+          <div className="pb-3 flex items-center gap-2 text-xs" style={{ color: muted ? '#FF4757' : 'rgba(255,255,255,0.3)' }}>
+            {muted ? <VolumeX size={13} /> : <Volume2 size={13} />}
+            {muted ? 'Şu an sesler kapalı (sessiz saat)' : 'Şu an sesler açık'}
           </div>
         </Section>
 
-        {/* Notification settings */}
-        <Section title="🔔 Bildirimler">
-          <Toggle
-            label="Tarayıcı Bildirimleri"
-            desc="Uygulama kapalıyken bildirim al"
-            value={settings.browserNotifications}
-            onChange={v => {
-              save({ browserNotifications: v });
-              if (v) requestNotificationPermission();
-            }}
-          />
-          <div className={`flex items-center gap-2 p-3 rounded-xl text-xs mt-2 ${
-            notifStatus === 'granted' ? 'bg-green-500/10 text-green-400' :
-            notifStatus === 'denied' ? 'bg-red-500/10 text-red-400' :
-            'bg-gray-500/10 text-gray-400'
-          }`}>
-            <span>{notifStatus === 'granted' ? '✓' : notifStatus === 'denied' ? '✗' : '○'}</span>
-            <span>
-              {notifStatus === 'granted' ? 'Bildirimler açık' :
-               notifStatus === 'denied' ? 'Bildirimler engellendi (tarayıcı ayarlarından aç)' :
-               notifStatus === 'not-supported' ? 'Desteklenmiyor' : 'İzin istenmemiş'}
-            </span>
+        {/* Notifications */}
+        <Section title="BİLDİRİMLER" icon={<Bell size={15} />}>
+          <Toggle on={settings.browserNotifications}
+            onChange={v => { save({ browserNotifications: v }); if (v) requestNotificationPermission(); }}
+            label="Push Bildirimleri" sub="Uygulama kapalıyken bildirim al" />
+          <div className="py-3">
+            <div className="rounded-xl px-4 py-3 flex items-center gap-3 text-xs"
+              style={{ background: notifStatus === 'granted' ? 'rgba(0,220,130,0.08)' : notifStatus === 'denied' ? 'rgba(255,71,87,0.08)' : 'rgba(255,255,255,0.05)', border: `1px solid ${notifStatus === 'granted' ? 'rgba(0,220,130,0.2)' : notifStatus === 'denied' ? 'rgba(255,71,87,0.2)' : 'rgba(255,255,255,0.08)'}` }}>
+              <span style={{ color: notifStatus === 'granted' ? '#00DC82' : notifStatus === 'denied' ? '#FF4757' : '#888' }}>
+                {notifStatus === 'granted' ? '✓' : notifStatus === 'denied' ? '✗' : '○'}
+              </span>
+              <span style={{ color: 'rgba(255,255,255,0.5)' }}>
+                {notifStatus === 'granted' ? 'Bildirimler aktif' : notifStatus === 'denied' ? 'Engellendi — tarayıcı ayarlarından aç' : notifStatus === 'not-supported' ? 'Desteklenmiyor' : 'İzin verilmedi'}
+              </span>
+              {notifStatus === 'default' && (
+                <button onClick={requestNotificationPermission} className="ml-auto px-3 py-1.5 rounded-lg font-semibold" style={{ background: 'rgba(240,185,11,0.15)', color: '#F0B90B' }}>İzin Al</button>
+              )}
+            </div>
           </div>
-          {notifStatus === 'default' && (
-            <button
-              onClick={requestNotificationPermission}
-              className="w-full mt-2 py-2.5 bg-yellow-400 text-black text-sm font-medium rounded-xl"
-            >
-              Bildirim İzni Al
-            </button>
-          )}
         </Section>
 
         {/* Thresholds */}
-        <Section title="💰 Alarm Eşikleri">
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm text-gray-300 mb-1">Yatırım Alarmı (USDT)</p>
-              <p className="text-xs text-gray-500 mb-2">Bu miktarın üstündeki yatırımlarda alarm çal</p>
-              <input
-                type="number"
-                value={settings.depositThreshold}
-                onChange={e => save({ depositThreshold: Number(e.target.value) })}
-                className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none"
-                min={0}
-              />
-            </div>
-            <div>
-              <p className="text-sm text-gray-300 mb-1">Büyük İşlem Alarmı (USDT)</p>
-              <p className="text-xs text-gray-500 mb-2">Bu büyüklüğün üstündeki işlemler kritik alarm</p>
-              <input
-                type="number"
-                value={settings.largeTradeThreshold}
-                onChange={e => save({ largeTradeThreshold: Number(e.target.value) })}
-                className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none"
-                min={0}
-              />
-            </div>
+        <Section title="ALARM EŞİKLERİ" icon={<Zap size={15} />}>
+          <div className="space-y-4 py-2">
+            {[
+              { key: 'depositThreshold', label: 'Yatırım Alarmı', sub: 'Bu miktarın üstündeki yatırımlarda alarm çal (USDT)' },
+              { key: 'largeTradeThreshold', label: 'Büyük İşlem Alarmı', sub: 'Bu büyüklüğün üstündeki işlemlerde alarm (USDT)' },
+            ].map(({ key, label, sub }) => (
+              <div key={key}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-sm font-medium text-white">{label}</p>
+                  <span className="text-xs font-bold" style={{ color: '#F0B90B' }}>${settings[key as 'depositThreshold' | 'largeTradeThreshold']}</span>
+                </div>
+                <p className="text-xs mb-2" style={{ color: 'rgba(255,255,255,0.3)' }}>{sub}</p>
+                <input type="range" min={0} max={10000} step={50}
+                  value={settings[key as 'depositThreshold' | 'largeTradeThreshold']}
+                  onChange={e => save({ [key]: Number(e.target.value) })}
+                  className="w-full h-1 rounded-full outline-none appearance-none"
+                  style={{ background: `linear-gradient(to right, #F0B90B ${settings[key as 'depositThreshold' | 'largeTradeThreshold'] / 100}%, rgba(255,255,255,0.1) ${settings[key as 'depositThreshold' | 'largeTradeThreshold'] / 100}%)` }} />
+              </div>
+            ))}
           </div>
         </Section>
 
-        {/* PIN change */}
-        <Section title="🔐 Güvenlik">
+        {/* PIN */}
+        <Section title="GÜVENLİK" icon={<Shield size={15} />}>
           {!pinMode ? (
-            <button
-              onClick={() => setPinMode(true)}
-              className="w-full py-3 bg-[#1a1a1a] border border-white/10 rounded-xl text-white text-sm"
-            >
-              PIN'i Değiştir
-            </button>
+            <div className="py-3">
+              <button onClick={() => setPinMode(true)}
+                className="w-full py-3 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
+                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <Shield size={14} /> PIN'i Değiştir
+              </button>
+            </div>
           ) : (
-            <div className="space-y-3">
-              <input
-                type="password"
-                maxLength={8}
-                placeholder="Yeni PIN"
-                value={newPin}
-                onChange={e => setNewPin(e.target.value.replace(/\D/g, ''))}
-                className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none placeholder-gray-600"
-              />
-              <input
-                type="password"
-                maxLength={8}
-                placeholder="PIN'i Tekrarla"
-                value={confirmPin}
-                onChange={e => setConfirmPin(e.target.value.replace(/\D/g, ''))}
-                className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none placeholder-gray-600"
-              />
-              {pinError && <p className="text-red-400 text-xs">{pinError}</p>}
-              <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => { setPinMode(false); setPinError(''); }} className="py-2.5 bg-white/5 rounded-xl text-gray-400 text-sm">İptal</button>
-                <button onClick={changePin} className="py-2.5 bg-yellow-400 text-black text-sm font-medium rounded-xl">Kaydet</button>
+            <div className="py-3 space-y-3">
+              {[
+                { val: newPin, set: setNewPin, ph: 'Yeni PIN' },
+                { val: confirmPin, set: setConfirmPin, ph: 'PIN Tekrar' },
+              ].map(({ val, set, ph }) => (
+                <input key={ph} type="password" maxLength={8} value={val}
+                  onChange={e => set(e.target.value.replace(/\D/g, ''))}
+                  placeholder={ph}
+                  className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none placeholder-gray-600"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }} />
+              ))}
+              {pinErr && <p className="text-xs" style={{ color: '#FF4757' }}>{pinErr}</p>}
+              <div className="grid grid-cols-2 gap-2.5">
+                <button onClick={() => { setPinMode(false); setPinErr(''); setNewPin(''); setConfirmPin(''); }}
+                  className="py-3 rounded-xl text-sm font-medium" style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}>İptal</button>
+                <button onClick={changePin} className="py-3 rounded-xl text-sm font-bold" style={{ background: '#F0B90B', color: 'black' }}>Kaydet</button>
               </div>
             </div>
           )}
         </Section>
 
         {/* App info */}
-        <div className="mt-6 text-center">
-          <p className="text-gray-600 text-xs">Admin Monitor v1.0</p>
-          <p className="text-gray-700 text-xs mt-0.5">BASONCE/KITE Exchange</p>
+        <div className="text-center py-4">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: 'rgba(240,185,11,0.1)', border: '1px solid rgba(240,185,11,0.2)' }}>
+            <span className="text-2xl">🛡️</span>
+          </div>
+          <p className="text-sm font-bold text-white">Admin Monitor</p>
+          <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>BASONCE/KITE Exchange · v2.0</p>
+          <p className="text-xs mt-3" style={{ color: 'rgba(255,255,255,0.15)' }}>
+            Supabase Realtime · Tüm sesler Web Audio API
+          </p>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="bg-[#111] rounded-2xl p-4 mb-3">
-      <p className="text-xs text-gray-500 mb-3 font-medium">{title}</p>
-      {children}
-    </div>
-  );
-}
-
-function Toggle({ label, desc, value, onChange }: { label: string; desc?: string; value: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <div className="flex items-center justify-between py-2.5 border-b border-white/5 last:border-0">
-      <div className="flex-1">
-        <p className="text-sm text-white">{label}</p>
-        {desc && <p className="text-xs text-gray-500 mt-0.5">{desc}</p>}
-      </div>
-      <button
-        onClick={() => onChange(!value)}
-        className={`relative w-11 h-6 rounded-full transition-colors ml-3 flex-none ${value ? 'bg-yellow-400' : 'bg-gray-700'}`}
-      >
-        <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${value ? 'translate-x-6' : 'translate-x-1'}`} />
-      </button>
     </div>
   );
 }
