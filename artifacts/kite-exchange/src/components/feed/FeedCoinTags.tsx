@@ -34,7 +34,7 @@ export default function FeedCoinTags({ tags, onTagClick }: FeedCoinTagsProps) {
             className="flex items-center gap-1 text-[11px] font-semibold px-2 py-[3px] rounded transition-opacity hover:opacity-75 active:scale-95"
             style={{ backgroundColor: '#2B3139' }}
           >
-            <span style={{ color: '#C6C6C6' }}>{tag.symbol}</span>
+            <span style={{ color: '#F0B90B' }}>{tag.symbol}</span>
             <span style={{ color: changeColor }} className="font-bold">
               {sign}{tag.change.toFixed(2)}
             </span>

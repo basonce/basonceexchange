@@ -16,7 +16,11 @@ import {
   POST_USERS_POOL,
 } from './feed-content-pools';
 import { BS_POSTS, BS_USERS_POOL, BS_MEME_IMAGES } from './feed-content-pools-v2';
+import { BS_POSTS_POOL_V3, BS_USERS_POOL_V3, CAR_IMAGE_URLS } from './feed-content-pools-v3';
 import { PriceCache } from './price-cache';
+
+const ALL_BS_POSTS = [...BS_POSTS, ...BS_POSTS_POOL_V3];
+const ALL_BS_USERS = [...BS_USERS_POOL, ...BS_USERS_POOL_V3];
 
 // ---------------------------------------------------------
 // GeneratedPost interface
@@ -89,17 +93,47 @@ function getChange(pc: PriceCache, symbol: string, fallback: number): number {
   return cached?.change24h ?? fallback;
 }
 
-/** Build a coin_tags array from an array of tag strings using live prices */
+// Only coins actually listed on the exchange's market
+const REAL_MARKET_COINS = new Set([
+  'BTC','ETH','BNB','SOL','XRP','ADA','DOGE','AVAX','DOT','MATIC','LINK',
+  'UNI','LTC','ATOM','ETC','XLM','NEAR','ALGO','VET','ICP','FIL','APT','ARB',
+  'OP','INJ','SUI','SEI','TIA','RENDER','FTM','SHIB','WIF','BONK','FLOKI',
+  'TON','TRX','HBAR','AAVE','GRT','STX','SAND','MANA','AXS','GALA','ENJ',
+  'IMX','ONDO','RNDR','FET','AGIX','WLD','ENA','ACH','JASMY','CHZ','AUDIO',
+  'BLUR','PENDLE','DYDX','SNX','CRV','COMP','MKR','LDO','RPL','BAL','SUSHI',
+  'YFI','1INCH','OCEAN','GRT','BAND','API3','SKALE','ANKR','CELR','CTSI',
+  'NKN','ACH','STORJ','BAT','RLC','MASK','REQ','BICO','DUSK','ENS','PERP',
+  'CVX','ALCX','SPELL','BADGER','FARM','FORTH','KP3R','MLN','QNT','UNFI',
+  'AUCTION','CLV','ARPA','LINA','AGLD','STPT','MTL','COTI','POWR','REN',
+  'ORN','PYR','OGN','RARE','TRU','LOOM','KEY','MDT','PNT','PEOPLE','MEME',
+  'MAGIC','ARKM','CYBER','W','ZRO','ZK','STRK','TRUMP','DEGO','BANANAS31',
+  'GIGGLE','BULLA','PIXEL','HIFI','VIDT','VITE','MBL','COCOS','FOR',
+  'IOTX','OAX','DATA','SC','WAN','DOCK','DENT','MITH','STMX','WRX',
+  'RIF','TROY','VIBE','BCPT','CHAT','SYS','GTO','LEND','WINGS','SNM',
+  'APE','OP','ARB','SOL','AVAX','FTM','NEAR','INJ','SUI','APT','SEI',
+  'TIA','ATOM','LINK','DOT','ADA','XRP','BNB','ETH','BTC','DOGE','SHIB',
+  'FLOKI','WIF','BONK','TRUMP','TON','TRX','HBAR','XLM','VET','ICP',
+  'AAVE','ONDO','RNDR','FET','ENA','STX','BLUR','PENDLE','DYDX','GRT',
+  'LDO','MKR','COMP','CRV','SUSHI','YFI','1INCH','SNX','SAND','MANA',
+  'AXS','GALA','ENJ','IMX','CHZ','AUDIO','ACH','JASMY','MASK','ENS',
+  'QNT','OCEAN','WLD','AGIX','ARKM','CYBER','MAGIC','PEOPLE','MEME',
+  'ZRO','ZK','STRK','W','DEGO','GIGGLE','BANANAS31','BULLA','PIXEL',
+]);
+
+/** Build a coin_tags array from an array of tag strings using live prices.
+ *  Filters to only real market coins — no fake/custom tokens. */
 function buildCoinTags(
   pc: PriceCache,
   tags: string[]
 ): { symbol: string; change: number }[] {
-  return tags.map((symbol) => ({
-    symbol,
-    change: parseFloat(
-      getChange(pc, symbol, (Math.random() - 0.4) * 20).toFixed(2)
-    ),
-  }));
+  return tags
+    .filter(sym => REAL_MARKET_COINS.has(sym.toUpperCase()))
+    .map((symbol) => ({
+      symbol,
+      change: parseFloat(
+        getChange(pc, symbol, (Math.random() - 0.4) * 20).toFixed(2)
+      ),
+    }));
 }
 
 /** Random integer in [min, max] inclusive */
@@ -549,8 +583,8 @@ export function generateCryptoChartPost(pc: PriceCache): GeneratedPost {
 // 7. generateBinanceSquarePost — natural Binance Square style
 // ---------------------------------------------------------
 export function generateBinanceSquarePost(pc: PriceCache): GeneratedPost {
-  const postData = pick(BS_POSTS);
-  const user = pick(BS_USERS_POOL);
+  const postData = pick(ALL_BS_POSTS);
+  const user = pick(ALL_BS_USERS);
 
   const primaryCoin = postData.tags[0] ?? 'BTC';
   const coinPrice = pc.getBySymbol(primaryCoin)?.price ?? (FALLBACK_PRICES[primaryCoin] ?? 100);
@@ -563,7 +597,7 @@ export function generateBinanceSquarePost(pc: PriceCache): GeneratedPost {
     } else if (postData.imageCategory === 'chart') {
       imageUrl = pick(CRYPTO_CHART_IMAGES);
     } else if (postData.imageCategory === 'car') {
-      imageUrl = pick(WEALTH_FLEX_IMAGES.slice(0, 16));
+      imageUrl = pick([...WEALTH_FLEX_IMAGES.slice(0, 16), ...CAR_IMAGE_URLS]);
     } else if (postData.imageCategory === 'yacht') {
       imageUrl = pick(WEALTH_FLEX_IMAGES.slice(17, 28));
     } else if (postData.imageCategory === 'watch') {
