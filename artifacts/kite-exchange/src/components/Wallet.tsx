@@ -9,7 +9,6 @@ import { supabase } from '../lib/supabase';
 import DepositMethodModal from './DepositMethodModal';
 import SendMethodModal from './SendMethodModal';
 import TransferModal from './TransferModal';
-import { checkWithdrawalPermission } from '../lib/withdrawal-permission';
 import { RealtimePnLService, RealtimePnL } from '../lib/realtime-pnl-service';
 import CoinLogo from './CoinLogo';
 
@@ -57,8 +56,6 @@ export default function Wallet() {
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
-  const [isWithdrawalBlocked, setIsWithdrawalBlocked] = useState(false);
-  const [currentTier, setCurrentTier] = useState(0);
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [activeSection, setActiveSection] = useState<'overview' | 'history'>('overview');
   const [priceMap, setPriceMap] = useState<Record<string, number>>({ USDT: 1 });
@@ -74,7 +71,6 @@ export default function Wallet() {
 
     fetchBalances();
     fetchTransactions();
-    checkPermission();
 
     let balanceChannel: any;
     let txChannel: any;
@@ -168,13 +164,6 @@ export default function Wallet() {
     } catch { }
   };
 
-  const checkPermission = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const perm = await checkWithdrawalPermission(user.id);
-    setIsWithdrawalBlocked(!perm.allowed);
-    setCurrentTier(perm.allowed ? 5 : perm.currentTier);
-  };
 
   const totalBalance = realtimePnL.currentTotalValue > 0
     ? realtimePnL.currentTotalValue
@@ -239,23 +228,11 @@ export default function Wallet() {
               </div>
             </div>
 
-            {isWithdrawalBlocked && (
-              <div className="mb-4 flex items-center gap-2.5 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(246,70,93,0.08)', border: '1px solid rgba(246,70,93,0.2)' }}>
-                <Lock className="w-4 h-4 text-[#F6465D] flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[#F6465D] text-xs font-bold">Withdrawal Locked</div>
-                  <div className="text-gray-500 text-[10px]">Tier {currentTier}/5 — Upgrade to unlock withdrawals</div>
-                </div>
-                <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-[#F0B90B]" style={{ background: 'rgba(240,185,11,0.1)' }}>
-                  Tier {currentTier}<span className="text-gray-600">/5</span>
-                </div>
-              </div>
-            )}
 
             <div className="grid grid-cols-4 gap-2">
               {[
                 { label: 'Deposit', icon: ArrowDownLeft, color: '#0ECB81', action: () => setShowDepositModal(true) },
-                { label: 'Withdraw', icon: ArrowUpRight, color: isWithdrawalBlocked ? '#848E9C' : '#F6465D', action: () => setShowWithdrawModal(true), locked: isWithdrawalBlocked },
+                { label: 'Withdraw', icon: ArrowUpRight, color: '#F6465D', action: () => setShowWithdrawModal(true), locked: false },
                 { label: 'Transfer', icon: RefreshCw, color: '#F0B90B', action: () => setShowTransferModal(true) },
                 { label: 'History', icon: History, color: '#3B82F6', action: () => setActiveSection('history') },
               ].map(({ label, icon: Icon, color, action, locked }) => (
@@ -294,7 +271,7 @@ export default function Wallet() {
             {[
               { label: '2FA Authentication', desc: 'Authenticator app enabled', status: true },
               { label: 'Anti-Phishing Code', desc: 'Email security active', status: true },
-              { label: 'Withdrawal Whitelist', desc: isWithdrawalBlocked ? `Tier ${currentTier}/5 required` : 'All networks active', status: !isWithdrawalBlocked },
+              { label: 'Withdrawal Whitelist', desc: 'All networks active', status: true },
             ].map(({ label, desc, status }) => (
               <div key={label} className="flex items-center gap-3">
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: status ? 'rgba(14,203,129,0.1)' : 'rgba(246,70,93,0.1)' }}>
@@ -482,17 +459,17 @@ export default function Wallet() {
               </div>
             </button>
             <button
-              onClick={() => !isWithdrawalBlocked && setShowWithdrawModal(true)}
+              onClick={() => setShowWithdrawModal(true)}
               className="flex items-center gap-2.5 px-3 py-3 rounded-xl transition-all active:scale-95"
               style={{
-                background: isWithdrawalBlocked ? 'rgba(132,142,156,0.05)' : 'rgba(246,70,93,0.1)',
-                border: `1px solid ${isWithdrawalBlocked ? 'rgba(132,142,156,0.1)' : 'rgba(246,70,93,0.2)'}`
+                background: 'rgba(246,70,93,0.1)',
+                border: '1px solid rgba(246,70,93,0.2)'
               }}
             >
-              {isWithdrawalBlocked ? <Lock className="w-4 h-4 text-gray-600" /> : <ArrowUpRight className="w-4 h-4 text-[#F6465D]" />}
+              <ArrowUpRight className="w-4 h-4 text-[#F6465D]" />
               <div className="text-left">
-                <div className="text-xs font-bold" style={{ color: isWithdrawalBlocked ? '#848E9C' : '#F6465D' }}>Withdraw</div>
-                <div className="text-gray-600 text-[10px]">{isWithdrawalBlocked ? `Tier ${currentTier}/5` : 'Send funds'}</div>
+                <div className="text-xs font-bold" style={{ color: '#F6465D' }}>Withdraw</div>
+                <div className="text-gray-600 text-[10px]">Send funds</div>
               </div>
             </button>
           </div>
