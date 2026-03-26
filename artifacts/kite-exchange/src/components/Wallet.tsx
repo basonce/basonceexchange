@@ -60,7 +60,8 @@ export default function Wallet() {
   const [currentTier, setCurrentTier] = useState(0);
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [activeSection, setActiveSection] = useState<'overview' | 'history'>('overview');
-  const [priceMap, setPriceMap] = useState<Record<string, number>>({});
+  const [priceMap, setPriceMap] = useState<Record<string, number>>({ USDT: 1 });
+  const [futuresUSDT, setFuturesUSDT] = useState(0);
   const priceIntervalRef = useRef<ReturnType<typeof setInterval>>();
 
   const mockAddress = 'TKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
@@ -137,6 +138,8 @@ export default function Wallet() {
         };
       });
 
+      const usdtRow = data.find((b: any) => b.symbol === 'USDT');
+      setFuturesUSDT(parseFloat(usdtRow?.futures_balance || '0'));
       setBalances(mapped);
       fetchPrices(mapped.map(b => b.symbol));
 
@@ -167,7 +170,8 @@ export default function Wallet() {
     setCurrentTier(perm.allowed ? 5 : perm.currentTier);
   };
 
-  const totalBalance = balances.reduce((sum, b) => sum + b.balance * (priceMap[b.symbol] || 0), 0);
+  const spotTotal = balances.reduce((sum, b) => sum + b.balance * (priceMap[b.symbol] ?? (b.symbol === 'USDT' ? 1 : 0)), 0);
+  const totalBalance = spotTotal + futuresUSDT;
   const topBalances = [...balances]
     .sort((a, b) => (b.balance * (priceMap[b.symbol] || 0)) - (a.balance * (priceMap[a.symbol] || 0)))
     .filter(b => b.balance > 0)
