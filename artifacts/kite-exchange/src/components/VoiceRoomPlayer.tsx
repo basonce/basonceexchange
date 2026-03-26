@@ -329,11 +329,9 @@ export default function VoiceRoomPlayer() {
 
   if (messages.length === 0) {
     return (
-      <div className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-xl p-4 mb-4 border border-purple-500/30">
-        <div className="flex items-center justify-center gap-2 text-purple-300">
-          <Radio className="w-5 h-5 animate-pulse" />
-          <span>Loading voice room...</span>
-        </div>
+      <div className="bg-[#1A1B23] rounded-xl p-3 mb-2 border border-[#2B3139]/80 flex items-center gap-2">
+        <Radio className="w-4 h-4 text-[#F0B90B] animate-pulse" />
+        <span className="text-gray-500 text-xs">Loading voice room...</span>
       </div>
     );
   }
@@ -341,7 +339,7 @@ export default function VoiceRoomPlayer() {
   const canHearAudio = userLevel >= 4;
 
   return (
-    <div className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-lg p-2 mb-2 border border-purple-500/30 relative">
+    <div className="bg-[#1A1B23] rounded-xl p-2.5 mb-2 border border-[#2B3139]/80 relative">
       {showPremiumWarning && (
         <div className="absolute top-1 left-1/2 -translate-x-1/2 z-10 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-3 py-1 rounded-lg shadow-lg flex items-center gap-1.5 text-xs font-semibold animate-bounce">
           <Crown className="w-3.5 h-3.5" />
@@ -351,8 +349,8 @@ export default function VoiceRoomPlayer() {
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <div className="relative bg-gradient-to-br from-purple-500 to-pink-500 p-1.5 rounded-lg flex-shrink-0">
-            <Radio className="w-3.5 h-3.5 text-white" />
+          <div className="relative bg-[#F0B90B]/10 border border-[#F0B90B]/30 p-1.5 rounded-lg flex-shrink-0">
+            <Radio className="w-3.5 h-3.5 text-[#F0B90B]" />
             {isPlaying && (
               <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
             )}
@@ -360,19 +358,19 @@ export default function VoiceRoomPlayer() {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap">
               <h3 className="text-white font-semibold text-sm">VOICE ROOM</h3>
-              <div className="flex items-center gap-0.5 bg-red-500 px-1.5 py-0.5 rounded-full">
-                <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-                <span className="text-white text-[10px] font-bold">LIVE</span>
+              <div className="flex items-center gap-0.5 bg-red-500/20 border border-red-500/40 px-1.5 py-0.5 rounded-full">
+                <div className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse"></div>
+                <span className="text-red-400 text-[10px] font-bold">LIVE</span>
               </div>
               {!canHearAudio && (
-                <div className="flex items-center gap-0.5 bg-amber-500/80 px-1.5 py-0.5 rounded-full">
-                  <Lock className="w-2.5 h-2.5 text-white" />
-                  <span className="text-white text-[10px] font-bold">L4+</span>
+                <div className="flex items-center gap-0.5 bg-[#F0B90B]/20 border border-[#F0B90B]/40 px-1.5 py-0.5 rounded-full">
+                  <Lock className="w-2.5 h-2.5 text-[#F0B90B]" />
+                  <span className="text-[#F0B90B] text-[10px] font-bold">L4+</span>
                 </div>
               )}
             </div>
-            <div className="text-purple-300 text-[11px] flex items-center gap-1.5">
-              <span>{listeners.toLocaleString()}</span>
+            <div className="text-gray-500 text-[11px] flex items-center gap-1.5">
+              <span className="text-gray-400">{listeners.toLocaleString()}</span>
               <span>•</span>
               <span>{voicesCount.toLocaleString()} voices</span>
             </div>
@@ -383,7 +381,7 @@ export default function VoiceRoomPlayer() {
           {!isPlaying ? (
             <button
               onClick={handleJoinVoiceRoom}
-              className="flex items-center gap-1.5 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95"
+              className="flex items-center gap-1.5 bg-[#F0B90B] hover:bg-[#e0a800] text-black px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95"
             >
               <Play className="w-3 h-3" />
               Join
@@ -392,14 +390,14 @@ export default function VoiceRoomPlayer() {
             <>
               <button
                 onClick={handleSkip}
-                className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 p-1.5 rounded transition-all active:scale-95"
+                className="bg-[#2B3139] hover:bg-[#363d47] text-gray-300 p-1.5 rounded-lg transition-all active:scale-95"
                 title="Skip"
               >
                 <SkipForward className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={handleLeaveVoiceRoom}
-                className="bg-red-500/20 hover:bg-red-500/30 text-red-300 px-2 py-1 rounded text-[10px] font-medium transition-all active:scale-95"
+                className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all active:scale-95"
               >
                 Leave
               </button>
@@ -409,35 +407,33 @@ export default function VoiceRoomPlayer() {
       </div>
 
       {currentMessage && isPlaying && (
-        <div className="bg-black/30 rounded-lg p-2 mt-2 border border-purple-500/20">
+        <div className="bg-[#0D0E12] rounded-lg p-2 mt-2 border border-[#2B3139]/80">
           <div className="flex items-start gap-2">
             <img
               src={currentMessage.anonymous_profiles?.avatar_url || `https://i.pravatar.cc/150?img=${currentMessage.user_id}`}
               alt={currentMessage.anonymous_profiles?.username || 'User'}
-              className="w-8 h-8 rounded-full border border-purple-500 flex-shrink-0"
+              className="w-8 h-8 rounded-full border border-[#2B3139] flex-shrink-0"
             />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 mb-0.5">
                 <span className="text-white font-medium text-xs truncate">
                   {currentMessage.anonymous_profiles?.username || 'Anonymous'}
                 </span>
-                <span className="text-purple-300 text-[10px] flex-shrink-0">
+                <span className="text-gray-500 text-[10px] flex-shrink-0">
                   Lv.{currentMessage.anonymous_profiles?.level || 1}
                 </span>
                 {!canHearAudio && (
-                  <Lock className="w-2.5 h-2.5 text-amber-400 flex-shrink-0" />
+                  <Lock className="w-2.5 h-2.5 text-[#F0B90B] flex-shrink-0" />
                 )}
               </div>
-              <p className="text-gray-200 text-xs leading-snug mb-1">
+              <p className="text-gray-300 text-xs leading-snug mb-1">
                 {typedText}
                 {isTyping && <span className="animate-pulse">▊</span>}
               </p>
-              <div className="w-full bg-purple-900/30 rounded-full h-1 overflow-hidden">
+              <div className="w-full bg-[#2B3139] rounded-full h-1 overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-100 ${
-                    canHearAudio
-                      ? 'bg-gradient-to-r from-purple-500 to-pink-500'
-                      : 'bg-gradient-to-r from-gray-500 to-gray-600'
+                    canHearAudio ? 'bg-[#F0B90B]' : 'bg-gray-600'
                   }`}
                   style={{ width: `${progress}%` }}
                 ></div>
@@ -448,21 +444,21 @@ export default function VoiceRoomPlayer() {
       )}
 
       {!canHearAudio && !isPlaying && (
-        <div className="mt-2 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-lg p-2">
+        <div className="mt-2 bg-[#F0B90B]/5 border border-[#F0B90B]/20 rounded-lg p-2">
           <div className="flex items-center gap-1.5">
-            <Crown className="w-3 h-3 text-amber-400 flex-shrink-0" />
+            <Crown className="w-3 h-3 text-[#F0B90B] flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-amber-300 text-[10px] leading-tight">
+              <p className="text-[#F0B90B]/80 text-[10px] leading-tight">
                 Reach Level 4 to unlock audio
               </p>
               <div className="mt-1 flex items-center gap-1.5">
-                <div className="flex-1 bg-amber-900/30 rounded-full h-1 overflow-hidden">
+                <div className="flex-1 bg-[#2B3139] rounded-full h-1 overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-500"
+                    className="h-full bg-[#F0B90B] rounded-full transition-all duration-500"
                     style={{ width: `${(userLevel / 4) * 100}%` }}
                   ></div>
                 </div>
-                <span className="text-amber-400 text-[10px] font-semibold flex-shrink-0">
+                <span className="text-[#F0B90B] text-[10px] font-semibold flex-shrink-0">
                   {userLevel}/4
                 </span>
               </div>

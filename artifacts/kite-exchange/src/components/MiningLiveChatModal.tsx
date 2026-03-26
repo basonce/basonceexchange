@@ -1,5 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import { X, Send, Radio, Users, TrendingUp, Zap, MessageCircle, DollarSign, ArrowUpCircle, Award, Sparkles, Flame, Crown, Star, Activity } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  X, Send, Radio, TrendingUp, MessageCircle, DollarSign, ArrowUpCircle,
+  Award, Flame, Crown, Zap, CheckCircle2, Clock, Trophy, Users,
+  ChevronRight, Sparkles, Wifi
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { globalMiningStats } from '../lib/global-mining-stats';
 import VoiceRoomPlayer from './VoiceRoomPlayer';
@@ -12,147 +16,371 @@ interface Message {
   created_at: string;
   level: number;
   country: string;
-  message_type: 'withdrawal' | 'profit' | 'upgrade' | 'milestone' | 'tip' | 'celebration' | 'general';
+  message_type: 'withdrawal' | 'profit' | 'upgrade' | 'milestone' | 'tip' | 'celebration' | 'general' | 'withdrawal_request';
   amount: number;
   is_featured: boolean;
+}
+
+interface Reaction {
+  emoji: string;
+  count: number;
+}
+
+interface BigWinNotif {
+  id: string;
+  username: string;
+  amount: number;
+  country: string;
+  network: string;
+}
+
+const NETWORKS = ['TRC20', 'BEP20', 'ERC20', 'SOL'];
+const COUNTRY_FLAGS: Record<string, string> = {
+  US: '🇺🇸', CA: '🇨🇦', AU: '🇦🇺', DE: '🇩🇪', FR: '🇫🇷', ES: '🇪🇸',
+  JP: '🇯🇵', KR: '🇰🇷', CN: '🇨🇳', IN: '🇮🇳', BR: '🇧🇷', MX: '🇲🇽',
+  NL: '🇳🇱', SE: '🇸🇪', SG: '🇸🇬', AE: '🇦🇪', RU: '🇷🇺', PL: '🇵🇱',
+  TR: '🇹🇷', CH: '🇨🇭', AT: '🇦🇹', VN: '🇻🇳', EG: '🇪🇬', NG: '🇳🇬',
+  ZA: '🇿🇦', SA: '🇸🇦', IT: '🇮🇹', PK: '🇵🇰', MY: '🇲🇾', TH: '🇹🇭',
+  UA: '🇺🇦', AR: '🇦🇷', CL: '🇨🇱', CO: '🇨🇴', IL: '🇮🇱', GR: '🇬🇷',
+  NO: '🇳🇴', DK: '🇩🇰', FI: '🇫🇮', PT: '🇵🇹', BE: '🇧🇪', IE: '🇮🇪',
+};
+
+const LIVE_POOL: Array<{
+  username: string; country: string; level: number;
+  message: string; amount: number;
+  message_type: Message['message_type']; is_featured: boolean;
+  network?: string;
+}> = [
+  { username: 'AlexTradez9912', country: 'US', level: 4, message: 'ASIC Pro paying big. Couldn\'t be happier!', amount: 847.50, message_type: 'withdrawal', is_featured: true, network: 'TRC20' },
+  { username: 'SarahMiner88', country: 'CA', level: 5, message: 'Mining Farm earned me $1,240 this week. Insane returns.', amount: 1240, message_type: 'profit', is_featured: true },
+  { username: 'KimTanaka4412', country: 'JP', level: 3, message: 'GPU Miner Pro hit $312. Almost ready to withdraw!', amount: 312, message_type: 'profit', is_featured: false },
+  { username: 'MikeBrownCrypto', country: 'AU', level: 4, message: 'Withdrawal confirmed! Landed in my wallet instantly.', amount: 650, message_type: 'withdrawal', is_featured: true, network: 'BEP20' },
+  { username: 'LenaVolkov33', country: 'DE', level: 5, message: 'Mining Farm Pro generating $50/day. Never looked back.', amount: 1500, message_type: 'milestone', is_featured: true },
+  { username: 'CarlosReed77', country: 'MX', level: 3, message: 'Crossed $500 total earnings today!', amount: 500, message_type: 'milestone', is_featured: false },
+  { username: 'PriyaSharma21', country: 'IN', level: 4, message: 'Just collected $89 from my morning session. Passive income is real!', amount: 89, message_type: 'profit', is_featured: false },
+  { username: 'JakobMuller55', country: 'DE', level: 5, message: 'Third withdrawal this month. Mining Farm Pro is the GOAT.', amount: 920, message_type: 'withdrawal', is_featured: true, network: 'ERC20' },
+  { username: 'AnnaKowalski09', country: 'PL', level: 3, message: 'Started with $50 GPU Miner. Now earning $4.8/day!', amount: 4.80, message_type: 'profit', is_featured: false },
+  { username: 'OmarAhmed2234', country: 'AE', level: 4, message: 'BEP20 withdrawal processed in 2 hours! Arrived in Binance.', amount: 780, message_type: 'withdrawal', is_featured: true, network: 'BEP20' },
+  { username: 'TomaszKwiat88', country: 'PL', level: 3, message: 'Upgrading to ASIC Pro today. $18/day will pay it off fast.', amount: 450, message_type: 'upgrade', is_featured: false },
+  { username: 'YukiHayashi44', country: 'JP', level: 5, message: 'Hit $2,000 total earnings milestone! Mining Farm Pro running 24/7.', amount: 2000, message_type: 'milestone', is_featured: true },
+  { username: 'IvanPetrov71', country: 'RU', level: 4, message: 'Collected 4 sessions today. $48 just from ASIC miners!', amount: 48, message_type: 'profit', is_featured: false },
+  { username: 'SofiaRamos90', country: 'ES', level: 3, message: 'Every week I withdraw from my GPU Miner Pro. So consistent.', amount: 192, message_type: 'withdrawal', is_featured: true, network: 'TRC20' },
+  { username: 'DavidNguyenVN', country: 'VN', level: 4, message: 'Running 3 ASIC miners simultaneously. $36/day combined.', amount: 36, message_type: 'profit', is_featured: false },
+  { username: 'EllaFischer22', country: 'AT', level: 5, message: 'Been mining 6 months — best decision of my life.', amount: 1100, message_type: 'withdrawal', is_featured: true, network: 'SOL' },
+  { username: 'RaviPatel5566', country: 'IN', level: 3, message: 'ASIC Miner session ended. Collected $6 in 12 hours!', amount: 6, message_type: 'profit', is_featured: false },
+  { username: 'LindsayBaxter', country: 'AU', level: 4, message: 'Third month with $600+ earnings. Mining Farm is real deal.', amount: 620, message_type: 'milestone', is_featured: true },
+  { username: 'HansBauer1990', country: 'CH', level: 5, message: 'Passive income changed my life. $2,500 Mining Farm Pro.', amount: 2500, message_type: 'milestone', is_featured: true },
+  { username: 'MinaKhalil88', country: 'EG', level: 3, message: 'First withdrawal ever! $55 confirmed on TRC20. So happy!!', amount: 55, message_type: 'withdrawal', is_featured: false, network: 'TRC20' },
+  { username: 'FatimaBenali', country: 'MA', level: 4, message: 'Just submitted withdrawal request for $380. Can\'t wait!', amount: 380, message_type: 'withdrawal_request', is_featured: false, network: 'BEP20' },
+  { username: 'NguyenQuocBao', country: 'VN', level: 3, message: 'Sent withdrawal request for $95. Should arrive in 2 hours.', amount: 95, message_type: 'withdrawal_request', is_featured: false, network: 'TRC20' },
+  { username: 'ZainabAhmed', country: 'PK', level: 4, message: 'Submitted my $210 withdrawal. BEP20 is always the fastest!', amount: 210, message_type: 'withdrawal_request', is_featured: false, network: 'BEP20' },
+  { username: 'KarlSvensson', country: 'SE', level: 5, message: 'Withdrawal request sent for $1,340. Mining Farm Pro never disappoints.', amount: 1340, message_type: 'withdrawal_request', is_featured: true, network: 'ERC20' },
+  { username: 'MarceloBatista', country: 'BR', level: 3, message: 'Just hit the minimum and requested $50 withdrawal!', amount: 50, message_type: 'withdrawal_request', is_featured: false, network: 'TRC20' },
+  { username: 'BeatriceNkosi', country: 'ZA', level: 4, message: 'ASIC Pro milestone: $1,000 total withdrawn across 5 months!', amount: 1000, message_type: 'milestone', is_featured: true },
+  { username: 'DimitriPavlov', country: 'RU', level: 5, message: 'GPU Miner fleet at max capacity. Daily: $120 combined.', amount: 120, message_type: 'profit', is_featured: false },
+  { username: 'CelineDubois', country: 'FR', level: 4, message: 'Mining while I sleep. Woke up to $34 earned overnight!', amount: 34, message_type: 'profit', is_featured: false },
+];
+
+const LEADERBOARD = [
+  { rank: 1, username: 'HansBauer1990', country: 'CH', level: 5, amount: 2500, device: 'Mining Farm Pro', crown: true },
+  { rank: 2, username: 'YukiHayashi44', country: 'JP', level: 5, amount: 2000, device: 'Mining Farm Pro', crown: false },
+  { rank: 3, username: 'SarahMiner88', country: 'CA', level: 5, amount: 1240, device: 'Mining Farm', crown: false },
+  { rank: 4, username: 'KarlSvensson', country: 'SE', level: 5, amount: 1340, device: 'ASIC Pro', crown: false },
+  { rank: 5, username: 'EllaFischer22', country: 'AT', level: 5, amount: 1100, device: 'Mining Farm Pro', crown: false },
+  { rank: 6, username: 'BeatriceNkosi', country: 'ZA', level: 4, amount: 1000, device: 'ASIC Pro', crown: false },
+  { rank: 7, username: 'JakobMuller55', country: 'DE', level: 5, amount: 920, device: 'Mining Farm Pro', crown: false },
+  { rank: 8, username: 'AlexTradez9912', country: 'US', level: 4, amount: 847, device: 'ASIC Pro', crown: false },
+  { rank: 9, username: 'OmarAhmed2234', country: 'AE', level: 4, amount: 780, device: 'ASIC Pro', crown: false },
+  { rank: 10, username: 'MikeBrownCrypto', country: 'AU', level: 4, amount: 650, device: 'ASIC Miner', crown: false },
+];
+
+const TICKER_ITEMS = LIVE_POOL.filter(m => m.message_type === 'withdrawal' && m.amount >= 100);
+
+type TabType = 'all' | 'withdrawals' | 'milestones' | 'leaderboard';
+
+function getTimeAgo(timestamp: string) {
+  const diff = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function getLevelBadge(level: number) {
+  if (level >= 5) return 'bg-purple-500/20 text-purple-300 border-purple-500/40';
+  if (level >= 4) return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
+  if (level >= 3) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+  if (level >= 2) return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40';
+  return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+}
+
+function getRankMedal(rank: number) {
+  if (rank === 1) return '🥇';
+  if (rank === 2) return '🥈';
+  if (rank === 3) return '🥉';
+  return `#${rank}`;
+}
+
+function WithdrawalCard({ msg, isRequest }: { msg: Message; isRequest?: boolean }) {
+  const network = (msg as any).network || NETWORKS[Math.floor(msg.amount * 7) % NETWORKS.length];
+  const flag = COUNTRY_FLAGS[msg.country] || '🌍';
+  const confirmed = !isRequest && msg.message_type === 'withdrawal';
+
+  return (
+    <div className={`rounded-2xl overflow-hidden border ${confirmed
+      ? 'border-[#F0B90B]/30 bg-gradient-to-br from-[#F0B90B]/8 via-[#1A1B23] to-[#0D0E12]'
+      : 'border-blue-500/25 bg-gradient-to-br from-blue-500/8 via-[#1A1B23] to-[#0D0E12]'
+    } shadow-lg`}>
+      <div className={`flex items-center gap-2 px-3 py-2 ${confirmed
+        ? 'bg-[#F0B90B]/10 border-b border-[#F0B90B]/20'
+        : 'bg-blue-500/10 border-b border-blue-500/20'
+      }`}>
+        {confirmed
+          ? <CheckCircle2 className="w-4 h-4 text-[#F0B90B] flex-shrink-0" />
+          : <Clock className="w-4 h-4 text-blue-400 flex-shrink-0" />
+        }
+        <span className={`text-xs font-bold tracking-wide ${confirmed ? 'text-[#F0B90B]' : 'text-blue-400'}`}>
+          {confirmed ? 'WITHDRAWAL CONFIRMED' : 'WITHDRAWAL REQUEST SENT'}
+        </span>
+        <span className="ml-auto text-[10px] text-gray-500">{network}</span>
+      </div>
+
+      <div className="px-3 py-3 flex items-center gap-3">
+        <img
+          src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.username}`}
+          alt={msg.username}
+          className="w-10 h-10 rounded-full border-2 border-[#2B3139] flex-shrink-0"
+        />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <span className="text-white font-semibold text-sm truncate">{msg.username}</span>
+            <span className="text-base leading-none">{flag}</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded border font-bold flex-shrink-0 ${getLevelBadge(msg.level)}`}>
+              Lv.{msg.level}
+            </span>
+          </div>
+          <p className="text-gray-400 text-xs truncate">{msg.message}</p>
+        </div>
+        <div className="flex-shrink-0 text-right">
+          <div className={`text-xl font-black ${confirmed ? 'text-[#F0B90B]' : 'text-blue-300'}`}>
+            ${msg.amount >= 1000
+              ? `${(msg.amount / 1000).toFixed(1)}K`
+              : msg.amount.toFixed(msg.amount < 10 ? 2 : 0)
+            }
+          </div>
+          <div className="text-[10px] text-gray-500">USDT</div>
+        </div>
+      </div>
+
+      <div className="px-3 pb-2.5 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          {confirmed ? (
+            <span className="flex items-center gap-1 text-emerald-400 text-[11px] font-medium">
+              <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
+              Funds arrived
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-blue-400 text-[11px] font-medium">
+              <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></div>
+              Processing...
+            </span>
+          )}
+        </div>
+        <span className="text-gray-600 text-[10px]">{getTimeAgo(msg.created_at)}</span>
+      </div>
+    </div>
+  );
+}
+
+function MessageCard({ msg }: { msg: Message }) {
+  const [reactions, setReactions] = useState<Record<string, number>>({
+    '🔥': Math.floor(Math.random() * 40),
+    '💎': Math.floor(Math.random() * 25),
+    '🚀': Math.floor(Math.random() * 18),
+  });
+  const [myReaction, setMyReaction] = useState<string | null>(null);
+  const flag = COUNTRY_FLAGS[msg.country] || '🌍';
+
+  const handleReact = (emoji: string) => {
+    setReactions(prev => {
+      const next = { ...prev };
+      if (myReaction === emoji) {
+        next[emoji] = Math.max(0, next[emoji] - 1);
+        setMyReaction(null);
+      } else {
+        if (myReaction) next[myReaction] = Math.max(0, next[myReaction] - 1);
+        next[emoji] = (next[emoji] || 0) + 1;
+        setMyReaction(emoji);
+      }
+      return next;
+    });
+  };
+
+  const typeConfig: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
+    profit: { icon: <TrendingUp className="w-3.5 h-3.5" />, color: 'text-emerald-400', label: 'Profit' },
+    milestone: { icon: <Award className="w-3.5 h-3.5" />, color: 'text-[#F0B90B]', label: 'Milestone' },
+    upgrade: { icon: <ArrowUpCircle className="w-3.5 h-3.5" />, color: 'text-blue-400', label: 'Upgrade' },
+    celebration: { icon: <Sparkles className="w-3.5 h-3.5" />, color: 'text-purple-400', label: 'Win' },
+    tip: { icon: <Zap className="w-3.5 h-3.5" />, color: 'text-cyan-400', label: 'Tip' },
+    general: { icon: <MessageCircle className="w-3.5 h-3.5" />, color: 'text-gray-400', label: '' },
+  };
+  const tc = typeConfig[msg.message_type] || typeConfig.general;
+
+  return (
+    <div className={`flex gap-2.5 p-3 rounded-xl ${msg.is_featured
+      ? 'bg-[#F0B90B]/5 border border-[#F0B90B]/20'
+      : 'bg-[#1A1B23]/60 border border-[#2B3139]/40'
+    } hover:border-[#F0B90B]/20 transition-all`}>
+      <div className="relative flex-shrink-0">
+        <img
+          src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.username}`}
+          alt={msg.username}
+          className="w-9 h-9 rounded-full border-2 border-[#2B3139]"
+        />
+        {msg.is_featured && (
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#F0B90B] rounded-full flex items-center justify-center">
+            <Crown className="w-2.5 h-2.5 text-black" />
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 mb-1">
+          <span className="text-white font-semibold text-sm truncate">{msg.username}</span>
+          <span className="text-sm">{flag}</span>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded border font-bold flex-shrink-0 ${getLevelBadge(msg.level)}`}>
+            Lv.{msg.level}
+          </span>
+          {msg.message_type !== 'general' && (
+            <span className={`flex items-center gap-0.5 text-[10px] font-medium ml-auto flex-shrink-0 ${tc.color}`}>
+              {tc.icon} {tc.label}
+            </span>
+          )}
+        </div>
+
+        <p className="text-gray-300 text-sm leading-snug mb-2">{msg.message}</p>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            {Object.entries(reactions).map(([emoji, count]) => (
+              <button
+                key={emoji}
+                onClick={() => handleReact(emoji)}
+                className={`flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs transition-all border ${
+                  myReaction === emoji
+                    ? 'bg-[#F0B90B]/20 border-[#F0B90B]/40 text-[#F0B90B]'
+                    : 'bg-[#2B3139]/60 border-[#2B3139] text-gray-400 hover:border-gray-600'
+                }`}
+              >
+                <span>{emoji}</span>
+                <span className="font-medium">{count}</span>
+              </button>
+            ))}
+          </div>
+          <span className="text-gray-600 text-[10px]">{getTimeAgo(msg.created_at)}</span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [onlineCount, setOnlineCount] = useState(3745);
   const [isLoading, setIsLoading] = useState(true);
-  const [totalWithdrawnToday, setTotalWithdrawnToday] = useState(520000);
-  const [bigWins, setBigWins] = useState(342);
-  const [isTyping, setIsTyping] = useState(false);
-  const [activeMiners, setActiveMiners] = useState(12847);
-  const [totalEarnings, setTotalEarnings] = useState(645000);
-  const [displayedMessageCount, setDisplayedMessageCount] = useState(847);
-  const [recentUpgrades, setRecentUpgrades] = useState(5842);
-  const [recentUpgradesMinutes, setRecentUpgradesMinutes] = useState(18);
+  const [activeTab, setActiveTab] = useState<TabType>('all');
   const [isSending, setIsSending] = useState(false);
   const [lastMessageTime, setLastMessageTime] = useState(0);
+  const [bigWinNotif, setBigWinNotif] = useState<BigWinNotif | null>(null);
+  const [tickerOffset, setTickerOffset] = useState(0);
+
+  const [activeMiners, setActiveMiners] = useState(17148);
+  const [totalEarnings, setTotalEarnings] = useState(912000);
+  const [recentUpgrades, setRecentUpgrades] = useState(11842);
+  const [onlineCount, setOnlineCount] = useState(23774);
+  const [totalWithdrawnToday, setTotalWithdrawnToday] = useState(520000);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-
-  const liveEarningsMessages = [
-    { username: 'AlexTradez9912', country: 'US', level: 4, message: 'Just withdrew $847.50! ASIC Pro is paying off big.', amount: 847.50, message_type: 'withdrawal' as const, is_featured: true },
-    { username: 'SarahMiner88', country: 'CA', level: 5, message: 'Mining Farm earned me $1,240 this week alone. Absolutely insane returns.', amount: 1240.00, message_type: 'profit' as const, is_featured: true },
-    { username: 'KimTanaka4412', country: 'JP', level: 3, message: 'GPU Miner Pro hit $312 balance. Almost ready to withdraw!', amount: 312.00, message_type: 'profit' as const, is_featured: false },
-    { username: 'MikeBrownCrypto', country: 'AU', level: 4, message: 'Withdrawal confirmed! $650 landed in my wallet. TRC20 was super fast.', amount: 650.00, message_type: 'withdrawal' as const, is_featured: true },
-    { username: 'LenaVolkov33', country: 'DE', level: 5, message: 'Mining Farm Pro generating $50/day. Upgraded 3 months ago and never looked back.', amount: 1500.00, message_type: 'milestone' as const, is_featured: true },
-    { username: 'CarlosReed77', country: 'MX', level: 3, message: 'Crossed $500 total earnings today. ASIC Miner is the sweet spot!', amount: 500.00, message_type: 'milestone' as const, is_featured: false },
-    { username: 'PriyaSharma21', country: 'IN', level: 4, message: 'Just collected $89 from my morning session. This passive income is real!', amount: 89.00, message_type: 'profit' as const, is_featured: false },
-    { username: 'JakobMuller55', country: 'DE', level: 5, message: 'Third withdrawal this month. $920 total withdrawn. Mining Farm Pro is the GOAT.', amount: 920.00, message_type: 'withdrawal' as const, is_featured: true },
-    { username: 'AnnaKowalski09', country: 'PL', level: 3, message: 'Started with $50 GPU Miner. Now earning $4.8/day consistently!', amount: 4.80, message_type: 'profit' as const, is_featured: false },
-    { username: 'OmarAhmed2234', country: 'AE', level: 4, message: 'BEP20 withdrawal processed in 2 hours! $780 in my Binance wallet.', amount: 780.00, message_type: 'withdrawal' as const, is_featured: true },
-    { username: 'TomaszKwiat88', country: 'PL', level: 3, message: 'Upgrading to ASIC Pro today. The $18/day earnings will pay it off fast.', amount: 450.00, message_type: 'upgrade' as const, is_featured: false },
-    { username: 'YukiHayashi44', country: 'JP', level: 5, message: 'Hit $2,000 total earnings milestone! Mining Farm Pro running 24/7.', amount: 2000.00, message_type: 'milestone' as const, is_featured: true },
-    { username: 'IvanPetrov71', country: 'RU', level: 4, message: 'Collected 4 sessions today. Total $48 just from ASIC miners!', amount: 48.00, message_type: 'profit' as const, is_featured: false },
-    { username: 'SofiaRamos90', country: 'ES', level: 3, message: '$192 withdrawn successfully! Every week I withdraw from my GPU Miner Pro.', amount: 192.00, message_type: 'withdrawal' as const, is_featured: true },
-    { username: 'DavidNguyenVN', country: 'VN', level: 4, message: 'Running 3 ASIC miners simultaneously. Combined $36/day earnings.', amount: 36.00, message_type: 'profit' as const, is_featured: false },
-    { username: 'EllaFischer22', country: 'AT', level: 5, message: 'Withdrew $1,100 today. Been mining for 6 months, best decision ever.', amount: 1100.00, message_type: 'withdrawal' as const, is_featured: true },
-    { username: 'RaviPatel5566', country: 'IN', level: 3, message: 'ASIC Miner session just ended. Collected $6 in 12 hours. Love it!', amount: 6.00, message_type: 'profit' as const, is_featured: false },
-    { username: 'LindsayBaxter', country: 'AU', level: 4, message: 'Third consecutive month with $600+ earnings. Mining Farm is the real deal.', amount: 620.00, message_type: 'milestone' as const, is_featured: true },
-    { username: 'HansBauer1990', country: 'CH', level: 5, message: 'Passive income changed my life. $2,500 Mining Farm Pro earns while I sleep.', amount: 2500.00, message_type: 'milestone' as const, is_featured: true },
-    { username: 'MinaKhalil88', country: 'EG', level: 3, message: 'First withdrawal ever! $55 confirmed on TRC20. So happy right now!!', amount: 55.00, message_type: 'withdrawal' as const, is_featured: false },
-  ];
+  const tickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      loadMessages();
+    if (!isOpen) return;
 
-      // Subscribe to real-time new messages
-      const channel = supabase
-        .channel('mining-chat-messages')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'mining_chat_messages'
-          },
-          (payload) => {
-            const newMsg = payload.new as Message;
-            setMessages(prev => [...prev, newMsg]);
-          }
-        )
-        .subscribe();
+    loadMessages();
 
-      // Subscribe to global mining stats
-      const unsubscribe = globalMiningStats.subscribe((stats) => {
-        setActiveMiners(stats.activeMiners);
-        setTotalEarnings(stats.hourlyEarnings);
-        setRecentUpgrades(stats.recentUpgrades);
-        setRecentUpgradesMinutes(stats.upgradesLast10Min);
-        setOnlineCount(stats.onlineCount);
-      });
+    const channel = supabase
+      .channel('mining-chat-messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mining_chat_messages' }, (payload) => {
+        setMessages(prev => [...prev, payload.new as Message]);
+      })
+      .subscribe();
 
-      const typingInterval = setInterval(() => {
-        setIsTyping(Math.random() > 0.6);
-      }, 3000);
+    const unsubGlobal = globalMiningStats.subscribe((stats) => {
+      setActiveMiners(stats.activeMiners);
+      setTotalEarnings(stats.hourlyEarnings);
+      setRecentUpgrades(stats.recentUpgrades);
+      setOnlineCount(stats.onlineCount);
+    });
 
-      const withdrawnInterval = setInterval(() => {
-        setTotalWithdrawnToday(prev => Math.min(678000, prev + Math.floor(Math.random() * 800 + 200)));
-      }, 3000);
+    const statsInterval = setInterval(() => {
+      setActiveMiners(v => Math.max(15000, v + Math.floor(Math.random() * 20 - 8)));
+      setTotalEarnings(v => Math.min(980000, v + Math.floor(Math.random() * 600 + 200)));
+      setRecentUpgrades(v => Math.max(10000, v + Math.floor(Math.random() * 8 - 2)));
+      setOnlineCount(v => Math.max(20000, v + Math.floor(Math.random() * 40 - 15)));
+      setTotalWithdrawnToday(v => Math.min(680000, v + Math.floor(Math.random() * 900 + 100)));
+    }, 2500);
 
-      const bigWinsInterval = setInterval(() => {
-        setBigWins(prev => Math.max(200, Math.min(500, prev + Math.floor(Math.random() * 6 - 2))));
-      }, 6000);
+    let liveIndex = Math.floor(Math.random() * LIVE_POOL.length);
+    let liveTimeout: NodeJS.Timeout;
+    const injectLive = () => {
+      const delay = Math.random() * 4500 + 3000;
+      liveTimeout = setTimeout(() => {
+        const tmpl = LIVE_POOL[liveIndex % LIVE_POOL.length];
+        liveIndex++;
+        const fakeMsg: Message = {
+          id: `live-${Date.now()}-${Math.random()}`,
+          username: tmpl.username,
+          avatar_url: '',
+          message: tmpl.message,
+          created_at: new Date().toISOString(),
+          level: tmpl.level,
+          country: tmpl.country,
+          message_type: tmpl.message_type,
+          amount: tmpl.amount,
+          is_featured: tmpl.is_featured,
+          ...(tmpl.network ? { network: tmpl.network } : {}),
+        } as Message;
+        setMessages(prev => [...prev.slice(-150), fakeMsg]);
 
-      let messageTimeout: NodeJS.Timeout;
-      const scheduleNextMessageUpdate = () => {
-        const randomDelay = Math.random() * 2000 + 1500;
-        messageTimeout = setTimeout(() => {
-          setDisplayedMessageCount(prev => {
-            const increment = Math.floor(Math.random() * 5) + 2;
-            const newCount = prev + increment;
-            if (newCount >= 2000) {
-              return 847;
-            }
-            return newCount;
-          });
-          scheduleNextMessageUpdate();
-        }, randomDelay);
-      };
-      scheduleNextMessageUpdate();
-
-      // Inject live earnings messages every 4–8 seconds
-      let liveIndex = Math.floor(Math.random() * liveEarningsMessages.length);
-      let liveInjectTimeout: NodeJS.Timeout;
-      const injectLiveMessage = () => {
-        const delay = Math.random() * 4000 + 3000;
-        liveInjectTimeout = setTimeout(() => {
-          const template = liveEarningsMessages[liveIndex % liveEarningsMessages.length];
-          liveIndex++;
-          const fakeMsg: Message = {
-            id: `live-${Date.now()}-${Math.random()}`,
-            username: template.username,
-            avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${template.username}`,
-            message: template.message,
-            created_at: new Date().toISOString(),
-            level: template.level,
-            country: template.country,
-            message_type: template.message_type,
-            amount: template.amount,
-            is_featured: template.is_featured,
+        if ((tmpl.message_type === 'withdrawal' || tmpl.message_type === 'milestone') && tmpl.amount >= 500) {
+          const notif: BigWinNotif = {
+            id: `bw-${Date.now()}`,
+            username: tmpl.username,
+            amount: tmpl.amount,
+            country: tmpl.country,
+            network: tmpl.network || 'TRC20',
           };
-          setMessages(prev => [...prev.slice(-120), fakeMsg]);
-          injectLiveMessage();
-        }, delay);
-      };
-      injectLiveMessage();
+          setBigWinNotif(notif);
+          setTimeout(() => setBigWinNotif(null), 4500);
+        }
 
-      return () => {
-        channel.unsubscribe();
-        unsubscribe();
-        clearInterval(typingInterval);
-        clearInterval(withdrawnInterval);
-        clearInterval(bigWinsInterval);
-        clearTimeout(messageTimeout);
-        clearTimeout(liveInjectTimeout);
-      };
-    }
+        injectLive();
+      }, delay);
+    };
+    injectLive();
+
+    const tickerInterval = setInterval(() => {
+      setTickerOffset(v => v + 1);
+    }, 30);
+
+    return () => {
+      channel.unsubscribe();
+      unsubGlobal();
+      clearInterval(statsInterval);
+      clearTimeout(liveTimeout);
+      clearInterval(tickerInterval);
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -163,434 +391,293 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
 
   const loadMessages = async () => {
     setIsLoading(true);
-
-    const { count } = await supabase
-      .from('mining_chat_messages')
-      .select('*', { count: 'exact', head: true });
-
-    const totalMessages = count || 10000;
-    const randomOffset = Math.floor(Math.random() * Math.max(0, totalMessages - 100));
-
+    const { count } = await supabase.from('mining_chat_messages').select('*', { count: 'exact', head: true });
+    const total = count || 5000;
+    const offset = Math.floor(Math.random() * Math.max(0, total - 80));
     const { data } = await supabase
       .from('mining_chat_messages')
       .select('*')
       .order('created_at', { ascending: true })
-      .range(randomOffset, randomOffset + 99);
-
-    if (data) {
-      setMessages(data as Message[]);
-
-      const withdrawalMessages = data.filter((msg: any) => msg.message_type === 'withdrawal');
-      const totalWithdrawn = withdrawalMessages.reduce((sum: number, msg: any) => sum + Number(msg.amount || 0), 0);
-      const boostedWithdrawn = 520000 + totalWithdrawn;
-      setTotalWithdrawnToday(boostedWithdrawn);
-
-      const profitMessages = data.filter((msg: any) => msg.message_type === 'profit' || msg.message_type === 'milestone');
-      const totalProfit = profitMessages.reduce((sum: number, msg: any) => sum + Number(msg.amount || 0), 0);
-      const boostedEarnings = 645000 + totalProfit;
-      setTotalEarnings(boostedEarnings);
-
-      const featuredCount = data.filter((msg: any) => msg.is_featured).length;
-      const boostedBigWins = 342 + featuredCount;
-      setBigWins(boostedBigWins);
-    }
-
+      .range(offset, offset + 79);
+    if (data) setMessages(data as Message[]);
     setIsLoading(false);
   };
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim()) return;
-    if (isSending) return;
-
-    // Rate limiting: 5 seconds between messages
+  const handleSend = async () => {
+    if (!newMessage.trim() || isSending) return;
     const now = Date.now();
-    if (now - lastMessageTime < 5000) {
-      alert('Please wait 5 seconds between messages');
-      return;
-    }
+    if (now - lastMessageTime < 5000) return;
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      alert('Please sign in to send messages');
-      return;
-    }
+    if (!user) { alert('Please sign in to chat'); return; }
 
     setIsSending(true);
-
     try {
-      // Get user profile
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('username, avatar_url, country')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const { data: profile } = await supabase.from('user_profiles')
+        .select('username, avatar_url, country').eq('user_id', user.id).maybeSingle();
+      const { data: purchases } = await supabase.from('user_mining_purchases')
+        .select('shop_item_id').eq('user_id', user.id);
+      const level = purchases ? Math.min(5, Math.floor(purchases.length / 2) + 1) : 1;
 
-      // Get user level from mining purchases
-      const { data: purchases } = await supabase
-        .from('user_mining_purchases')
-        .select('shop_item_id')
-        .eq('user_id', user.id);
-
-      const userLevel = purchases ? Math.min(5, Math.floor(purchases.length / 2) + 1) : 1;
-
-      // Insert message
-      const { error } = await supabase
-        .from('mining_chat_messages')
-        .insert({
-          user_id: user.id,
-          username: profile?.username || user.email?.split('@')[0] || 'User',
-          avatar_url: profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`,
-          message: newMessage.trim(),
-          message_type: 'general',
-          amount: 0,
-          level: userLevel,
-          country: profile?.country || 'US',
-          is_featured: false
-        });
-
-      if (error) throw error;
-
+      await supabase.from('mining_chat_messages').insert({
+        user_id: user.id,
+        username: profile?.username || user.email?.split('@')[0] || 'User',
+        avatar_url: profile?.avatar_url || '',
+        message: newMessage.trim(),
+        message_type: 'general',
+        amount: 0,
+        level,
+        country: profile?.country || 'US',
+        is_featured: false,
+      });
       setNewMessage('');
       setLastMessageTime(now);
-    } catch (error) {
-      console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
+    } catch (e) {
+      console.error(e);
     } finally {
       setIsSending(false);
     }
   };
 
-  const getTimeAgo = (timestamp: string) => {
-    const now = new Date();
-    const messageTime = new Date(timestamp);
-    const diffInSeconds = Math.floor((now.getTime() - messageTime.getTime()) / 1000);
+  const filteredMessages = messages.filter(m => {
+    if (activeTab === 'withdrawals') return m.message_type === 'withdrawal' || m.message_type === 'withdrawal_request';
+    if (activeTab === 'milestones') return m.message_type === 'milestone' || m.message_type === 'profit' || m.message_type === 'upgrade';
+    return true;
+  });
 
-    if (diffInSeconds < 60) return 'just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    return `${Math.floor(diffInSeconds / 86400)}d ago`;
-  };
-
-  const getLevelColor = (level: number) => {
-    if (level >= 5) return 'text-purple-400 bg-gradient-to-r from-purple-500/30 to-pink-500/30 border border-purple-400/30';
-    if (level >= 4) return 'text-blue-400 bg-gradient-to-r from-blue-500/30 to-cyan-500/30 border border-blue-400/30';
-    if (level >= 3) return 'text-emerald-400 bg-gradient-to-r from-emerald-500/30 to-green-500/30 border border-emerald-400/30';
-    if (level >= 2) return 'text-yellow-400 bg-gradient-to-r from-yellow-500/30 to-orange-500/30 border border-yellow-400/30';
-    return 'text-gray-400 bg-gray-500/20 border border-gray-400/20';
-  };
-
-  const getMessageTypeIcon = (type: string, isFeatured: boolean) => {
-    if (isFeatured) {
-      return <Crown className="w-4 h-4 text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]" />;
-    }
-    switch (type) {
-      case 'withdrawal':
-        return <DollarSign className="w-4 h-4 text-emerald-400" />;
-      case 'profit':
-        return <TrendingUp className="w-4 h-4 text-purple-400" />;
-      case 'upgrade':
-        return <ArrowUpCircle className="w-4 h-4 text-pink-400" />;
-      case 'milestone':
-        return <Award className="w-4 h-4 text-orange-400" />;
-      case 'celebration':
-        return <Sparkles className="w-4 h-4 text-fuchsia-400" />;
-      default:
-        return null;
-    }
-  };
-
-  const getMessageTypeColor = (type: string, isFeatured: boolean) => {
-    if (isFeatured) {
-      return 'bg-gradient-to-r from-yellow-500/10 via-orange-500/10 to-pink-500/10 border-l-4 border-yellow-500 shadow-lg shadow-yellow-500/20';
-    }
-    switch (type) {
-      case 'withdrawal':
-        return 'hover:bg-gradient-to-r hover:from-emerald-500/5 hover:to-transparent';
-      case 'profit':
-        return 'hover:bg-gradient-to-r hover:from-purple-500/5 hover:to-transparent';
-      case 'upgrade':
-        return 'hover:bg-gradient-to-r hover:from-pink-500/5 hover:to-transparent';
-      case 'milestone':
-        return 'hover:bg-gradient-to-r hover:from-orange-500/5 hover:to-transparent';
-      case 'celebration':
-        return 'hover:bg-gradient-to-r hover:from-fuchsia-500/5 hover:to-transparent';
-      default:
-        return 'hover:bg-[#1A1B23]/50';
-    }
-  };
-
-  const getCountryFlag = (country: string) => {
-    const flags: { [key: string]: string } = {
-      'USA': '🇺🇸', 'US': '🇺🇸',
-      'UK': '🇬🇧', 'United Kingdom': '🇬🇧',
-      'Canada': '🇨🇦', 'CA': '🇨🇦',
-      'Australia': '🇦🇺', 'AU': '🇦🇺',
-      'Germany': '🇩🇪', 'DE': '🇩🇪',
-      'France': '🇫🇷', 'FR': '🇫🇷',
-      'Spain': '🇪🇸', 'ES': '🇪🇸',
-      'Italy': '🇮🇹', 'IT': '🇮🇹',
-      'Japan': '🇯🇵', 'JP': '🇯🇵',
-      'South Korea': '🇰🇷', 'Korea': '🇰🇷', 'KR': '🇰🇷',
-      'China': '🇨🇳', 'CN': '🇨🇳',
-      'India': '🇮🇳', 'IN': '🇮🇳',
-      'Brazil': '🇧🇷', 'BR': '🇧🇷',
-      'Mexico': '🇲🇽', 'MX': '🇲🇽',
-      'Argentina': '🇦🇷', 'AR': '🇦🇷',
-      'Netherlands': '🇳🇱', 'NL': '🇳🇱',
-      'Sweden': '🇸🇪', 'SE': '🇸🇪',
-      'Singapore': '🇸🇬', 'SG': '🇸🇬',
-      'UAE': '🇦🇪', 'United Arab Emirates': '🇦🇪', 'AE': '🇦🇪',
-      'South Africa': '🇿🇦', 'ZA': '🇿🇦',
-      'Russia': '🇷🇺', 'RU': '🇷🇺',
-      'Norway': '🇳🇴', 'NO': '🇳🇴',
-      'Denmark': '🇩🇰', 'DK': '🇩🇰',
-      'Finland': '🇫🇮', 'FI': '🇫🇮',
-      'Poland': '🇵🇱', 'PL': '🇵🇱',
-      'Turkey': '🇹🇷', 'Türkiye': '🇹🇷', 'TR': '🇹🇷',
-      'Switzerland': '🇨🇭', 'CH': '🇨🇭',
-      'Belgium': '🇧🇪', 'BE': '🇧🇪',
-      'Portugal': '🇵🇹', 'PT': '🇵🇹',
-      'Greece': '🇬🇷', 'GR': '🇬🇷',
-      'Austria': '🇦🇹', 'AT': '🇦🇹',
-      'Ireland': '🇮🇪', 'IE': '🇮🇪',
-      'New Zealand': '🇳🇿', 'NZ': '🇳🇿',
-      'Thailand': '🇹🇭', 'TH': '🇹🇭',
-      'Vietnam': '🇻🇳', 'VN': '🇻🇳',
-      'Philippines': '🇵🇭', 'PH': '🇵🇭',
-      'Indonesia': '🇮🇩', 'ID': '🇮🇩',
-      'Malaysia': '🇲🇾', 'MY': '🇲🇾',
-      'Pakistan': '🇵🇰', 'PK': '🇵🇰',
-      'Bangladesh': '🇧🇩', 'BD': '🇧🇩',
-      'Egypt': '🇪🇬', 'EG': '🇪🇬',
-      'Saudi Arabia': '🇸🇦', 'SA': '🇸🇦',
-      'Nigeria': '🇳🇬', 'NG': '🇳🇬',
-      'Kenya': '🇰🇪', 'KE': '🇰🇪',
-      'Morocco': '🇲🇦', 'MA': '🇲🇦',
-      'Chile': '🇨🇱', 'CL': '🇨🇱',
-      'Colombia': '🇨🇴', 'CO': '🇨🇴',
-      'Peru': '🇵🇪', 'PE': '🇵🇪',
-      'Venezuela': '🇻🇪', 'VE': '🇻🇪',
-      'Israel': '🇮🇱', 'IL': '🇮🇱',
-      'Czech Republic': '🇨🇿', 'Czechia': '🇨🇿', 'CZ': '🇨🇿',
-      'Romania': '🇷🇴', 'RO': '🇷🇴',
-      'Hungary': '🇭🇺', 'HU': '🇭🇺',
-      'Ukraine': '🇺🇦', 'UA': '🇺🇦'
-    };
-    return flags[country] || '🌍';
-  };
+  const tickerText = TICKER_ITEMS.map(t =>
+    `${COUNTRY_FLAGS[t.country] || '🌍'} ${t.username} withdrew $${t.amount.toLocaleString()}`
+  ).join('    •    ');
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-end sm:items-center justify-center sm:p-4 animate-fadeIn">
-      <div className="bg-gradient-to-b from-[#1A1B23] to-[#0D0E12] rounded-t-3xl sm:rounded-3xl w-full max-w-2xl h-screen sm:max-h-[90vh] flex flex-col border border-pink-500/20 shadow-2xl shadow-pink-500/10 animate-slide-up">
+    <div className="fixed inset-0 bg-black/92 backdrop-blur-sm z-[100] flex items-end justify-center">
+      <div className="bg-[#0D0E12] w-full max-w-[428px] h-screen flex flex-col border-t border-[#2B3139]/80 shadow-2xl">
 
-        <div className="relative bg-gradient-to-br from-pink-500 via-purple-600 to-orange-500 p-5 rounded-t-3xl flex items-center justify-between overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/20"></div>
-          <div className="absolute top-0 left-0 w-full h-full">
-            <div className="absolute top-2 right-10 w-32 h-32 bg-yellow-400/20 rounded-full blur-3xl animate-pulse"></div>
-            <div className="absolute bottom-2 left-10 w-40 h-40 bg-purple-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-          </div>
-
-          <div className="flex items-center gap-3 relative z-10">
-            <div className="relative">
-              <div className="w-14 h-14 bg-gradient-to-br from-yellow-400 via-orange-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-xl shadow-orange-500/50 border-2 border-white/30 animate-pulse">
-                <Radio className="w-7 h-7 text-white" />
-              </div>
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-ping"></div>
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full"></div>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <h2 className="text-2xl font-black text-white drop-shadow-lg">Miners Chat</h2>
-                <div className="flex items-center gap-1 bg-gradient-to-r from-red-500 to-rose-600 px-3 py-1 rounded-full shadow-lg shadow-red-500/50 animate-pulse">
-                  <Radio className="w-3 h-3 text-white animate-pulse" />
-                  <span className="text-white text-xs font-black tracking-widest">LIVE</span>
+        {/* BIG WIN POPUP */}
+        {bigWinNotif && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-[360px] animate-slide-down">
+            <div className="bg-gradient-to-r from-[#F0B90B] to-[#e0a800] rounded-2xl p-4 shadow-2xl shadow-[#F0B90B]/30 border border-[#F0B90B]/40">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-black/20 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Trophy className="w-7 h-7 text-black" />
                 </div>
-              </div>
-              <div className="flex items-center gap-3 text-white/90 text-xs sm:text-sm">
-                <div className="flex items-center gap-1 sm:gap-1.5">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50"></div>
-                  <span className="font-bold text-sm sm:text-base">{onlineCount.toLocaleString()}</span>
-                  <span className="text-white/70 text-xs sm:text-sm">online</span>
+                <div className="flex-1">
+                  <div className="text-black text-xs font-bold tracking-widest mb-0.5">🎉 BIG WIN ALERT</div>
+                  <div className="text-black font-black text-lg leading-tight">
+                    {bigWinNotif.username} {COUNTRY_FLAGS[bigWinNotif.country] || '🌍'}
+                  </div>
+                  <div className="text-black/80 text-xs">withdrew via {bigWinNotif.network}</div>
                 </div>
-                <div className="flex items-center gap-1 sm:gap-1.5">
-                  <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-300" />
-                  <span className="font-bold text-sm sm:text-base">{activeMiners.toLocaleString()}</span>
-                  <span className="text-white/70 text-xs sm:text-sm">mining</span>
+                <div className="text-black font-black text-2xl flex-shrink-0">
+                  ${bigWinNotif.amount >= 1000
+                    ? `${(bigWinNotif.amount / 1000).toFixed(1)}K`
+                    : bigWinNotif.amount.toLocaleString()}
                 </div>
               </div>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="relative z-20 w-12 h-12 min-w-[48px] rounded-xl bg-white/20 hover:bg-white/30 active:bg-white/40 backdrop-blur-sm transition-all flex items-center justify-center flex-shrink-0 border-2 border-white/40 shadow-xl"
-            style={{ WebkitTapHighlightColor: 'transparent' }}
-          >
-            <X className="w-6 h-6 text-white" strokeWidth={3} />
-          </button>
+        )}
+
+        {/* HEADER */}
+        <div className="bg-[#0D0E12] border-b border-[#2B3139] px-4 pt-4 pb-3 flex-shrink-0">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className="relative w-11 h-11 bg-[#F0B90B]/10 border border-[#F0B90B]/30 rounded-xl flex items-center justify-center">
+                <Radio className="w-5 h-5 text-[#F0B90B]" />
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping opacity-75"></div>
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-white font-black text-lg">Miners Chat</h2>
+                  <div className="flex items-center gap-1 bg-red-500/20 border border-red-500/40 px-2 py-0.5 rounded-full">
+                    <Wifi className="w-2.5 h-2.5 text-red-400 animate-pulse" />
+                    <span className="text-red-400 text-[10px] font-black tracking-widest">LIVE</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 mt-0.5">
+                  <span className="flex items-center gap-1 text-xs text-gray-400">
+                    <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
+                    <span className="text-white font-bold">{onlineCount.toLocaleString()}</span> online
+                  </span>
+                  <span className="flex items-center gap-1 text-xs text-gray-400">
+                    <Flame className="w-3 h-3 text-orange-400" />
+                    <span className="text-white font-bold">{activeMiners.toLocaleString()}</span> mining
+                  </span>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-10 h-10 rounded-xl bg-[#1A1B23] border border-[#2B3139] flex items-center justify-center hover:border-[#F0B90B]/40 transition-all active:scale-95"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <X className="w-5 h-5 text-gray-400" />
+            </button>
+          </div>
+
+          {/* STATS ROW */}
+          <div className="grid grid-cols-4 gap-2 mb-3">
+            {[
+              { label: 'Miners', value: `${(activeMiners / 1000).toFixed(1)}k`, color: 'text-white', icon: <Users className="w-3 h-3" /> },
+              { label: 'Earned', value: `$${(totalEarnings / 1000).toFixed(0)}k`, color: 'text-emerald-400', icon: <TrendingUp className="w-3 h-3" /> },
+              { label: 'Withdrawn', value: `$${(totalWithdrawnToday / 1000).toFixed(0)}k`, color: 'text-[#F0B90B]', icon: <DollarSign className="w-3 h-3" /> },
+              { label: 'Upgrades', value: `${(recentUpgrades / 1000).toFixed(1)}k`, color: 'text-blue-400', icon: <ArrowUpCircle className="w-3 h-3" /> },
+            ].map((stat) => (
+              <div key={stat.label} className="bg-[#1A1B23] border border-[#2B3139]/80 rounded-xl p-2 text-center">
+                <div className={`flex items-center justify-center gap-0.5 ${stat.color} mb-0.5`}>
+                  {stat.icon}
+                </div>
+                <div className={`text-sm font-black ${stat.color}`}>{stat.value}</div>
+                <div className="text-[9px] text-gray-500 uppercase tracking-wide">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* LIVE TICKER */}
+          <div className="bg-[#1A1B23] border border-[#2B3139]/80 rounded-xl px-3 py-2 flex items-center gap-2 overflow-hidden">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <div className="w-1.5 h-1.5 bg-[#F0B90B] rounded-full animate-pulse"></div>
+              <span className="text-[#F0B90B] text-[10px] font-black tracking-widest">LIVE</span>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <div
+                className="text-gray-300 text-xs whitespace-nowrap"
+                style={{
+                  transform: `translateX(${-(tickerOffset % (tickerText.length * 7.5))}px)`,
+                  transition: 'none',
+                  display: 'inline-block',
+                }}
+              >
+                {tickerText} &nbsp;&nbsp;&nbsp; {tickerText}
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="bg-gradient-to-b from-[#1A1B23] to-[#0D0E12] border-y border-[#2B3139]/50 px-3 py-1.5 sm:py-4 backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-1">
-              <div className="w-1 h-1 bg-red-500 rounded-full animate-pulse"></div>
-              <h3 className="text-[10px] sm:text-xs font-bold text-white/90 tracking-wide">LIVE</h3>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-1 sm:gap-3">
-            <div className="bg-[#0D0E12] rounded p-1 sm:p-3 border border-[#2B3139]/50">
-              <div className="text-[8px] sm:text-xs text-gray-400 font-medium mb-0 sm:mb-1 truncate">Miners</div>
-              <div className="text-xs sm:text-xl font-bold text-white tracking-tight">
-                {(activeMiners / 1000).toFixed(1)}k
-              </div>
-            </div>
-
-            <div className="bg-[#0D0E12] rounded p-1 sm:p-3 border border-[#2B3139]/50">
-              <div className="text-[8px] sm:text-xs text-gray-400 font-medium mb-0 sm:mb-1 truncate">Earned</div>
-              <div className="text-xs sm:text-xl font-bold text-emerald-400 tracking-tight">
-                ${(totalEarnings / 1000).toFixed(1)}k
-              </div>
-            </div>
-
-            <div className="bg-[#0D0E12] rounded p-1 sm:p-3 border border-[#2B3139]/50">
-              <div className="text-[8px] sm:text-xs text-gray-400 font-medium mb-0 sm:mb-1 truncate">Upgrades</div>
-              <div className="text-xs sm:text-xl font-bold text-white tracking-tight">
-                {(recentUpgrades / 1000).toFixed(1)}k
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="px-3 pt-3">
+        {/* VOICE ROOM */}
+        <div className="px-4 pt-3 flex-shrink-0">
           <VoiceRoomPlayer />
         </div>
 
-        <div
-          ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto p-3 space-y-2.5 scrollbar-thin scrollbar-thumb-purple-500/20 scrollbar-track-transparent"
-        >
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center h-full">
-              <div className="relative">
-                <div className="w-16 h-16 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Radio className="w-6 h-6 text-purple-500 animate-pulse" />
-                </div>
+        {/* TABS */}
+        <div className="flex items-center gap-1 px-4 py-2 flex-shrink-0 border-b border-[#2B3139]/60">
+          {([
+            { id: 'all', label: 'All', icon: <MessageCircle className="w-3.5 h-3.5" /> },
+            { id: 'withdrawals', label: 'Withdrawals', icon: <DollarSign className="w-3.5 h-3.5" /> },
+            { id: 'milestones', label: 'Earnings', icon: <TrendingUp className="w-3.5 h-3.5" /> },
+            { id: 'leaderboard', label: 'Top', icon: <Trophy className="w-3.5 h-3.5" /> },
+          ] as { id: TabType; label: string; icon: React.ReactNode }[]).map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex-1 justify-center ${
+                activeTab === tab.id
+                  ? 'bg-[#F0B90B] text-black'
+                  : 'bg-[#1A1B23] text-gray-400 hover:text-white border border-[#2B3139]'
+              }`}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              {tab.icon}
+              <span className="hidden sm:inline">{tab.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* MESSAGES / LEADERBOARD */}
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto">
+          {activeTab === 'leaderboard' ? (
+            <div className="p-4 space-y-2">
+              <div className="flex items-center gap-2 mb-3">
+                <Trophy className="w-4 h-4 text-[#F0B90B]" />
+                <span className="text-white font-bold text-sm">Today's Top Miners</span>
               </div>
-              <div className="text-gray-400 text-sm mt-4 font-medium">Loading messages...</div>
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400">
-              <div className="w-20 h-20 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl flex items-center justify-center mb-4 border border-purple-500/20">
-                <MessageCircle className="w-10 h-10 text-purple-400/50" />
-              </div>
-              <p className="text-base font-medium">No messages yet</p>
-              <p className="text-sm text-gray-500 mt-1">Be the first to chat!</p>
-            </div>
-          ) : (
-            <>
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex gap-2.5 group p-3 rounded-xl transition-all duration-300 ${getMessageTypeColor(msg.message_type, msg.is_featured)} backdrop-blur-sm bg-[#1A1B23]/80 border border-purple-500/10`}
-                >
-                  <div className="relative flex-shrink-0">
-                    <div className="relative">
-                      <img
-                        src={msg.avatar_url}
-                        alt={msg.username}
-                        className="w-11 h-11 rounded-full border-2 border-purple-500/40 shadow-lg"
-                      />
-                      {msg.is_featured && (
-                        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-yellow-400/30 to-orange-400/30 animate-pulse"></div>
-                      )}
-                    </div>
-                    {msg.is_featured && (
-                      <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg shadow-yellow-500/50 border-2 border-white">
-                        <Crown className="w-3 h-3 text-white" />
-                      </div>
-                    )}
-                    {msg.level >= 5 && !msg.is_featured && (
-                      <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
-                        <Star className="w-2.5 h-2.5 text-white" />
-                      </div>
-                    )}
+              {LEADERBOARD.map((entry) => (
+                <div key={entry.rank} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                  entry.rank === 1
+                    ? 'bg-[#F0B90B]/8 border-[#F0B90B]/30'
+                    : entry.rank <= 3
+                    ? 'bg-[#1A1B23] border-[#2B3139]/80'
+                    : 'bg-[#0D0E12] border-[#2B3139]/40'
+                }`}>
+                  <div className={`w-8 h-8 flex items-center justify-center text-lg font-black flex-shrink-0 ${
+                    entry.rank <= 3 ? '' : 'text-gray-500 text-sm'
+                  }`}>
+                    {getRankMedal(entry.rank)}
                   </div>
+                  <img
+                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${entry.username}`}
+                    alt=""
+                    className="w-9 h-9 rounded-full border-2 border-[#2B3139] flex-shrink-0"
+                  />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-1.5 flex-wrap">
-                      <span className="font-bold text-white text-sm sm:text-base drop-shadow-lg">{msg.username}</span>
-                      {msg.level > 0 && (
-                        <span className={`text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg font-black ${getLevelColor(msg.level)} drop-shadow-lg`}>
-                          Lv.{msg.level}
-                        </span>
-                      )}
-                      <span className="text-sm sm:text-base drop-shadow-lg">{getCountryFlag(msg.country)}</span>
-                      {getMessageTypeIcon(msg.message_type, msg.is_featured)}
-                      <span className="text-[10px] sm:text-xs text-gray-500 font-medium">{getTimeAgo(msg.created_at)}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-white font-semibold text-sm truncate">{entry.username}</span>
+                      <span className="text-sm">{COUNTRY_FLAGS[entry.country] || '🌍'}</span>
+                      {entry.crown && <Crown className="w-3.5 h-3.5 text-[#F0B90B]" />}
                     </div>
-                    <p className="text-gray-300 text-sm sm:text-base break-words leading-relaxed">{msg.message}</p>
-                    {msg.amount > 0 && (msg.message_type === 'withdrawal' || msg.message_type === 'profit' || msg.message_type === 'milestone') && (
-                      <div className="mt-1.5 sm:mt-2 inline-flex items-center gap-1 sm:gap-1.5 bg-gradient-to-r from-emerald-500/30 to-green-500/20 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-emerald-400/30 shadow-lg">
-                        <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
-                        <span className="text-xs sm:text-sm font-black text-emerald-400 drop-shadow-lg">
-                          ${msg.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    )}
+                    <span className="text-gray-500 text-xs">{entry.device}</span>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className={`font-black text-base ${entry.rank === 1 ? 'text-[#F0B90B]' : 'text-emerald-400'}`}>
+                      ${entry.amount >= 1000 ? `${(entry.amount / 1000).toFixed(1)}K` : entry.amount.toLocaleString()}
+                    </div>
+                    <div className="text-gray-600 text-[10px]">USDT</div>
                   </div>
                 </div>
               ))}
-              {isTyping && (
-                <div className="flex gap-2.5 p-3 rounded-xl bg-[#1A1B23]/80 border border-purple-500/10 animate-fadeIn">
-                  <div className="w-11 h-11 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center border border-purple-500/40">
-                    <Users className="w-5 h-5 text-purple-400" />
-                  </div>
-                  <div className="flex-1">
-                    <span className="text-sm text-gray-300 font-medium">Someone is typing</span>
-                    <div className="flex gap-1.5 mt-2">
-                      <div className="w-2.5 h-2.5 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                      <div className="w-2.5 h-2.5 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                      <div className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                    </div>
-                  </div>
+            </div>
+          ) : isLoading ? (
+            <div className="flex flex-col items-center justify-center h-48 gap-3">
+              <div className="w-10 h-10 border-2 border-[#F0B90B]/30 border-t-[#F0B90B] rounded-full animate-spin"></div>
+              <span className="text-gray-500 text-sm">Loading chat...</span>
+            </div>
+          ) : (
+            <div className="p-3 space-y-2.5 pb-4">
+              {filteredMessages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+                  <MessageCircle className="w-12 h-12 mb-3 opacity-30" />
+                  <p className="text-sm">No messages yet</p>
                 </div>
+              ) : (
+                filteredMessages.map((msg) => {
+                  if (msg.message_type === 'withdrawal' || msg.message_type === 'withdrawal_request') {
+                    return <WithdrawalCard key={msg.id} msg={msg} isRequest={msg.message_type === 'withdrawal_request'} />;
+                  }
+                  return <MessageCard key={msg.id} msg={msg} />;
+                })
               )}
               <div ref={messagesEndRef} />
-            </>
+            </div>
           )}
         </div>
 
-        <div className="p-4 bg-gradient-to-t from-[#0D0E12] via-[#1A1B23] to-transparent border-t border-purple-500/20 backdrop-blur-sm">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Type your message..."
-              className="flex-1 bg-[#0D0E12] border-2 border-purple-500/30 focus:border-purple-500 rounded-xl px-4 py-3.5 text-base text-white placeholder-gray-500 focus:outline-none transition-all shadow-lg focus:shadow-purple-500/20"
-            />
-            <button
-              onClick={handleSendMessage}
-              disabled={!newMessage.trim() || isSending}
-              className="bg-gradient-to-br from-pink-500 via-purple-600 to-orange-500 hover:shadow-xl hover:shadow-purple-500/30 active:scale-95 disabled:from-gray-600 disabled:to-gray-700 disabled:shadow-none text-white px-6 rounded-xl font-bold transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-white/10 shadow-lg"
-            >
-              {isSending ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span className="hidden sm:inline font-black">Sending...</span>
-                </>
-              ) : (
-                <>
-                  <Send className="w-5 h-5" />
-                  <span className="hidden sm:inline font-black">Send</span>
-                </>
-              )}
-            </button>
+        {/* INPUT */}
+        {activeTab !== 'leaderboard' && (
+          <div className="flex-shrink-0 border-t border-[#2B3139]/80 p-3 bg-[#0D0E12]">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newMessage}
+                onChange={e => setNewMessage(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                placeholder="Share your mining wins..."
+                className="flex-1 bg-[#1A1B23] border border-[#2B3139] rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 outline-none focus:border-[#F0B90B]/40 transition-all"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              />
+              <button
+                onClick={handleSend}
+                disabled={isSending || !newMessage.trim()}
+                className="w-11 h-11 bg-[#F0B90B] hover:bg-[#e0a800] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl flex items-center justify-center flex-shrink-0 transition-all active:scale-95"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <Send className="w-4 h-4 text-black" strokeWidth={2.5} />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
