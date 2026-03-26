@@ -216,7 +216,13 @@ export default function SocialPostsBoard() {
                   </div>
 
                   {post.content && (
-                    <p className="text-gray-200 text-sm leading-relaxed mb-3">{post.content}</p>
+                    <p className="text-gray-200 text-sm leading-relaxed mb-3">
+                      {post.content.split(/(\$[A-Z][A-Z0-9]{1,9})/g).map((part: string, idx: number) =>
+                        /^\$[A-Z][A-Z0-9]{1,9}$/.test(part)
+                          ? <span key={idx} style={{ color: '#F0B90B' }} className="font-semibold">{part}</span>
+                          : part
+                      )}
+                    </p>
                   )}
 
                   {hasTradeData && (

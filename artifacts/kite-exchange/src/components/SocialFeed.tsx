@@ -1457,7 +1457,13 @@ export default function SocialFeed() {
                 <span className="text-xs text-gray-500">{formatTimeAgo(post.created_at)}</span>
                 {getSentimentBadge(post)}
               </div>
-              <p className="text-sm leading-relaxed mb-2 whitespace-pre-line text-gray-100">{post.content}</p>
+              <p className="text-sm leading-relaxed mb-2 whitespace-pre-line text-gray-100">
+                {post.content?.split(/(\$[A-Z][A-Z0-9]{1,9})/g).map((part, idx) =>
+                  /^\$[A-Z][A-Z0-9]{1,9}$/.test(part)
+                    ? <span key={idx} style={{ color: '#F0B90B' }} className="font-semibold">{part}</span>
+                    : part
+                )}
+              </p>
               {renderPostContent(post, priceCacheRef.current)}
               {(() => {
                 const baseTags = post.coin_tags && Array.isArray(post.coin_tags) && post.coin_tags.length > 0
