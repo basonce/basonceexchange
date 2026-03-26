@@ -522,9 +522,9 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
             </button>
 
             <button onClick={() => setShowDepositUSD(true)} className="bg-[#1E2329] rounded-xl p-4 flex flex-col items-center gap-2 transition-all hover:scale-105 active:scale-95">
-              <div className="w-12 h-12 bg-[#2B3139] rounded-xl flex items-center justify-center relative">
-                <WalletIcon className="w-6 h-6 text-gray-300" />
-                <ArrowUpRight className="w-3 h-3 text-[#F0B90B] absolute top-1 right-1 stroke-[3]" />
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center relative" style={{ background: '#F0B90B' }}>
+                <WalletIcon className="w-6 h-6 text-black" />
+                <ArrowUpRight className="w-3 h-3 text-black absolute top-1 right-1 stroke-[3]" />
               </div>
               <span className="text-[#F5F5F5] text-sm font-medium">Deposit</span>
             </button>
@@ -591,9 +591,9 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
             </button>
 
             <button onClick={() => setShowDepositUSD(true)} className="bg-[#1E2329] rounded-xl p-4 flex flex-col items-center gap-2 transition-all hover:scale-105 active:scale-95">
-              <div className="w-12 h-12 bg-[#2B3139] rounded-xl flex items-center justify-center relative">
-                <WalletIcon className="w-6 h-6 text-gray-300" />
-                <Plus className="w-3 h-3 text-[#F0B90B] absolute top-1 right-1 stroke-[3]" />
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center relative" style={{ background: '#F0B90B' }}>
+                <WalletIcon className="w-6 h-6 text-black" />
+                <Plus className="w-3 h-3 text-black absolute top-1 right-1 stroke-[3]" />
               </div>
               <span className="text-[#F5F5F5] text-sm font-medium">Deposit</span>
             </button>

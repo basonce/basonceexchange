@@ -190,11 +190,12 @@ export default function HomePage({ onNavigate }: HomePageProps) {
     {
       label: 'Deposit',
       onClick: () => setShowDepositUSD(true),
+      bg: '#F0B90B',
       icon: (
         <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-          <line x1="14" y1="4" x2="14" y2="19" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
-          <polyline points="8,14 14,20 20,14" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-          <line x1="5" y1="24" x2="23" y2="24" stroke="#F0B90B" strokeWidth="2" strokeLinecap="round"/>
+          <line x1="14" y1="4" x2="14" y2="19" stroke="#1A1200" strokeWidth="2" strokeLinecap="round"/>
+          <polyline points="8,14 14,20 20,14" stroke="#1A1200" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <line x1="5" y1="24" x2="23" y2="24" stroke="#1A1200" strokeWidth="2.2" strokeLinecap="round"/>
         </svg>
       ),
     },
@@ -255,9 +256,12 @@ export default function HomePage({ onNavigate }: HomePageProps) {
 
       <div className="bg-[#181A20] px-4 pb-4">
         <div className="flex items-center justify-around mb-2">
-          {quickActions.map(({ icon, label, onClick }) => (
+          {quickActions.map(({ icon, label, onClick, bg }) => (
             <button key={label} onClick={onClick} className="flex flex-col items-center gap-1.5 group">
-              <div className="w-12 h-12 bg-[#2B3139] rounded-2xl flex items-center justify-center transition-all duration-200 active:scale-95 hover:bg-[#363C45]">
+              <div
+                className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200 active:scale-95"
+                style={{ background: bg ?? '#2B3139' }}
+              >
                 {icon}
               </div>
               <span className="text-white text-[11px] font-medium text-center leading-tight whitespace-pre-line">{label}</span>
