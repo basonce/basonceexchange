@@ -78,6 +78,18 @@ function generateDonutSegments(symbol: string, volume: number) {
   return segments.map(seg => ({ ...seg, pct: (seg.value / total) * 100 }));
 }
 
+interface LsRow { label: string; long: number; }
+
+function initLsData(symbol: string): LsRow[] {
+  const seed = symbol.split('').reduce((a, c) => a * 31 + c.charCodeAt(0), 7);
+  const s = Math.abs(seed);
+  return [
+    { label: 'Top Traders (Account)',  long: 52 + (s % 100) * 0.26 },
+    { label: 'Top Traders (Position)', long: 46 + (s % 97)  * 0.31 },
+    { label: 'All Users',              long: 49 + (s % 89)  * 0.22 },
+  ];
+}
+
 function generateDailyBars(symbol: string, volume: number): DailyBar[] {
   const seed = symbol.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   const base = volume > 0 ? volume * 0.1 : 100000;
@@ -221,13 +233,27 @@ export default function TradingDataTab({ symbol, currentPrice, volume24h }: Trad
   const [flowData, setFlowData] = useState(() => generateFlowData(symbol, volume24h));
   const [segments, setSegments] = useState(() => generateDonutSegments(symbol, volume24h));
   const [bars, setBars] = useState<DailyBar[]>(() => generateDailyBars(symbol, volume24h));
+  const [lsData, setLsData] = useState<LsRow[]>(() => initLsData(symbol));
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     setFlowData(generateFlowData(symbol, volume24h));
     setSegments(generateDonutSegments(symbol, volume24h));
     setBars(generateDailyBars(symbol, volume24h));
+    setLsData(initLsData(symbol));
   }, [symbol, volume24h]);
+
+  useEffect(() => {
+    const lsInterval = setInterval(() => {
+      setLsData(prev => prev.map((row, i) => {
+        const maxDrift = i === 0 ? 0.9 : i === 1 ? 1.3 : 0.6;
+        const bias = i === 2 ? 0.04 : 0;
+        const drift = (Math.random() - 0.48 + bias) * maxDrift;
+        return { ...row, long: Math.max(38, Math.min(78, row.long + drift)) };
+      }));
+    }, 18000);
+    return () => clearInterval(lsInterval);
+  }, [symbol]);
 
   useEffect(() => {
     intervalRef.current = setInterval(() => {
@@ -406,12 +432,9 @@ export default function TradingDataTab({ symbol, currentPrice, volume24h }: Trad
           <div className="mb-6">
             <div className="font-bold text-[15px] text-white mb-3">Long/Short Ratio</div>
             <div className="bg-[#1E2329] rounded-xl p-4">
-              {[
-                { label: 'Top Traders (Account)', long: 55 + seededRand(symbol.charCodeAt(0), 20) * 25, },
-                { label: 'Top Traders (Position)', long: 48 + seededRand(symbol.charCodeAt(0), 21) * 30, },
-                { label: 'All Users', long: 50 + seededRand(symbol.charCodeAt(0), 22) * 20, },
-              ].map(({ label, long }) => {
+              {lsData.map(({ label, long }) => {
                 const short = 100 - long;
+                const ratio = (long / short).toFixed(2);
                 return (
                   <div key={label} className="mb-4 last:mb-0">
                     <div className="flex items-center justify-between mb-1.5">
@@ -420,11 +443,12 @@ export default function TradingDataTab({ symbol, currentPrice, volume24h }: Trad
                         <span className="text-[#0ECB81] font-medium">{long.toFixed(2)}%</span>
                         <span className="text-[#848E9C]">/</span>
                         <span className="text-[#F6465D] font-medium">{short.toFixed(2)}%</span>
+                        <span className="text-[#848E9C] text-[10px]">({ratio})</span>
                       </div>
                     </div>
                     <div className="h-2 bg-[#2B3139] rounded-full overflow-hidden flex">
-                      <div className="h-full bg-[#0ECB81] transition-all duration-500" style={{ width: `${long}%` }} />
-                      <div className="h-full bg-[#F6465D] transition-all duration-500" style={{ width: `${short}%` }} />
+                      <div className="h-full bg-[#0ECB81] transition-all duration-1000" style={{ width: `${long}%` }} />
+                      <div className="h-full bg-[#F6465D] transition-all duration-1000" style={{ width: `${short}%` }} />
                     </div>
                   </div>
                 );

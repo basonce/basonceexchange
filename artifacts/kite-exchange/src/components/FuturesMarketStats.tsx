@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 interface Props {
@@ -12,6 +13,15 @@ interface Props {
   longShortRatio?: number;
 }
 
+function symbolSeed(sym: string): number {
+  return sym.split('').reduce((a, c) => a * 31 + c.charCodeAt(0), 7);
+}
+
+function baseRatio(sym: string): number {
+  const s = Math.abs(symbolSeed(sym));
+  return 0.72 + (s % 1000) / 526;
+}
+
 export default function FuturesMarketStats({
   symbol,
   currentPrice,
@@ -21,8 +31,34 @@ export default function FuturesMarketStats({
   volume24h,
   turnover24h,
   openInterest = 0,
-  longShortRatio = 1.2
 }: Props) {
+  const [lsRatio, setLsRatio] = useState<number>(() => baseRatio(symbol));
+  const prevSymbol = useRef(symbol);
+
+  useEffect(() => {
+    if (prevSymbol.current !== symbol) {
+      prevSymbol.current = symbol;
+      setLsRatio(baseRatio(symbol));
+    }
+  }, [symbol]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLsRatio(prev => {
+        const base = baseRatio(symbol);
+        const priceBias =
+          priceChange > 3 ? 0.018 :
+          priceChange > 1 ? 0.007 :
+          priceChange < -3 ? -0.018 :
+          priceChange < -1 ? -0.007 : 0;
+        const drift = (Math.random() - 0.475) * 0.055 + priceBias;
+        const pullback = (base - prev) * 0.04;
+        return Math.max(0.65, Math.min(2.85, prev + drift + pullback));
+      });
+    }, 14000);
+    return () => clearInterval(interval);
+  }, [symbol, priceChange]);
+
   const getPriceDecimals = (price: number): number => {
     if (price >= 100) return 2;
     if (price >= 10) return 3;
@@ -37,6 +73,8 @@ export default function FuturesMarketStats({
     if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K`;
     return num.toFixed(2);
   };
+
+  const isBull = lsRatio >= 1;
 
   return (
     <div className="bg-[#181A20] border-[#2B3139] px-3 py-2">
@@ -64,14 +102,14 @@ export default function FuturesMarketStats({
         <div>
           <div className="text-gray-500 mb-0.5 flex items-center gap-1">
             Long/Short Ratio
-            {longShortRatio > 1 ? (
+            {isBull ? (
               <TrendingUp className="w-3 h-3 text-[#0ECB81]" />
             ) : (
               <TrendingDown className="w-3 h-3 text-[#F6465D]" />
             )}
           </div>
-          <div className={`font-medium ${longShortRatio > 1 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
-            {longShortRatio.toFixed(2)}
+          <div className={`font-medium transition-colors duration-700 ${isBull ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+            {lsRatio.toFixed(2)}
           </div>
         </div>
       </div>
