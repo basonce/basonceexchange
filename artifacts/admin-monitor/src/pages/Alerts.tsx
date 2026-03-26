@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Trash2, CheckCheck, Bell, BellOff } from 'lucide-react';
+import { Trash2, CheckCheck, Bell, BellOff, Zap } from 'lucide-react';
 import { useStore, AlertCategory, AlertSeverity } from '../lib/store';
 import { isMuted } from '../lib/store';
-import { stopAlarm } from '../lib/audio';
+import { stopAlarm, sounds } from '../lib/audio';
 
 const CAT_ICONS: Record<AlertCategory, string> = {
   user: '👤', finance: '💰', security: '🛡️', support: '💬', system: '⚙️', visitor: '👁️',
@@ -25,7 +25,7 @@ const SEV_LABEL: Record<AlertSeverity, string> = {
 const SEV_ORDER: Record<AlertSeverity, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 
 export default function Alerts() {
-  const { alerts, markRead, markAllRead, dismiss, clearAll, settings, updateSettings } = useStore();
+  const { alerts, markRead, markAllRead, dismiss, clearAll, settings, updateSettings, addAlert } = useStore();
   const [catFilter, setCatFilter] = useState<AlertCategory | 'all'>('all');
   const [sevFilter, setSevFilter] = useState<AlertSeverity | 'all'>('all');
 
@@ -59,6 +59,21 @@ export default function Alerts() {
     } else {
       stopAlarm();
       updateSettings({ muteAll: true });
+    }
+  }
+
+  // Sahte alarm üret — her şeyi test et
+  function fireTestAlert(type: 'withdrawal' | 'deposit' | 'user' | 'support') {
+    const opts = {
+      withdrawal: { severity: 'critical' as const, category: 'finance' as const, title: '⚠️ TEST: Çekim Talebi', body: '$500.00 USDT — test alarmı', sound: () => sounds.withdrawal() },
+      deposit:    { severity: 'high'     as const, category: 'finance' as const, title: '💰 TEST: Para Yatırıldı', body: '+$250.00 USDT — test alarmı', sound: () => sounds.deposit() },
+      user:       { severity: 'high'     as const, category: 'user'    as const, title: '🆕 TEST: Yeni Üye',      body: 'test@example.com platforma katıldı', sound: () => sounds.success() },
+      support:    { severity: 'medium'   as const, category: 'support' as const, title: '💬 TEST: Destek Mesajı', body: 'Bu bir test destek mesajıdır', sound: () => sounds.support() },
+    }[type];
+
+    addAlert({ severity: opts.severity, category: opts.category, title: opts.title, body: opts.body });
+    if (!muted && settings.alertSounds) {
+      try { opts.sound(); } catch {}
     }
   }
 
@@ -105,6 +120,30 @@ export default function Alerts() {
             </button>
           </div>
         )}
+
+        {/* Test panel */}
+        <div className="rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <p className="text-[10px] font-bold tracking-widest mb-2.5 flex items-center gap-1.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            <Zap size={10} /> ALARM TEST
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { type: 'withdrawal', label: '⚠️ Çekim', color: '#FF4757' },
+              { type: 'deposit',    label: '💰 Yatırım', color: '#00DC82' },
+              { type: 'user',       label: '🆕 Üye',     color: '#F0B90B' },
+              { type: 'support',    label: '💬 Destek',  color: '#3D7FFF' },
+            ] as const).map(({ type, label, color }) => (
+              <button
+                key={type}
+                onClick={() => fireTestAlert(type)}
+                className="py-2 rounded-xl text-xs font-bold active:scale-95 transition-transform"
+                style={{ background: `${color}18`, color, border: `1px solid ${color}33` }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Category pills */}
         <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
