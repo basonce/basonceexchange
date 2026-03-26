@@ -50,7 +50,7 @@ export const useStore = create<StoreState>()(
       alerts: [],
       settings: {
         muteFrom: '00:00',
-        muteTo: '07:00',
+        muteTo: '00:00',
         muteAll: false,
         depositThreshold: 100,
         largeTradeThreshold: 1000,

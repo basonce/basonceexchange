@@ -46,9 +46,20 @@ export default function Alerts() {
     return new Date(ts).toLocaleDateString('tr-TR');
   }
 
-  function toggleMute() {
-    if (!settings.muteAll) { stopAlarm(); }
-    updateSettings({ muteAll: !settings.muteAll });
+  // Banner "Aç" düğmesi: tüm mute kaynaklarını sıfırla
+  function handleForceUnmute() {
+    stopAlarm();
+    updateSettings({ muteAll: false, muteFrom: '00:00', muteTo: '00:00' });
+  }
+
+  // Üstteki zil ikonu: sadece muteAll'u toggle et
+  function handleBellToggle() {
+    if (settings.muteAll) {
+      updateSettings({ muteAll: false });
+    } else {
+      stopAlarm();
+      updateSettings({ muteAll: true });
+    }
   }
 
   return (
@@ -63,11 +74,11 @@ export default function Alerts() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={toggleMute}
+              onClick={handleBellToggle}
               className="p-2.5 rounded-xl transition-colors"
-              style={{ background: muted ? 'rgba(255,71,87,0.15)' : 'rgba(255,255,255,0.06)', border: muted ? '1px solid rgba(255,71,87,0.3)' : '1px solid transparent' }}
+              style={{ background: settings.muteAll ? 'rgba(255,71,87,0.15)' : 'rgba(255,255,255,0.06)', border: settings.muteAll ? '1px solid rgba(255,71,87,0.3)' : '1px solid transparent' }}
             >
-              {muted ? <BellOff size={16} color="#FF4757" /> : <Bell size={16} color="rgba(255,255,255,0.5)" />}
+              {settings.muteAll ? <BellOff size={16} color="#FF4757" /> : <Bell size={16} color="rgba(255,255,255,0.5)" />}
             </button>
             {unread > 0 && (
               <button onClick={markAllRead} className="px-3 py-2.5 rounded-xl text-xs font-semibold" style={{ background: 'rgba(240,185,11,0.1)', color: '#F0B90B', border: '1px solid rgba(240,185,11,0.2)' }}>
@@ -84,8 +95,14 @@ export default function Alerts() {
         {muted && (
           <div className="rounded-2xl px-4 py-3 flex items-center gap-3" style={{ background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.2)' }}>
             <BellOff size={16} color="#FF4757" />
-            <p className="text-sm" style={{ color: '#FF4757' }}>Sesler susturuldu — yeni alarmlar sessiz kaydediliyor</p>
-            <button onClick={toggleMute} className="ml-auto text-xs font-medium px-2.5 py-1 rounded-lg" style={{ background: 'rgba(255,71,87,0.2)', color: '#FF4757' }}>Aç</button>
+            <p className="text-sm flex-1" style={{ color: '#FF4757' }}>Sesler susturuldu</p>
+            <button
+              onClick={handleForceUnmute}
+              className="text-xs font-bold px-3 py-1.5 rounded-xl flex-none transition-all active:scale-95"
+              style={{ background: '#FF4757', color: 'white' }}
+            >
+              Aç
+            </button>
           </div>
         )}
 
