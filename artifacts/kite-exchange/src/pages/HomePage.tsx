@@ -15,7 +15,7 @@ const SupportModal = lazy(() => import('../components/SupportModal'));
 const AlphaEventsModal = lazy(() => import('../components/AlphaEventsModal'));
 const ReferralModal = lazy(() => import('../components/ReferralModal'));
 const EarnModal = lazy(() => import('../components/EarnModal'));
-const DepositUSDModal = lazy(() => import('../components/DepositUSDModal'));
+const DepositMethodModal = lazy(() => import('../components/DepositMethodModal'));
 const MoreModal = lazy(() => import('../components/MoreModal'));
 const PayModal = lazy(() => import('../components/PayModal'));
 const RewardsModal = lazy(() => import('../components/RewardsModal'));
@@ -448,7 +448,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       {showAlphaEvents && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><AlphaEventsModal isOpen={showAlphaEvents} onClose={() => setShowAlphaEvents(false)} /></Suspense>}
       {showReferral && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><ReferralModal isOpen={showReferral} onClose={() => setShowReferral(false)} /></Suspense>}
       {showEarn && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><EarnModal isOpen={showEarn} onClose={() => setShowEarn(false)} /></Suspense>}
-      {showDepositUSD && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><DepositUSDModal isOpen={showDepositUSD} onClose={() => setShowDepositUSD(false)} /></Suspense>}
+      {showDepositUSD && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><DepositMethodModal isOpen={showDepositUSD} onClose={() => setShowDepositUSD(false)} /></Suspense>}
       {showMore && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><MoreModal isOpen={showMore} onClose={() => setShowMore(false)} /></Suspense>}
       {showPay && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><PayModal isOpen={showPay} onClose={() => setShowPay(false)} /></Suspense>}
       {showRewards && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><RewardsModal isOpen={showRewards} onClose={() => setShowRewards(false)} /></Suspense>}

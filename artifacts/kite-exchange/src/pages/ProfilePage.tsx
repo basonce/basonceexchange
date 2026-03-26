@@ -4,7 +4,7 @@ import AuthModal from '../components/AuthModal';
 import SupportModal from '../components/SupportModal';
 import ReferralModal from '../components/ReferralModal';
 import EarnModal from '../components/EarnModal';
-import DepositUSDModal from '../components/DepositUSDModal';
+import DepositMethodModal from '../components/DepositMethodModal';
 import P2PModal from '../components/P2PModal';
 import PayModal from '../components/PayModal';
 import RewardsModal from '../components/RewardsModal';
@@ -700,7 +700,7 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
         onClose={() => setShowEarn(false)}
       />
 
-      <DepositUSDModal
+      <DepositMethodModal
         isOpen={showDepositUSD}
         onClose={() => setShowDepositUSD(false)}
       />
