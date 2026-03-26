@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Volume2, VolumeX, Bell, BellOff, Shield, Moon, Zap, X, RefreshCw } from 'lucide-react';
+import { Volume2, VolumeX, Bell, Shield, Zap } from 'lucide-react';
 import { useStore } from '../lib/store';
 import { requestNotificationPermission, stopAlarm, sounds } from '../lib/audio';
 import { isMuted } from '../lib/store';
@@ -86,35 +86,24 @@ export default function Settings() {
         {/* Sound */}
         <Section title="SES" icon={<Volume2 size={15} />}>
           <Toggle on={settings.alertSounds} onChange={v => { save({ alertSounds: v }); if (!v) stopAlarm(); }}
-            label="Alarm Sesleri" sub="Her yeni olay için sesli bildirim" />
-          <Toggle on={settings.muteAll} onChange={v => { save({ muteAll: v }); if (v) stopAlarm(); }}
-            label="Tüm Sesleri Sustur" sub="Geçici olarak tüm sesleri devre dışı bırak" />
-          <div className="pb-3 pt-2">
-            <button onClick={testSound} className="px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2"
-              style={{ background: 'rgba(240,185,11,0.1)', border: '1px solid rgba(240,185,11,0.2)', color: '#F0B90B' }}>
-              <Zap size={13} /> Ses Testi
+            label="Alarm Sesleri" sub="Yeni olay geldiğinde sesli bildirim çal" />
+          <Toggle on={!settings.muteAll} onChange={v => { save({ muteAll: !v }); if (!v) stopAlarm(); }}
+            label="Sesler Aktif" sub="Kapatırsan tüm sesler durur — açınca tekrar çalar" />
+          {/* Status chip */}
+          <div className="pb-3 pt-1 flex items-center gap-2">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{
+              background: muted ? 'rgba(255,71,87,0.08)' : 'rgba(0,220,130,0.08)',
+              border: `1px solid ${muted ? 'rgba(255,71,87,0.2)' : 'rgba(0,220,130,0.2)'}`,
+            }}>
+              {muted ? <VolumeX size={13} color="#FF4757" /> : <Volume2 size={13} color="#00DC82" />}
+              <span className="text-xs font-semibold" style={{ color: muted ? '#FF4757' : '#00DC82' }}>
+                {muted ? 'Sesler kapalı' : 'Sesler açık'}
+              </span>
+            </div>
+            <button onClick={testSound} className="px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5"
+              style={{ background: 'rgba(240,185,11,0.08)', border: '1px solid rgba(240,185,11,0.15)', color: '#F0B90B' }}>
+              <Zap size={12} /> Test
             </button>
-          </div>
-        </Section>
-
-        {/* Mute hours */}
-        <Section title="SESSİZ SAATLER" icon={<Moon size={15} />}>
-          <p className="text-xs py-2" style={{ color: 'rgba(255,255,255,0.35)' }}>Bu saat aralığında ses ve bildirim çıkmaz</p>
-          <div className="grid grid-cols-2 gap-3 pb-3">
-            {[['muteFrom', 'Başlangıç'], ['muteTo', 'Bitiş']].map(([key, lbl]) => (
-              <div key={key}>
-                <p className="text-xs mb-1.5" style={{ color: 'rgba(255,255,255,0.3)' }}>{lbl}</p>
-                <input type="time"
-                  value={settings[key as 'muteFrom' | 'muteTo']}
-                  onChange={e => save({ [key]: e.target.value })}
-                  className="w-full rounded-xl px-3 py-2.5 text-white text-sm outline-none"
-                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }} />
-              </div>
-            ))}
-          </div>
-          <div className="pb-3 flex items-center gap-2 text-xs" style={{ color: muted ? '#FF4757' : 'rgba(255,255,255,0.3)' }}>
-            {muted ? <VolumeX size={13} /> : <Volume2 size={13} />}
-            {muted ? 'Şu an sesler kapalı (sessiz saat)' : 'Şu an sesler açık'}
           </div>
         </Section>
 

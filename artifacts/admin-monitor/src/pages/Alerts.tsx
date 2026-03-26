@@ -46,13 +46,13 @@ export default function Alerts() {
     return new Date(ts).toLocaleDateString('tr-TR');
   }
 
-  // Banner "Aç" düğmesi: tüm mute kaynaklarını sıfırla
+  // Sesleri aç: muteAll = false
   function handleForceUnmute() {
     stopAlarm();
-    updateSettings({ muteAll: false, muteFrom: '00:00', muteTo: '00:00' });
+    updateSettings({ muteAll: false });
   }
 
-  // Üstteki zil ikonu: sadece muteAll'u toggle et
+  // Zil butonu: sesleri aç/kapat
   function handleBellToggle() {
     if (settings.muteAll) {
       updateSettings({ muteAll: false });

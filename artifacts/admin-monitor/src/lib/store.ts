@@ -86,14 +86,7 @@ export const useStore = create<StoreState>()(
   )
 );
 
+// Mute logic: sadece manuel buton kontrol eder, otomatik zaman yoktur.
 export function isMuted(settings: AppSettings): boolean {
-  if (settings.muteAll) return true;
-  const now = new Date();
-  const [fh, fm] = settings.muteFrom.split(':').map(Number);
-  const [th, tm] = settings.muteTo.split(':').map(Number);
-  const current = now.getHours() * 60 + now.getMinutes();
-  const from = fh * 60 + fm;
-  const to = th * 60 + tm;
-  if (from <= to) return current >= from && current < to;
-  return current >= from || current < to;
+  return settings.muteAll === true;
 }
