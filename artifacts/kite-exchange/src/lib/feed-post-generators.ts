@@ -15,6 +15,7 @@ import {
   GEOPOLITICAL_NEWS_CONTENT,
   POST_USERS_POOL,
 } from './feed-content-pools';
+import { BS_POSTS, BS_USERS_POOL, BS_MEME_IMAGES } from './feed-content-pools-v2';
 import { PriceCache } from './price-cache';
 
 // ---------------------------------------------------------
@@ -504,7 +505,84 @@ export function generateCryptoChartPost(pc: PriceCache): GeneratedPost {
 }
 
 // ---------------------------------------------------------
-// 7. generateRandomRichPost
+// 7. generateBinanceSquarePost — natural Binance Square style
+// ---------------------------------------------------------
+export function generateBinanceSquarePost(pc: PriceCache): GeneratedPost {
+  const postData = pick(BS_POSTS);
+  const user = pick(BS_USERS_POOL);
+
+  const primaryCoin = postData.tags[0] ?? 'BTC';
+  const coinPrice = pc.getBySymbol(primaryCoin)?.price ?? (FALLBACK_PRICES[primaryCoin] ?? 100);
+
+  // Pick image based on category
+  let imageUrl: string | null = null;
+  if (postData.hasImage && postData.imageCategory && postData.imageCategory !== 'none') {
+    if (postData.imageCategory === 'meme') {
+      imageUrl = pick(BS_MEME_IMAGES);
+    } else if (postData.imageCategory === 'chart') {
+      imageUrl = pick(CRYPTO_CHART_IMAGES);
+    } else if (postData.imageCategory === 'car') {
+      imageUrl = pick(WEALTH_FLEX_IMAGES.slice(0, 16));
+    } else if (postData.imageCategory === 'yacht') {
+      imageUrl = pick(WEALTH_FLEX_IMAGES.slice(17, 28));
+    } else if (postData.imageCategory === 'watch') {
+      imageUrl = pick(WEALTH_FLEX_IMAGES.slice(29, 37));
+    } else if (postData.imageCategory === 'villa' || postData.imageCategory === 'food' || postData.imageCategory === 'party') {
+      imageUrl = pick([...FOOD_LIFESTYLE_IMAGES, ...WEALTH_FLEX_IMAGES.slice(38, 62)]);
+    } else if (postData.imageCategory === 'jet') {
+      imageUrl = pick(WEALTH_FLEX_IMAGES.slice(17, 24));
+    } else {
+      imageUrl = pick(BS_MEME_IMAGES);
+    }
+  } else if (postData.hasImage) {
+    imageUrl = pick(BS_MEME_IMAGES);
+  }
+
+  const isBullish = postData.sentiment === 'bullish';
+  const entryPrice = parseFloat((coinPrice * randFloat(0.7, 0.95)).toFixed(4));
+  const exitPrice = isBullish
+    ? parseFloat((coinPrice * randFloat(1.05, 1.6)).toFixed(4))
+    : parseFloat((coinPrice * randFloat(0.6, 0.9)).toFixed(4));
+  const pnl = exitPrice - entryPrice;
+  const pnlPct = parseFloat(((pnl / entryPrice) * 100).toFixed(2));
+
+  const coinTags = buildCoinTags(pc, postData.tags);
+
+  // Realistic engagement — most posts modest, some viral
+  const isViral = Math.random() < 0.12;
+  const isHot = Math.random() < 0.25;
+
+  return {
+    id: genId(),
+    username: user.username,
+    avatar_url: user.avatar,
+    content: postData.content,
+    coin_symbol: primaryCoin,
+    trade_type: isBullish ? 'long' : 'short',
+    entry_price: entryPrice,
+    exit_price: exitPrice,
+    profit_loss: parseFloat(pnl.toFixed(2)),
+    profit_loss_percent: pnlPct,
+    leverage: pick([1, 1, 1, 2, 3, 5, 10]),
+    image_url: imageUrl,
+    image_url_2: null,
+    image_url_3: null,
+    post_type: 'bs_square',
+    likes_count: isViral ? randInt(2000, 25000) : isHot ? randInt(200, 2000) : randInt(3, 300),
+    comments_count: isViral ? randInt(100, 3000) : isHot ? randInt(10, 300) : randInt(0, 80),
+    shares_count: isViral ? randInt(50, 1000) : isHot ? randInt(5, 150) : randInt(0, 40),
+    view_count: isViral ? randInt(50000, 500000) : isHot ? randInt(5000, 80000) : randInt(100, 10000),
+    repost_count: isViral ? randInt(20, 500) : randInt(0, 50),
+    is_bullish: isBullish,
+    created_at: recentTimestamp(240),
+    coin_tags: coinTags,
+    sentiment: postData.sentiment,
+    extra_data: { verified: (user as any).verified ?? false },
+  };
+}
+
+// ---------------------------------------------------------
+// 8. generateRandomRichPost
 // ---------------------------------------------------------
 export function generateRandomRichPost(pc: PriceCache): GeneratedPost {
   const generators: Array<(pc: PriceCache) => GeneratedPost> = [
@@ -514,12 +592,13 @@ export function generateRandomRichPost(pc: PriceCache): GeneratedPost {
     generateTraderProfilePost,
     generateGeopoliticalPost,
     generateCryptoChartPost,
+    generateBinanceSquarePost,
+    generateBinanceSquarePost, // double weight — Binance Square style most common
+    generateBinanceSquarePost,
   ];
 
-  // Weight distribution:
-  // wealth_flex: 25%, breaking_news: 20%, lifestyle: 20%,
-  // trader_invite: 15%, geopolitical: 10%, chart_analysis: 10%
-  const weights = [25, 20, 20, 15, 10, 10];
+  // Weight distribution — BS style posts get 45% total weight
+  const weights = [15, 12, 12, 8, 8, 10, 15, 15, 15];
   const totalWeight = weights.reduce((a, b) => a + b, 0);
   let rand = Math.random() * totalWeight;
 

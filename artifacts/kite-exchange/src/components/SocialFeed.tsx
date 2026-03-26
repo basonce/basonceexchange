@@ -15,7 +15,7 @@ import CopyTradingCarousel from './CopyTradingCarousel';
 import BasonceNewsCard, { BASONCE_NEWS_POOL, type BasonceNewsItem } from './feed/BasonceNewsCard';
 import FeedGainersCard, { generateGainersRows } from './feed/FeedGainersCard';
 import FeedTraderProfileCard from './feed/FeedTraderProfileCard';
-import { generateRandomRichPost, type GeneratedPost } from '../lib/feed-post-generators';
+import { generateRandomRichPost, generateBinanceSquarePost, type GeneratedPost } from '../lib/feed-post-generators';
 
 function hashStringToInt(str: string): number {
   let hash = 0;
@@ -816,30 +816,39 @@ function buildInitialFeed(posts: SocialPost[], newsPool: LiveNewsItem[], pc?: Pr
     usernameLastPos.set(post.username, postPos);
     postPos++;
     items.push({ kind: 'post', data: post });
+
+    // Binance Square style post — every 2nd item in feed
+    if ((idx + 1) % 2 === 0 && pc) {
+      items.push({ kind: 'post', data: richPostToSocialPost(generateBinanceSquarePost(pc)) });
+    }
     if ((idx + 1) % 4 === 0) {
       items.push({ kind: 'basonce', data: makeBasonceItem(bi++) });
     }
-    if ((idx + 1) % 2 === 0 && pc) {
+    if ((idx + 1) % 3 === 0 && pc) {
       const sp = generateSinglePositionPost(pc);
       if (sp) items.push({ kind: 'post', data: sp });
     }
-    if ((idx + 1) % 3 === 0 && pc) {
+    // Another BS post every 5 items
+    if ((idx + 1) % 5 === 0 && pc) {
+      items.push({ kind: 'post', data: richPostToSocialPost(generateBinanceSquarePost(pc)) });
+    }
+    if ((idx + 1) % 6 === 0 && pc) {
       const mg = generateMultiGridPost(pc);
       if (mg) items.push({ kind: 'post', data: mg });
     }
-    if ((idx + 1) % 5 === 0 && pc) {
+    if ((idx + 1) % 7 === 0 && pc) {
       items.push({ kind: 'post', data: generateNewsPost(pc) });
     }
-    if ((idx + 1) % 8 === 0 && pc) {
+    if ((idx + 1) % 9 === 0 && pc) {
       items.push({ kind: 'post', data: generateMemePost(pc, pickImage) });
     }
-    if ((idx + 1) % 12 === 0) {
+    if ((idx + 1) % 14 === 0) {
       items.push({ kind: 'post', data: generateGiveawayPost() });
     }
-    if ((idx + 1) % 10 === 0 && pc) {
+    if ((idx + 1) % 11 === 0 && pc) {
       items.push({ kind: 'post', data: richPostToSocialPost(generateRandomRichPost(pc)) });
     }
-    if ((idx + 1) % 7 === 0 && newsPool.length > 0) {
+    if ((idx + 1) % 8 === 0 && newsPool.length > 0) {
       items.push({ kind: 'news', data: newsPool[ni % newsPool.length] });
       ni++;
     }
@@ -997,13 +1006,15 @@ export default function SocialFeed() {
       const r = Math.random();
       let newPost: SocialPost | null = null;
 
-      if (r < 0.40) {
+      if (r < 0.35) {
+        newPost = richPostToSocialPost(generateBinanceSquarePost(pc));
+      } else if (r < 0.55) {
         newPost = generateSinglePositionPost(pc);
-      } else if (r < 0.65) {
+      } else if (r < 0.68) {
         newPost = generateMultiGridPost(pc);
       } else if (r < 0.78) {
         newPost = generateMemePost(pc, () => pickDbImage());
-      } else if (r < 0.88) {
+      } else if (r < 0.87) {
         newPost = richPostToSocialPost(generateRandomRichPost(pc));
       } else {
         // Pick next unseen post from cycle - skip if same user posted same content recently
