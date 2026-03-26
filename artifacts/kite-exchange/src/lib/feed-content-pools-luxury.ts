@@ -2,6 +2,13 @@
 // feed-content-pools-luxury.ts
 // Luxury lifestyle social feed content — 8 categories
 // ============================================================
+import {
+  EXTRA_CARS_IMAGES, EXTRA_HOMES_IMAGES, EXTRA_JET_IMAGES, EXTRA_WATCHES_IMAGES,
+  EXTRA_YACHT_IMAGES, EXTRA_MONEY_IMAGES, EXTRA_TRAVEL_IMAGES, EXTRA_OFFICE_IMAGES,
+  EXTRA_CAR_CAPTIONS, EXTRA_HOME_CAPTIONS, EXTRA_JET_CAPTIONS, EXTRA_WATCH_CAPTIONS,
+  EXTRA_YACHT_CAPTIONS, EXTRA_MONEY_CAPTIONS, EXTRA_TRAVEL_CAPTIONS, EXTRA_OFFICE_CAPTIONS,
+  EXTRA_LUXURY_USERS,
+} from './feed-content-pools-mega';
 
 // ── CATEGORY 1: Super Sports Cars ────────────────────────────────────────────
 export const LUXURY_CARS_IMAGES: string[] = [
@@ -479,14 +486,14 @@ export interface LuxuryCategoryData {
 }
 
 export const LUXURY_CATEGORIES: Record<LuxuryCategory, LuxuryCategoryData> = {
-  car: { images: LUXURY_CARS_IMAGES, captions: LUXURY_CARS_CAPTIONS },
-  home: { images: LUXURY_HOMES_IMAGES, captions: LUXURY_HOMES_CAPTIONS },
-  jet: { images: PRIVATE_JET_IMAGES, captions: PRIVATE_JET_CAPTIONS },
-  watch: { images: LUXURY_WATCHES_IMAGES, captions: LUXURY_WATCHES_CAPTIONS },
-  yacht: { images: SUPER_YACHT_IMAGES, captions: SUPER_YACHT_CAPTIONS },
-  money: { images: WEALTH_MONEY_IMAGES, captions: WEALTH_MONEY_CAPTIONS },
-  travel: { images: LUXURY_TRAVEL_IMAGES, captions: LUXURY_TRAVEL_CAPTIONS },
-  office: { images: TRADING_OFFICE_IMAGES, captions: TRADING_OFFICE_CAPTIONS },
+  car:    { images: [...LUXURY_CARS_IMAGES,    ...EXTRA_CARS_IMAGES],    captions: [...LUXURY_CARS_CAPTIONS,    ...EXTRA_CAR_CAPTIONS] },
+  home:   { images: [...LUXURY_HOMES_IMAGES,   ...EXTRA_HOMES_IMAGES],   captions: [...LUXURY_HOMES_CAPTIONS,   ...EXTRA_HOME_CAPTIONS] },
+  jet:    { images: [...PRIVATE_JET_IMAGES,    ...EXTRA_JET_IMAGES],     captions: [...PRIVATE_JET_CAPTIONS,    ...EXTRA_JET_CAPTIONS] },
+  watch:  { images: [...LUXURY_WATCHES_IMAGES, ...EXTRA_WATCHES_IMAGES], captions: [...LUXURY_WATCHES_CAPTIONS, ...EXTRA_WATCH_CAPTIONS] },
+  yacht:  { images: [...SUPER_YACHT_IMAGES,    ...EXTRA_YACHT_IMAGES],   captions: [...SUPER_YACHT_CAPTIONS,    ...EXTRA_YACHT_CAPTIONS] },
+  money:  { images: [...WEALTH_MONEY_IMAGES,   ...EXTRA_MONEY_IMAGES],   captions: [...WEALTH_MONEY_CAPTIONS,   ...EXTRA_MONEY_CAPTIONS] },
+  travel: { images: [...LUXURY_TRAVEL_IMAGES,  ...EXTRA_TRAVEL_IMAGES],  captions: [...LUXURY_TRAVEL_CAPTIONS,  ...EXTRA_TRAVEL_CAPTIONS] },
+  office: { images: [...TRADING_OFFICE_IMAGES, ...EXTRA_OFFICE_IMAGES],  captions: [...TRADING_OFFICE_CAPTIONS, ...EXTRA_OFFICE_CAPTIONS] },
 };
 
 export const LUXURY_CATEGORY_KEYS: LuxuryCategory[] = [
@@ -501,7 +508,7 @@ export const LUXURY_CATEGORY_KEYS: LuxuryCategory[] = [
 ];
 
 // ── Luxury lifestyle user profiles ───────────────────────────────────────────
-export const LUXURY_USERS_POOL = [
+export const LUXURY_USERS_POOL_BASE = [
   { username: 'MaxWealthTrader', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=MaxWealth&backgroundColor=b6e3f4' },
   { username: 'LexiCryptoQueen', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=LexiCQ&backgroundColor=ffd5dc' },
   { username: 'AlphaRicoTrader', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=AlphaRico&backgroundColor=c0aede' },
@@ -553,3 +560,6 @@ export const LUXURY_USERS_POOL = [
   { username: 'GoldVaultGrowth', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=GoldVG&backgroundColor=ffecd2' },
   { username: 'InfinityPoolInvestor', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=InfPool&backgroundColor=b6e3f4' },
 ];
+
+// Combined pool: 50 base + 150 extra = 200 unique users
+export const LUXURY_USERS_POOL = [...LUXURY_USERS_POOL_BASE, ...EXTRA_LUXURY_USERS];

@@ -18,6 +18,7 @@ import {
 import { BS_POSTS, BS_USERS_POOL, BS_MEME_IMAGES } from './feed-content-pools-v2';
 import { BS_POSTS_POOL_V3, BS_USERS_POOL_V3, CAR_IMAGE_URLS } from './feed-content-pools-v3';
 import { LUXURY_CATEGORIES, LUXURY_CATEGORY_KEYS, LUXURY_USERS_POOL } from './feed-content-pools-luxury';
+import { pickFreshImage } from './feed-content-pools-mega';
 import { PriceCache } from './price-cache';
 import { TRADFI_ASSETS } from './tradfi-data';
 import { getCachedTradFiPrice, startTradFiPriceUpdater } from './tradfi-price-service';
@@ -676,12 +677,11 @@ export function generateLuxuryLifestylePost(pc: PriceCache): GeneratedPost {
   const user = LUXURY_USERS_POOL[Math.floor(Math.random() * LUXURY_USERS_POOL.length)];
   const caption = category.captions[Math.floor(Math.random() * category.captions.length)];
 
-  // Pick 1, 2, or 3 images from the category
+  // Pick 1, 2, or 3 FRESH (non-repeating) images from the category
   const imageCount = Math.random() < 0.4 ? 1 : Math.random() < 0.6 ? 2 : 3;
-  const shuffled = [...category.images].sort(() => Math.random() - 0.5);
-  const img1 = shuffled[0] ?? null;
-  const img2 = imageCount >= 2 ? (shuffled[1] ?? null) : null;
-  const img3 = imageCount >= 3 ? (shuffled[2] ?? null) : null;
+  const img1 = pickFreshImage(category.images);
+  const img2 = imageCount >= 2 ? pickFreshImage(category.images) : null;
+  const img3 = imageCount >= 3 ? pickFreshImage(category.images) : null;
 
   // Merge title + desc for content
   const content = `${caption.title}\n\n${caption.desc}`;
