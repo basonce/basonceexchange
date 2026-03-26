@@ -170,7 +170,7 @@ export const BS_POSTS: BinanceSquarePost[] = [
   { content: "Crypto paid for my new Lamborghini 🏎️💛 Started with $5,000 in 2021. Now look at where we are $BTC $ETH", tags: ['BTC', 'ETH'], sentiment: 'bullish', hasImage: true, imageCategory: 'car' },
   { content: "Added more $SOL at $145. Everyone called me crazy. Now at $210 😅 Who's crazy now", tags: ['SOL', 'ETH'], sentiment: 'bullish', hasImage: false },
   { content: "My first $100K month in crypto 🏆 $ETH futures did 80% of the work. Consistency wins", tags: ['ETH', 'BTC'], sentiment: 'bullish', hasImage: true, imageCategory: 'chart' },
-  { content: "Not financial advice but $PEPE at this level is CRIMINAL 🐸🔥 This thing is going to 10x", tags: ['PEPE', 'BONK'], sentiment: 'bullish', hasImage: false },
+  { content: "Not financial advice but $BONK at this level is CRIMINAL 🐶🔥 This thing is going to 10x", tags: ['BONK', 'WIF'], sentiment: 'bullish', hasImage: false },
   { content: "Quit my 9-5 exactly 14 months ago. Never looked back 🙌 $BTC $ETH income > corporate salary 10x", tags: ['BTC', 'ETH'], sentiment: 'bullish', hasImage: true, imageCategory: 'villa' },
 
   // === MARKET PREDICTIONS ===
@@ -183,7 +183,7 @@ export const BS_POSTS: BinanceSquarePost[] = [
   { content: "$XRP legal clarity = institutional floodgates open 💧 Price action is just getting started", tags: ['XRP'], sentiment: 'bullish', hasImage: false },
   { content: "$DOGE is quietly setting up for another run 🐕 Volume picking up. Elon hasn't tweeted yet... 👀", tags: ['DOGE', 'SHIB'], sentiment: 'bullish', hasImage: false },
   { content: "My $BTC price target for this cycle: $180,000 📊 Timeline: Q1 2026. You can quote me on this", tags: ['BTC'], sentiment: 'bullish', hasImage: true, imageCategory: 'chart' },
-  { content: "Meme coins in this cycle are going to make millionaires faster than anything in history 🐸💰 $WIF $BONK $PEPE", tags: ['WIF', 'BONK', 'PEPE'], sentiment: 'bullish', hasImage: false },
+  { content: "Meme coins in this cycle are going to make millionaires faster than anything in history 🐸💰 $WIF $BONK $FLOKI", tags: ['WIF', 'BONK', 'FLOKI'], sentiment: 'bullish', hasImage: false },
   { content: "The next 90 days will separate the weak hands from the diamond hands 💎 $BTC $ETH be patient", tags: ['BTC', 'ETH'], sentiment: 'neutral', hasImage: false },
   { content: "$AVAX ecosystem is criminally undervalued rn 🔥 DeFi TVL growing 40% monthly. Not priced in yet", tags: ['AVAX'], sentiment: 'bullish', hasImage: false },
   { content: "Everyone talking about $BTC but quietly $BNB is the most underpriced blue chip right now 👀", tags: ['BNB', 'BTC'], sentiment: 'bullish', hasImage: false },
@@ -201,10 +201,10 @@ export const BS_POSTS: BinanceSquarePost[] = [
   { content: "2021 bull run 🐂 RUNNING\n2026 bull run 🐂 walking slowly but surely\n\n$TRUMP $BANANAS31 $DEGO 😏", tags: ['TRUMP', 'BANANAS31'], sentiment: 'neutral', hasImage: true, imageCategory: 'meme' },
   { content: "Me explaining to my parents why I put our savings in $DOGE 💀💀💀\nThem: what did you do\nMe: generational wealth 😅", tags: ['DOGE', 'SHIB'], sentiment: 'neutral', hasImage: false },
   { content: "My portfolio in Jan: 📈📈📈\nMy portfolio in Feb: 📉📉📉\nMy portfolio in March: 🚀🚀🚀\n$BTC never boring", tags: ['BTC', 'ETH'], sentiment: 'neutral', hasImage: false },
-  { content: "Told my boss I was sick today 🤒 Was actually watching $PEPE charts all day 🐸 Worth it", tags: ['PEPE', 'BONK'], sentiment: 'bullish', hasImage: false },
+  { content: "Told my boss I was sick today 🤒 Was actually watching $BONK charts all day 🐶 Worth it", tags: ['BONK', 'WIF'], sentiment: 'bullish', hasImage: false },
   { content: "Nobody:\nAbsolutely nobody:\nMe at 3am: 'just one more $BTC chart to check' 📊😭", tags: ['BTC'], sentiment: 'neutral', hasImage: false },
   { content: "The 5 stages of crypto grief:\n1. Denial\n2. Anger\n3. Bargaining\n4. Depression\n5. Buying more 💎\n\n$BTC $ETH", tags: ['BTC', 'ETH'], sentiment: 'bullish', hasImage: false },
-  { content: "Doctor: you have 6 months to live\nMe: I'll put it all in $PEPE\nDoctor: make it 12 months 🐸💀", tags: ['PEPE'], sentiment: 'neutral', hasImage: false },
+  { content: "Doctor: you have 6 months to live\nMe: I'll put it all in $BONK\nDoctor: make it 12 months 🐶💀", tags: ['BONK'], sentiment: 'neutral', hasImage: false },
   { content: "The face I make when $BTC drops 5% and I just DCA'd last week 😭📉\n\nBut also: free discount 🛒", tags: ['BTC', 'ETH'], sentiment: 'neutral', hasImage: false },
   { content: "Imagine not buying $SOL under $50 when everyone said it was dead 💀 Some lessons cost a lot", tags: ['SOL'], sentiment: 'bullish', hasImage: false },
   { content: "Chart says buy\nWallet says buy\nHeart says buy\nMom says 'it's a scam'\n\nStill buying $BTC 🫡", tags: ['BTC', 'ETH'], sentiment: 'bullish', hasImage: false },
@@ -259,7 +259,7 @@ export const BS_POSTS: BinanceSquarePost[] = [
   { content: "Never invest what you can't afford to lose 🛡️ But also: never NOT invest in $BTC at these levels 😅", tags: ['BTC', 'ETH'], sentiment: 'neutral', hasImage: false },
 
   // === SPECIFIC COIN HYPE ===
-  { content: "$WIF at $2 is a gift 🎁 Same energy as $DOGE at $0.003. Meme coin supercycle is REAL 🐕🔥", tags: ['WIF', 'BONK', 'PEPE'], sentiment: 'bullish', hasImage: false },
+  { content: "$WIF at $2 is a gift 🎁 Same energy as $DOGE at $0.003. Meme coin supercycle is REAL 🐕🔥", tags: ['WIF', 'BONK', 'FLOKI'], sentiment: 'bullish', hasImage: false },
   { content: "$FLOKI is the most undervalued memecoin in crypto 🔥 Utility + community + meme = unstoppable 🚀", tags: ['FLOKI', 'DOGE'], sentiment: 'bullish', hasImage: false },
   { content: "$TRX just silently does its thing 👀 Justin Sun is playing 4D chess while everyone watches $BTC", tags: ['TRX', 'BNB'], sentiment: 'bullish', hasImage: false },
   { content: "$NEAR protocol Q1 stats are absolutely insane 📊 Transactions up 340%. Price hasn't moved yet 👀", tags: ['NEAR', 'SOL'], sentiment: 'bullish', hasImage: true, imageCategory: 'chart' },
@@ -347,7 +347,7 @@ export const BS_POSTS: BinanceSquarePost[] = [
   { content: "LFG 🔥🔥🔥 $ETH breaking out!!!", tags: ['ETH', 'BTC'], sentiment: 'bullish', hasImage: false },
   { content: "WAGMI 💎🙌 $BTC $ETH $SOL all time highs incoming", tags: ['BTC', 'ETH', 'SOL'], sentiment: 'bullish', hasImage: false },
   { content: "Not selling. Ever. $BTC 🫡", tags: ['BTC'], sentiment: 'bullish', hasImage: false },
-  { content: "$PEPE to 0.01 🐸🔥 Printing season", tags: ['PEPE', 'BONK', 'WIF'], sentiment: 'bullish', hasImage: false },
+  { content: "$BONK to 0.01 🐶🔥 Printing season", tags: ['BONK', 'WIF', 'FLOKI'], sentiment: 'bullish', hasImage: false },
   { content: "We're so early 🌅 $BTC $ETH in 2025 = internet stocks in 1997", tags: ['BTC', 'ETH'], sentiment: 'bullish', hasImage: false },
   { content: "Bears got wrecked 💀 $BTC closes above $92K weekly. See you at $120K", tags: ['BTC', 'ETH'], sentiment: 'bullish', hasImage: false },
   { content: "$INJ 🔥 $SUI 🔥 $APT 🔥 Altcoin season go brrrrr", tags: ['INJ', 'SUI', 'APT'], sentiment: 'bullish', hasImage: false },
@@ -369,7 +369,7 @@ export const BS_POSTS: BinanceSquarePost[] = [
   // === GIGGLE ===
   { content: "7D Asset Change +459,45% 🔥🔥🔥 $GIGGLE still going strong!\nMissed it? The next one is already loading 👀", tags: ['GIGGLE', 'BTC'], sentiment: 'bullish', hasImage: false },
   { content: "$GIGGLE doing exactly what I said it would 🚀 Entry $0.0012 → now $0.0058. Let it run 💎", tags: ['GIGGLE', 'SOL'], sentiment: 'bullish', hasImage: true, imageCategory: 'chart' },
-  { content: "Everyone laughed at $GIGGLE 😂 Now nobody's laughing. +890% this month. The joke's on the doubters 🤡🔥", tags: ['GIGGLE', 'PEPE'], sentiment: 'bullish', hasImage: false },
+  { content: "Everyone laughed at $GIGGLE 😂 Now nobody's laughing. +890% this month. The joke's on the doubters 🤡🔥", tags: ['GIGGLE', 'BONK'], sentiment: 'bullish', hasImage: false },
   { content: "$GIGGLE total supply: 993,022 🔢 Ultra low supply + meme energy + Binance listing = 🚀🚀🚀", tags: ['GIGGLE', 'BTC'], sentiment: 'bullish', hasImage: false },
   { content: "Platform Concentration 14.45 on $GIGGLE is chef's kiss 👨‍🍳 Whale accumulation pattern confirmed", tags: ['GIGGLE', 'DOGE'], sentiment: 'bullish', hasImage: true, imageCategory: 'chart' },
 
@@ -389,7 +389,7 @@ export const BS_POSTS: BinanceSquarePost[] = [
   // === TRUMP ===
   { content: "$TRUMP coin just broke monthly resistance ‼️ Political meme coins have their own cycle. +42,95 this week 🔥", tags: ['TRUMP', 'DOGE'], sentiment: 'bullish', hasImage: true, imageCategory: 'chart' },
   { content: "The ultimate meme coin:\nName: $TRUMP\nBacking: presidential vibes\nUpside: unlimited 🇺🇸🔥", tags: ['TRUMP', 'BANANAS31'], sentiment: 'bullish', hasImage: false },
-  { content: "$TRUMP holders been eating this week 🍗💰 Political narrative = biggest pump catalyst in crypto 2025", tags: ['TRUMP', 'DOGE', 'PEPE'], sentiment: 'bullish', hasImage: false },
+  { content: "$TRUMP holders been eating this week 🍗💰 Political narrative = biggest pump catalyst in crypto 2025", tags: ['TRUMP', 'DOGE', 'SHIB'], sentiment: 'bullish', hasImage: false },
   { content: "Bull run ❌\nBear run ✅\n😏\n$TRUMP\n$BANANAS31\n$DEGO…", tags: ['TRUMP', 'BANANAS31', 'DEGO'], sentiment: 'bearish', hasImage: true, imageCategory: 'meme' },
   { content: "Just in: $TRUMP volume up 340% in 24h 📊 Politics and crypto are now inseparable. Strap in 🎢", tags: ['TRUMP', 'DOGE'], sentiment: 'bullish', hasImage: false },
 
@@ -409,12 +409,12 @@ export const BS_POSTS: BinanceSquarePost[] = [
 
   // === MORE DIVERSE COINS — MEME PACK ===
   { content: "$WIF wen moon? 🐕 Now. That's when 🌕 Solana meme season just getting started frens", tags: ['WIF', 'BONK', 'SOL'], sentiment: 'bullish', hasImage: false },
-  { content: "Bought $BONK at $0.000008 and never looked back 🐶🔥 Now sitting pretty with 2100% gains. WAGMI", tags: ['BONK', 'WIF', 'PEPE'], sentiment: 'bullish', hasImage: false },
+  { content: "Bought $BONK at $0.000008 and never looked back 🐶🔥 Now sitting pretty with 2100% gains. WAGMI", tags: ['BONK', 'WIF', 'FLOKI'], sentiment: 'bullish', hasImage: false },
   { content: "$FLOKI just partnered with a Premier League club ⚽🔥 Sports + crypto = mass adoption. Loading up more", tags: ['FLOKI', 'DOGE'], sentiment: 'bullish', hasImage: false },
-  { content: "My meme portfolio this week 😂\n$PEPE: +34%\n$BONK: +28%\n$WIF: +51%\n$FLOKI: +19%\nAll green. We eating 🍽️", tags: ['PEPE', 'BONK', 'WIF', 'FLOKI'], sentiment: 'bullish', hasImage: false },
+  { content: "My meme portfolio this week 😂\n$BONK: +42%\n$BONK: +28%\n$WIF: +51%\n$FLOKI: +19%\nAll green. We eating 🍽️", tags: ['BONK', 'WIF', 'WIF', 'FLOKI'], sentiment: 'bullish', hasImage: false },
   { content: "$SHIB army is still alive 🐕🔥 L2 network launch + token burn = supply shock incoming. Don't sleep on Shiba", tags: ['SHIB', 'DOGE', 'FLOKI'], sentiment: 'bullish', hasImage: false },
   { content: "The $DOGE + Elon combo will happen again 🐶⚡ History rhymes. When Elon tweets, you want to already be in", tags: ['DOGE', 'SHIB'], sentiment: 'bullish', hasImage: false },
-  { content: "$TURBO meme coin absolutely sending it right now 🔥 Community is insane. Vol up 400% 24h", tags: ['TURBO', 'PEPE', 'WIF'], sentiment: 'bullish', hasImage: false },
+  { content: "$TURBO meme coin absolutely sending it right now 🔥 Community is insane. Vol up 400% 24h", tags: ['TURBO', 'BONK', 'WIF'], sentiment: 'bullish', hasImage: false },
   { content: "BABYDOGE just burned 1 quadrillion tokens 🔥 Supply shock is real. Chart about to break out 📈", tags: ['DOGE', 'SHIB', 'FLOKI'], sentiment: 'bullish', hasImage: false },
 
   // === LAYER 1 / LAYER 2 ALTCOINS ===
@@ -461,7 +461,7 @@ export const BS_POSTS: BinanceSquarePost[] = [
   { content: "$ETHFI ether.fi liquid restaking TVL: $4.8B 🔐 Restaking yield on top of staking yield = money printer", tags: ['ETH', 'BTC'], sentiment: 'bullish', hasImage: false },
   { content: "$MEW meme coin on Solana is the next $BONK story 🐱🚀 Early stage, clean chart, growing community. NFA", tags: ['SOL', 'BONK', 'WIF'], sentiment: 'bullish', hasImage: false },
   { content: "$POPCAT Solana's newest meme sensation 🐱🔥 From 0 to $1.2B mcap in 60 days. Meme season is undefeated", tags: ['SOL', 'WIF', 'BONK'], sentiment: 'bullish', hasImage: false },
-  { content: "$MOTHER IGGY's coin actually building real utility 🎤🔥 Celebrity coin with substance? That's the rare one", tags: ['SOL', 'PEPE', 'WIF'], sentiment: 'bullish', hasImage: false },
+  { content: "$MOTHER IGGY's coin actually building real utility 🎤🔥 Celebrity coin with substance? That's the rare one", tags: ['SOL', 'BONK', 'WIF'], sentiment: 'bullish', hasImage: false },
   { content: "$ZEUS on Solana flying under radar 🏛️ Zeus network enabling BTC on Solana natively. Game changer for both chains", tags: ['SOL', 'BTC'], sentiment: 'bullish', hasImage: false },
   { content: "$DRIFT Solana perps DEX daily volume surpassing $500M 🌊 When CEXs list this token... 💥", tags: ['SOL', 'ETH'], sentiment: 'bullish', hasImage: false },
   { content: "$IO.NET decentralized GPU compute network 🖥️ Selling idle GPU time like Airbnb for compute. Web3 disrupts AWS", tags: ['ETH', 'SOL', 'FET'], sentiment: 'bullish', hasImage: false },

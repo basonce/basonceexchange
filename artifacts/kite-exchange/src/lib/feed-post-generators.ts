@@ -131,7 +131,6 @@ const FALLBACK_PRICES: Record<string, number> = {
   APT: 9.5,
   TON: 5.8,
   WIF: 2.1,
-  PEPE: 0.000012,
   BONK: 0.0000035,
   TRUMP: 14,
   FLOKI: 0.00022,

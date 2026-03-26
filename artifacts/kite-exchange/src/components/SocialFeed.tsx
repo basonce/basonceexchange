@@ -300,7 +300,7 @@ const MEME_CONTENT_POOL: Array<{ content: string; tags: string[]; sentiment: 'bu
   { content: 'Charter yacht in Croatia. $WIF $BONK memecoins funded this trip honestly.', tags: ['WIF', 'BONK'], sentiment: 'bullish' },
   { content: 'Island hopping Greece. $SOL $TIA covering every expense without touching principal.', tags: ['SOL', 'TIA'], sentiment: 'bullish' },
   { content: 'New Lamborghini Urus. $APT $ARB gains. Altseason is real. Period.', tags: ['APT', 'ARB'], sentiment: 'bullish' },
-  { content: 'Woke up to a $PEPE 300% candle. Life is beautiful from the yacht.', tags: ['PEPE', 'ETH'], sentiment: 'bullish' },
+  { content: 'Woke up to a $BONK 300% candle. Life is beautiful from the yacht.', tags: ['BONK', 'ETH'], sentiment: 'bullish' },
   { content: 'Third bull run. Third car upgrade. Pattern recognition is a skill. $BTC $SOL', tags: ['BTC', 'SOL'], sentiment: 'bullish' },
   { content: '🚨 Trump just said "Bitcoin is the greatest financial invention in history." $BTC 🏛️🔥', tags: ['BTC', 'ETH'], sentiment: 'bullish' },
   { content: 'Bull run ❌\nBear run ✅\n😅\n$TRUMP $DOGE $SHIB\nHistory repeating itself rn.', tags: ['TRUMP', 'DOGE', 'SHIB'], sentiment: 'bearish' },
@@ -312,7 +312,7 @@ const MEME_CONTENT_POOL: Array<{ content: string; tags: string[]; sentiment: 'bu
   { content: 'Chart analysis: same setup as 2021. Different players. Same result. $BTC $SOL loading 🎯', tags: ['BTC', 'SOL'], sentiment: 'bullish' },
   { content: '⚡️ SEC drops ALL crypto enforcement actions. New era begins. $ETH $XRP $SOL pumping as we speak.', tags: ['ETH', 'XRP', 'SOL'], sentiment: 'bullish' },
   { content: 'Russia & China just settled $50B trade in Bitcoin. Sovereign adoption is here. $BTC 🌍', tags: ['BTC', 'XRP'], sentiment: 'bullish' },
-  { content: 'They laughed when I bought $PEPE at launch. They\'re not laughing now. Quiet money moves. 🐸', tags: ['PEPE', 'WIF', 'BONK'], sentiment: 'bullish' },
+  { content: 'They laughed when I bought $WIF at launch. They\'re not laughing now. Quiet money moves. 🐕', tags: ['WIF', 'BONK', 'SOL'], sentiment: 'bullish' },
   { content: 'How to read the most popular candlestick patterns and why most traders get them wrong 📊 $BTC $ETH', tags: ['BTC', 'ETH'], sentiment: 'neutral' },
   { content: 'War in Ukraine, war in Middle East, trade war with China. And $BTC is UP. Coincidence? 🤔', tags: ['BTC', 'SOL'], sentiment: 'bullish' },
   { content: 'Crypto for beginners: Earn $3 to $9 daily even without investment. Here\'s how 👇 $XRP $BTC $DOGE', tags: ['XRP', 'BTC', 'DOGE'], sentiment: 'bullish' },
@@ -572,7 +572,7 @@ const SINGLE_POS_CAPTIONS = [
 const SINGLE_POS_COINS = [
   'BTC','ETH','SOL','BNB','XRP','AVAX','DOGE','LINK','DOT','ADA',
   'TON','TRX','NEAR','OP','ARB','INJ','SUI','APT','ATOM','WLD',
-  'WIF','BONK','SEI','TIA','FTM','LTC','ONDO','PEPE','SHIB','FLOKI',
+  'WIF','BONK','SEI','TIA','FTM','LTC','ONDO','SHIB','FLOKI','TRUMP',
 ];
 
 function generateSinglePositionPost(pc: PriceCache): SocialPost | null {
@@ -801,6 +801,15 @@ function makeBasonceItem(idx: number): BasonceNewsItem {
   };
 }
 
+const FEED_BANNED_COINS = new Set(['PEPE', 'PEPEUSDT']);
+
+function filterBannedPost(post: SocialPost): boolean {
+  if (!post) return false;
+  if (post.coin_symbol && FEED_BANNED_COINS.has(post.coin_symbol.toUpperCase())) return false;
+  if (post.coin_tags && post.coin_tags.some(t => FEED_BANNED_COINS.has(t.symbol.toUpperCase()))) return false;
+  return true;
+}
+
 function buildInitialFeed(posts: SocialPost[], newsPool: LiveNewsItem[], pc?: PriceCache, pickImage?: () => string | null): FeedItem[] {
   const items: FeedItem[] = [];
   let ni = 0;
@@ -819,34 +828,39 @@ function buildInitialFeed(posts: SocialPost[], newsPool: LiveNewsItem[], pc?: Pr
 
     // Binance Square style post — every 2nd item in feed
     if ((idx + 1) % 2 === 0 && pc) {
-      items.push({ kind: 'post', data: richPostToSocialPost(generateBinanceSquarePost(pc)) });
+      const bsPost = richPostToSocialPost(generateBinanceSquarePost(pc));
+      if (filterBannedPost(bsPost)) items.push({ kind: 'post', data: bsPost });
     }
     if ((idx + 1) % 4 === 0) {
       items.push({ kind: 'basonce', data: makeBasonceItem(bi++) });
     }
     if ((idx + 1) % 3 === 0 && pc) {
       const sp = generateSinglePositionPost(pc);
-      if (sp) items.push({ kind: 'post', data: sp });
+      if (sp && filterBannedPost(sp)) items.push({ kind: 'post', data: sp });
     }
     // Another BS post every 5 items
     if ((idx + 1) % 5 === 0 && pc) {
-      items.push({ kind: 'post', data: richPostToSocialPost(generateBinanceSquarePost(pc)) });
+      const bsPost2 = richPostToSocialPost(generateBinanceSquarePost(pc));
+      if (filterBannedPost(bsPost2)) items.push({ kind: 'post', data: bsPost2 });
     }
     if ((idx + 1) % 6 === 0 && pc) {
       const mg = generateMultiGridPost(pc);
-      if (mg) items.push({ kind: 'post', data: mg });
+      if (mg && filterBannedPost(mg)) items.push({ kind: 'post', data: mg });
     }
     if ((idx + 1) % 7 === 0 && pc) {
-      items.push({ kind: 'post', data: generateNewsPost(pc) });
+      const np = generateNewsPost(pc);
+      if (filterBannedPost(np)) items.push({ kind: 'post', data: np });
     }
     if ((idx + 1) % 9 === 0 && pc) {
-      items.push({ kind: 'post', data: generateMemePost(pc, pickImage) });
+      const mp = generateMemePost(pc, pickImage);
+      if (filterBannedPost(mp)) items.push({ kind: 'post', data: mp });
     }
     if ((idx + 1) % 14 === 0) {
       items.push({ kind: 'post', data: generateGiveawayPost() });
     }
     if ((idx + 1) % 11 === 0 && pc) {
-      items.push({ kind: 'post', data: richPostToSocialPost(generateRandomRichPost(pc)) });
+      const rp = richPostToSocialPost(generateRandomRichPost(pc));
+      if (filterBannedPost(rp)) items.push({ kind: 'post', data: rp });
     }
     if ((idx + 1) % 8 === 0 && newsPool.length > 0) {
       items.push({ kind: 'news', data: newsPool[ni % newsPool.length] });
@@ -1007,15 +1021,20 @@ export default function SocialFeed() {
       let newPost: SocialPost | null = null;
 
       if (r < 0.35) {
-        newPost = richPostToSocialPost(generateBinanceSquarePost(pc));
+        const p = richPostToSocialPost(generateBinanceSquarePost(pc));
+        newPost = filterBannedPost(p) ? p : richPostToSocialPost(generateBinanceSquarePost(pc));
       } else if (r < 0.55) {
-        newPost = generateSinglePositionPost(pc);
+        const p = generateSinglePositionPost(pc);
+        newPost = p && filterBannedPost(p) ? p : null;
       } else if (r < 0.68) {
-        newPost = generateMultiGridPost(pc);
+        const p = generateMultiGridPost(pc);
+        newPost = p && filterBannedPost(p) ? p : null;
       } else if (r < 0.78) {
-        newPost = generateMemePost(pc, () => pickDbImage());
+        const p = generateMemePost(pc, () => pickDbImage());
+        newPost = filterBannedPost(p) ? p : null;
       } else if (r < 0.87) {
-        newPost = richPostToSocialPost(generateRandomRichPost(pc));
+        const p = richPostToSocialPost(generateRandomRichPost(pc));
+        newPost = filterBannedPost(p) ? p : null;
       } else {
         // Pick next unseen post from cycle - skip if same user posted same content recently
         let cycleIdx = postCycleIndexRef.current;
@@ -1127,7 +1146,10 @@ export default function SocialFeed() {
     };
   }, []);
 
+  const BANNED_COINS = new Set(['PEPE', 'PEPEUSDT']);
+
   const isValidTradingPost = (post: SocialPost): boolean => {
+    if (post.coin_symbol && BANNED_COINS.has(post.coin_symbol.toUpperCase())) return false;
     const hasPosition = post.profit_loss_percent !== 0 && post.leverage > 1 && post.coin_symbol;
     const hasMultiPos = post.post_type === 'multi_position' && post.sub_positions && post.sub_positions.length > 0;
     const isMemeOrNews = (post.post_type === 'meme' || post.post_type === 'news') && !!post.content && !!post.coin_symbol;
