@@ -365,4 +365,149 @@ export const BS_POSTS: BinanceSquarePost[] = [
   { content: "Trust the process:\n2022: -70% portfolio 📉\n2023: -10% portfolio 😐\n2024: +280% portfolio 📈\n2025: ??? 🚀\n\n$BTC $ETH", tags: ['BTC', 'ETH'], sentiment: 'bullish', hasImage: false },
   { content: "Just hit $500K portfolio 🎊 Started with $8,000 in 2021. $BTC $ETH $SOL carried me here. Thank you crypto fam", tags: ['BTC', 'ETH', 'SOL'], sentiment: 'bullish', hasImage: true, imageCategory: 'party' },
   { content: "Crypto is the only place where being early feels painful but being late feels worse 😅 $BTC $ETH just buy", tags: ['BTC', 'ETH'], sentiment: 'bullish', hasImage: false },
+
+  // === GIGGLE ===
+  { content: "7D Asset Change +459,45% 🔥🔥🔥 $GIGGLE still going strong!\nMissed it? The next one is already loading 👀", tags: ['GIGGLE', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "$GIGGLE doing exactly what I said it would 🚀 Entry $0.0012 → now $0.0058. Let it run 💎", tags: ['GIGGLE', 'SOL'], sentiment: 'bullish', hasImage: true, imageCategory: 'chart' },
+  { content: "Everyone laughed at $GIGGLE 😂 Now nobody's laughing. +890% this month. The joke's on the doubters 🤡🔥", tags: ['GIGGLE', 'PEPE'], sentiment: 'bullish', hasImage: false },
+  { content: "$GIGGLE total supply: 993,022 🔢 Ultra low supply + meme energy + Binance listing = 🚀🚀🚀", tags: ['GIGGLE', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "Platform Concentration 14.45 on $GIGGLE is chef's kiss 👨‍🍳 Whale accumulation pattern confirmed", tags: ['GIGGLE', 'DOGE'], sentiment: 'bullish', hasImage: true, imageCategory: 'chart' },
+
+  // === BANANAS31 ===
+  { content: "$BANANAS31 breaking above key resistance 🍌🔥 Volume surge confirms breakout. Next stop +100%", tags: ['BANANAS31', 'BTC'], sentiment: 'bullish', hasImage: true, imageCategory: 'chart' },
+  { content: "Opened $BANANAS31 long 5x leverage 🍌⚡ Entry $0.38 | Target $0.72 | Stop $0.31\nLFG 🚀", tags: ['BANANAS31', 'SOL'], sentiment: 'bullish', hasImage: false },
+  { content: "People sleeping on $BANANAS31 hard 💤 TVL growing 40% weekly while price consolidates. Classic setup", tags: ['BANANAS31', 'DEGO'], sentiment: 'bullish', hasImage: false },
+  { content: "$BANANAS31 +38,61 in 7 days 🍌🚀 Community is growing insane. Holders: don't panic sell the dips", tags: ['BANANAS31', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "My $BANANAS31 bag looking tasty right now 🍌😋 Bought at $0.18. Patience is the key to crypto wealth", tags: ['BANANAS31', 'DEGO', 'TRUMP'], sentiment: 'bullish', hasImage: false },
+
+  // === DEGO ===
+  { content: "$DEGO +23,93 this week 🔥 Nobody talks about it but the chart is screaming 📈 Low cap gem incoming", tags: ['DEGO', 'BTC'], sentiment: 'bullish', hasImage: true, imageCategory: 'chart' },
+  { content: "Just added $DEGO to my portfolio 💎 DeFi NFT hybrid + low cap = massive upside. DYOR but this looks clean", tags: ['DEGO', 'ETH'], sentiment: 'bullish', hasImage: false },
+  { content: "$DEGO ecosystem expansion confirmed 📢 New DEX integration + NFT marketplace update. Price reaction incoming 🚀", tags: ['DEGO', 'BANANAS31'], sentiment: 'bullish', hasImage: false },
+  { content: "Underrated coins right now: $DEGO $BANANAS31 $GIGGLE 👀 All sub-$100M mcap with real utility. Load up", tags: ['DEGO', 'BANANAS31', 'GIGGLE'], sentiment: 'bullish', hasImage: false },
+
+  // === TRUMP ===
+  { content: "$TRUMP coin just broke monthly resistance ‼️ Political meme coins have their own cycle. +42,95 this week 🔥", tags: ['TRUMP', 'DOGE'], sentiment: 'bullish', hasImage: true, imageCategory: 'chart' },
+  { content: "The ultimate meme coin:\nName: $TRUMP\nBacking: presidential vibes\nUpside: unlimited 🇺🇸🔥", tags: ['TRUMP', 'BANANAS31'], sentiment: 'bullish', hasImage: false },
+  { content: "$TRUMP holders been eating this week 🍗💰 Political narrative = biggest pump catalyst in crypto 2025", tags: ['TRUMP', 'DOGE', 'PEPE'], sentiment: 'bullish', hasImage: false },
+  { content: "Bull run ❌\nBear run ✅\n😏\n$TRUMP\n$BANANAS31\n$DEGO…", tags: ['TRUMP', 'BANANAS31', 'DEGO'], sentiment: 'bearish', hasImage: true, imageCategory: 'meme' },
+  { content: "Just in: $TRUMP volume up 340% in 24h 📊 Politics and crypto are now inseparable. Strap in 🎢", tags: ['TRUMP', 'DOGE'], sentiment: 'bullish', hasImage: false },
+
+  // === BULLA ===
+  { content: "I make 1.6M$ from $BULLA 🔥 Closing Long now 🎊🎉 This is what conviction looks like", tags: ['BULLA', 'BTC'], sentiment: 'bullish', hasImage: true, imageCategory: 'car' },
+  { content: "$BULLA USDT Perp Cross 10X paying out 🔥 Entry 315.95 | Margin 6,890 | PnL +22,843 💰", tags: ['BULLA', 'BTC'], sentiment: 'bullish', hasImage: true, imageCategory: 'chart' },
+  { content: "$BULLA +1,93 today. Small but the momentum is building 📈 Accumulate before the big move 🐋", tags: ['BULLA', 'SOL'], sentiment: 'bullish', hasImage: false },
+  { content: "The $BULLA thesis is simple: low float + strong community + upcoming catalyst = 🚀🚀🚀", tags: ['BULLA', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "$BULLA forming a beautiful cup and handle on the daily 📊 Technical analysis doesn't lie. Target: 2x", tags: ['BULLA', 'DOGO'], sentiment: 'bullish', hasImage: true, imageCategory: 'chart' },
+
+  // === PIXEL ===
+  { content: "🚨GLOBAL UPROAR ONLINE AFTER FOOTAGE APPEARED\n$PIXEL $LYN $TRUMP …", tags: ['PIXEL', 'TRUMP'], sentiment: 'neutral', hasImage: false },
+  { content: "$PIXEL gaming ecosystem is exploding 🎮🔥 Daily active users up 280% this month. Price hasn't caught up yet 👀", tags: ['PIXEL', 'ETH'], sentiment: 'bullish', hasImage: false },
+  { content: "Bought $PIXEL at $0.18 during the dip 💎 Gaming + crypto is the strongest narrative for 2025-2026. Hold", tags: ['PIXEL', 'SOL'], sentiment: 'bullish', hasImage: false },
+  { content: "$PIXEL just announced partnership with major gaming studio 🎮📢 This is going to be huge. Already up 35% today", tags: ['PIXEL', 'ETH'], sentiment: 'bullish', hasImage: true, imageCategory: 'chart' },
+  { content: "Not financial advice but $PIXEL is one of the most undervalued gaming tokens right now 🎯 DYOR 👇", tags: ['PIXEL', 'TRUMP'], sentiment: 'bullish', hasImage: false },
+
+  // === MORE DIVERSE COINS — MEME PACK ===
+  { content: "$WIF wen moon? 🐕 Now. That's when 🌕 Solana meme season just getting started frens", tags: ['WIF', 'BONK', 'SOL'], sentiment: 'bullish', hasImage: false },
+  { content: "Bought $BONK at $0.000008 and never looked back 🐶🔥 Now sitting pretty with 2100% gains. WAGMI", tags: ['BONK', 'WIF', 'PEPE'], sentiment: 'bullish', hasImage: false },
+  { content: "$FLOKI just partnered with a Premier League club ⚽🔥 Sports + crypto = mass adoption. Loading up more", tags: ['FLOKI', 'DOGE'], sentiment: 'bullish', hasImage: false },
+  { content: "My meme portfolio this week 😂\n$PEPE: +34%\n$BONK: +28%\n$WIF: +51%\n$FLOKI: +19%\nAll green. We eating 🍽️", tags: ['PEPE', 'BONK', 'WIF', 'FLOKI'], sentiment: 'bullish', hasImage: false },
+  { content: "$SHIB army is still alive 🐕🔥 L2 network launch + token burn = supply shock incoming. Don't sleep on Shiba", tags: ['SHIB', 'DOGE', 'FLOKI'], sentiment: 'bullish', hasImage: false },
+  { content: "The $DOGE + Elon combo will happen again 🐶⚡ History rhymes. When Elon tweets, you want to already be in", tags: ['DOGE', 'SHIB'], sentiment: 'bullish', hasImage: false },
+  { content: "$TURBO meme coin absolutely sending it right now 🔥 Community is insane. Vol up 400% 24h", tags: ['TURBO', 'PEPE', 'WIF'], sentiment: 'bullish', hasImage: false },
+  { content: "BABYDOGE just burned 1 quadrillion tokens 🔥 Supply shock is real. Chart about to break out 📈", tags: ['DOGE', 'SHIB', 'FLOKI'], sentiment: 'bullish', hasImage: false },
+
+  // === LAYER 1 / LAYER 2 ALTCOINS ===
+  { content: "$MATIC rebranded to $POL and the ecosystem is stronger than ever 💜 zkEVM + CDK = Web3 backbone", tags: ['MATIC', 'ETH', 'ARB'], sentiment: 'bullish', hasImage: false },
+  { content: "$OP Optimism TVL just hit new ATH 🔵 Sequencer revenue up 80% QoQ. L2 narrative is THE narrative 2025", tags: ['OP', 'ARB', 'ETH'], sentiment: 'bullish', hasImage: true, imageCategory: 'chart' },
+  { content: "$ARB ecosystem has 600+ protocols now 🏗️ More than entire chains from 2 years ago. Massively undervalued", tags: ['ARB', 'OP', 'ETH'], sentiment: 'bullish', hasImage: false },
+  { content: "The $AVAX institutional thesis is playing out 🏔️ Amazon AWS partnership + subnet growth = next big move", tags: ['AVAX', 'SOL', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "$NEAR AI integration with OpenAI confirmed 🤖 Data availability layer for AI = largest use case in blockchain history", tags: ['NEAR', 'FET', 'ETH'], sentiment: 'bullish', hasImage: false },
+  { content: "Cosmos ecosystem finally getting its moment ⚛️ $ATOM $TIA $INJ all breaking out simultaneously. IBC magic", tags: ['ATOM', 'TIA', 'INJ'], sentiment: 'bullish', hasImage: false },
+  { content: "$ALGO quietly building one of the fastest blockchains 🌐 10K TPS, $0.001 fees, 4s finality. Hidden gem", tags: ['ALGO', 'SOL', 'ETH'], sentiment: 'bullish', hasImage: false },
+  { content: "Polkadot $DOT ecosystem entering a new era 🔴 Coretime model + JAM upgrade = massive developer interest", tags: ['DOT', 'ETH', 'SOL'], sentiment: 'bullish', hasImage: false },
+
+  // === DeFi TOKENS ===
+  { content: "$UNI Uniswap v4 launching soon 🦄 Protocol fee switch incoming. This changes UNI tokenomics completely 🔄", tags: ['UNI', 'ETH', 'AAVE'], sentiment: 'bullish', hasImage: false },
+  { content: "$AAVE v3 liquidations at all time low 💚 Risk management is working. $AAVE at these prices is steal of the year", tags: ['AAVE', 'ETH', 'UNI'], sentiment: 'bullish', hasImage: false },
+  { content: "$CRV Curve wars heating up again 🔄 crvUSD growing fast. DeFi OGs know what this means for the price", tags: ['CRV', 'ETH', 'AAVE'], sentiment: 'bullish', hasImage: false },
+  { content: "Staked $CAKE on PancakeSwap getting 28% APY this week 🥞 BNB ecosystem DeFi is criminally underrated", tags: ['CAKE', 'BNB', 'ETH'], sentiment: 'bullish', hasImage: false },
+  { content: "$GMX perpetuals protocol generating $2M in fees daily 💰 Revenue-sharing protocol = actual token value. Buy", tags: ['ARB', 'ETH', 'AAVE'], sentiment: 'bullish', hasImage: false },
+
+  // === AI COINS ===
+  { content: "$FET just rebranded to Fetch.ai with big Coinbase backing 🤖💡 AI crypto x100 opportunity in 12 months", tags: ['FET', 'ETH', 'SOL'], sentiment: 'bullish', hasImage: false },
+  { content: "$AGIX SingularityNET founder predicted AGI before anyone 🧠 When AGI arrives, $AGIX will be the settlement layer", tags: ['FET', 'ETH'], sentiment: 'bullish', hasImage: false },
+  { content: "$RNDR Render Network revenue doubling every quarter 🎬 Hollywood AI rendering + Solana migration = perfect setup", tags: ['ETH', 'SOL', 'FET'], sentiment: 'bullish', hasImage: false },
+  { content: "The AI x Crypto mega-trend is just starting 🤖🚀 $FET $TAO $RNDR $WLD all breaking out together. Load up", tags: ['FET', 'ETH', 'SOL'], sentiment: 'bullish', hasImage: false },
+  { content: "$TAO Bittensor is what Bitcoin is to money but for AI compute 🧠💎 Hardcapped supply. Biggest narrative of 2025", tags: ['ETH', 'BTC', 'FET'], sentiment: 'bullish', hasImage: false },
+
+  // === RWA / INSTITUTIONAL ===
+  { content: "$ONDO Finance tokenized T-bills now $800M TVL 🏦 BlackRock using their rails. RWA is biggest crypto narrative", tags: ['ONDO', 'ETH', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "Real World Assets on-chain is $3T opportunity 🏘️ $ONDO $POLYX $CFG all positioned for institutional wave", tags: ['ONDO', 'ETH'], sentiment: 'bullish', hasImage: false },
+  { content: "$LINK Chainlink's CCIP is the backbone of RWA finance 🔗 Every tokenized asset needs oracle data. LINK wins", tags: ['LINK', 'ETH', 'ONDO'], sentiment: 'bullish', hasImage: false },
+
+  // === GAMING TOKENS ===
+  { content: "$AXS Axie Infinity V3 Season launching 🎮🔥 Land gameplay + breeding overhaul = massive player return", tags: ['AXS', 'ETH', 'PIXEL'], sentiment: 'bullish', hasImage: false },
+  { content: "$GALA games ecosystem just announced AAA title exclusive 🎮 Gaming crypto summer is coming 🌅", tags: ['GALA', 'PIXEL', 'ETH'], sentiment: 'bullish', hasImage: false },
+  { content: "$IMX Immutable X partnered with EA Sports 🎮⚽ FIFA + blockchain = 500M player market. This is massive", tags: ['PIXEL', 'ETH', 'SOL'], sentiment: 'bullish', hasImage: false },
+  { content: "$RON Ronin chain daily transactions up 800% from last year 🎮 Axie ecosystem maturing quietly while you sleep", tags: ['AXS', 'PIXEL'], sentiment: 'bullish', hasImage: false },
+
+  // === EMERGING & MICRO-CAP GEMS ===
+  { content: "$JUP Jupiter aggregator doing $2B daily volume on Solana 🪐 Protocol fees flowing to JUP holders. Sleep on it?", tags: ['SOL', 'BTC', 'JUP'], sentiment: 'bullish', hasImage: false },
+  { content: "$W Wormhole bridging everything 🌉 Cross-chain future = every chain connected. $W is the toll road", tags: ['SOL', 'ETH', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "$PYTH oracle network adding 500 new data feeds this quarter 📡 Real-time data is the backbone of DeFi. Bullish", tags: ['SOL', 'ETH'], sentiment: 'bullish', hasImage: false },
+  { content: "$PENDLE yield trading protocol TVL hit $4B 💡 Fixed yield in volatile markets = institutional product. Buy", tags: ['ETH', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "$ENA Ethena synthetic dollar $USDe is growing faster than any stablecoin in history 📈 Ethena 2025 = paradigm shift", tags: ['ETH', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "$ETHFI ether.fi liquid restaking TVL: $4.8B 🔐 Restaking yield on top of staking yield = money printer", tags: ['ETH', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "$MEW meme coin on Solana is the next $BONK story 🐱🚀 Early stage, clean chart, growing community. NFA", tags: ['SOL', 'BONK', 'WIF'], sentiment: 'bullish', hasImage: false },
+  { content: "$POPCAT Solana's newest meme sensation 🐱🔥 From 0 to $1.2B mcap in 60 days. Meme season is undefeated", tags: ['SOL', 'WIF', 'BONK'], sentiment: 'bullish', hasImage: false },
+  { content: "$MOTHER IGGY's coin actually building real utility 🎤🔥 Celebrity coin with substance? That's the rare one", tags: ['SOL', 'PEPE', 'WIF'], sentiment: 'bullish', hasImage: false },
+  { content: "$ZEUS on Solana flying under radar 🏛️ Zeus network enabling BTC on Solana natively. Game changer for both chains", tags: ['SOL', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "$DRIFT Solana perps DEX daily volume surpassing $500M 🌊 When CEXs list this token... 💥", tags: ['SOL', 'ETH'], sentiment: 'bullish', hasImage: false },
+  { content: "$IO.NET decentralized GPU compute network 🖥️ Selling idle GPU time like Airbnb for compute. Web3 disrupts AWS", tags: ['ETH', 'SOL', 'FET'], sentiment: 'bullish', hasImage: false },
+  { content: "$ORDER 100x potential this cycle 🔢 Low mcap + perps DEX category leader + Coinbase listing incoming 👀", tags: ['SOL', 'ETH'], sentiment: 'bullish', hasImage: false },
+
+  // === XRP SPECIAL POSTS (matching screenshot style) ===
+  { content: "$XRP can make rich you 🚀🎊\n$500 🌙🥂............‼️\nREALLY !! One day the $XRP chart will shock everyone ✨ Like ❤️ If You Believe??", tags: ['XRP', 'BTC'], sentiment: 'bullish', hasImage: true, imageCategory: 'chart' },
+  { content: "The $XRP legal victory changed EVERYTHING 🏛️⚖️ Ripple vs SEC = crypto's biggest win. $10 incoming 🚀", tags: ['XRP', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "$XRP -0,62 today but the weekly is screaming breakout 📊 Zooming out is the key to crypto success. Hold tight", tags: ['XRP', 'BTC'], sentiment: 'bearish', hasImage: false },
+  { content: "Banks are literally integrating $XRP payment rails 🏦💸 ODL volume up 600% YoY. This is adoption, not speculation", tags: ['XRP', 'BNB'], sentiment: 'bullish', hasImage: false },
+  { content: "$XRP $10 prediction by end of 2025:\n✅ ETF approval expected\n✅ ODL volume exploding\n✅ SWIFT alternative live\n✅ Legal clarity ✅", tags: ['XRP', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "$XRP has been building for 11 years 🏗️ The patience required to hold through the SEC case is diamond hands defined 💎", tags: ['XRP', 'ETH'], sentiment: 'bullish', hasImage: false },
+
+  // === BNB / BINANCE ECOSYSTEM ===
+  { content: "$BNB burning 2.1M tokens this quarter 🔥 Supply decreasing while demand increasing. Basic economics = UP 📈", tags: ['BNB', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "BSC ecosystem has more daily transactions than Ethereum ⚡ $BNB is criminally undervalued vs ETH. Do the math", tags: ['BNB', 'ETH', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "$BNB quarterly burn = $180M of supply destroyed 🔥 If ETH did this everyone would lose their mind. $BNB quiet win", tags: ['BNB', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "Holding $BNB since $30 🏆 Never sold through FTX, never sold through bear market. At $600 now. Worth it 💎", tags: ['BNB', 'BTC', 'ETH'], sentiment: 'bullish', hasImage: false },
+
+  // === RIVER / COPY-TRADE STYLE CARD POSTS ===
+  { content: "RIVER system just closed $XRP trade at 8.01486 📊 Auto-copy trading is my favourite passive income strategy 🤖", tags: ['XRP', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "Copy trading update: Account up +28% this month 🤖 Zero emotions, zero FOMO. Just pure automated gains 💰", tags: ['BTC', 'ETH', 'SOL'], sentiment: 'bullish', hasImage: false },
+  { content: "Following top 3 traders on copy trade = $4,200 passive income this week 🤖 I haven't opened a chart once 😂", tags: ['BTC', 'SOL'], sentiment: 'bullish', hasImage: true, imageCategory: 'villa' },
+
+  // === MEGA RANDOM COIN MIX ===
+  { content: "$TIA Celestia DA layer usage exploding 🌟 Every new L2 needs TIA. Modular blockchain thesis = massive win", tags: ['TIA', 'ETH', 'SOL'], sentiment: 'bullish', hasImage: false },
+  { content: "$SUI is lapping other L1s in developer activity 🔵 Fastest growing ecosystem in 2025. $5 incoming 🎯", tags: ['SUI', 'APT', 'SOL'], sentiment: 'bullish', hasImage: false },
+  { content: "$APT Aptos overtook Ethereum in daily active addresses this week 😳 Nobody is talking about this. Crazy", tags: ['APT', 'SUI', 'SOL'], sentiment: 'bullish', hasImage: false },
+  { content: "$SEI V2 is here and it's FAST ⚡ EVM compatibility + native Cosmos = best of both worlds. Loading", tags: ['SEI', 'SOL', 'ETH'], sentiment: 'bullish', hasImage: false },
+  { content: "$STRK Starknet user fee rebate program live 🔷 Paying users to transact. Smart growth strategy = network effect", tags: ['ETH', 'ARB', 'OP'], sentiment: 'bullish', hasImage: false },
+  { content: "$ZK zkSync token distribution coming 🔷 Airdrop hunters + native TVL growth = perfect pump setup incoming", tags: ['ETH', 'ARB', 'OP'], sentiment: 'bullish', hasImage: false },
+  { content: "$TON Telegram integration with 950M users = biggest distribution in crypto history 📱🔥 $TON is $BNB of 2021", tags: ['TON', 'BNB', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "$NOT Notcoin from Telegram game to real exchange listing 🎮💎 Tap-to-earn is onboarding millions to Web3", tags: ['TON', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "$HBAR Hedera Hashgraph partnered with Google Cloud again 🌐 Enterprise blockchain has a clear winner and it's $HBAR", tags: ['HBAR', 'BTC', 'ETH'], sentiment: 'bullish', hasImage: false },
+  { content: "$KAS Kaspa fastest PoW blockchain in existence ⚡ $BTC maximalists discovering this and buying. Supply shock loading", tags: ['BTC', 'ETH'], sentiment: 'bullish', hasImage: false },
+  { content: "$RENDER decentralized GPU rendering for AI and 3D 🎬🤖 NVIDIA can't compete with global idle GPU market. Huge", tags: ['ETH', 'SOL', 'FET'], sentiment: 'bullish', hasImage: false },
+  { content: "$ONDO Finance and $POLYX are tokenizing the $500T TradFi market 🏦 We're early. Stack accordingly 💰", tags: ['ONDO', 'ETH', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "$OCEAN Protocol selling data to AI companies 🌊🤖 First mover + Fetch.ai merger = $10B market cap by 2026", tags: ['FET', 'ETH'], sentiment: 'bullish', hasImage: false },
+  { content: "$ROSE Oasis Network confidential computing layer 🌹 Medical records, finance data, AI training on-chain. Big market", tags: ['ETH', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "$JASMY Japan's crypto darling 🇯🇵 National data sovereign infrastructure + Tokyo Stock Exchange backing 🏦 Accumulate", tags: ['BTC', 'ETH'], sentiment: 'bullish', hasImage: false },
+  { content: "$REEF rebranding and DeFi ecosystem launch 🪸 $5M mcap with working product. Risk/reward is insane here. NFA", tags: ['ETH', 'SOL'], sentiment: 'bullish', hasImage: false },
+  { content: "$ACH Alchemy Pay traditional payment rails + crypto = 2M merchant integrations 💳 Sleeping giant alert 🚨", tags: ['BTC', 'ETH'], sentiment: 'bullish', hasImage: false },
+  { content: "Scanning for the next 100x gem 🔍 Criteria:\n✅ Sub-$50M mcap\n✅ Working product\n✅ Growing users\n✅ Strong community\n$DEGO $BANANAS31 fit 👀", tags: ['DEGO', 'BANANAS31', 'GIGGLE'], sentiment: 'bullish', hasImage: false },
+  { content: "The micro-cap rotation playbook 📖\n1. Load $GIGGLE $DEGO $BANANAS31 on dips\n2. Wait for BTC stability\n3. Watch 5-50x happen\n4. Repeat 💎", tags: ['GIGGLE', 'DEGO', 'BANANAS31'], sentiment: 'bullish', hasImage: false },
+  { content: "Hot altcoins RIGHT NOW:\n🔥 $GIGGLE +459%\n🔥 $BANANAS31 +38%\n🔥 $DEGO +23%\n🔥 $TRUMP +42%\n🔥 $BULLA +22K PnL\n\nThis market is gifting 🎁", tags: ['GIGGLE', 'BANANAS31', 'DEGO', 'TRUMP', 'BULLA'], sentiment: 'bullish', hasImage: false },
+  { content: "Drop which coins you're holding in comments 👇\nI'll start: $GIGGLE $BANANAS31 $XRP $BTC and not selling any 💎🙌", tags: ['GIGGLE', 'BANANAS31', 'XRP', 'BTC'], sentiment: 'bullish', hasImage: false },
+  { content: "$PIXEL $DEGO $BANANAS31 all in accumulation zones 🎯 The next 60 days will be life-changing for early holders. Be patient", tags: ['PIXEL', 'DEGO', 'BANANAS31'], sentiment: 'bullish', hasImage: false },
+  { content: "The altcoin rotation is happening in real time 🔄\n$BTC dominance dropping → $ETH catching up → altcoins EXPLODE\n$GIGGLE $BULLA $BANANAS31 are next 🚀", tags: ['GIGGLE', 'BULLA', 'BANANAS31', 'BTC', 'ETH'], sentiment: 'bullish', hasImage: false },
 ];

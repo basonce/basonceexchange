@@ -22,23 +22,25 @@ export default function FeedCoinTags({ tags, onTagClick }: FeedCoinTagsProps) {
   };
 
   return (
-    <div className="flex items-center gap-1.5 flex-wrap mt-2 mb-1">
-      {tags.map((tag, i) => (
-        <button
-          key={`${tag.symbol}-${i}`}
-          onClick={() => handleClick(tag.symbol)}
-          className={`text-[11px] font-bold px-2 py-0.5 rounded border transition-opacity hover:opacity-80 active:scale-95 ${
-            tag.change >= 0
-              ? 'border-[#0ECB81]/30 text-[#0ECB81]'
-              : 'border-[#F6465D]/30 text-[#F6465D]'
-          }`}
-          style={{
-            backgroundColor: tag.change >= 0 ? 'rgba(14,203,129,0.07)' : 'rgba(246,70,93,0.07)',
-          }}
-        >
-          {tag.symbol} <span className="font-bold">{tag.change >= 0 ? '+' : ''}{tag.change.toFixed(2)}</span>
-        </button>
-      ))}
+    <div className="flex items-center gap-1.5 flex-wrap mt-2 mb-0.5">
+      {tags.map((tag, i) => {
+        const isPositive = tag.change >= 0;
+        const changeColor = isPositive ? '#0ECB81' : '#F6465D';
+        const sign = isPositive ? '+' : '';
+        return (
+          <button
+            key={`${tag.symbol}-${i}`}
+            onClick={() => handleClick(tag.symbol)}
+            className="flex items-center gap-1 text-[11px] font-semibold px-2 py-[3px] rounded transition-opacity hover:opacity-75 active:scale-95"
+            style={{ backgroundColor: '#2B3139' }}
+          >
+            <span style={{ color: '#C6C6C6' }}>{tag.symbol}</span>
+            <span style={{ color: changeColor }} className="font-bold">
+              {sign}{tag.change.toFixed(2)}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
