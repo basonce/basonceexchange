@@ -11,11 +11,12 @@ import FeedEventCard from './feed/FeedEventCard';
 import FeedOfficialCard from './feed/FeedOfficialCard';
 import PromoBanner from './feed/PromoBanner';
 import FeedPositionCard from './feed/FeedPositionCard';
+import FeedTradFiCard from './feed/FeedTradFiCard';
 import CopyTradingCarousel from './CopyTradingCarousel';
 import BasonceNewsCard, { BASONCE_NEWS_POOL, type BasonceNewsItem } from './feed/BasonceNewsCard';
 import FeedGainersCard, { generateGainersRows } from './feed/FeedGainersCard';
 import FeedTraderProfileCard from './feed/FeedTraderProfileCard';
-import { generateRandomRichPost, generateBinanceSquarePost, generateLuxuryLifestylePost, type GeneratedPost } from '../lib/feed-post-generators';
+import { generateRandomRichPost, generateBinanceSquarePost, generateLuxuryLifestylePost, generateTradFiPost, type GeneratedPost } from '../lib/feed-post-generators';
 
 function hashStringToInt(str: string): number {
   let hash = 0;
@@ -875,6 +876,11 @@ function buildInitialFeed(posts: SocialPost[], newsPool: LiveNewsItem[], pc?: Pr
       items.push({ kind: 'news', data: newsPool[ni % newsPool.length] });
       ni++;
     }
+    // TradFi position card — every 4th item (TSLA, AAPL, NVDA, gold, indices…)
+    if ((idx + 1) % 4 === 0 && pc) {
+      const tf = generateTradFiPost(pc);
+      items.push({ kind: 'post', data: richPostToSocialPost(tf) });
+    }
   });
   return items;
 }
@@ -1700,6 +1706,25 @@ function renderPostContent(post: SocialPost, priceCache: PriceCache) {
     }
     case 'live_embed':
       return post.live_room_data ? <FeedLiveEmbed data={post.live_room_data} /> : null;
+    case 'tradfi_position': {
+      const ed = post.extra_data as {
+        tradfi_symbol?: string;
+        tradfi_leverage?: number;
+        tradfi_entry_price?: number;
+        tradfi_margin?: number;
+        tradfi_trade_type?: 'long' | 'short';
+      } | undefined;
+      if (!ed?.tradfi_symbol) return null;
+      return (
+        <FeedTradFiCard
+          tradfiSymbol={ed.tradfi_symbol}
+          tradeType={ed.tradfi_trade_type ?? 'long'}
+          leverage={ed.tradfi_leverage ?? 5}
+          entryPrice={ed.tradfi_entry_price ?? 0}
+          margin={ed.tradfi_margin ?? 1000}
+        />
+      );
+    }
     default: {
       const shouldShowTrading = post.profit_loss_percent !== 0 && post.leverage > 1 && post.coin_symbol;
       if (!shouldShowTrading && !post.image_url) return null;

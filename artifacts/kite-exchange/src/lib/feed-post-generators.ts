@@ -19,6 +19,8 @@ import { BS_POSTS, BS_USERS_POOL, BS_MEME_IMAGES } from './feed-content-pools-v2
 import { BS_POSTS_POOL_V3, BS_USERS_POOL_V3, CAR_IMAGE_URLS } from './feed-content-pools-v3';
 import { LUXURY_CATEGORIES, LUXURY_CATEGORY_KEYS, LUXURY_USERS_POOL } from './feed-content-pools-luxury';
 import { PriceCache } from './price-cache';
+import { TRADFI_ASSETS } from './tradfi-data';
+import { getCachedTradFiPrice, startTradFiPriceUpdater } from './tradfi-price-service';
 
 const ALL_BS_POSTS = [...BS_POSTS, ...BS_POSTS_POOL_V3];
 const ALL_BS_USERS = [...BS_USERS_POOL, ...BS_USERS_POOL_V3];
@@ -763,4 +765,110 @@ export function generateRandomRichPost(pc: PriceCache): GeneratedPost {
   }
 
   return generators[0](pc);
+}
+
+// ─────────────────────────────────────────────────────────────
+// TradFi Position Post — hisse, altın, endeks, forex kartları
+// ─────────────────────────────────────────────────────────────
+
+const TRADFI_FEATURED_SYMBOLS = [
+  'TSLAUSDT', 'AAPLUSDT', 'NVIDAUSDT', 'METAUSDT', 'MSFTUSDT',
+  'AMZNUSDT', 'COINUSDT', 'PLTRUSDT', 'MSTRUSDT', 'GOOGLUSDT',
+  'AMDUSDT', 'NFLXUSDT', 'XAUUSDT', 'SP500USDT', 'NAS100USDT',
+  'ASMUSDT', 'LVMHUSDT', 'SPOTUSDT', 'BRKBUSDT', 'JPMUSDT',
+];
+
+const TRADFI_LONG_CAPTIONS = [
+  'Been patient on this setup for days. Finally triggered. 🚀',
+  'Entry confirmed. Let the market do the work.',
+  'Adding to the position on this dip. High conviction trade.',
+  'This breakout was telegraphed for weeks. In profit now.',
+  'TradFi + leverage = different ball game. 🔥',
+  'Position sizing matters. Locked in the entry, sitting tight.',
+  'Fundamentals + technicals aligned. This is the trade.',
+  'Holding through the noise. Target is much higher.',
+  'Best trade of the month so far. Let it run.',
+  'Risk managed. Stop placed. Time to let profits compound.',
+];
+
+const TRADFI_SHORT_CAPTIONS = [
+  'Overvalued. Short initiated. Risk managed. 📉',
+  'Shorting the breakdown. Setup was too clean to ignore.',
+  'Bears taking control here. Position is working.',
+  'Fading the pump. This one is in for a rough ride.',
+  'Technical breakdown confirmed. Short and patient.',
+];
+
+const TRADFI_USERS = [
+  { username: 'WallStreetHawk', avatar: 'WallStreetHawk', country: 'US', level: 5 },
+  { username: 'EuroTrader_Pro', avatar: 'EuroTrader_Pro', country: 'DE', level: 4 },
+  { username: 'EquityKing88', avatar: 'EquityKing88', country: 'GB', level: 5 },
+  { username: 'StockPicker_SG', avatar: 'StockPicker_SG', country: 'SG', level: 3 },
+  { username: 'AlphaSeeker99', avatar: 'AlphaSeeker99', country: 'US', level: 4 },
+  { username: 'MacroMindset', avatar: 'MacroMindset', country: 'CH', level: 5 },
+  { username: 'TechStockQueen', avatar: 'TechStockQueen', country: 'CA', level: 4 },
+  { username: 'GoldBullForever', avatar: 'GoldBullForever', country: 'AE', level: 3 },
+  { username: 'NasdaqNinja', avatar: 'NasdaqNinja', country: 'US', level: 5 },
+  { username: 'IndexMasterFX', avatar: 'IndexMasterFX', country: 'JP', level: 4 },
+  { username: 'ValueHunter_EU', avatar: 'ValueHunter_EU', country: 'FR', level: 3 },
+  { username: 'QuantTrader_HK', avatar: 'QuantTrader_HK', country: 'HK', level: 5 },
+];
+
+export function generateTradFiPost(_pc: PriceCache): GeneratedPost {
+  // Start price updater so live prices are ready
+  startTradFiPriceUpdater();
+
+  const sym = pick(TRADFI_FEATURED_SYMBOLS);
+  const asset = TRADFI_ASSETS.find(a => a.symbol === sym) ?? TRADFI_ASSETS[0];
+  const user = pick(TRADFI_USERS);
+  const tradeType: 'long' | 'short' = Math.random() < 0.72 ? 'long' : 'short';
+  const leverage = pick([2, 3, 5, 10, 20]);
+
+  // Get live price (or fall back to basePrice)
+  const priceData = getCachedTradFiPrice(asset.symbol);
+  const currentPrice = priceData?.price ?? asset.basePrice;
+
+  // Entry price: 2–8% before the current move
+  const entryOffsetPct = 0.02 + Math.random() * 0.06;
+  const entryPrice = tradeType === 'long'
+    ? currentPrice * (1 - entryOffsetPct)
+    : currentPrice * (1 + entryOffsetPct);
+
+  // Margin: $500–$15,000 in round numbers
+  const margin = Math.round((500 + Math.random() * 14500) / 500) * 500;
+
+  const caption = tradeType === 'long'
+    ? pick(TRADFI_LONG_CAPTIONS)
+    : pick(TRADFI_SHORT_CAPTIONS);
+
+  return {
+    id: genId(),
+    username: user.username,
+    avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.avatar}`,
+    content: caption,
+    coin_symbol: asset.displayName,
+    trade_type: tradeType,
+    entry_price: entryPrice,
+    exit_price: currentPrice,
+    profit_loss: 0, // computed live in card
+    profit_loss_percent: 0,
+    leverage,
+    image_url: null,
+    post_type: 'tradfi_position',
+    likes_count: Math.floor(Math.random() * 800) + 50,
+    comments_count: Math.floor(Math.random() * 120) + 10,
+    shares_count: Math.floor(Math.random() * 80) + 5,
+    view_count: Math.floor(Math.random() * 40000) + 5000,
+    repost_count: Math.floor(Math.random() * 60) + 5,
+    is_bullish: tradeType === 'long',
+    created_at: recentTimestamp(180),
+    sentiment: tradeType === 'long' ? 'Bullish' : 'Bearish',
+    extra_data: {
+      tradfi_symbol: asset.symbol,
+      tradfi_leverage: leverage,
+      tradfi_entry_price: entryPrice,
+      tradfi_margin: margin,
+      tradfi_trade_type: tradeType,
+    },
+  };
 }
