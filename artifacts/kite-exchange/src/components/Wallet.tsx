@@ -10,6 +10,7 @@ import DepositMethodModal from './DepositMethodModal';
 import SendMethodModal from './SendMethodModal';
 import TransferModal from './TransferModal';
 import { checkWithdrawalPermission } from '../lib/withdrawal-permission';
+import { RealtimePnLService, RealtimePnL } from '../lib/realtime-pnl-service';
 import CoinLogo from './CoinLogo';
 
 interface Balance {
@@ -62,11 +63,15 @@ export default function Wallet() {
   const [activeSection, setActiveSection] = useState<'overview' | 'history'>('overview');
   const [priceMap, setPriceMap] = useState<Record<string, number>>({ USDT: 1 });
   const [futuresUSDT, setFuturesUSDT] = useState(0);
+  const [realtimePnL, setRealtimePnL] = useState<RealtimePnL>({ currentTotalValue: 0, startingValue: 0, dailyPnL: 0, dailyPnLPercentage: 0, balances: [] });
   const priceIntervalRef = useRef<ReturnType<typeof setInterval>>();
 
   const mockAddress = 'TKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
 
   useEffect(() => {
+    const pnlService = RealtimePnLService.getInstance();
+    const unsub = pnlService.subscribe((pnl) => setRealtimePnL(pnl));
+
     fetchBalances();
     fetchTransactions();
     checkPermission();
@@ -87,6 +92,7 @@ export default function Wallet() {
     });
 
     return () => {
+      unsub();
       if (balanceChannel) balanceChannel.unsubscribe();
       if (txChannel) txChannel.unsubscribe();
       if (priceIntervalRef.current) clearInterval(priceIntervalRef.current);
@@ -170,8 +176,9 @@ export default function Wallet() {
     setCurrentTier(perm.allowed ? 5 : perm.currentTier);
   };
 
-  const spotTotal = balances.reduce((sum, b) => sum + b.balance * (priceMap[b.symbol] ?? (b.symbol === 'USDT' ? 1 : 0)), 0);
-  const totalBalance = spotTotal + futuresUSDT;
+  const totalBalance = realtimePnL.currentTotalValue > 0
+    ? realtimePnL.currentTotalValue
+    : balances.reduce((sum, b) => sum + b.balance * (priceMap[b.symbol] ?? (b.symbol === 'USDT' ? 1 : 0)), 0) + futuresUSDT;
   const topBalances = [...balances]
     .sort((a, b) => (b.balance * (priceMap[b.symbol] || 0)) - (a.balance * (priceMap[a.symbol] || 0)))
     .filter(b => b.balance > 0)
