@@ -150,33 +150,97 @@ function getRankMedal(rank: number) {
 function WithdrawalCard({ msg, isRequest }: { msg: Message; isRequest?: boolean }) {
   const network = (msg as any).network || NETWORKS[Math.floor(msg.amount * 7) % NETWORKS.length];
   const flag = COUNTRY_FLAGS[msg.country] || '🌍';
-  const confirmed = !isRequest && msg.message_type === 'withdrawal';
+
+  // For request cards: randomly decide instant (55%) vs slow (45%) approval
+  const [autoConfirmDelay] = useState<number | null>(() => {
+    if (!isRequest) return null;
+    const willAutoConfirm = Math.random() < 0.55;
+    if (!willAutoConfirm) return null;
+    // Instant: 3–9s, feels like real-time approval
+    return Math.floor(Math.random() * 6000) + 3000;
+  });
+
+  const [isConfirmed, setIsConfirmed] = useState(!isRequest);
+  const [justConfirmed, setJustConfirmed] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const isInstant = isRequest && autoConfirmDelay !== null && autoConfirmDelay < 6000;
+
+  useEffect(() => {
+    if (!isRequest || autoConfirmDelay === null) return;
+
+    // Animate progress bar filling up
+    const startTime = Date.now();
+    const progressInterval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const pct = Math.min(99, (elapsed / autoConfirmDelay) * 100);
+      setProgress(pct);
+      if (elapsed >= autoConfirmDelay) clearInterval(progressInterval);
+    }, 80);
+
+    // Auto confirm after delay
+    const confirmTimeout = setTimeout(() => {
+      setIsConfirmed(true);
+      setJustConfirmed(true);
+      setProgress(100);
+      setTimeout(() => setJustConfirmed(false), 3000);
+    }, autoConfirmDelay);
+
+    return () => {
+      clearInterval(progressInterval);
+      clearTimeout(confirmTimeout);
+    };
+  }, []);
+
+  const amtDisplay = `$${msg.amount >= 1000 ? `${(msg.amount / 1000).toFixed(1)}K` : msg.amount.toFixed(msg.amount < 10 ? 2 : 0)}`;
 
   return (
-    <div className={`rounded-2xl overflow-hidden border ${confirmed
-      ? 'border-[#F0B90B]/30 bg-gradient-to-br from-[#F0B90B]/8 via-[#1A1B23] to-[#0D0E12]'
-      : 'border-blue-500/25 bg-gradient-to-br from-blue-500/8 via-[#1A1B23] to-[#0D0E12]'
-    } shadow-lg`}>
-      <div className={`flex items-center gap-2 px-3 py-2 ${confirmed
-        ? 'bg-[#F0B90B]/10 border-b border-[#F0B90B]/20'
-        : 'bg-blue-500/10 border-b border-blue-500/20'
+    <div className={`rounded-2xl overflow-hidden border transition-all duration-700 ${
+      isConfirmed
+        ? 'border-[#F0B90B]/40 bg-gradient-to-br from-[#F0B90B]/10 via-[#1A1B23] to-[#0D0E12] shadow-[0_0_18px_rgba(240,185,11,0.15)]'
+        : 'border-blue-500/30 bg-gradient-to-br from-blue-500/8 via-[#1A1B23] to-[#0D0E12]'
+    } ${justConfirmed ? 'scale-[1.01]' : ''}`}
+    style={{ transition: 'all 0.6s cubic-bezier(0.34,1.56,0.64,1)' }}>
+
+      {/* Header bar */}
+      <div className={`flex items-center gap-2 px-3 py-2 transition-all duration-700 ${
+        isConfirmed
+          ? 'bg-[#F0B90B]/12 border-b border-[#F0B90B]/25'
+          : 'bg-blue-500/10 border-b border-blue-500/20'
       }`}>
-        {confirmed
-          ? <CheckCircle2 className="w-4 h-4 text-[#F0B90B] flex-shrink-0" />
-          : <Clock className="w-4 h-4 text-blue-400 flex-shrink-0" />
+        {isConfirmed
+          ? <CheckCircle2 className={`w-4 h-4 text-[#F0B90B] flex-shrink-0 ${justConfirmed ? 'animate-bounce' : ''}`} />
+          : <Clock className="w-4 h-4 text-blue-400 flex-shrink-0 animate-pulse" />
         }
-        <span className={`text-xs font-bold tracking-wide ${confirmed ? 'text-[#F0B90B]' : 'text-blue-400'}`}>
-          {confirmed ? 'WITHDRAWAL CONFIRMED' : 'WITHDRAWAL REQUEST SENT'}
+        <span className={`text-xs font-black tracking-widest transition-colors duration-700 ${
+          isConfirmed ? 'text-[#F0B90B]' : 'text-blue-400'
+        }`}>
+          {isConfirmed ? 'WITHDRAWAL CONFIRMED' : 'WITHDRAWAL REQUEST SENT'}
         </span>
-        <span className="ml-auto text-[10px] text-gray-500">{network}</span>
+        <div className="ml-auto flex items-center gap-1.5">
+          {isInstant && !isConfirmed && (
+            <span className="flex items-center gap-0.5 bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.5 rounded-full">
+              <Zap className="w-2.5 h-2.5 text-emerald-400" />
+              <span className="text-emerald-400 text-[9px] font-black">INSTANT</span>
+            </span>
+          )}
+          <span className="text-[10px] text-gray-500">{network}</span>
+        </div>
       </div>
 
+      {/* Body */}
       <div className="px-3 py-3 flex items-center gap-3">
-        <img
-          src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.username}`}
-          alt={msg.username}
-          className="w-10 h-10 rounded-full border-2 border-[#2B3139] flex-shrink-0"
-        />
+        <div className="relative flex-shrink-0">
+          <img
+            src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.username}`}
+            alt={msg.username}
+            className={`w-10 h-10 rounded-full border-2 transition-all duration-700 ${
+              isConfirmed ? 'border-[#F0B90B]/50' : 'border-[#2B3139]'
+            }`}
+          />
+          {justConfirmed && (
+            <div className="absolute inset-0 rounded-full border-2 border-[#F0B90B] animate-ping opacity-60" />
+          )}
+        </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5">
             <span className="text-white font-semibold text-sm truncate">{msg.username}</span>
@@ -188,31 +252,44 @@ function WithdrawalCard({ msg, isRequest }: { msg: Message; isRequest?: boolean 
           <p className="text-gray-400 text-xs truncate">{msg.message}</p>
         </div>
         <div className="flex-shrink-0 text-right">
-          <div className={`text-xl font-black ${confirmed ? 'text-[#F0B90B]' : 'text-blue-300'}`}>
-            ${msg.amount >= 1000
-              ? `${(msg.amount / 1000).toFixed(1)}K`
-              : msg.amount.toFixed(msg.amount < 10 ? 2 : 0)
-            }
+          <div className={`text-xl font-black transition-colors duration-700 ${
+            isConfirmed ? 'text-[#F0B90B]' : 'text-blue-300'
+          }`}>
+            {amtDisplay}
           </div>
           <div className="text-[10px] text-gray-500">USDT</div>
         </div>
       </div>
 
-      <div className="px-3 pb-2.5 flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          {confirmed ? (
-            <span className="flex items-center gap-1 text-emerald-400 text-[11px] font-medium">
-              <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
-              Funds arrived
+      {/* Footer: status + progress bar */}
+      <div className="px-3 pb-3">
+        {isConfirmed ? (
+          <div className="flex items-center justify-between">
+            <span className={`flex items-center gap-1.5 text-[11px] font-semibold ${justConfirmed ? 'text-emerald-300' : 'text-emerald-400'}`}>
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              {justConfirmed ? '✨ Funds arrived just now!' : 'Funds arrived'}
             </span>
-          ) : (
-            <span className="flex items-center gap-1 text-blue-400 text-[11px] font-medium">
-              <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></div>
-              Processing...
-            </span>
-          )}
-        </div>
-        <span className="text-gray-600 text-[10px]">{getTimeAgo(msg.created_at)}</span>
+            <span className="text-gray-600 text-[10px]">{getTimeAgo(msg.created_at)}</span>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1 text-blue-400 text-[11px] font-medium">
+                <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
+                {isInstant ? 'Processing — instant approval...' : 'Processing...'}
+              </span>
+              <span className="text-gray-600 text-[10px]">{getTimeAgo(msg.created_at)}</span>
+            </div>
+            <div className="w-full bg-[#2B3139] rounded-full h-1 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-100 ${
+                  isInstant ? 'bg-emerald-400' : 'bg-blue-500'
+                }`}
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
