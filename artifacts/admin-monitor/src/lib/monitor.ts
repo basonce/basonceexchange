@@ -10,20 +10,26 @@ import {
 let initialized = false;
 let monitorStartedAt = new Date().toISOString();
 
-const seenIds = {
-  withdrawals: new Set<string>(),
-  users:       new Set<string>(),
-  tickets:     new Set<string>(),
-  messages:    new Set<string>(),
-  incoming:    new Set<string>(),
-  deposits:    new Set<string>(),
-  positions:   new Set<string>(),
+// ── Seen IDs — prevents duplicate alarms from polling ─────────
+const seen = {
+  withdrawals:      new Set<string>(),
+  users:            new Set<string>(),
+  tickets:          new Set<string>(),
+  messages:         new Set<string>(),
+  walletTx:         new Set<string>(),
+  transactions:     new Set<string>(),
+  futuresHistory:   new Set<string>(),
+  spotOrders:       new Set<string>(),
+  walletAddresses:  new Set<string>(),
 };
 
-// ── Fire alert + sound (persists 1 min) ──────────────────────
+// ── Fire alert ────────────────────────────────────────────────
+type Severity = Parameters<ReturnType<typeof useStore.getState>['addAlert']>[0]['severity'];
+type Category = Parameters<ReturnType<typeof useStore.getState>['addAlert']>[0]['category'];
+
 function fireAlert(
-  severity: Parameters<ReturnType<typeof useStore.getState>['addAlert']>[0]['severity'],
-  category: Parameters<ReturnType<typeof useStore.getState>['addAlert']>[0]['category'],
+  severity: Severity,
+  category: Category,
   title: string,
   body: string,
   meta?: Record<string, string | number | boolean>,
@@ -31,233 +37,334 @@ function fireAlert(
 ) {
   const { addAlert, settings } = useStore.getState();
   addAlert({ severity, category, title, body, meta });
+  if (isMuted(settings)) return;
+  if (settings.alertSounds && alarmFn) { try { alarmFn(); } catch {} }
+  if (settings.browserNotifications) { sendBrowserNotification(`[Admin] ${title}`, body); }
+  console.log(`[monitor] 🔔 ${severity.toUpperCase()} — ${title} | ${body}`);
+}
 
-  if (isMuted(settings)) return; // muteAll=true → tamamen sessiz
+// ── Event handlers ────────────────────────────────────────────
 
-  if (settings.alertSounds && alarmFn) {
-    try { alarmFn(); } catch {}
-  }
-  if (settings.browserNotifications) {
-    sendBrowserNotification(`[Admin] ${title}`, body);
+function handleFuturesHistory(rec: Record<string, unknown>) {
+  const id = String(rec.id || '');
+  if (!id || seen.futuresHistory.has(id)) return;
+  seen.futuresHistory.add(id);
+  if (!rec.created_at || new Date(String(rec.created_at)) < new Date(monitorStartedAt)) return;
+
+  const margin    = Number(rec.margin) || 0;
+  const pnl       = Number(rec.realized_pnl) || 0;
+  const symbol    = String(rec.symbol || 'UNKNOWN');
+  const side      = String(rec.side || '').toUpperCase();
+  const leverage  = Number(rec.leverage) || 1;
+  const reason    = String(rec.close_reason || '');
+  const isLiq     = reason === 'liquidated';
+  const { settings } = useStore.getState();
+
+  if (!isLiq && margin < settings.largeTradeThreshold) return;
+
+  if (isLiq) {
+    fireAlert('critical', 'finance',
+      `💥 LİKİDASYON! ${symbol}`,
+      `${side} ${leverage}x — Kayıp: $${Math.abs(pnl).toFixed(0)} | Margin: $${margin.toFixed(0)}`,
+      { margin, symbol, pnl }, startCriticalAlarm);
+  } else {
+    fireAlert('medium', 'finance',
+      `📊 Pozisyon Kapandı: ${symbol}`,
+      `${side} ${leverage}x — PnL: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(0)} | $${margin.toFixed(0)}`,
+      { margin, symbol, pnl }, startPositionAlarm);
   }
 }
 
-// ── Seed existing IDs (no alarm for old data) ─────────────────
+function handleSpotOrder(rec: Record<string, unknown>) {
+  const id = String(rec.id || '');
+  if (!id || seen.spotOrders.has(id)) return;
+  seen.spotOrders.add(id);
+  if (!rec.created_at || new Date(String(rec.created_at)) < new Date(monitorStartedAt)) return;
+
+  const total    = Number(rec.total) || 0;
+  const symbol   = String(rec.symbol || '');
+  const side     = String(rec.side || '').toUpperCase();
+  const type     = String(rec.type || '');
+  const qty      = Number(rec.quantity) || 0;
+  const { settings } = useStore.getState();
+
+  if (total < settings.largeTradeThreshold) return;
+
+  const emoji = side === 'BUY' ? '🟢' : '🔴';
+  fireAlert('medium', 'finance',
+    `${emoji} Spot Emir: ${symbol}`,
+    `${side} ${type} — ${qty.toLocaleString('tr-TR', { maximumFractionDigits: 4 })} adet | $${total.toFixed(0)}`,
+    { total, symbol }, startDepositAlarm);
+}
+
+function handleTransaction(rec: Record<string, unknown>) {
+  const id = String(rec.id || '');
+  if (!id || seen.transactions.has(id)) return;
+  seen.transactions.add(id);
+  if (!rec.created_at || new Date(String(rec.created_at)) < new Date(monitorStartedAt)) return;
+
+  const amount = Number(rec.amount) || 0;
+  const type   = String(rec.type || '');
+  const symbol = String(rec.symbol || 'USDT');
+  const { settings } = useStore.getState();
+
+  if (type === 'deposit' || type === 'manual_deposit' || type === 'admin_credit') {
+    if (amount < settings.depositThreshold) return;
+    fireAlert('high', 'finance', '💰 Para Yatırıldı',
+      `+$${amount.toFixed(2)} ${symbol}`, { amount }, startDepositAlarm);
+  } else if (type === 'buy') {
+    if (amount < settings.largeTradeThreshold) return;
+    fireAlert('low', 'finance', `🟢 Alış: ${symbol}`,
+      `$${amount.toFixed(0)} tutarında alış`, { amount, symbol }, startDepositAlarm);
+  } else if (type === 'sell') {
+    if (amount < settings.largeTradeThreshold) return;
+    fireAlert('low', 'finance', `🔴 Satış: ${symbol}`,
+      `$${amount.toFixed(0)} tutarında satış`, { amount, symbol }, startDepositAlarm);
+  }
+}
+
+function handleWithdrawal(rec: Record<string, unknown>) {
+  const id = String(rec.id || '');
+  if (!id || seen.withdrawals.has(id)) return;
+  seen.withdrawals.add(id);
+  if (!rec.created_at || new Date(String(rec.created_at)) < new Date(monitorStartedAt)) return;
+
+  const amount = Number(rec.amount) || 0;
+  const coin   = String(rec.coin_symbol || 'USDT');
+  const { settings } = useStore.getState();
+  const isCritical = amount > settings.largeTradeThreshold;
+
+  fireAlert(isCritical ? 'critical' : 'high', 'finance',
+    '⚠️ Çekim Talebi!',
+    `$${amount.toFixed(2)} ${coin} — onay bekliyor`,
+    { amount }, isCritical ? startCriticalAlarm : startWithdrawalAlarm);
+}
+
+function handleSupportTicket(rec: Record<string, unknown>) {
+  const id = String(rec.id || '');
+  if (!id || seen.tickets.has(id)) return;
+  seen.tickets.add(id);
+  if (!rec.created_at || new Date(String(rec.created_at)) < new Date(monitorStartedAt)) return;
+
+  const email = String(rec.email || '');
+  const label = email ? `${email} destek açtı` : 'Yeni destek talebi';
+  fireAlert('medium', 'support', '💬 Destek Talebi', label, { ticketId: id }, startSupportAlarm);
+  useStore.getState().setStats({ pendingSupport: useStore.getState().pendingSupport + 1 });
+}
+
+function handleSupportMessage(rec: Record<string, unknown>) {
+  const id = String(rec.id || '');
+  if (!id || seen.messages.has(id)) return;
+  seen.messages.add(id);
+  if (rec.sender_type === 'admin') return;
+  if (!rec.created_at || new Date(String(rec.created_at)) < new Date(monitorStartedAt)) return;
+
+  const content = String(rec.message || rec.content || 'Yeni mesaj').slice(0, 100);
+  const danger  = ['dolandırıcı', 'para gitmedi', 'scam', 'fraud', 'hack', 'şikayet', 'çaldı'];
+  const isDanger = danger.some(w => content.toLowerCase().includes(w));
+  fireAlert(isDanger ? 'critical' : 'medium', 'support',
+    isDanger ? '🚨 ACİL Destek Mesajı' : '💬 Yeni Destek Mesajı',
+    content, {}, isDanger ? startSecurityAlarm : startSupportAlarm);
+}
+
+function handleWalletTransaction(rec: Record<string, unknown>) {
+  const id = String(rec.id || '');
+  if (!id || seen.walletTx.has(id)) return;
+  seen.walletTx.add(id);
+  if (!rec.created_at || new Date(String(rec.created_at)) < new Date(monitorStartedAt)) return;
+
+  const amount  = Number(rec.amount) || 0;
+  const coin    = String(rec.token_symbol || 'USDT');
+  const network = String(rec.network || '');
+  const { settings } = useStore.getState();
+  if (amount < settings.depositThreshold) return;
+
+  fireAlert('high', 'finance', '🔗 Zincirden Transfer Geldi',
+    `+${amount.toFixed(4)} ${coin}${network ? ` (${network})` : ''}`,
+    { amount }, startDepositAlarm);
+}
+
+function handleWalletAddress(rec: Record<string, unknown>) {
+  const id = String(rec.id || '');
+  if (!id || seen.walletAddresses.has(id)) return;
+  seen.walletAddresses.add(id);
+  if (!rec.created_at || new Date(String(rec.created_at)) < new Date(monitorStartedAt)) return;
+
+  const network = String(rec.network || rec.coin || '');
+  const userId  = String(rec.user_id || '');
+  fireAlert('info', 'user', '🔑 Cüzdan Atandı',
+    `${network || 'Yeni'} cüzdan adresi atandı`,
+    { userId }, undefined);
+}
+
+function handleNewUser(rec: Record<string, unknown>) {
+  const id = String(rec.id || rec.user_id || '');
+  if (!id || seen.users.has(id)) return;
+  seen.users.add(id);
+  if (!rec.created_at || new Date(String(rec.created_at)) < new Date(monitorStartedAt)) return;
+
+  const name  = String(rec.full_name || rec.email || 'Bilinmeyen');
+  const email = String(rec.email || '');
+  fireAlert('high', 'user', '🆕 Yeni Üye Kaydı',
+    `${name}${email && name !== email ? ` (${email})` : ''} platforma katıldı`,
+    { user: name }, startNewUserAlarm);
+  useStore.getState().setStats({ totalUsers: useStore.getState().totalUsers + 1 });
+}
+
+// ── Seed existing IDs (prevents alarm for historical data) ─────
 async function seedExisting() {
-  // Withdrawals via RPC (bypasses RLS)
+  // Withdrawals
   try {
     const wds = await fetchWithdrawals('all');
-    wds?.forEach((r: { id: string }) => seenIds.withdrawals.add(r.id));
-    console.log(`[monitor] seeded ${wds?.length || 0} withdrawal_transactions via API`);
-  } catch (e) { console.warn('[monitor] seed withdrawals failed:', e); }
+    wds?.forEach((r: { id: string }) => seen.withdrawals.add(r.id));
+  } catch {}
 
-  // Others via direct query
-  const seedDirect = async (table: string, key: keyof typeof seenIds, filter?: Record<string, string>) => {
+  // Users via RPC
+  try {
+    const { data } = await supabase.rpc('admin_get_real_users_with_wallets');
+    (data || []).forEach((r: { user_id: string }) => seen.users.add(r.user_id));
+  } catch {}
+
+  // Tables directly
+  const seed = async (table: string, key: keyof typeof seen, limit = 500) => {
     try {
-      let q = supabase.from(table).select('id').order('created_at', { ascending: false }).limit(500);
-      if (filter) Object.entries(filter).forEach(([k, v]) => { q = (q as typeof q).eq(k, v); });
-      const { data } = await q;
-      data?.forEach((r: { id: string }) => seenIds[key].add(r.id));
-      console.log(`[monitor] seeded ${data?.length || 0} ${table}`);
+      const { data } = await supabase.from(table).select('id').order('created_at', { ascending: false }).limit(limit);
+      data?.forEach((r: { id: string }) => seen[key].add(r.id));
+      console.log(`[monitor] seed ${table}: ${data?.length || 0}`);
     } catch {}
   };
 
-  // Seed users via RPC (RLS blocks direct user_profiles query for anon)
-  try {
-    const { data: users } = await supabase.rpc('admin_get_real_users_with_wallets');
-    (users || []).forEach((r: { user_id: string }) => seenIds.users.add(r.user_id));
-    console.log(`[monitor] seeded ${(users || []).length} user_profiles via RPC`);
-  } catch (e) { console.warn('[monitor] seed users failed:', e); }
-
   await Promise.allSettled([
-    seedDirect('support_tickets', 'tickets'),
-    seedDirect('support_messages', 'messages'),
-    seedDirect('wallet_transactions', 'incoming'),
-    seedDirect('transactions', 'deposits'),
-    seedDirect('futures_history', 'positions'), // closed positions (admin-accessible)
+    seed('support_tickets',       'tickets'),
+    seed('support_messages',      'messages'),
+    seed('wallet_transactions',   'walletTx'),
+    seed('transactions',          'transactions'),
+    seed('futures_history',       'futuresHistory'),
+    seed('spot_orders',           'spotOrders'),
+    seed('wallet_addresses',      'walletAddresses'),
   ]);
-  console.log('[monitor] seed complete');
+
+  console.log('[monitor] seed tamamlandı — izleme başladı');
 }
 
-// ── POLL 1: Withdrawals (RPC) ─────────────────────────────────
-async function checkWithdrawals() {
+// ── Realtime subscriptions (instant push via WebSocket) ────────
+const channels: ReturnType<typeof supabase.channel>[] = [];
+
+function subscribeRealtime() {
+  const sub = (name: string, table: string, handler: (r: Record<string, unknown>) => void) => {
+    const ch = supabase.channel(`rt_${name}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table },
+        p => handler(p.new as Record<string, unknown>))
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') console.log(`[rt] ✅ ${table} bağlandı`);
+        if (status === 'CHANNEL_ERROR') console.warn(`[rt] ❌ ${table} hata`);
+      });
+    channels.push(ch);
+  };
+
+  sub('futures_history',       'futures_history',        handleFuturesHistory);
+  sub('futures_positions',     'futures_positions',       r => {
+    // Açılan pozisyon alarmı
+    const margin = Number(r.margin) || 0;
+    const symbol = String(r.symbol || '');
+    const side   = String(r.side || '').toUpperCase();
+    const lev    = Number(r.leverage) || 1;
+    const { settings } = useStore.getState();
+    if (margin < settings.largeTradeThreshold) return;
+    fireAlert('medium', 'finance', `📈 Pozisyon Açıldı: ${symbol}`,
+      `${side} ${lev}x — Margin: $${margin.toFixed(0)}`, { margin, symbol }, startPositionAlarm);
+  });
+  sub('spot_orders',           'spot_orders',             handleSpotOrder);
+  sub('transactions',          'transactions',            handleTransaction);
+  sub('withdrawal_transactions', 'withdrawal_transactions', handleWithdrawal);
+  sub('support_tickets',       'support_tickets',         handleSupportTicket);
+  sub('support_messages',      'support_messages',        handleSupportMessage);
+  sub('wallet_transactions',   'wallet_transactions',     handleWalletTransaction);
+  sub('wallet_addresses',      'wallet_addresses',        handleWalletAddress);
+  sub('user_profiles',         'user_profiles',           handleNewUser);
+
+  console.log('[monitor] 10 Realtime kanal başlatıldı');
+}
+
+// ── Polling (fallback — runs every 10s via silent-loop timer) ──
+async function poll() {
+  // 1. Withdrawals (via RPC — bypasses RLS)
   try {
     const data = await fetchWithdrawals('all');
-    const { settings } = useStore.getState();
-    for (const rec of data || []) {
-      if (seenIds.withdrawals.has(rec.id)) continue;
-      seenIds.withdrawals.add(rec.id);
-      // Only alarm records created AFTER monitor started
-      if (rec.created_at && new Date(rec.created_at) < new Date(monitorStartedAt)) continue;
-      const amount = Number(rec.amount) || 0;
-      const coin = rec.coin_symbol || 'USDT';
-      const isCritical = amount > settings.largeTradeThreshold;
-      console.log(`[monitor] 🚨 YENİ ÇEKİM: $${amount} ${coin}`);
-      fireAlert(
-        isCritical ? 'critical' : 'high', 'finance',
-        '⚠️ YENİ Çekim Talebi', `$${amount.toFixed(2)} ${coin} — onay bekliyor`,
-        { amount, userId: rec.user_id ?? '' },
-        isCritical ? startCriticalAlarm : startWithdrawalAlarm
-      );
-    }
-  } catch (e) { console.warn('[monitor] checkWithdrawals error:', e); }
-}
+    for (const r of data || []) handleWithdrawal(r as Record<string, unknown>);
+  } catch {}
 
-// ── POLL 2: New users (via RPC — RLS blocks direct query) ────
-async function checkNewUsers() {
+  // 2. Futures history (kapanan pozisyonlar + likidasyonlar)
+  try {
+    const { data } = await supabase
+      .from('futures_history').select('id,symbol,side,leverage,margin,realized_pnl,close_reason,created_at')
+      .gte('created_at', monitorStartedAt).order('created_at', { ascending: false }).limit(20);
+    for (const r of data || []) handleFuturesHistory(r as Record<string, unknown>);
+  } catch {}
+
+  // 3. Spot orders (büyük emirler)
+  try {
+    const { data } = await supabase
+      .from('spot_orders').select('id,symbol,side,type,quantity,total,created_at')
+      .gte('created_at', monitorStartedAt).order('created_at', { ascending: false }).limit(20);
+    for (const r of data || []) handleSpotOrder(r as Record<string, unknown>);
+  } catch {}
+
+  // 4. Transactions (yatırım, alım, satım)
+  try {
+    const { data } = await supabase
+      .from('transactions').select('id,type,amount,symbol,created_at')
+      .gte('created_at', monitorStartedAt).order('created_at', { ascending: false }).limit(30);
+    for (const r of data || []) handleTransaction(r as Record<string, unknown>);
+  } catch {}
+
+  // 5. Support tickets
+  try {
+    const { data } = await supabase
+      .from('support_tickets').select('id,email,status,created_at')
+      .gte('created_at', monitorStartedAt).order('created_at', { ascending: false }).limit(10);
+    for (const r of data || []) handleSupportTicket(r as Record<string, unknown>);
+  } catch {}
+
+  // 6. Support messages (kullanıcı mesajları)
+  try {
+    const { data } = await supabase
+      .from('support_messages').select('id,message,content,sender_type,created_at')
+      .gte('created_at', monitorStartedAt).order('created_at', { ascending: false }).limit(20);
+    for (const r of data || []) handleSupportMessage(r as Record<string, unknown>);
+  } catch {}
+
+  // 7. Wallet transactions (zincir transferleri)
+  try {
+    const { data } = await supabase
+      .from('wallet_transactions').select('id,amount,token_symbol,network,created_at')
+      .gte('created_at', monitorStartedAt).order('created_at', { ascending: false }).limit(10);
+    for (const r of data || []) handleWalletTransaction(r as Record<string, unknown>);
+  } catch {}
+
+  // 8. Wallet addresses (cüzdan atama)
+  try {
+    const { data } = await supabase
+      .from('wallet_addresses').select('id,network,coin,user_id,created_at')
+      .gte('created_at', monitorStartedAt).order('created_at', { ascending: false }).limit(10);
+    for (const r of data || []) handleWalletAddress(r as Record<string, unknown>);
+  } catch {}
+
+  // 9. New users (via RPC — RLS bypass)
   try {
     const { data } = await supabase.rpc('admin_get_real_users_with_wallets');
-    for (const rec of (data || []) as Array<{ user_id: string; email: string; full_name: string; created_at: string }>) {
-      if (seenIds.users.has(rec.user_id)) continue;
-      if (rec.created_at < monitorStartedAt) { seenIds.users.add(rec.user_id); continue; } // old record — seed silently
-      seenIds.users.add(rec.user_id);
-      const name = rec.full_name || rec.email || 'Bilinmeyen';
-      console.log(`[monitor] 🆕 YENİ KULLANICI: ${name}`);
-      fireAlert('high', 'user', '🆕 Yeni Üye Kaydı', `${name} platforma katıldı`, { user: name }, startNewUserAlarm);
-      useStore.getState().setStats({ totalUsers: useStore.getState().totalUsers + 1 });
+    for (const r of (data || []) as Array<{ user_id: string; email: string; full_name: string; created_at: string }>) {
+      handleNewUser({ id: r.user_id, ...r });
     }
   } catch {}
 }
 
-// ── POLL 3: Support tickets ───────────────────────────────────
-async function checkSupportTickets() {
-  try {
-    const { data } = await supabase
-      .from('support_tickets')
-      .select('id, email, status, created_at')
-      .gte('created_at', monitorStartedAt)
-      .order('created_at', { ascending: false })
-      .limit(10);
-    for (const rec of data || []) {
-      if (seenIds.tickets.has(rec.id)) continue;
-      seenIds.tickets.add(rec.id);
-      const label = rec.email ? `${rec.email} destek açtı` : 'Yeni destek talebi';
-      console.log(`[monitor] 💬 YENİ TİCKET: ${label}`);
-      fireAlert('medium', 'support', '💬 Destek Talebi', label, { ticketId: rec.id }, startSupportAlarm);
-    }
-  } catch {}
-}
-
-// ── POLL 4: Support messages ──────────────────────────────────
-async function checkSupportMessages() {
-  try {
-    const { data } = await supabase
-      .from('support_messages')
-      .select('id, message, content, sender_type, created_at')
-      .gte('created_at', monitorStartedAt)
-      .order('created_at', { ascending: false })
-      .limit(20);
-    for (const rec of data || []) {
-      if (seenIds.messages.has(rec.id)) continue;
-      seenIds.messages.add(rec.id);
-      if (rec.sender_type === 'admin') continue; // admin kendi mesajına alarm vermesin
-      const content = rec.message || rec.content || 'Yeni mesaj';
-      const preview = String(content).slice(0, 60);
-      const dangerWords = ['dolandırıcı', 'para gitmedi', 'scam', 'fraud', 'hack', 'şikayet'];
-      const isDanger = dangerWords.some(w => preview.toLowerCase().includes(w));
-      console.log(`[monitor] 💬 YENİ MESAJ: ${preview.slice(0, 30)}`);
-      fireAlert(
-        isDanger ? 'critical' : 'medium', 'support',
-        isDanger ? '🚨 ACİL Destek Mesajı' : '💬 Yeni Destek Mesajı',
-        preview, {},
-        isDanger ? startSecurityAlarm : startSupportAlarm
-      );
-    }
-  } catch {}
-}
-
-// ── POLL 5: Incoming on-chain funds ──────────────────────────
-async function checkIncoming() {
-  try {
-    const { data } = await supabase
-      .from('wallet_transactions')
-      .select('id, amount, token_symbol, network, created_at')
-      .gte('created_at', monitorStartedAt)
-      .order('created_at', { ascending: false })
-      .limit(10);
-    const { settings } = useStore.getState();
-    for (const rec of data || []) {
-      if (seenIds.incoming.has(rec.id)) continue;
-      seenIds.incoming.add(rec.id);
-      const amount = Number(rec.amount) || 0;
-      if (amount < settings.depositThreshold) continue;
-      const coin = rec.token_symbol || 'USDT';
-      console.log(`[monitor] 🔗 ZİNCİR TRANSFER: +${amount} ${coin}`);
-      fireAlert('high', 'finance', '🔗 Zincirden Transfer Geldi', `+${amount.toFixed(4)} ${coin}`, { amount }, startDepositAlarm);
-    }
-  } catch {}
-}
-
-// ── POLL 6: Balance deposits (transactions table) ─────────────
-async function checkDeposits() {
-  try {
-    const { data } = await supabase
-      .from('transactions')
-      .select('id, type, amount, symbol, user_id, created_at')
-      .in('type', ['deposit', 'manual_deposit', 'admin_credit'])
-      .gte('created_at', monitorStartedAt)
-      .order('created_at', { ascending: false })
-      .limit(10);
-    const { settings } = useStore.getState();
-    for (const rec of data || []) {
-      if (seenIds.deposits.has(rec.id)) continue;
-      seenIds.deposits.add(rec.id);
-      const amount = Number(rec.amount) || 0;
-      if (amount < settings.depositThreshold) continue;
-      console.log(`[monitor] 💰 YENİ YATIRIM: $${amount} ${rec.symbol}`);
-      fireAlert('high', 'finance', '💰 Para Yatırıldı', `+$${amount.toFixed(2)} ${rec.symbol || 'USDT'}`, { amount }, startDepositAlarm);
-    }
-  } catch {}
-}
-
-// ── POLL 7: Futures positions (via futures_history — admin auth required) ─────
-async function checkPositions() {
-  try {
-    // Monitor newly closed positions in futures_history (admin can read this)
-    const { data } = await supabase
-      .from('futures_history')
-      .select('id, symbol, side, margin, realized_pnl, close_reason, created_at, closed_at')
-      .gte('created_at', monitorStartedAt)
-      .order('created_at', { ascending: false })
-      .limit(10);
-    const { settings } = useStore.getState();
-    for (const rec of data || []) {
-      if (seenIds.positions.has(rec.id)) continue;
-      seenIds.positions.add(rec.id);
-      const margin = Number(rec.margin) || 0;
-      const pnl = Number(rec.realized_pnl) || 0;
-      const symbol = rec.symbol || 'UNKNOWN';
-      const side = (rec.side || '').toUpperCase();
-      const reason = rec.close_reason || '';
-      const isLiquidated = reason === 'liquidated';
-
-      // Always alarm liquidations; otherwise use threshold
-      if (!isLiquidated && margin < settings.largeTradeThreshold) continue;
-
-      if (isLiquidated) {
-        console.log(`[monitor] 💥 LİKİDASYON: ${symbol} ${side} margin=${margin}`);
-        fireAlert('critical', 'finance',
-          `💥 Likidatyon! ${symbol}`,
-          `${side} pozisyon likide edildi. Kayıp: $${Math.abs(pnl).toFixed(0)}`,
-          { margin, symbol }, startCriticalAlarm);
-      } else {
-        console.log(`[monitor] 📊 BÜYÜK POZİSYON KAPANDI: ${symbol} ${side} margin=$${margin}`);
-        fireAlert('medium', 'finance',
-          `📊 Büyük Pozisyon Kapandı`,
-          `${symbol} ${side} $${margin.toFixed(0)} margin | PnL: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(0)}`,
-          { margin, symbol }, startPositionAlarm);
-      }
-    }
-  } catch {}
-}
-
-// ── Stats refresh ─────────────────────────────────────────────
+// ── Stats ─────────────────────────────────────────────────────
 async function loadStats() {
   const { setStats } = useStore.getState();
-  // User count via RPC (RLS blocks direct user_profiles count for anon)
   try {
-    const { data: users } = await supabase.rpc('admin_get_real_users_with_wallets');
-    if (users) setStats({ totalUsers: (users as Array<unknown>).length });
+    const { data } = await supabase.rpc('admin_get_real_users_with_wallets');
+    if (data) setStats({ totalUsers: (data as Array<unknown>).length });
   } catch {}
   try {
     const { count } = await supabase.from('support_tickets').select('*', { count: 'exact', head: true }).eq('status', 'open');
@@ -265,51 +372,44 @@ async function loadStats() {
   } catch {}
 }
 
-// ── Main poll ─────────────────────────────────────────────────
-async function pollAll() {
-  await Promise.allSettled([
-    checkWithdrawals(),
-    checkNewUsers(),
-    checkSupportTickets(),
-    checkSupportMessages(),
-    checkIncoming(),
-    checkDeposits(),
-    checkPositions(),
-  ]);
-}
-
 // ── Entry point ───────────────────────────────────────────────
 export function startMonitor() {
   if (initialized) return;
   initialized = true;
   monitorStartedAt = new Date().toISOString();
-  console.log(`[monitor] started at ${monitorStartedAt}`);
+  console.log(`[monitor] başlatıldı: ${monitorStartedAt}`);
 
-  loadStats();
+  ensureAdminAuth().then(async () => {
+    await seedExisting();
 
-  // Ensure admin auth first (needed for futures_history & other RLS-protected tables)
-  ensureAdminAuth().then(() => {
-    // Seed then poll
-    seedExisting().then(() => {
-      pollAll();
-      setInterval(pollAll, 15_000);
-    });
-  });
+    // Realtime subscriptions (anlık bildirim)
+    subscribeRealtime();
 
-  // Stats every 5 min
-  setInterval(loadStats, 5 * 60 * 1000);
+    // Polling fallback (10s — timer çalışır çünkü silent audio loop aktif)
+    await poll();
+    setInterval(poll, 10_000);
 
-  // Health check every 2 min
-  setInterval(async () => {
-    try {
-      const start = Date.now();
-      await supabase.from('user_profiles').select('id', { count: 'exact', head: true });
-      const latency = Date.now() - start;
-      if (latency > 4000) {
-        fireAlert('medium', 'system', '⚡ Yüksek Gecikme', `Supabase: ${latency}ms`, { latency });
+    // Stats
+    loadStats();
+    setInterval(loadStats, 3 * 60 * 1000);
+
+    // Bağlantı sağlık kontrolü
+    setInterval(async () => {
+      try {
+        const t0 = Date.now();
+        await supabase.from('support_tickets').select('id', { count: 'exact', head: true });
+        const ms = Date.now() - t0;
+        console.log(`[monitor] ping: ${ms}ms`);
+        if (ms > 4000) fireAlert('medium', 'system', '⚡ Yüksek Gecikme', `${ms}ms`, { ms });
+      } catch {
+        fireAlert('critical', 'system', '🔴 Bağlantı Hatası', 'Supabase erişilemiyor!', {}, startCriticalAlarm);
       }
-    } catch {
-      fireAlert('critical', 'system', '🔴 Bağlantı Hatası', 'Supabase erişilemiyor', {}, startCriticalAlarm);
-    }
-  }, 2 * 60 * 1000);
+    }, 2 * 60 * 1000);
+  });
+}
+
+export function stopMonitor() {
+  channels.forEach(ch => supabase.removeChannel(ch));
+  channels.length = 0;
+  initialized = false;
 }
