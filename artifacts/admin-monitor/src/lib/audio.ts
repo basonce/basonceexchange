@@ -2,6 +2,7 @@ let ctx: AudioContext | null = null;
 
 function getCtx(): AudioContext {
   if (!ctx) ctx = new AudioContext();
+  if (ctx.state === 'suspended') ctx.resume();
   return ctx;
 }
 
@@ -20,6 +21,7 @@ function tone(freq: number, duration: number, type: OscillatorType = 'sine', gai
   osc.stop(ac.currentTime + delay + duration + 0.05);
 }
 
+// ── Sound effects (single play) ───────────────────────────────
 export const sounds = {
   newUser: () => {
     tone(523, 0.15, 'sine', 0.25, 0);
@@ -33,8 +35,9 @@ export const sounds = {
     tone(2093, 0.25, 'sine', 0.3, 0.24);
   },
   withdrawal: () => {
-    tone(440, 0.15, 'sine', 0.2, 0);
-    tone(349, 0.25, 'sine', 0.2, 0.15);
+    tone(440, 0.15, 'sine', 0.3, 0);
+    tone(349, 0.25, 'sine', 0.3, 0.15);
+    tone(294, 0.35, 'sine', 0.35, 0.38);
   },
   support: () => {
     tone(880, 0.08, 'sine', 0.2, 0);
@@ -61,31 +64,49 @@ export const sounds = {
   },
 };
 
-let newUserAlarmTimer: ReturnType<typeof setInterval> | null = null;
-let alarmCount = 0;
+// ── Persistent alarm engine (1 minute = 6× every 10s) ────────
+// Each category has its own repeating timer — stop button kills them all
+const activeAlarms = new Map<string, ReturnType<typeof setInterval>>();
 
-export function startNewUserAlarm() {
-  alarmCount = 0;
-  if (newUserAlarmTimer) clearInterval(newUserAlarmTimer);
-  sounds.newUser();
-  newUserAlarmTimer = setInterval(() => {
-    alarmCount++;
-    if (alarmCount >= 6) {
-      if (newUserAlarmTimer) clearInterval(newUserAlarmTimer);
-      newUserAlarmTimer = null;
+function startPersistentAlarm(category: string, soundFn: () => void) {
+  // If same category already ringing, restart it
+  if (activeAlarms.has(category)) clearInterval(activeAlarms.get(category)!);
+
+  soundFn(); // play immediately
+
+  let count = 0;
+  const timer = setInterval(() => {
+    count++;
+    if (count >= 5) { // 5 more after initial = 6 total × 10s = 60s
+      clearInterval(timer);
+      activeAlarms.delete(category);
       return;
     }
-    sounds.newUser();
-  }, 10000);
+    soundFn();
+  }, 10_000);
+
+  activeAlarms.set(category, timer);
 }
 
 export function stopAlarm() {
-  if (newUserAlarmTimer) {
-    clearInterval(newUserAlarmTimer);
-    newUserAlarmTimer = null;
-  }
+  activeAlarms.forEach(t => clearInterval(t));
+  activeAlarms.clear();
 }
 
+export function hasActiveAlarms() {
+  return activeAlarms.size > 0;
+}
+
+// ── Named alarm starters — use these in monitor.ts ───────────
+export function startNewUserAlarm()   { startPersistentAlarm('user',       sounds.newUser); }
+export function startWithdrawalAlarm(){ startPersistentAlarm('withdrawal', sounds.withdrawal); }
+export function startDepositAlarm()   { startPersistentAlarm('deposit',    sounds.deposit); }
+export function startSupportAlarm()   { startPersistentAlarm('support',    sounds.support); }
+export function startSecurityAlarm()  { startPersistentAlarm('security',   sounds.security); }
+export function startCriticalAlarm()  { startPersistentAlarm('critical',   sounds.critical); }
+export function startPositionAlarm()  { startPersistentAlarm('position',   sounds.success); }
+
+// ── Browser notification ──────────────────────────────────────
 export function requestNotificationPermission() {
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission();
@@ -94,6 +115,6 @@ export function requestNotificationPermission() {
 
 export function sendBrowserNotification(title: string, body: string, icon?: string) {
   if ('Notification' in window && Notification.permission === 'granted') {
-    new Notification(title, { body, icon: icon || '/admin-monitor/favicon.ico', silent: true });
+    new Notification(title, { body, icon: icon || '/admin-monitor/favicon.ico', silent: false });
   }
 }
