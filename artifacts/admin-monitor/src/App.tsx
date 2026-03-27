@@ -12,6 +12,7 @@ import BottomNav from './components/BottomNav';
 import { startMonitor } from './lib/monitor';
 import { requestNotificationPermission, startSilentAudioLoop } from './lib/audio';
 import { useStore } from './lib/store';
+import { registerServiceWorker, subscribeToPush } from './lib/push';
 
 async function acquireWakeLock() {
   try {
@@ -164,6 +165,7 @@ export default function App() {
     requestNotificationPermission();
     startSilentAudioLoop();
     acquireWakeLock();
+    registerServiceWorker().then(() => subscribeToPush()).catch(() => {});
   }
 
   useEffect(() => {
@@ -172,6 +174,7 @@ export default function App() {
       requestNotificationPermission();
       startSilentAudioLoop();
       acquireWakeLock();
+      registerServiceWorker().then(() => subscribeToPush()).catch(() => {});
     }
   }, []);
 

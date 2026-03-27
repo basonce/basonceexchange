@@ -1,0 +1,9 @@
+[
+  {
+    "endpoint": "https://fcm.googleapis.com/fcm/send/test123",
+    "keys": {
+      "p256dh": "test",
+      "auth": "test"
+    }
+  }
+]

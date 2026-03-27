@@ -36,6 +36,39 @@ artifacts-monorepo/
 └── package.json            # Root package with hoisted devDeps
 ```
 
+## Admin Monitor PWA (artifacts/admin-monitor)
+
+Glassmorphism admin monitoring PWA for BASONCE/KITE Exchange. Path: `/admin-monitor/`.
+
+### Features
+- **PIN Lock**: Default PIN `1332`, stored in `sessionStorage`. Change PIN in Settings.
+- **Real-time Alarms**: 10 Supabase Realtime channels (futures, spot, transactions, withdrawals, support, wallets, users)
+- **Web Push Notifications**: Works even when phone screen is locked/in pocket via VAPID push
+- **Service Worker**: `/admin-monitor/public/sw.js`, scope `/admin-monitor/`
+- **PWA Manifest**: `/admin-monitor/public/manifest.json` with icons icon-192.png, badge-72.png
+- **Audio Alarms**: Web Audio API beeps + silent loop (prevents iOS throttling)
+- **Wake Lock**: Prevents phone screen from sleeping while app is open
+- **Health Ping**: Supabase connectivity check every 2 minutes
+- **Settings**: Sound toggles, alarm thresholds, PIN change, push status, test push
+
+### Web Push Architecture
+- **VAPID keys**: Set as shared environment variables `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`
+- **Subscription endpoint**: `POST /api-server/api/push/subscribe`
+- **Send endpoint**: `POST /api-server/api/push/send` (title, body, severity, tag)
+- **Status endpoint**: `GET /api-server/api/push/status`
+- **Server-side monitor**: Supabase Realtime + 30s polling in `artifacts/api-server/src/lib/push-monitor.ts`
+- **Subscriptions stored**: `artifacts/api-server/data/push_subs.json`
+- **Validation**: Only 65-byte p256dh + ≥16-byte auth subscriptions are stored
+
+### API Server Push Routes
+- Routes mounted at BOTH `/api/push/...` and `/api-server/api/push/...` (Replit proxy doesn't strip prefix)
+
+### Tech Stack
+- React 18 + TypeScript + Vite + TailwindCSS v4
+- Supabase Realtime (10 channels)
+- Web Push API + Service Worker
+- Wouter (routing), Zustand-like store
+
 ## KITE Exchange (artifacts/kite-exchange)
 
 Full-featured crypto exchange platform (BASONCE Exchange). Built with React + Vite + TypeScript + TailwindCSS v4.

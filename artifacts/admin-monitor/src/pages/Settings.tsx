@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { Volume2, VolumeX, Bell, Shield, Zap } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Volume2, VolumeX, Bell, Shield, Zap, Smartphone, RefreshCw } from 'lucide-react';
 import { useStore } from '../lib/store';
 import { requestNotificationPermission, stopAlarm, sounds } from '../lib/audio';
 import { isMuted } from '../lib/store';
+import { getPushStatus, onPushStatusChange, subscribeToPush, sendTestPush, getPushServerStatus, type PushStatus } from '../lib/push';
 
 function Toggle({ on, onChange, label, sub, icon }: { on: boolean; onChange: (v: boolean) => void; label: string; sub?: string; icon?: React.ReactNode }) {
   return (
@@ -45,6 +46,32 @@ export default function Settings() {
   const [confirmPin, setConfirmPin] = useState('');
   const [pinErr, setPinErr] = useState('');
   const [saved, setSaved] = useState(false);
+  const [pushSt, setPushSt] = useState<PushStatus>(getPushStatus);
+  const [resubscribing, setResubscribing] = useState(false);
+  const [serverSubs, setServerSubs] = useState<number | null>(null);
+  const [testSent, setTestSent] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const unsub = onPushStatusChange(setPushSt);
+    getPushServerStatus().then(s => { if (s) setServerSubs(s.subscriptions); });
+    return unsub;
+  }, []);
+
+  async function resubscribe() {
+    setResubscribing(true);
+    await subscribeToPush();
+    const s = await getPushServerStatus();
+    if (s) setServerSubs(s.subscriptions);
+    setResubscribing(false);
+  }
+
+  async function testPush() {
+    const r = await sendTestPush();
+    const s = await getPushServerStatus();
+    if (s) setServerSubs(s.subscriptions);
+    setTestSent(r.sent > 0);
+    setTimeout(() => setTestSent(null), 3000);
+  }
 
   const muted = isMuted(settings);
 
@@ -112,18 +139,66 @@ export default function Settings() {
           <Toggle on={settings.browserNotifications}
             onChange={v => { save({ browserNotifications: v }); if (v) requestNotificationPermission(); }}
             label="Push Bildirimleri" sub="Uygulama kapalıyken bildirim al" />
-          <div className="py-3">
+          <div className="pb-3 pt-1 flex flex-col gap-2">
+            {/* Browser permission status */}
             <div className="rounded-xl px-4 py-3 flex items-center gap-3 text-xs"
               style={{ background: notifStatus === 'granted' ? 'rgba(0,220,130,0.08)' : notifStatus === 'denied' ? 'rgba(255,71,87,0.08)' : 'rgba(255,255,255,0.05)', border: `1px solid ${notifStatus === 'granted' ? 'rgba(0,220,130,0.2)' : notifStatus === 'denied' ? 'rgba(255,71,87,0.2)' : 'rgba(255,255,255,0.08)'}` }}>
-              <span style={{ color: notifStatus === 'granted' ? '#00DC82' : notifStatus === 'denied' ? '#FF4757' : '#888' }}>
-                {notifStatus === 'granted' ? '✓' : notifStatus === 'denied' ? '✗' : '○'}
-              </span>
-              <span style={{ color: 'rgba(255,255,255,0.5)' }}>
-                {notifStatus === 'granted' ? 'Bildirimler aktif' : notifStatus === 'denied' ? 'Engellendi — tarayıcı ayarlarından aç' : notifStatus === 'not-supported' ? 'Desteklenmiyor' : 'İzin verilmedi'}
-              </span>
+              <Bell size={13} style={{ color: notifStatus === 'granted' ? '#00DC82' : notifStatus === 'denied' ? '#FF4757' : '#888' }} />
+              <div className="flex-1">
+                <p className="font-semibold" style={{ color: notifStatus === 'granted' ? '#00DC82' : notifStatus === 'denied' ? '#FF4757' : 'rgba(255,255,255,0.5)' }}>
+                  {notifStatus === 'granted' ? 'İzin verildi' : notifStatus === 'denied' ? 'Engellendi — ayarlardan aç' : notifStatus === 'not-supported' ? 'Desteklenmiyor' : 'İzin bekliyor'}
+                </p>
+              </div>
               {notifStatus === 'default' && (
-                <button onClick={requestNotificationPermission} className="ml-auto px-3 py-1.5 rounded-lg font-semibold" style={{ background: 'rgba(240,185,11,0.15)', color: '#F0B90B' }}>İzin Al</button>
+                <button onClick={requestNotificationPermission} className="px-3 py-1.5 rounded-lg font-semibold text-xs" style={{ background: 'rgba(240,185,11,0.15)', color: '#F0B90B' }}>İzin Al</button>
               )}
+            </div>
+            {/* Web Push subscription status */}
+            <div className="rounded-xl px-4 py-3 flex items-center gap-3 text-xs"
+              style={{
+                background: pushSt === 'subscribed' ? 'rgba(0,220,130,0.08)' : pushSt === 'denied' ? 'rgba(255,71,87,0.08)' : 'rgba(255,255,255,0.05)',
+                border: `1px solid ${pushSt === 'subscribed' ? 'rgba(0,220,130,0.2)' : pushSt === 'denied' ? 'rgba(255,71,87,0.2)' : 'rgba(255,255,255,0.08)'}`,
+              }}>
+              <Smartphone size={13} style={{ color: pushSt === 'subscribed' ? '#00DC82' : pushSt === 'denied' ? '#FF4757' : '#F0B90B' }} />
+              <div className="flex-1">
+                <p className="font-semibold" style={{ color: pushSt === 'subscribed' ? '#00DC82' : pushSt === 'denied' ? '#FF4757' : 'rgba(255,255,255,0.5)' }}>
+                  {pushSt === 'subscribed' ? '✓ Cihaz aboneliği aktif' :
+                   pushSt === 'denied' ? '✗ İzin reddedildi' :
+                   pushSt === 'unsupported' ? 'Desteklenmiyor' :
+                   pushSt === 'error' ? 'Bağlantı hatası' : 'Abone değil'}
+                </p>
+                <p className="mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                  {pushSt === 'subscribed' ? 'Ekran kapalıyken bildirim alırsın' :
+                   pushSt === 'idle' ? 'Abonelik için yenile düğmesine bas' : ''}
+                </p>
+              </div>
+              {(pushSt === 'idle' || pushSt === 'error') && (
+                <button onClick={resubscribe} disabled={resubscribing}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold text-xs"
+                  style={{ background: 'rgba(240,185,11,0.15)', color: '#F0B90B', opacity: resubscribing ? 0.5 : 1 }}>
+                  <RefreshCw size={11} className={resubscribing ? 'animate-spin' : ''} />
+                  {resubscribing ? '...' : 'Abone Ol'}
+                </button>
+              )}
+            </div>
+            {/* Server status + test push */}
+            <div className="rounded-xl px-4 py-3 flex items-center justify-between text-xs"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div>
+                <p className="font-semibold text-white">Sunucu Aboneleri</p>
+                <p style={{ color: 'rgba(255,255,255,0.35)' }}>
+                  {serverSubs === null ? '...' : `${serverSubs} cihaz bağlı`}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {testSent === true && <span className="text-xs font-medium" style={{ color: '#00DC82' }}>Gönderildi ✓</span>}
+                {testSent === false && <span className="text-xs font-medium" style={{ color: '#FF4757' }}>Abone yok</span>}
+                <button onClick={testPush}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold"
+                  style={{ background: 'rgba(61,127,255,0.12)', border: '1px solid rgba(61,127,255,0.2)', color: '#3D7FFF' }}>
+                  <Zap size={11} /> Test
+                </button>
+              </div>
             </div>
           </div>
         </Section>

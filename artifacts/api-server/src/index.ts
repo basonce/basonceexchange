@@ -1,5 +1,8 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { loadSubs } from "./lib/push-store";
+import { configurePush } from "./lib/push-sender";
+import { startPushMonitor } from "./lib/push-monitor";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +25,8 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  loadSubs();
+  configurePush();
+  startPushMonitor().catch(e => logger.warn({ e }, 'Push monitor başlatılamadı'));
 });
