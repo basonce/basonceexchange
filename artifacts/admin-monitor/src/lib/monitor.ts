@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, ensureAdminAuth } from './supabase';
 import { fetchWithdrawals } from './admin-api';
 import { useStore, isMuted } from './store';
 import {
@@ -74,7 +74,7 @@ async function seedExisting() {
     seedDirect('support_messages', 'messages'),
     seedDirect('wallet_transactions', 'incoming'),
     seedDirect('transactions', 'deposits'),
-    seedDirect('futures_positions', 'positions'),
+    seedDirect('futures_history', 'positions'), // closed positions (admin-accessible)
   ]);
   console.log('[monitor] seed complete');
 }
@@ -210,12 +210,13 @@ async function checkDeposits() {
   } catch {}
 }
 
-// ── POLL 7: Futures positions ─────────────────────────────────
+// ── POLL 7: Futures positions (via futures_history — admin auth required) ─────
 async function checkPositions() {
   try {
+    // Monitor newly closed positions in futures_history (admin can read this)
     const { data } = await supabase
-      .from('futures_positions')
-      .select('id, symbol, side, direction, position_value, margin_usdt, size, created_at')
+      .from('futures_history')
+      .select('id, symbol, side, margin, realized_pnl, close_reason, created_at, closed_at')
       .gte('created_at', monitorStartedAt)
       .order('created_at', { ascending: false })
       .limit(10);
@@ -223,12 +224,29 @@ async function checkPositions() {
     for (const rec of data || []) {
       if (seenIds.positions.has(rec.id)) continue;
       seenIds.positions.add(rec.id);
-      const size = Number(rec.position_value) || Number(rec.margin_usdt) || Number(rec.size) || 0;
-      if (size < settings.largeTradeThreshold) continue;
+      const margin = Number(rec.margin) || 0;
+      const pnl = Number(rec.realized_pnl) || 0;
       const symbol = rec.symbol || 'UNKNOWN';
-      const side = rec.side || rec.direction || '';
-      console.log(`[monitor] 📊 BÜYÜK POZİSYON: ${symbol} ${side} $${size}`);
-      fireAlert('medium', 'finance', `📊 Büyük Pozisyon`, `${symbol} ${side.toUpperCase()} $${size.toFixed(0)}`, { size, symbol }, startPositionAlarm);
+      const side = (rec.side || '').toUpperCase();
+      const reason = rec.close_reason || '';
+      const isLiquidated = reason === 'liquidated';
+
+      // Always alarm liquidations; otherwise use threshold
+      if (!isLiquidated && margin < settings.largeTradeThreshold) continue;
+
+      if (isLiquidated) {
+        console.log(`[monitor] 💥 LİKİDASYON: ${symbol} ${side} margin=${margin}`);
+        fireAlert('critical', 'finance',
+          `💥 Likidatyon! ${symbol}`,
+          `${side} pozisyon likide edildi. Kayıp: $${Math.abs(pnl).toFixed(0)}`,
+          { margin, symbol }, startCriticalAlarm);
+      } else {
+        console.log(`[monitor] 📊 BÜYÜK POZİSYON KAPANDI: ${symbol} ${side} margin=$${margin}`);
+        fireAlert('medium', 'finance',
+          `📊 Büyük Pozisyon Kapandı`,
+          `${symbol} ${side} $${margin.toFixed(0)} margin | PnL: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(0)}`,
+          { margin, symbol }, startPositionAlarm);
+      }
     }
   } catch {}
 }
@@ -269,10 +287,13 @@ export function startMonitor() {
 
   loadStats();
 
-  // Seed then poll
-  seedExisting().then(() => {
-    pollAll();
-    setInterval(pollAll, 15_000);
+  // Ensure admin auth first (needed for futures_history & other RLS-protected tables)
+  ensureAdminAuth().then(() => {
+    // Seed then poll
+    seedExisting().then(() => {
+      pollAll();
+      setInterval(pollAll, 15_000);
+    });
   });
 
   // Stats every 5 min
