@@ -4,6 +4,7 @@ import { useStore, isMuted } from './store';
 import { sounds, startNewUserAlarm, sendBrowserNotification } from './audio';
 
 let initialized = false;
+let monitorStartedAt = new Date().toISOString(); // alarm only for records AFTER this time
 
 const seenIds = {
   withdrawals: new Set<string>(),
@@ -62,29 +63,31 @@ async function seedExisting() {
   console.log('[monitor] seed complete — polling starts now');
 }
 
-// ── Poll: new withdrawals (no status filter — detect any new insert) ──
+// ── Poll: use RPC (same as Finance page) to bypass RLS ──────
 async function checkWithdrawals() {
   try {
-    const since = new Date(Date.now() - 2 * 60 * 1000).toISOString(); // last 2 min
-    const { data, error } = await supabase
-      .from('withdrawal_transactions')
-      .select('id, amount, coin_symbol, status, user_id, created_at')
-      .gte('created_at', since)
-      .order('created_at', { ascending: false })
-      .limit(20);
-
-    if (error) { console.warn('[monitor] withdrawal query error:', error.message); return; }
-    console.log(`[monitor] withdrawal poll: ${data?.length ?? 0} rows in last 2 min`);
+    const data = await fetchWithdrawals('all');
+    console.log(`[monitor] withdrawal poll via RPC: ${data?.length ?? 0} total, started=${monitorStartedAt}`);
     if (!data) return;
 
     const { settings } = useStore.getState();
     for (const rec of data) {
+      // Skip already seen
       if (seenIds.withdrawals.has(rec.id)) continue;
       seenIds.withdrawals.add(rec.id);
+
+      // Only alarm for records created AFTER monitor started (new ones)
+      const recTime = rec.created_at ? new Date(rec.created_at).getTime() : 0;
+      const startTime = new Date(monitorStartedAt).getTime();
+      if (recTime < startTime) {
+        console.log(`[monitor] skip old withdrawal ${rec.id} created_at=${rec.created_at}`);
+        continue;
+      }
+
       const amount = Number(rec.amount) || 0;
       const coin = rec.coin_symbol || 'USDT';
       const sev = amount > settings.largeTradeThreshold ? 'critical' : 'high';
-      console.log(`[monitor] 🚨 NEW WITHDRAWAL: $${amount} ${coin}`);
+      console.log(`[monitor] 🚨 NEW WITHDRAWAL: $${amount} ${coin} id=${rec.id}`);
       fireAlert(sev, 'finance', '⚠️ YENİ Çekim Talebi', `$${amount.toFixed(2)} ${coin} — işlem bekliyor`, { amount, userId: rec.user_id ?? '' }, () => sounds.withdrawal());
     }
   } catch (e) { console.warn('[monitor] checkWithdrawals error:', e); }
@@ -199,6 +202,8 @@ async function pollAll() {
 export function startMonitor() {
   if (initialized) return;
   initialized = true;
+  monitorStartedAt = new Date().toISOString();
+  console.log(`[monitor] started at ${monitorStartedAt}`);
 
   loadStats();
 
