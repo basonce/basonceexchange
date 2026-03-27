@@ -93,17 +93,48 @@ export async function searchUsersByEmail(email: string) {
 
 // ── Platform Stats ────────────────────────────────────────────
 export async function fetchPlatformStats() {
-  const { data, error } = await supabase.from('admin_platform_stats').select('*').single();
-  if (error) {
-    const [{ count: uc }, { count: tc }] = await Promise.all([
-      supabase.from('user_profiles').select('*', { count: 'exact', head: true }),
-      supabase.from('transactions').select('*', { count: 'exact', head: true }),
-    ]);
-    return { total_users: uc || 0, users_today: 0, active_users_24h: 0, open_positions: 0,
-      total_position_value: 0, pending_withdrawals: 0, pending_withdrawal_amount: 0,
-      total_usdt_balances: 0, deposits_24h: 0, withdrawals_24h: 0, total_transactions: tc || 0 };
-  }
-  return data;
+  // Always build stats from real tables — don't rely on admin_platform_stats view
+  const [
+    { count: userCount },
+    { count: txCount },
+    { data: pendingWds },
+    { count: posCount },
+  ] = await Promise.all([
+    supabase.from('user_profiles').select('*', { count: 'exact', head: true }),
+    supabase.from('transactions').select('*', { count: 'exact', head: true }),
+    supabase.from('withdrawal_transactions').select('id, amount').not('status', 'in', '(completed,rejected,cancelled)'),
+    supabase.from('futures_positions').select('*', { count: 'exact', head: true }).eq('status', 'open'),
+  ]);
+
+  const pendingCount = pendingWds?.length || 0;
+  const pendingAmount = (pendingWds || []).reduce((s, r) => s + (Number(r.amount) || 0), 0);
+
+  // Try to get extended stats from the view — merge on top
+  try {
+    const { data } = await supabase.from('admin_platform_stats').select('*').single();
+    if (data) return {
+      ...data,
+      total_users: userCount || data.total_users || 0,
+      pending_withdrawals: pendingCount,
+      pending_withdrawal_amount: pendingAmount,
+      open_positions: posCount || data.open_positions || 0,
+      total_transactions: txCount || data.total_transactions || 0,
+    };
+  } catch {}
+
+  return {
+    total_users: userCount || 0,
+    users_today: 0,
+    active_users_24h: 0,
+    open_positions: posCount || 0,
+    total_position_value: 0,
+    pending_withdrawals: pendingCount,
+    pending_withdrawal_amount: pendingAmount,
+    total_usdt_balances: 0,
+    deposits_24h: 0,
+    withdrawals_24h: 0,
+    total_transactions: txCount || 0,
+  };
 }
 
 export async function fetchFinancialStatus() {

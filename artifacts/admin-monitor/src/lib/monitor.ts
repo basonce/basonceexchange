@@ -1,16 +1,18 @@
 import { supabase } from './supabase';
+import { fetchWithdrawals } from './admin-api';
 import { useStore, isMuted } from './store';
 import { sounds, startNewUserAlarm, sendBrowserNotification } from './audio';
 
 let initialized = false;
 
-// ── Seen ID sets (prevent double-alerting) ────────────────────
-const seenWithdrawalIds = new Set<string>();
-const seenDepositIds = new Set<string>();
-const seenUserIds = new Set<string>();
-const seenTicketIds = new Set<string>();
-const seenMessageIds = new Set<string>();
-const seenIncomingIds = new Set<string>();
+const seenIds = {
+  withdrawals: new Set<string>(),
+  users: new Set<string>(),
+  tickets: new Set<string>(),
+  messages: new Set<string>(),
+  incoming: new Set<string>(),
+  deposits: new Set<string>(),
+};
 
 function fireAlert(
   severity: Parameters<ReturnType<typeof useStore.getState>['addAlert']>[0]['severity'],
@@ -23,65 +25,84 @@ function fireAlert(
   const { addAlert, settings } = useStore.getState();
   addAlert({ severity, category, title, body, meta });
   const muted = isMuted(settings);
-  if (!muted) {
-    if (settings.alertSounds && sound) {
-      try { sound(); } catch {}
-    }
-    if (settings.browserNotifications) {
-      sendBrowserNotification(`[Admin] ${title}`, body);
-    }
+  if (!muted && settings.alertSounds && sound) {
+    try { sound(); } catch {}
+  }
+  if (!muted && settings.browserNotifications) {
+    sendBrowserNotification(`[Admin] ${title}`, body);
   }
 }
 
-// ── POLLING CHECKS ────────────────────────────────────────────
+// ── Seed existing record IDs so we don't alarm on old data ────
+async function seedExisting() {
+  const seedDirect = async (table: string, key: keyof typeof seenIds, filter?: Record<string, string>) => {
+    try {
+      let q = supabase.from(table).select('id').order('created_at', { ascending: false }).limit(200);
+      if (filter) Object.entries(filter).forEach(([k, v]) => { q = q.eq(k, v); });
+      const { data } = await q;
+      data?.forEach((r: { id: string }) => seenIds[key].add(r.id));
+      console.log(`[monitor] seeded ${data?.length || 0} ${table} records`);
+    } catch (e) { console.warn(`[monitor] seed ${table} failed:`, e); }
+  };
 
+  // Withdrawals: use the API (RPC-backed) to bypass RLS
+  try {
+    const wds = await fetchWithdrawals('all');
+    wds?.forEach((r: { id: string }) => seenIds.withdrawals.add(r.id));
+    console.log(`[monitor] seeded ${wds?.length || 0} withdrawal_transactions via API`);
+  } catch (e) { console.warn('[monitor] seed withdrawals via API failed:', e); }
+
+  await Promise.allSettled([
+    seedDirect('user_profiles', 'users'),
+    seedDirect('support_tickets', 'tickets'),
+    seedDirect('support_messages', 'messages', { sender_type: 'customer' }),
+    seedDirect('wallet_transactions', 'incoming'),
+    seedDirect('transactions', 'deposits'),
+  ]);
+  console.log('[monitor] seed complete — polling starts now');
+}
+
+// ── Poll: new withdrawals (no status filter — detect any new insert) ──
 async function checkWithdrawals() {
   try {
-    const { data } = await supabase
+    const since = new Date(Date.now() - 2 * 60 * 1000).toISOString(); // last 2 min
+    const { data, error } = await supabase
       .from('withdrawal_transactions')
       .select('id, amount, coin_symbol, status, user_id, created_at')
-      .eq('status', 'pending')
+      .gte('created_at', since)
       .order('created_at', { ascending: false })
       .limit(20);
 
+    if (error) { console.warn('[monitor] withdrawal query error:', error.message); return; }
+    console.log(`[monitor] withdrawal poll: ${data?.length ?? 0} rows in last 2 min`);
     if (!data) return;
+
     const { settings } = useStore.getState();
-
     for (const rec of data) {
-      if (seenWithdrawalIds.has(rec.id)) continue;
-      seenWithdrawalIds.add(rec.id);
-
+      if (seenIds.withdrawals.has(rec.id)) continue;
+      seenIds.withdrawals.add(rec.id);
       const amount = Number(rec.amount) || 0;
       const coin = rec.coin_symbol || 'USDT';
       const sev = amount > settings.largeTradeThreshold ? 'critical' : 'high';
-
-      fireAlert(
-        sev, 'finance',
-        '⚠️ Çekim Talebi Geldi',
-        `$${amount.toFixed(2)} ${coin} — onay bekliyor`,
-        { amount, userId: rec.user_id ?? '' },
-        () => sounds.withdrawal()
-      );
+      console.log(`[monitor] 🚨 NEW WITHDRAWAL: $${amount} ${coin}`);
+      fireAlert(sev, 'finance', '⚠️ YENİ Çekim Talebi', `$${amount.toFixed(2)} ${coin} — işlem bekliyor`, { amount, userId: rec.user_id ?? '' }, () => sounds.withdrawal());
     }
-  } catch (e) {
-    console.warn('[monitor] withdrawal check failed:', e);
-  }
+  } catch (e) { console.warn('[monitor] checkWithdrawals error:', e); }
 }
 
 async function checkNewUsers() {
   try {
-    const since = new Date(Date.now() - 60 * 1000).toISOString(); // son 60 sn
+    const since = new Date(Date.now() - 2 * 60 * 1000).toISOString();
     const { data } = await supabase
       .from('user_profiles')
       .select('id, email, full_name, created_at')
       .gte('created_at', since)
       .order('created_at', { ascending: false })
       .limit(10);
-
     if (!data) return;
     for (const rec of data) {
-      if (seenUserIds.has(rec.id)) continue;
-      seenUserIds.add(rec.id);
+      if (seenIds.users.has(rec.id)) continue;
+      seenIds.users.add(rec.id);
       const name = rec.full_name || rec.email || rec.id?.slice(0, 8) || 'Bilinmeyen';
       fireAlert('high', 'user', '🆕 Yeni Üye Kaydı', `${name} platforma katıldı`, { user: name }, () => startNewUserAlarm());
       useStore.getState().setStats({ totalUsers: useStore.getState().totalUsers + 1 });
@@ -91,18 +112,17 @@ async function checkNewUsers() {
 
 async function checkSupportTickets() {
   try {
-    const since = new Date(Date.now() - 60 * 1000).toISOString();
+    const since = new Date(Date.now() - 2 * 60 * 1000).toISOString();
     const { data } = await supabase
       .from('support_tickets')
       .select('id, subject, title, created_at')
       .gte('created_at', since)
       .order('created_at', { ascending: false })
       .limit(10);
-
     if (!data) return;
     for (const rec of data) {
-      if (seenTicketIds.has(rec.id)) continue;
-      seenTicketIds.add(rec.id);
+      if (seenIds.tickets.has(rec.id)) continue;
+      seenIds.tickets.add(rec.id);
       const subject = rec.subject || rec.title || 'Yeni destek talebi';
       fireAlert('medium', 'support', '💬 Destek Talebi', subject, { ticketId: rec.id }, () => sounds.support());
     }
@@ -111,7 +131,7 @@ async function checkSupportTickets() {
 
 async function checkSupportMessages() {
   try {
-    const since = new Date(Date.now() - 60 * 1000).toISOString();
+    const since = new Date(Date.now() - 2 * 60 * 1000).toISOString();
     const { data } = await supabase
       .from('support_messages')
       .select('id, message, content, sender_type, created_at')
@@ -119,66 +139,36 @@ async function checkSupportMessages() {
       .gte('created_at', since)
       .order('created_at', { ascending: false })
       .limit(10);
-
     if (!data) return;
     for (const rec of data) {
-      if (seenMessageIds.has(rec.id)) continue;
-      seenMessageIds.add(rec.id);
+      if (seenIds.messages.has(rec.id)) continue;
+      seenIds.messages.add(rec.id);
       const content = rec.message || rec.content || 'Yeni mesaj';
       const preview = typeof content === 'string' ? content.slice(0, 60) : 'Yeni mesaj';
       const dangerWords = ['dolandırıcı', 'para gitmedi', 'scam', 'fraud', 'hack', 'şikayet', 'kayıp'];
       const isDanger = dangerWords.some(w => preview.toLowerCase().includes(w));
-      fireAlert(
-        isDanger ? 'critical' : 'medium', 'support',
-        isDanger ? '🚨 ACİL Destek Mesajı' : '💬 Yeni Destek Mesajı',
-        preview, {},
-        isDanger ? () => sounds.security() : () => sounds.support()
-      );
+      fireAlert(isDanger ? 'critical' : 'medium', 'support', isDanger ? '🚨 ACİL Mesaj' : '💬 Yeni Destek Mesajı', preview, {}, isDanger ? () => sounds.security() : () => sounds.support());
     }
   } catch {}
 }
 
-async function checkIncomingFunds() {
+async function checkIncoming() {
   try {
-    const since = new Date(Date.now() - 60 * 1000).toISOString();
+    const since = new Date(Date.now() - 2 * 60 * 1000).toISOString();
     const { data } = await supabase
       .from('wallet_transactions')
       .select('id, amount, token_symbol, network, created_at')
       .gte('created_at', since)
       .order('created_at', { ascending: false })
       .limit(10);
-
     if (!data) return;
     const { settings } = useStore.getState();
     for (const rec of data) {
-      if (seenIncomingIds.has(rec.id)) continue;
-      seenIncomingIds.add(rec.id);
+      if (seenIds.incoming.has(rec.id)) continue;
+      seenIds.incoming.add(rec.id);
       const amount = Number(rec.amount) || 0;
       if (amount >= settings.depositThreshold) {
-        const coin = rec.token_symbol || 'USDT';
-        fireAlert('high', 'finance', '🔗 Zincirden Transfer Geldi', `+${amount.toFixed(4)} ${coin} — işleme hazır`, { amount }, () => sounds.deposit());
-      }
-    }
-  } catch {}
-}
-
-async function checkBalanceDeposits() {
-  try {
-    const { data } = await supabase
-      .from('transactions')
-      .select('id, type, amount, symbol, user_id, created_at')
-      .in('type', ['deposit', 'manual_deposit', 'admin_credit'])
-      .order('created_at', { ascending: false })
-      .limit(10);
-
-    if (!data) return;
-    const { settings } = useStore.getState();
-    for (const rec of data) {
-      if (seenDepositIds.has(rec.id)) continue;
-      seenDepositIds.add(rec.id);
-      const amount = Number(rec.amount) || 0;
-      if (amount >= settings.depositThreshold) {
-        fireAlert('high', 'finance', '💰 Para Yatırıldı', `+$${amount.toFixed(2)} ${rec.symbol || 'USDT'}`, { amount, userId: rec.user_id ?? '' }, () => sounds.deposit());
+        fireAlert('high', 'finance', '🔗 Zincirden Transfer Geldi', `+${amount.toFixed(4)} ${rec.token_symbol || 'USDT'}`, { amount }, () => sounds.deposit());
       }
     }
   } catch {}
@@ -196,73 +186,13 @@ async function loadStats() {
   } catch {}
 }
 
-// ── Seed existing IDs on startup (avoid false positives) ──────
-async function seedExistingIds() {
-  try {
-    const { data: wds } = await supabase
-      .from('withdrawal_transactions')
-      .select('id')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false })
-      .limit(50);
-    wds?.forEach(r => seenWithdrawalIds.add(r.id));
-  } catch {}
-
-  try {
-    const { data: users } = await supabase
-      .from('user_profiles')
-      .select('id')
-      .order('created_at', { ascending: false })
-      .limit(100);
-    users?.forEach(r => seenUserIds.add(r.id));
-  } catch {}
-
-  try {
-    const { data: tickets } = await supabase
-      .from('support_tickets')
-      .select('id')
-      .order('created_at', { ascending: false })
-      .limit(50);
-    tickets?.forEach(r => seenTicketIds.add(r.id));
-  } catch {}
-
-  try {
-    const { data: msgs } = await supabase
-      .from('support_messages')
-      .select('id')
-      .order('created_at', { ascending: false })
-      .limit(100);
-    msgs?.forEach(r => seenMessageIds.add(r.id));
-  } catch {}
-
-  try {
-    const { data: txs } = await supabase
-      .from('transactions')
-      .select('id')
-      .order('created_at', { ascending: false })
-      .limit(100);
-    txs?.forEach(r => seenDepositIds.add(r.id));
-  } catch {}
-
-  try {
-    const { data: incoming } = await supabase
-      .from('wallet_transactions')
-      .select('id')
-      .order('created_at', { ascending: false })
-      .limit(50);
-    incoming?.forEach(r => seenIncomingIds.add(r.id));
-  } catch {}
-}
-
-// ── Main polling loop ─────────────────────────────────────────
 async function pollAll() {
   await Promise.allSettled([
     checkWithdrawals(),
     checkNewUsers(),
     checkSupportTickets(),
     checkSupportMessages(),
-    checkIncomingFunds(),
-    checkBalanceDeposits(),
+    checkIncoming(),
   ]);
 }
 
@@ -270,29 +200,26 @@ export function startMonitor() {
   if (initialized) return;
   initialized = true;
 
-  // Önce mevcut kayıtları yükle (başlangıçta yanlış alarm çalmasın)
-  seedExistingIds().then(() => {
-    loadStats();
-    // İlk poll: 5 saniye sonra başlar (seed bitmesini bekle)
-    setTimeout(() => {
-      pollAll();
-      // Sonra her 15 saniyede bir kontrol
-      setInterval(pollAll, 15_000);
-    }, 5000);
+  loadStats();
+
+  // Seed ilk, sonra poll başlat
+  seedExisting().then(() => {
+    // İlk poll hemen çalışır (seed bitti)
+    pollAll();
+    // Her 15 saniyede tekrar
+    setInterval(pollAll, 15_000);
   });
 
-  // İstatistikleri her 5 dakikada yenile
+  // İstatistik yenileme (5 dk)
   setInterval(loadStats, 5 * 60 * 1000);
 
-  // Sistem sağlık kontrolü (2 dakika)
+  // Sistem sağlık (2 dk)
   setInterval(async () => {
     try {
       const start = Date.now();
       await supabase.from('user_profiles').select('id', { count: 'exact', head: true });
       const latency = Date.now() - start;
-      if (latency > 4000) {
-        fireAlert('medium', 'system', '⚡ Yüksek Gecikme', `Supabase: ${latency}ms`, { latency });
-      }
+      if (latency > 4000) fireAlert('medium', 'system', '⚡ Yüksek Gecikme', `Supabase: ${latency}ms`, { latency });
     } catch {
       fireAlert('critical', 'system', '🔴 Bağlantı Hatası', 'Supabase erişilemiyor', {}, () => sounds.critical());
     }
