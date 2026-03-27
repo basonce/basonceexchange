@@ -107,6 +107,30 @@ export function startCriticalAlarm()  { startPersistentAlarm('critical',   sound
 export function startPositionAlarm()  { startPersistentAlarm('position',   sounds.success); }
 
 // ── Browser notification ──────────────────────────────────────
+let silentNode: ScriptProcessorNode | null = null;
+let silentStarted = false;
+
+export function startSilentAudioLoop() {
+  if (silentStarted) return;
+  silentStarted = true;
+  try {
+    const ac = getCtx();
+    const bufSize = 4096;
+    silentNode = ac.createScriptProcessor(bufSize, 1, 1);
+    silentNode.onaudioprocess = () => {};
+    silentNode.connect(ac.destination);
+    const osc = ac.createOscillator();
+    const gainNode = ac.createGain();
+    gainNode.gain.setValueAtTime(0.0001, ac.currentTime);
+    osc.connect(gainNode);
+    gainNode.connect(ac.destination);
+    osc.start();
+    console.log('[audio] silent loop started — tab throttling prevented');
+  } catch (e) {
+    console.warn('[audio] silent loop failed:', e);
+  }
+}
+
 export function requestNotificationPermission() {
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission();

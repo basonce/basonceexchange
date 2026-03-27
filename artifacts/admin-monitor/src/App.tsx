@@ -10,8 +10,25 @@ import Settings from './pages/Settings';
 import Tools from './pages/Tools';
 import BottomNav from './components/BottomNav';
 import { startMonitor } from './lib/monitor';
-import { requestNotificationPermission } from './lib/audio';
+import { requestNotificationPermission, startSilentAudioLoop } from './lib/audio';
 import { useStore } from './lib/store';
+
+async function acquireWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      const wl = await (navigator as any).wakeLock.request('screen');
+      console.log('[wakeLock] acquired');
+      document.addEventListener('visibilitychange', async () => {
+        if (document.visibilityState === 'visible') {
+          try { await (navigator as any).wakeLock.request('screen'); } catch {}
+        }
+      });
+      return wl;
+    }
+  } catch (e) {
+    console.warn('[wakeLock] not available:', e);
+  }
+}
 
 const SESSION_KEY = 'admin-monitor-unlocked';
 
@@ -87,9 +104,29 @@ function InAppToast() {
   );
 }
 
+function TabWarning() {
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    const handler = () => setHidden(document.visibilityState === 'hidden');
+    document.addEventListener('visibilitychange', handler);
+    return () => document.removeEventListener('visibilitychange', handler);
+  }, []);
+  if (!hidden) return null;
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+      background: 'rgba(255,71,87,0.95)', color: '#fff',
+      padding: '8px 16px', textAlign: 'center', fontSize: 13, fontWeight: 600,
+    }}>
+      ⚠️ Tab arka planda — alarmlar yavaşlayabilir! Monitör sekmesini aktif tutun.
+    </div>
+  );
+}
+
 function AppContent() {
   return (
     <div className="min-h-screen flex flex-col" style={{ maxWidth: 430, margin: '0 auto', background: '#050505' }}>
+      <TabWarning />
       <InAppToast />
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
         <div className="flex-1 overflow-y-auto">
@@ -125,12 +162,16 @@ export default function App() {
     setUnlocked(true);
     startMonitor();
     requestNotificationPermission();
+    startSilentAudioLoop();
+    acquireWakeLock();
   }
 
   useEffect(() => {
     if (unlocked) {
       startMonitor();
       requestNotificationPermission();
+      startSilentAudioLoop();
+      acquireWakeLock();
     }
   }, []);
 
