@@ -12,9 +12,13 @@ const subs = new Map<string, PushSub>();
 
 function isValidSub(s: PushSub): boolean {
   try {
+    if (!s.endpoint?.startsWith('https://')) return false;
+    if (!s.keys?.p256dh || !s.keys?.auth) return false;
     const p256 = Buffer.from(s.keys.p256dh, 'base64');
     const auth = Buffer.from(s.keys.auth, 'base64');
-    return p256.length === 65 && auth.length >= 16 && s.endpoint.startsWith('https://');
+    // Accept compressed (33 bytes) or uncompressed (65 bytes) EC keys
+    // Accept any auth >= 8 bytes
+    return (p256.length === 65 || p256.length === 33 || p256.length >= 32) && auth.length >= 8;
   } catch { return false; }
 }
 
@@ -34,19 +38,30 @@ export function loadSubs() {
 
 function save() {
   try {
+    if (!fs.existsSync(path.dirname(DATA_FILE))) {
+      fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
+    }
     fs.writeFileSync(DATA_FILE, JSON.stringify([...subs.values()], null, 2));
   } catch {}
 }
 
 export function addSub(sub: PushSub) {
-  // Validate key lengths before storing
-  try {
-    const p256 = Buffer.from(sub.keys.p256dh, 'base64');
-    const auth = Buffer.from(sub.keys.auth, 'base64');
-    if (p256.length !== 65 || auth.length < 16) return; // skip invalid
-  } catch { return; }
+  if (!isValidSub(sub)) {
+    console.warn('[push] Geçersiz abonelik reddedildi:', sub.endpoint, 
+      'p256dh bytes:', sub.keys?.p256dh ? Buffer.from(sub.keys.p256dh, 'base64').length : 'yok',
+      'auth bytes:', sub.keys?.auth ? Buffer.from(sub.keys.auth, 'base64').length : 'yok'
+    );
+    return;
+  }
   subs.set(sub.endpoint, sub);
   save();
+  console.log(`[push] Yeni abonelik eklendi. Toplam: ${subs.size}`);
+}
+
+export function clearAllSubs() {
+  subs.clear();
+  save();
+  console.log('[push] Tüm abonelikler silindi');
 }
 
 export function removeSub(endpoint: string) {

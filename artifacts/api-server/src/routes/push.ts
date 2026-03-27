@@ -1,5 +1,5 @@
 import { Router, type IRouter } from 'express';
-import { addSub, removeSub, subCount } from '../lib/push-store.js';
+import { addSub, removeSub, clearAllSubs, subCount } from '../lib/push-store.js';
 import { sendPushToAll } from '../lib/push-sender.js';
 
 const router: IRouter = Router();
@@ -34,6 +34,11 @@ router.post('/push/send', async (req, res) => {
 
 router.get('/push/status', (_req, res) => {
   res.json({ subscriptions: subCount(), vapid: !!process.env.VAPID_PUBLIC_KEY });
+});
+
+router.post('/push/clear', (_req, res) => {
+  clearAllSubs();
+  res.json({ ok: true });
 });
 
 export default router;
