@@ -8,6 +8,7 @@ import SharePositionCard from './SharePositionCard';
 import { calculateMarginRatio } from '../lib/futures-calculator';
 import { EarnQuestPriceManager } from '../lib/earnquest-price';
 import { PriceCache } from '../lib/price-cache';
+import { formatPrice } from '../lib/format-utils';
 
 function PnlSignalBars({ pnlPercentage }: { pnlPercentage: number }) {
   const abs = Math.abs(pnlPercentage);
@@ -234,21 +235,15 @@ export default function FuturesPositionCard({ position, onClose, onClosePosition
         <div className="grid grid-cols-3 gap-3 mb-4">
           <div>
             <div className="text-[10px] mb-1">Entry Price (USDT)</div>
-            <div className="text-sm">
-              {entryPrice < 1 ? entryPrice.toFixed(8) : entryPrice.toFixed(2)}
-            </div>
+            <div className="text-sm font-medium">{formatPrice(entryPrice)}</div>
           </div>
           <div>
             <div className="text-[10px] mb-1">Mark Price (USDT)</div>
-            <div className="text-sm">
-              {markPrice < 1 ? markPrice.toFixed(8) : markPrice.toFixed(2)}
-            </div>
+            <div className="text-sm font-medium">{formatPrice(markPrice)}</div>
           </div>
           <div>
             <div className="text-[10px] mb-1">Liq. Price (USDT)</div>
-            <div className="text-sm">
-              {position.liquidation_price < 1 ? position.liquidation_price.toFixed(8) : position.liquidation_price.toFixed(2)}
-            </div>
+            <div className="text-sm font-medium text-[#F0B90B]">{formatPrice(position.liquidation_price)}</div>
           </div>
         </div>
 

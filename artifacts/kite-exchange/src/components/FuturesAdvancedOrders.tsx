@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, Info } from 'lucide-react';
+import { formatPrice } from '../lib/format-utils';
 
 interface Props {
   isOpen: boolean;
@@ -95,7 +96,7 @@ export default function FuturesAdvancedOrders({
                   type="text"
                   value={activationPrice}
                   onChange={(e) => setActivationPrice(e.target.value)}
-                  placeholder={currentPrice.toFixed(1)}
+                  placeholder={formatPrice(currentPrice)}
                   className="w-full bg-[#2B3139] rounded px-3 py-2.5 text-white focus:ring-[#F0B90B]"
                 />
                 <p className="text-gray-500 mt-1">
@@ -151,7 +152,7 @@ export default function FuturesAdvancedOrders({
                   type="text"
                   value={triggerPrice}
                   onChange={(e) => setTriggerPrice(e.target.value)}
-                  placeholder={currentPrice.toFixed(1)}
+                  placeholder={formatPrice(currentPrice)}
                   className="w-full bg-[#2B3139] rounded px-3 py-2.5 text-white focus:ring-[#F0B90B]"
                 />
               </div>
@@ -180,7 +181,7 @@ export default function FuturesAdvancedOrders({
                     type="text"
                     value={orderPrice}
                     onChange={(e) => setOrderPrice(e.target.value)}
-                    placeholder={currentPrice.toFixed(1)}
+                    placeholder={formatPrice(currentPrice)}
                     className="w-full bg-[#2B3139] rounded px-3 py-2.5 text-white focus:ring-[#F0B90B]"
                   />
                 </div>

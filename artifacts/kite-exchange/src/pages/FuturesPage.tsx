@@ -1075,8 +1075,8 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
 
       setAmount('');
 
-      const liqPriceDisplay = liquidationPrice < 1 ? liquidationPrice.toFixed(8) : liquidationPrice.toFixed(2);
-      const entryPriceDisplay = orderPrice < 1 ? orderPrice.toFixed(8) : orderPrice.toFixed(2);
+      const liqPriceDisplay = formatPrice(liquidationPrice);
+      const entryPriceDisplay = formatPrice(orderPrice);
 
       alert(`${positionSide} position opened!\nEntry Price: ${entryPriceDisplay} USDT\nMargin: ${marginAmount} USDT\nPosition Size: ${positionSize.toFixed(2)} USDT\nLeverage: ${leverage}x\nLiquidation Price: ${liqPriceDisplay} USDT`);
     } catch (error) {
