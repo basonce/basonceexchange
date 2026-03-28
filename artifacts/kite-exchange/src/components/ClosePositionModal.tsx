@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, AlertTriangle } from 'lucide-react';
 import { calculateTradingFee } from '../lib/futures-calculator';
+import { formatPrice } from '../lib/format-utils';
 
 interface Position {
   id: string;
@@ -80,7 +81,7 @@ export default function ClosePositionModal({
               </div>
               <div>
                 <div className="text-gray-400">Entry Price</div>
-                <div className="text-white font-medium">{position.entry_price.toFixed(2)}</div>
+                <div className="text-white font-medium">{formatPrice(position.entry_price)}</div>
               </div>
             </div>
           </div>
@@ -144,7 +145,7 @@ export default function ClosePositionModal({
           <div className="bg-[#2B3139] rounded-lg p-3 mb-4 space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">Close Price</span>
-              <span className="text-white font-medium">{closePrice.toFixed(2)} USDT</span>
+              <span className="text-white font-medium">{formatPrice(closePrice)} USDT</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">Size PNL</span>

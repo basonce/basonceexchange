@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { formatPrice } from '../lib/format-utils';
 
 interface TPSLModalProps {
   positionId: string;
@@ -87,7 +88,7 @@ export default function TPSLModal({
           <div className="bg-[#2B3139] rounded-lg p-3 mb-4">
             <div className="flex items-center justify-between text-xs">
               <span className="text-gray-400">Mark Price</span>
-              <span className="text-white font-medium">{currentPrice.toFixed(2)} USDT</span>
+              <span className="text-white font-medium">{formatPrice(currentPrice)} USDT</span>
             </div>
           </div>
 

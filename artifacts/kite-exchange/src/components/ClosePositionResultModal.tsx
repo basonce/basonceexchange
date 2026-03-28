@@ -1,4 +1,5 @@
 import { CheckCircle2, XCircle } from 'lucide-react';
+import { formatPrice } from '../lib/format-utils';
 
 interface ClosePositionResultModalProps {
   isOpen: boolean;
@@ -59,11 +60,11 @@ export default function ClosePositionResultModal({
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-sm">Entry</span>
-                    <span className="text-[#EAECEF] font-medium">{result.entryPrice.toFixed(2)}</span>
+                    <span className="text-[#EAECEF] font-medium">{formatPrice(result.entryPrice)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm">Close</span>
-                    <span className="text-[#EAECEF] font-medium">{result.closePrice.toFixed(2)}</span>
+                    <span className="text-[#EAECEF] font-medium">{formatPrice(result.closePrice)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm">Size</span>
