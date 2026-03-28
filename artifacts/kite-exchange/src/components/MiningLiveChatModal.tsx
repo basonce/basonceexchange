@@ -556,7 +556,7 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
 
   return (
     <div className="fixed inset-0 bg-black/92 backdrop-blur-sm z-[100] flex items-end justify-center">
-      <div className="bg-[#0D0E12] w-full max-w-[428px] h-screen flex flex-col border-t border-[#2B3139]/80 shadow-2xl">
+      <div className="relative bg-[#0D0E12] w-full max-w-[428px] h-screen flex flex-col border-t border-[#2B3139]/80 shadow-2xl">
 
         {/* BIG WIN POPUP */}
         {bigWinNotif && (
