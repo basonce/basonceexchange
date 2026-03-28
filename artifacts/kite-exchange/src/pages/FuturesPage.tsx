@@ -166,45 +166,6 @@ function TradFiHeaderLogo({ displayName }: { displayName: string }) {
   const directLogo = asset?.logoUrl;
   const src = chain[idx];
 
-  if (directLogo?.startsWith('sprite:')) {
-    const spriteKey = directLogo.replace('sprite:', '');
-    const spriteSources: Record<string, { src: string; col: number; row: number; cols: number; rows: number; zoom?: number }> = {
-      oil:     { src: '/en-energy.png',  col: 0, row: 0, cols: 3, rows: 2 },
-      natgas:  { src: '/en-energy.png',  col: 1, row: 0, cols: 3, rows: 2 },
-      brent:   { src: '/en-energy.png',  col: 2, row: 0, cols: 3, rows: 2 },
-      sugar:   { src: '/food-icons.png', col: 0, row: 0, cols: 3, rows: 2, zoom: 1.28 },
-      wheat:   { src: '/food-icons.png', col: 1, row: 0, cols: 3, rows: 2, zoom: 1.28 },
-      corn:    { src: '/food-icons.png', col: 2, row: 0, cols: 3, rows: 2, zoom: 1.28 },
-      soybean: { src: '/food-icons.png', col: 0, row: 1, cols: 3, rows: 2, zoom: 1.28 },
-      coffee:  { src: '/food-icons.png', col: 1, row: 1, cols: 3, rows: 2, zoom: 1.28 },
-      cocoa:   { src: '/food-icons.png', col: 2, row: 1, cols: 3, rows: 2, zoom: 1.28 },
-      sp500:   { src: '/us-indices.png', col: 0, row: 0, cols: 3, rows: 2 },
-      nas100:  { src: '/us-indices.png', col: 1, row: 0, cols: 3, rows: 2 },
-      djia30:  { src: '/us-indices.png', col: 2, row: 0, cols: 3, rows: 2 },
-    };
-    const entry = spriteSources[spriteKey];
-    if (entry) {
-      const { src, col, row, cols, rows, zoom = 1 } = entry;
-      const px = 24;
-      const cellSize = px * zoom;
-      const totalW = cols * cellSize;
-      const totalH = rows * cellSize;
-      const posX = -(col * cellSize) + (cellSize - px) / 2;
-      const posY = -(row * cellSize) + (cellSize - px) / 2;
-      return (
-        <div
-          className="w-full h-full rounded-full overflow-hidden"
-          style={{
-            backgroundImage: `url('${src}')`,
-            backgroundSize: `${totalW}px ${totalH}px`,
-            backgroundPosition: `${posX}px ${posY}px`,
-            backgroundRepeat: 'no-repeat',
-          }}
-        />
-      );
-    }
-  }
-
   if (directLogo && !logoErr) {
     const isPhoto = directLogo.includes('pexels.com');
     const isFlag = directLogo.includes('flagcdn.com');

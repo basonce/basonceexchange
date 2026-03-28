@@ -13,52 +13,9 @@ import { PriceCache } from '../lib/price-cache';
 import CoinLogo from './CoinLogo';
 import { getProxiedLogoUrl } from '../lib/logo-utils';
 import { getEQVolume } from '../lib/eq-volume-service';
-import { TRADFI_ASSETS, CATEGORY_STYLES, type TradFiAsset } from '../lib/tradfi-data';
+import { TRADFI_ASSETS, CATEGORY_STYLES, TEXT_LOGO_ASSETS, type TradFiAsset } from '../lib/tradfi-data';
 import { getAllTradFiPrices, subscribeAllTradFiPrices } from '../lib/tradfi-price-service';
 import MetalIcon, { isMetalSymbol } from './MetalIcon';
-
-const STOCK_LOGO = (ticker: string) => `https://assets.parqet.com/logos/symbol/${ticker}?format=jpg`;
-
-const SPRITE_SOURCES: Record<string, { src: string; col: number; row: number; cols: number; rows: number; zoom?: number }> = {
-  oil:     { src: '/en-energy.png',   col: 0, row: 0, cols: 3, rows: 2 },
-  natgas:  { src: '/en-energy.png',   col: 1, row: 0, cols: 3, rows: 2 },
-  brent:   { src: '/en-energy.png',   col: 2, row: 0, cols: 3, rows: 2 },
-  sugar:   { src: '/food-icons.png',  col: 0, row: 0, cols: 3, rows: 2, zoom: 1.28 },
-  wheat:   { src: '/food-icons.png',  col: 1, row: 0, cols: 3, rows: 2, zoom: 1.28 },
-  corn:    { src: '/food-icons.png',  col: 2, row: 0, cols: 3, rows: 2, zoom: 1.28 },
-  soybean: { src: '/food-icons.png',  col: 0, row: 1, cols: 3, rows: 2, zoom: 1.28 },
-  coffee:  { src: '/food-icons.png',  col: 1, row: 1, cols: 3, rows: 2, zoom: 1.28 },
-  cocoa:   { src: '/food-icons.png',  col: 2, row: 1, cols: 3, rows: 2, zoom: 1.28 },
-  sp500:   { src: '/us-indices.png',  col: 0, row: 0, cols: 3, rows: 2 },
-  nas100:  { src: '/us-indices.png',  col: 1, row: 0, cols: 3, rows: 2 },
-  djia30:  { src: '/us-indices.png',  col: 2, row: 0, cols: 3, rows: 2 },
-};
-
-function SpriteIcon({ spriteKey, size }: { spriteKey: string; size: number }) {
-  const entry = SPRITE_SOURCES[spriteKey];
-  if (!entry) return null;
-  const { src, col, row, cols, rows, zoom = 1 } = entry;
-  const cellSize = size * zoom;
-  const totalW = cols * cellSize;
-  const totalH = rows * cellSize;
-  const posX = -(col * cellSize) + (cellSize - size) / 2;
-  const posY = -(row * cellSize) + (cellSize - size) / 2;
-  return (
-    <div
-      className="flex-shrink-0"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size * 0.5,
-        backgroundImage: `url('${src}')`,
-        backgroundSize: `${totalW}px ${totalH}px`,
-        backgroundPosition: `${posX}px ${posY}px`,
-        backgroundRepeat: 'no-repeat',
-        overflow: 'hidden',
-      }}
-    />
-  );
-}
 
 function TradFiLogo({ asset, size }: { asset: TradFiAsset; size: number }) {
   const [err, setErr] = useState(false);
@@ -66,10 +23,6 @@ function TradFiLogo({ asset, size }: { asset: TradFiAsset; size: number }) {
 
   if (isMetalSymbol(metalKey)) {
     return <MetalIcon symbol={metalKey} size={size} />;
-  }
-
-  if (asset.logoUrl?.startsWith('sprite:')) {
-    return <SpriteIcon spriteKey={asset.logoUrl.replace('sprite:', '')} size={size} />;
   }
 
   if (asset.logoUrl?.includes('flagcdn.com')) {
@@ -80,22 +33,29 @@ function TradFiLogo({ asset, size }: { asset: TradFiAsset; size: number }) {
     );
   }
 
-  if (!asset.logoUrl) {
+  const textDef = TEXT_LOGO_ASSETS[asset.displayName];
+
+  if (!asset.logoUrl || err) {
+    if (textDef) {
+      return (
+        <div className="flex-shrink-0 rounded-full flex items-center justify-center font-extrabold" style={{ width: size, height: size, background: textDef.bg, border: '2px solid rgba(255,255,255,0.15)', boxShadow: '0 2px 10px rgba(0,0,0,0.5)', color: textDef.textColor ?? '#fff', fontSize: textDef.fontSize ? size * (textDef.fontSize / 10) : size * 0.27, letterSpacing: '-0.5px' }}>
+          {textDef.text}
+        </div>
+      );
+    }
     const bg = asset.bgColor ?? '#1a1a1a';
+    const abbr = asset.displayName.length <= 3 ? asset.displayName : asset.displayName.slice(0, 3);
     return (
       <div className="flex-shrink-0 rounded-full flex items-center justify-center font-extrabold" style={{ width: size, height: size, background: bg, border: '2px solid rgba(255,255,255,0.15)', boxShadow: '0 2px 10px rgba(0,0,0,0.5)', color: '#fff', fontSize: size * 0.27, letterSpacing: '-0.5px' }}>
-        {asset.displayName.slice(0, 3)}
+        {abbr}
       </div>
     );
   }
 
-  const logoSrc = (!err && asset.logoUrl) ? asset.logoUrl : STOCK_LOGO(asset.displayName === 'BRK.B' ? 'BRK-B' : asset.displayName);
-
   return (
     <div className="flex-shrink-0 rounded-full overflow-hidden flex items-center justify-center" style={{ width: size, height: size, background: '#ffffff', border: '2px solid rgba(255,255,255,0.12)', boxShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
       <img
-        key={logoSrc}
-        src={logoSrc}
+        src={asset.logoUrl}
         alt={asset.displayName}
         style={{ width: '100%', height: '100%', objectFit: 'contain', padding: size * 0.06 }}
         onError={() => { if (!err) setErr(true); }}

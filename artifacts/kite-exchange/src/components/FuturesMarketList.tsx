@@ -1,77 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { useFuturesFavorites } from '../lib/use-futures-favorites';
 import { ChevronDown, ChevronUp, Megaphone, Star } from 'lucide-react';
 import CoinLogo from './CoinLogo';
 import { supabase } from '../lib/supabase';
 import { BNCPriceManager } from '../lib/bnc-price';
 import { EarnQuestPriceManager } from '../lib/earnquest-price';
-import { TRADFI_ASSETS, CATEGORY_STYLES, type TradFiAsset } from '../lib/tradfi-data';
+import { TRADFI_ASSETS, CATEGORY_STYLES, TEXT_LOGO_ASSETS, type TradFiAsset } from '../lib/tradfi-data';
 import { subscribeAllTradFiPrices, getAllTradFiPrices } from '../lib/tradfi-price-service';
 import MetalIcon, { isMetalSymbol } from './MetalIcon';
 
 const STOCK_LOGO = (ticker: string) => `https://assets.parqet.com/logos/symbol/${ticker}?format=jpg`;
-
-const SPRITE_SOURCES: Record<string, { src: string; col: number; row: number; cols: number; rows: number; zoom?: number }> = {
-  oil:     { src: '/en-energy.png',  col: 0, row: 0, cols: 3, rows: 2 },
-  natgas:  { src: '/en-energy.png',  col: 1, row: 0, cols: 3, rows: 2 },
-  brent:   { src: '/en-energy.png',  col: 2, row: 0, cols: 3, rows: 2 },
-  sugar:   { src: '/food-icons.png', col: 0, row: 0, cols: 3, rows: 2, zoom: 1.28 },
-  wheat:   { src: '/food-icons.png', col: 1, row: 0, cols: 3, rows: 2, zoom: 1.28 },
-  corn:    { src: '/food-icons.png', col: 2, row: 0, cols: 3, rows: 2, zoom: 1.28 },
-  soybean: { src: '/food-icons.png', col: 0, row: 1, cols: 3, rows: 2, zoom: 1.28 },
-  coffee:  { src: '/food-icons.png', col: 1, row: 1, cols: 3, rows: 2, zoom: 1.28 },
-  cocoa:   { src: '/food-icons.png', col: 2, row: 1, cols: 3, rows: 2, zoom: 1.28 },
-  sp500:   { src: '/us-indices.png', col: 0, row: 0, cols: 3, rows: 2 },
-  nas100:  { src: '/us-indices.png', col: 1, row: 0, cols: 3, rows: 2 },
-  djia30:  { src: '/us-indices.png', col: 2, row: 0, cols: 3, rows: 2 },
-};
-
-function SpriteIcon({ spriteKey, size }: { spriteKey: string; size: number }) {
-  const entry = SPRITE_SOURCES[spriteKey];
-  if (!entry) return null;
-  const { src, col, row, cols, rows, zoom = 1 } = entry;
-  const cellSize = size * zoom;
-  const totalW = cols * cellSize;
-  const totalH = rows * cellSize;
-  const posX = -(col * cellSize) + (cellSize - size) / 2;
-  const posY = -(row * cellSize) + (cellSize - size) / 2;
-  return (
-    <div
-      className="flex-shrink-0"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size * 0.5,
-        backgroundImage: `url('${src}')`,
-        backgroundSize: `${totalW}px ${totalH}px`,
-        backgroundPosition: `${posX}px ${posY}px`,
-        backgroundRepeat: 'no-repeat',
-        overflow: 'hidden',
-      }}
-    />
-  );
-}
-
-const TEXT_LOGO_ASSETS: Record<string, { text: string; bg: string; textColor: string; fontSize?: number }> = {
-  SPX:     { text: 'S&P', bg: '#003087', textColor: '#ffffff', fontSize: 9 },
-  NDX:     { text: 'NDQ', bg: '#0066cc', textColor: '#ffffff', fontSize: 9 },
-  DJI:     { text: 'DOW', bg: '#1a3a6e', textColor: '#ffffff', fontSize: 9 },
-  DAX:     { text: 'DAX', bg: '#000000', textColor: '#ffcc00', fontSize: 9 },
-  FTSE:    { text: 'UK',  bg: '#012169', textColor: '#ffffff', fontSize: 11 },
-  NKY:     { text: 'NK',  bg: '#bc002d', textColor: '#ffffff', fontSize: 11 },
-  LUMBER:  { text: 'LBR', bg: '#7c3a0a', textColor: '#f5deb3', fontSize: 9 },
-  LHOG:    { text: 'HOG', bg: '#8b3a3a', textColor: '#ffffff', fontSize: 9 },
-  FCATTLE: { text: 'FCT', bg: '#5c3a0a', textColor: '#ffd700', fontSize: 9 },
-  WTI:     { text: 'WTI', bg: '#1a0e00', textColor: '#f97316', fontSize: 9 },
-  BRENT:   { text: 'BRT', bg: '#1a1208', textColor: '#f97316', fontSize: 9 },
-  NATGAS:  { text: 'GAS', bg: '#0a1a2a', textColor: '#38bdf8', fontSize: 9 },
-  COFFEE:  { text: 'CFE', bg: '#2a1004', textColor: '#d97706', fontSize: 9 },
-  COCOA:   { text: 'CCO', bg: '#1a0a04', textColor: '#a16207', fontSize: 9 },
-  SUGAR:   { text: 'SGR', bg: '#1a1020', textColor: '#e879f9', fontSize: 9 },
-  WHEAT:   { text: 'WHT', bg: '#2a1a04', textColor: '#fbbf24', fontSize: 9 },
-  CORN:    { text: 'CRN', bg: '#2a1a00', textColor: '#fde047', fontSize: 9 },
-  SOYBEAN: { text: 'SOY', bg: '#0a1a08', textColor: '#86efac', fontSize: 8 },
-};
 
 function TextLogo({ text, bg, textColor, size, fontSize }: { text: string; bg: string; textColor: string; size: number; fontSize?: number }) {
   return (
@@ -89,13 +27,6 @@ function TradFiLogo({ asset, size }: { asset: TradFiAsset; size: number }) {
   }
 
   const textDef = TEXT_LOGO_ASSETS[asset.displayName];
-
-  if (asset.logoUrl?.startsWith('sprite:')) {
-    const spriteKey = asset.logoUrl.replace('sprite:', '');
-    const hasSprite = spriteKey in SPRITE_SOURCES;
-    if (hasSprite) return <SpriteIcon spriteKey={spriteKey} size={size} />;
-    if (textDef) return <TextLogo text={textDef.text} bg={textDef.bg} textColor={textDef.textColor} size={size} fontSize={textDef.fontSize} />;
-  }
 
   if (asset.logoUrl?.includes('flagcdn.com')) {
     return (
@@ -128,7 +59,7 @@ function SimpleLogoImg({ src, alt, size, bg, fallback }: {
   alt: string;
   size: number;
   bg: string;
-  fallback?: JSX.Element;
+  fallback?: ReactNode;
 }) {
   const [failed, setFailed] = useState(false);
 
@@ -229,8 +160,6 @@ export default function FuturesMarketList() {
   };
 
   const buildTradFiAssets = () => TRADFI_ASSETS.map(a => {
-    // Never overwrite sprite: logos with DB URLs — sprites always take priority
-    if (a.logoUrl?.startsWith('sprite:')) return a;
     const dbKey = TRADFI_DB_KEY_MAP[a.displayName] || a.displayName;
     const dbUrl = tradFiDbLogosRef.current[dbKey] || tradFiDbLogosRef.current[a.displayName];
     return { ...a, logoUrl: dbUrl || a.logoUrl };
@@ -271,7 +200,7 @@ export default function FuturesMarketList() {
         if (!d) return tc;
         return {
           ...tc,
-          asset: tc.asset.logoUrl?.startsWith('sprite:') ? tc.asset : { ...tc.asset, logoUrl: tradFiDbLogosRef.current[tc.asset.displayName] || tc.asset.logoUrl },
+          asset: { ...tc.asset, logoUrl: tradFiDbLogosRef.current[tc.asset.displayName] || tc.asset.logoUrl },
           price: d.price,
           change24h: d.change24h,
         };
