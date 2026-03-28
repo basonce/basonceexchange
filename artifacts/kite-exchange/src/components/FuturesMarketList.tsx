@@ -233,6 +233,8 @@ export default function FuturesMarketList() {
   };
 
   const buildTradFiAssets = () => TRADFI_ASSETS.map(a => {
+    // Never overwrite sprite: logos with DB URLs — sprites always take priority
+    if (a.logoUrl?.startsWith('sprite:')) return a;
     const dbKey = TRADFI_DB_KEY_MAP[a.displayName] || a.displayName;
     const dbUrl = tradFiDbLogosRef.current[dbKey] || tradFiDbLogosRef.current[a.displayName];
     return { ...a, logoUrl: dbUrl || a.logoUrl };
@@ -273,7 +275,7 @@ export default function FuturesMarketList() {
         if (!d) return tc;
         return {
           ...tc,
-          asset: { ...tc.asset, logoUrl: tradFiDbLogosRef.current[tc.asset.displayName] || tc.asset.logoUrl },
+          asset: tc.asset.logoUrl?.startsWith('sprite:') ? tc.asset : { ...tc.asset, logoUrl: tradFiDbLogosRef.current[tc.asset.displayName] || tc.asset.logoUrl },
           price: d.price,
           change24h: d.change24h,
         };
