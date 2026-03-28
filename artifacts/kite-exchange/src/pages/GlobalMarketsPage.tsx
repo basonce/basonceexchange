@@ -15,7 +15,7 @@ type SortMode = 'default' | 'gainers' | 'losers' | 'volume';
 const CATS: { id: 'all' | AssetCategory; label: string; icon?: string }[] = [
   { id: 'all',         label: 'All' },
   { id: 'forex',       label: 'Forex' },
-  { id: 'indices',     label: 'Indices',     icon: '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png' },
+  { id: 'indices',     label: 'Indices',     icon: '/us-indices.png' },
   { id: 'stocks',      label: 'Stocks' },
   { id: 'metals',      label: 'Metals' },
   { id: 'energy',      label: 'Energy',      icon: '/Enerji_kaynaklari_simgeleri.png' },
@@ -435,7 +435,7 @@ function Row({ asset, flash, isFav, onFav, onOpen, spark }: RowProps) {
 }
 
 const SECTION_ICONS: Record<string, string> = {
-  'Indices':     '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png',
+  'Indices':     '/us-indices.png',
   'Energy':      '/Enerji_kaynaklari_simgeleri.png',
   'Agriculture': '/Altin_cerceveli_gida_ikonlari.png',
 };

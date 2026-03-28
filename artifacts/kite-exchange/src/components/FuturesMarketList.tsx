@@ -12,22 +12,18 @@ import MetalIcon, { isMetalSymbol } from './MetalIcon';
 const STOCK_LOGO = (ticker: string) => `https://assets.parqet.com/logos/symbol/${ticker}?format=jpg`;
 
 const SPRITE_SOURCES: Record<string, { src: string; col: number; row: number; cols: number; rows: number; zoom?: number }> = {
-  // EN energy sprite: 1536x1024, cells are 512x1024 (portrait).
-  // rows:2 makes the scale factor uniform (each cell rendered as 512x512 top crop).
-  oil:     { src: '/EN copy copy copy copy.png',                                             col: 0, row: 0, cols: 3, rows: 2 },
-  natgas:  { src: '/EN copy copy copy copy.png',                                             col: 1, row: 0, cols: 3, rows: 2 },
-  brent:   { src: '/EN copy copy copy copy.png',                                             col: 2, row: 0, cols: 3, rows: 2 },
-  // Food sprite: 1536x1024, cells are 512x512 (square) — zoom in to reduce excess padding.
-  sugar:   { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 0, row: 0, cols: 3, rows: 2, zoom: 1.28 },
-  wheat:   { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 1, row: 0, cols: 3, rows: 2, zoom: 1.28 },
-  corn:    { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 2, row: 0, cols: 3, rows: 2, zoom: 1.28 },
-  soybean: { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 0, row: 1, cols: 3, rows: 2, zoom: 1.28 },
-  coffee:  { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 1, row: 1, cols: 3, rows: 2, zoom: 1.28 },
-  cocoa:   { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 2, row: 1, cols: 3, rows: 2, zoom: 1.28 },
-  // US index sprite: 1536x1024, cells are 512x1024 (portrait). Same fix: rows:2.
-  sp500:   { src: '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png', col: 0, row: 0, cols: 3, rows: 2 },
-  nas100:  { src: '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png', col: 1, row: 0, cols: 3, rows: 2 },
-  djia30:  { src: '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png', col: 2, row: 0, cols: 3, rows: 2 },
+  oil:     { src: '/en-energy.png',  col: 0, row: 0, cols: 3, rows: 2 },
+  natgas:  { src: '/en-energy.png',  col: 1, row: 0, cols: 3, rows: 2 },
+  brent:   { src: '/en-energy.png',  col: 2, row: 0, cols: 3, rows: 2 },
+  sugar:   { src: '/food-icons.png', col: 0, row: 0, cols: 3, rows: 2, zoom: 1.28 },
+  wheat:   { src: '/food-icons.png', col: 1, row: 0, cols: 3, rows: 2, zoom: 1.28 },
+  corn:    { src: '/food-icons.png', col: 2, row: 0, cols: 3, rows: 2, zoom: 1.28 },
+  soybean: { src: '/food-icons.png', col: 0, row: 1, cols: 3, rows: 2, zoom: 1.28 },
+  coffee:  { src: '/food-icons.png', col: 1, row: 1, cols: 3, rows: 2, zoom: 1.28 },
+  cocoa:   { src: '/food-icons.png', col: 2, row: 1, cols: 3, rows: 2, zoom: 1.28 },
+  sp500:   { src: '/us-indices.png', col: 0, row: 0, cols: 3, rows: 2 },
+  nas100:  { src: '/us-indices.png', col: 1, row: 0, cols: 3, rows: 2 },
+  djia30:  { src: '/us-indices.png', col: 2, row: 0, cols: 3, rows: 2 },
 };
 
 function SpriteIcon({ spriteKey, size }: { spriteKey: string; size: number }) {

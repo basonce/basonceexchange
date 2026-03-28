@@ -169,18 +169,18 @@ function TradFiHeaderLogo({ displayName }: { displayName: string }) {
   if (directLogo?.startsWith('sprite:')) {
     const spriteKey = directLogo.replace('sprite:', '');
     const spriteSources: Record<string, { src: string; col: number; row: number; cols: number; rows: number; zoom?: number }> = {
-      oil:     { src: '/EN copy copy copy copy.png',                                             col: 0, row: 0, cols: 3, rows: 2 },
-      natgas:  { src: '/EN copy copy copy copy.png',                                             col: 1, row: 0, cols: 3, rows: 2 },
-      brent:   { src: '/EN copy copy copy copy.png',                                             col: 2, row: 0, cols: 3, rows: 2 },
-      sugar:   { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 0, row: 0, cols: 3, rows: 2, zoom: 1.28 },
-      wheat:   { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 1, row: 0, cols: 3, rows: 2, zoom: 1.28 },
-      corn:    { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 2, row: 0, cols: 3, rows: 2, zoom: 1.28 },
-      soybean: { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 0, row: 1, cols: 3, rows: 2, zoom: 1.28 },
-      coffee:  { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 1, row: 1, cols: 3, rows: 2, zoom: 1.28 },
-      cocoa:   { src: '/Altin_cerceveli_gida_ikonlari copy copy copy copy copy.png',             col: 2, row: 1, cols: 3, rows: 2, zoom: 1.28 },
-      sp500:   { src: '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png', col: 0, row: 0, cols: 3, rows: 2 },
-      nas100:  { src: '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png', col: 1, row: 0, cols: 3, rows: 2 },
-      djia30:  { src: '/Buyuk_Amerikan_borsa_endeksleri_logolari copy copy copy copy copy.png', col: 2, row: 0, cols: 3, rows: 2 },
+      oil:     { src: '/en-energy.png',  col: 0, row: 0, cols: 3, rows: 2 },
+      natgas:  { src: '/en-energy.png',  col: 1, row: 0, cols: 3, rows: 2 },
+      brent:   { src: '/en-energy.png',  col: 2, row: 0, cols: 3, rows: 2 },
+      sugar:   { src: '/food-icons.png', col: 0, row: 0, cols: 3, rows: 2, zoom: 1.28 },
+      wheat:   { src: '/food-icons.png', col: 1, row: 0, cols: 3, rows: 2, zoom: 1.28 },
+      corn:    { src: '/food-icons.png', col: 2, row: 0, cols: 3, rows: 2, zoom: 1.28 },
+      soybean: { src: '/food-icons.png', col: 0, row: 1, cols: 3, rows: 2, zoom: 1.28 },
+      coffee:  { src: '/food-icons.png', col: 1, row: 1, cols: 3, rows: 2, zoom: 1.28 },
+      cocoa:   { src: '/food-icons.png', col: 2, row: 1, cols: 3, rows: 2, zoom: 1.28 },
+      sp500:   { src: '/us-indices.png', col: 0, row: 0, cols: 3, rows: 2 },
+      nas100:  { src: '/us-indices.png', col: 1, row: 0, cols: 3, rows: 2 },
+      djia30:  { src: '/us-indices.png', col: 2, row: 0, cols: 3, rows: 2 },
     };
     const entry = spriteSources[spriteKey];
     if (entry) {
