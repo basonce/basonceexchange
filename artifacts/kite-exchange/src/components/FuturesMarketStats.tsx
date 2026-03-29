@@ -64,7 +64,12 @@ export default function FuturesMarketStats({
     if (price >= 10) return 3;
     if (price >= 1) return 4;
     if (price >= 0.1) return 5;
-    return 6;
+    if (price >= 0.01) return 6;
+    if (price >= 0.001) return 7;
+    if (price >= 0.0001) return 8;
+    if (price >= 0.00001) return 9;
+    if (price >= 0.000001) return 8;
+    return 10;
   };
 
   const formatVolume = (num: number) => {
