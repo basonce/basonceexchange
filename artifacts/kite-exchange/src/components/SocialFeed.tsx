@@ -1475,7 +1475,7 @@ export default function SocialFeed() {
               <p className="text-sm leading-relaxed mb-2 whitespace-pre-line text-gray-100">
                 {post.content?.split(/(\$[A-Z][A-Z0-9]{1,9})/g).map((part, idx) =>
                   /^\$[A-Z][A-Z0-9]{1,9}$/.test(part)
-                    ? <span key={idx} style={{ color: '#F0B90B' }} className="font-semibold">{part}</span>
+                    ? <span key={idx} style={{ color: '#F0B90B' }} className="font-bold">{part}</span>
                     : part
                 )}
               </p>
