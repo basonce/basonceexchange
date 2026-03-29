@@ -183,13 +183,12 @@ function WithdrawalCard({ msg, isRequest }: { msg: Message; isRequest?: boolean 
   const network = (msg as any).network || NETWORKS[Math.floor(msg.amount * 7) % NETWORKS.length];
   const flag = COUNTRY_FLAGS[msg.country] || '🌍';
 
-  // For request cards: randomly decide instant (55%) vs slow (45%) approval
+  // For request cards: 92% auto-confirm (2–7s), 8% stays "processing" with slow crawl
   const [autoConfirmDelay] = useState<number | null>(() => {
     if (!isRequest) return null;
-    const willAutoConfirm = Math.random() < 0.55;
+    const willAutoConfirm = Math.random() < 0.92;
     if (!willAutoConfirm) return null;
-    // Instant: 3–9s, feels like real-time approval
-    return Math.floor(Math.random() * 6000) + 3000;
+    return Math.floor(Math.random() * 5000) + 2000;
   });
 
   const [isConfirmed, setIsConfirmed] = useState(!isRequest);
@@ -198,29 +197,42 @@ function WithdrawalCard({ msg, isRequest }: { msg: Message; isRequest?: boolean 
   const isInstant = isRequest && autoConfirmDelay !== null && autoConfirmDelay < 6000;
 
   useEffect(() => {
-    if (!isRequest || autoConfirmDelay === null) return;
+    if (!isRequest) return;
 
-    // Animate progress bar filling up
-    const startTime = Date.now();
-    const progressInterval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const pct = Math.min(99, (elapsed / autoConfirmDelay) * 100);
-      setProgress(pct);
-      if (elapsed >= autoConfirmDelay) clearInterval(progressInterval);
-    }, 80);
+    if (autoConfirmDelay !== null) {
+      // Normal path: fill bar then confirm
+      const startTime = Date.now();
+      const progressInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const pct = Math.min(99, (elapsed / autoConfirmDelay) * 100);
+        setProgress(pct);
+        if (elapsed >= autoConfirmDelay) clearInterval(progressInterval);
+      }, 80);
 
-    // Auto confirm after delay
-    const confirmTimeout = setTimeout(() => {
-      setIsConfirmed(true);
-      setJustConfirmed(true);
-      setProgress(100);
-      setTimeout(() => setJustConfirmed(false), 3000);
-    }, autoConfirmDelay);
+      const confirmTimeout = setTimeout(() => {
+        setIsConfirmed(true);
+        setJustConfirmed(true);
+        setProgress(100);
+        setTimeout(() => setJustConfirmed(false), 3000);
+      }, autoConfirmDelay);
 
-    return () => {
-      clearInterval(progressInterval);
-      clearTimeout(confirmTimeout);
-    };
+      return () => {
+        clearInterval(progressInterval);
+        clearTimeout(confirmTimeout);
+      };
+    } else {
+      // Slow-crawl path: fill to ~65% then stall — shows activity without confirming
+      const slowDuration = 18000 + Math.random() * 12000; // 18–30s
+      const target = 55 + Math.random() * 15; // stop at 55–70%
+      const startTime = Date.now();
+      const crawlInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const pct = Math.min(target, (elapsed / slowDuration) * 100);
+        setProgress(pct);
+        if (pct >= target) clearInterval(crawlInterval);
+      }, 200);
+      return () => clearInterval(crawlInterval);
+    }
   }, []);
 
   const amtDisplay = `$${msg.amount >= 1000 ? `${(msg.amount / 1000).toFixed(1)}K` : msg.amount.toFixed(msg.amount < 10 ? 2 : 0)}`;
