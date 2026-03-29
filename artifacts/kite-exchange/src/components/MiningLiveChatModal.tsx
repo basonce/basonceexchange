@@ -433,10 +433,11 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
   const [tickerOffset, setTickerOffset] = useState(0);
 
   const [activeMiners, setActiveMiners] = useState(17148);
-  const [totalEarnings, setTotalEarnings] = useState(912000);
+  const [totalEarnings, setTotalEarnings] = useState(6_420_000);
   const [recentUpgrades, setRecentUpgrades] = useState(11842);
   const [onlineCount, setOnlineCount] = useState(23774);
-  const [totalWithdrawnToday, setTotalWithdrawnToday] = useState(520000);
+  const [totalWithdrawnToday, setTotalWithdrawnToday] = useState(3_180_000);
+  const injectCycleRef = useRef(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -463,23 +464,32 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
 
     const statsInterval = setInterval(() => {
       setActiveMiners(v => Math.max(15000, v + Math.floor(Math.random() * 20 - 8)));
-      setTotalEarnings(v => Math.min(980000, v + Math.floor(Math.random() * 600 + 200)));
+      setTotalEarnings(v => Math.min(13_000_000, v + Math.floor(Math.random() * 3000 + 1000)));
       setRecentUpgrades(v => Math.max(10000, v + Math.floor(Math.random() * 8 - 2)));
       setOnlineCount(v => Math.max(20000, v + Math.floor(Math.random() * 40 - 15)));
-      setTotalWithdrawnToday(v => Math.min(680000, v + Math.floor(Math.random() * 900 + 100)));
     }, 2500);
 
-    // Pre-filtered pools for fast random access
-    const reqPool = LIVE_POOL.filter(m => m.message_type === 'withdrawal_request');
-    const otherPool = LIVE_POOL.filter(m => m.message_type !== 'withdrawal_request');
+    // Structured pools for balanced injection
+    const reqPool  = LIVE_POOL.filter(m => m.message_type === 'withdrawal_request');
+    const wPool    = LIVE_POOL.filter(m => m.message_type === 'withdrawal');
+    const miscPool = LIVE_POOL.filter(m => m.message_type !== 'withdrawal_request' && m.message_type !== 'withdrawal');
+
+    // Cycle pattern: WR, MSG, MSG, W, MSG, WR, MSG, MSG, W, MSG  (5 per "pair" block)
+    // Each position tells us which pool to pick from
+    const CYCLE: Array<'req' | 'w' | 'misc'> = [
+      'req', 'misc', 'misc', 'w', 'misc',
+      'req', 'misc', 'w', 'misc', 'misc',
+    ];
 
     let liveTimeout: NodeJS.Timeout;
     const injectLive = () => {
-      // Faster: 1.5–3.5s between messages
-      const delay = Math.random() * 2000 + 1500;
+      // Moderate pace: 3–6s between messages
+      const delay = Math.random() * 3000 + 3000;
       liveTimeout = setTimeout(() => {
-        // 40% chance of withdrawal_request card, 60% other messages
-        const pool = Math.random() < 0.40 ? reqPool : otherPool;
+        const cyclePos = injectCycleRef.current % CYCLE.length;
+        injectCycleRef.current += 1;
+        const poolKey = CYCLE[cyclePos];
+        const pool = poolKey === 'req' ? reqPool : poolKey === 'w' ? wPool : miscPool;
         const tmpl = pool[Math.floor(Math.random() * pool.length)];
 
         const fakeMsg: Message = {
@@ -497,7 +507,7 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
         } as Message;
         setMessages(prev => [...prev.slice(-150), fakeMsg]);
 
-        if ((tmpl.message_type === 'withdrawal' || tmpl.message_type === 'milestone') && tmpl.amount >= 400) {
+        if (tmpl.message_type === 'withdrawal' && tmpl.amount >= 400) {
           const notif: BigWinNotif = {
             id: `bw-${Date.now()}`,
             username: tmpl.username,
@@ -641,8 +651,8 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
           <div className="grid grid-cols-4 gap-2 mb-3">
             {[
               { label: 'Miners', value: `${(activeMiners / 1000).toFixed(1)}k`, color: 'text-white', icon: <Users className="w-3 h-3" /> },
-              { label: 'Earned', value: `$${(totalEarnings / 1000).toFixed(0)}k`, color: 'text-emerald-400', icon: <TrendingUp className="w-3 h-3" /> },
-              { label: 'Withdrawn', value: `$${(totalWithdrawnToday / 1000).toFixed(0)}k`, color: 'text-[#F0B90B]', icon: <DollarSign className="w-3 h-3" /> },
+              { label: 'Earned', value: totalEarnings >= 1_000_000 ? `$${(totalEarnings / 1_000_000).toFixed(1)}M` : `$${(totalEarnings / 1000).toFixed(0)}k`, color: 'text-emerald-400', icon: <TrendingUp className="w-3 h-3" /> },
+              { label: 'Withdrawn', value: totalWithdrawnToday >= 1_000_000 ? `$${(totalWithdrawnToday / 1_000_000).toFixed(1)}M` : `$${(totalWithdrawnToday / 1000).toFixed(0)}k`, color: 'text-[#F0B90B]', icon: <DollarSign className="w-3 h-3" /> },
               { label: 'Upgrades', value: `${(recentUpgrades / 1000).toFixed(1)}k`, color: 'text-blue-400', icon: <ArrowUpCircle className="w-3 h-3" /> },
             ].map((stat) => (
               <div key={stat.label} className="bg-[#1A1B23] border border-[#2B3139]/80 rounded-xl p-2 text-center">
@@ -787,10 +797,12 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
                         msg={msg}
                         isRequest={msg.message_type === 'withdrawal_request'}
                         onConfirmed={(confirmedMsg) => {
+                          const amt = Math.min(confirmedMsg.amount, 13789);
+                          setTotalWithdrawnToday(v => v + amt);
                           const notif: BigWinNotif = {
                             id: `bw-confirmed-${Date.now()}`,
                             username: confirmedMsg.username,
-                            amount: Math.min(confirmedMsg.amount, 13789),
+                            amount: amt,
                             country: confirmedMsg.country,
                             network: (confirmedMsg as any).network || 'TRC20',
                           };
