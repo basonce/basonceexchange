@@ -179,7 +179,7 @@ function Avatar({ username, size = 36, border = true }: { username: string; size
   );
 }
 
-function WithdrawalCard({ msg, isRequest }: { msg: Message; isRequest?: boolean }) {
+function WithdrawalCard({ msg, isRequest, onConfirmed }: { msg: Message; isRequest?: boolean; onConfirmed?: (msg: Message) => void }) {
   const network = (msg as any).network || NETWORKS[Math.floor(msg.amount * 7) % NETWORKS.length];
   const flag = COUNTRY_FLAGS[msg.country] || '🌍';
 
@@ -213,6 +213,7 @@ function WithdrawalCard({ msg, isRequest }: { msg: Message; isRequest?: boolean 
         setIsConfirmed(true);
         setJustConfirmed(true);
         setProgress(100);
+        onConfirmed?.(msg);
         setTimeout(() => setJustConfirmed(false), 3000);
       }, autoConfirmDelay);
 
@@ -468,13 +469,19 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
       setTotalWithdrawnToday(v => Math.min(680000, v + Math.floor(Math.random() * 900 + 100)));
     }, 2500);
 
-    let liveIndex = Math.floor(Math.random() * LIVE_POOL.length);
+    // Pre-filtered pools for fast random access
+    const reqPool = LIVE_POOL.filter(m => m.message_type === 'withdrawal_request');
+    const otherPool = LIVE_POOL.filter(m => m.message_type !== 'withdrawal_request');
+
     let liveTimeout: NodeJS.Timeout;
     const injectLive = () => {
-      const delay = Math.random() * 4500 + 3000;
+      // Faster: 1.5–3.5s between messages
+      const delay = Math.random() * 2000 + 1500;
       liveTimeout = setTimeout(() => {
-        const tmpl = LIVE_POOL[liveIndex % LIVE_POOL.length];
-        liveIndex++;
+        // 40% chance of withdrawal_request card, 60% other messages
+        const pool = Math.random() < 0.40 ? reqPool : otherPool;
+        const tmpl = pool[Math.floor(Math.random() * pool.length)];
+
         const fakeMsg: Message = {
           id: `live-${Date.now()}-${Math.random()}`,
           username: tmpl.username,
@@ -484,17 +491,17 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
           level: tmpl.level,
           country: tmpl.country,
           message_type: tmpl.message_type,
-          amount: tmpl.amount,
+          amount: Math.min(tmpl.amount, 13789),
           is_featured: tmpl.is_featured,
           ...(tmpl.network ? { network: tmpl.network } : {}),
         } as Message;
         setMessages(prev => [...prev.slice(-150), fakeMsg]);
 
-        if ((tmpl.message_type === 'withdrawal' || tmpl.message_type === 'milestone') && tmpl.amount >= 500) {
+        if ((tmpl.message_type === 'withdrawal' || tmpl.message_type === 'milestone') && tmpl.amount >= 400) {
           const notif: BigWinNotif = {
             id: `bw-${Date.now()}`,
             username: tmpl.username,
-            amount: tmpl.amount,
+            amount: Math.min(tmpl.amount, 13789),
             country: tmpl.country,
             network: tmpl.network || 'TRC20',
           };
@@ -774,7 +781,24 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
               ) : (
                 filteredMessages.map((msg) => {
                   if (msg.message_type === 'withdrawal' || msg.message_type === 'withdrawal_request') {
-                    return <WithdrawalCard key={msg.id} msg={msg} isRequest={msg.message_type === 'withdrawal_request'} />;
+                    return (
+                      <WithdrawalCard
+                        key={msg.id}
+                        msg={msg}
+                        isRequest={msg.message_type === 'withdrawal_request'}
+                        onConfirmed={(confirmedMsg) => {
+                          const notif: BigWinNotif = {
+                            id: `bw-confirmed-${Date.now()}`,
+                            username: confirmedMsg.username,
+                            amount: Math.min(confirmedMsg.amount, 13789),
+                            country: confirmedMsg.country,
+                            network: (confirmedMsg as any).network || 'TRC20',
+                          };
+                          setBigWinNotif(notif);
+                          setTimeout(() => setBigWinNotif(null), 5000);
+                        }}
+                      />
+                    );
                   }
                   return <MessageCard key={msg.id} msg={msg} />;
                 })
