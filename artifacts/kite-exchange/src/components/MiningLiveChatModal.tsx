@@ -560,16 +560,15 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
 
         {/* BIG WIN POPUP */}
         {bigWinNotif && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="w-[90%] max-w-[360px] animate-slide-down pointer-events-auto">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[85%] max-w-[340px] animate-slide-down">
             <div className="bg-gradient-to-r from-[#F0B90B] to-[#e0a800] rounded-2xl p-4 shadow-2xl shadow-[#F0B90B]/30 border border-[#F0B90B]/40">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-black/20 rounded-full flex items-center justify-center flex-shrink-0">
                   <Trophy className="w-7 h-7 text-black" />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="text-black text-xs font-bold tracking-widest mb-0.5">🎉 BIG WIN ALERT</div>
-                  <div className="text-black font-black text-lg leading-tight">
+                  <div className="text-black font-black text-lg leading-tight truncate">
                     {bigWinNotif.username} {COUNTRY_FLAGS[bigWinNotif.country] || '🌍'}
                   </div>
                   <div className="text-black/80 text-xs">withdrew via {bigWinNotif.network}</div>
@@ -581,7 +580,6 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
                 </div>
               </div>
             </div>
-          </div>
           </div>
         )}
 
