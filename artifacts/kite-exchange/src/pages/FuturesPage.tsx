@@ -35,6 +35,16 @@ import { getProxiedLogoUrl } from '../lib/logo-utils';
 import { isTradFiSymbol, getTradFiAsset } from '../lib/tradfi-data';
 import { getCachedTradFiPrice, startTradFiPriceUpdater, subscribeTradFiPrice } from '../lib/tradfi-price-service';
 
+// Per-symbol volume cycling config — unique range & step for every TradFi asset
+function getTradFiVolumeConfig(symbol: string) {
+  const hash = Math.abs(symbol.split('').reduce((a, c) => a * 31 + c.charCodeAt(0), 7));
+  const minVol  = 11_000_000  + (hash % 40_000_000);   // 11M – 51M
+  const maxVol  = 150_000_000 + (hash % 222_000_001);  // 150M – 372M
+  const step    = 18_000      + (hash % 22_001);        // 18K – 40K per 2s tick
+  const startVol = Math.floor(minVol + (maxVol - minVol) * ((hash % 100) / 100));
+  return { minVol, maxVol, step, startVol };
+}
+
 const INDEPENDENT_PRICE_MANAGERS: Record<string, () => number> = {
   EQUSDT: () => EarnQuestPriceManager.getInstance().getPrice(),
   BNCUSDT: () => BNCPriceManager.getInstance().getPrice(),
@@ -404,8 +414,13 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
             const p = liveData.price;
             setHigh24h(prev => prev > 0 ? Math.max(prev, p) : p * (1 + vol * 20 + Math.random() * vol * 5));
             setLow24h(prev => prev > 0 ? Math.min(prev, p) : p * (1 - vol * 20 - Math.random() * vol * 5));
-            setVolume24h(asset.volume24hBase * 100);
-            setOpenInterest(prev => prev > 0 ? prev : asset.volume24hBase * 100 * (0.30 + Math.random() * 0.20));
+            const vcfg = getTradFiVolumeConfig(selectedSymbol);
+            setVolume24h(prev => {
+              const v = prev > 0 ? prev : vcfg.startVol;
+              const next = v + vcfg.step;
+              return next >= vcfg.maxVol ? vcfg.minVol : next;
+            });
+            setOpenInterest(prev => prev > 0 ? prev : vcfg.startVol * 0.38);
           }
         }
         return;
@@ -619,8 +634,9 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
           const p = cached.price;
           setHigh24h(p * (1 + vol * 20 + Math.random() * vol * 5));
           setLow24h(p * (1 - vol * 20 - Math.random() * vol * 5));
-          setVolume24h(asset.volume24hBase * 100);
-          setOpenInterest(asset.volume24hBase * 100 * (0.30 + Math.random() * 0.20));
+          const vcfg = getTradFiVolumeConfig(selectedSymbol);
+          setVolume24h(vcfg.startVol);
+          setOpenInterest(Math.floor(vcfg.startVol * 0.38));
         }
       }
     } else {
