@@ -464,7 +464,7 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
 
     const statsInterval = setInterval(() => {
       setActiveMiners(v => Math.max(15000, v + Math.floor(Math.random() * 20 - 8)));
-      setTotalEarnings(v => Math.min(13_000_000, v + Math.floor(Math.random() * 3000 + 1000)));
+      setTotalEarnings(v => Math.min(11_000_000, v + Math.floor(Math.random() * 3000 + 1000)));
       setRecentUpgrades(v => Math.max(10000, v + Math.floor(Math.random() * 8 - 2)));
       setOnlineCount(v => Math.max(20000, v + Math.floor(Math.random() * 40 - 15)));
     }, 2500);
@@ -652,7 +652,7 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
             {[
               { label: 'Miners', value: `${(activeMiners / 1000).toFixed(1)}k`, color: 'text-white', icon: <Users className="w-3 h-3" /> },
               { label: 'Earned', value: totalEarnings >= 1_000_000 ? `$${(totalEarnings / 1_000_000).toFixed(1)}M` : `$${(totalEarnings / 1000).toFixed(0)}k`, color: 'text-emerald-400', icon: <TrendingUp className="w-3 h-3" /> },
-              { label: 'Withdrawn', value: totalWithdrawnToday >= 1_000_000 ? `$${(totalWithdrawnToday / 1_000_000).toFixed(1)}M` : `$${(totalWithdrawnToday / 1000).toFixed(0)}k`, color: 'text-[#F0B90B]', icon: <DollarSign className="w-3 h-3" /> },
+              { label: 'Withdrawn', value: (() => { const w = Math.min(totalWithdrawnToday, totalEarnings); return w >= 1_000_000 ? `$${(w / 1_000_000).toFixed(1)}M` : `$${(w / 1000).toFixed(0)}k`; })(), color: 'text-[#F0B90B]', icon: <DollarSign className="w-3 h-3" /> },
               { label: 'Upgrades', value: `${(recentUpgrades / 1000).toFixed(1)}k`, color: 'text-blue-400', icon: <ArrowUpCircle className="w-3 h-3" /> },
             ].map((stat) => (
               <div key={stat.label} className="bg-[#1A1B23] border border-[#2B3139]/80 rounded-xl p-2 text-center">
