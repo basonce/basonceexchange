@@ -404,8 +404,8 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
             const p = liveData.price;
             setHigh24h(prev => prev > 0 ? Math.max(prev, p) : p * (1 + vol * 20 + Math.random() * vol * 5));
             setLow24h(prev => prev > 0 ? Math.min(prev, p) : p * (1 - vol * 20 - Math.random() * vol * 5));
-            setVolume24h(asset.volume24hBase);
-            setOpenInterest(prev => prev > 0 ? prev : asset.volume24hBase * (0.30 + Math.random() * 0.20));
+            setVolume24h(asset.volume24hBase * 100);
+            setOpenInterest(prev => prev > 0 ? prev : asset.volume24hBase * 100 * (0.30 + Math.random() * 0.20));
           }
         }
         return;
@@ -619,8 +619,8 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
           const p = cached.price;
           setHigh24h(p * (1 + vol * 20 + Math.random() * vol * 5));
           setLow24h(p * (1 - vol * 20 - Math.random() * vol * 5));
-          setVolume24h(asset.volume24hBase);
-          setOpenInterest(asset.volume24hBase * (0.30 + Math.random() * 0.20));
+          setVolume24h(asset.volume24hBase * 100);
+          setOpenInterest(asset.volume24hBase * 100 * (0.30 + Math.random() * 0.20));
         }
       }
     } else {
