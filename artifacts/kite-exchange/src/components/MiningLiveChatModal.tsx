@@ -636,7 +636,7 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
 
         {/* BIG WIN BANNER — ince, voice room'un yerine */}
         {bigWinNotif ? (
-          <div className="mx-4 mt-2 mb-1 flex-shrink-0 animate-slide-down">
+          <div className="mx-4 mt-2 mb-1 flex-shrink-0">
             <div className="bg-gradient-to-r from-[#F0B90B] to-[#e0a800] rounded-xl px-3 py-2 flex items-center justify-between gap-2 shadow-lg shadow-[#F0B90B]/20">
               <div className="flex items-center gap-2 min-w-0">
                 <div className="w-7 h-7 bg-black/20 rounded-full flex items-center justify-center flex-shrink-0">
