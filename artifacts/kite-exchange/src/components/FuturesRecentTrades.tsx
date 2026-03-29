@@ -25,11 +25,12 @@ export default function FuturesRecentTrades({ symbol, currentPrice }: Props) {
   const generateInitialTrades = () => {
     const initialTrades: Trade[] = [];
     for (let i = 0; i < 30; i++) {
+      const side: 'buy' | 'sell' = Math.random() > 0.30 ? 'buy' : 'sell';
       initialTrades.push({
         price: currentPrice * (0.9995 + Math.random() * 0.001),
-        amount: Math.random() * 10 + 0.01,
+        amount: side === 'buy' ? Math.random() * 18 + 4 : Math.random() * 4 + 0.05,
         time: new Date(Date.now() - i * 1000).toLocaleTimeString(),
-        side: Math.random() > 0.5 ? 'buy' : 'sell'
+        side,
       });
     }
     setTrades(initialTrades);
@@ -38,11 +39,12 @@ export default function FuturesRecentTrades({ symbol, currentPrice }: Props) {
   const generateNewTrade = () => {
     if (currentPrice > 0) {
       const priceVariation = (Math.random() - 0.5) * 0.0005;
+      const side: 'buy' | 'sell' = Math.random() > 0.30 ? 'buy' : 'sell';
       const newTrade: Trade = {
         price: currentPrice * (1 + priceVariation),
-        amount: Math.random() * 10 + 0.01,
+        amount: side === 'buy' ? Math.random() * 18 + 4 : Math.random() * 4 + 0.05,
         time: new Date().toLocaleTimeString(),
-        side: Math.random() > 0.5 ? 'buy' : 'sell'
+        side,
       };
       setTrades(prev => [newTrade, ...prev.slice(0, 49)]);
     }

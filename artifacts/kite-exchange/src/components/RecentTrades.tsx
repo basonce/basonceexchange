@@ -25,12 +25,13 @@ export default function RecentTrades({ symbol }: RecentTradesProps) {
         const priceChange = (Math.random() - 0.5) * 2;
         basePrice += priceChange;
 
+        const side: 'buy' | 'sell' = Math.random() > 0.30 ? 'buy' : 'sell';
         newTrades.push({
           id: `trade-${Date.now()}-${i}`,
           price: basePrice,
-          amount: Math.random() * 5 + 0.1,
+          amount: side === 'buy' ? Math.random() * 18 + 4 : Math.random() * 3 + 0.05,
           time: new Date(Date.now() - i * 1000),
-          side: Math.random() > 0.5 ? 'buy' : 'sell'
+          side,
         });
       }
 
