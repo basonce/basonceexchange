@@ -146,6 +146,37 @@ function getRankMedal(rank: number) {
   return `#${rank}`;
 }
 
+const AVATAR_COLORS = ['#F0B90B','#0ECB81','#2E86DE','#E67E22','#9B59B6','#1ABC9C','#E91E63','#FF6B6B'];
+function getAvatarColor(username: string) {
+  let h = 0;
+  for (let i = 0; i < username.length; i++) h = username.charCodeAt(i) + ((h << 5) - h);
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
+
+function Avatar({ username, size = 36, border = true }: { username: string; size?: number; border?: boolean }) {
+  const [loaded, setLoaded] = useState(false);
+  const color = getAvatarColor(username);
+  const initial = username.charAt(0).toUpperCase();
+  const fontSize = Math.round(size * 0.42);
+  return (
+    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+      <div
+        className="absolute inset-0 rounded-full flex items-center justify-center font-black"
+        style={{ backgroundColor: color, fontSize, color: '#000', border: border ? '2px solid #2B3139' : undefined }}
+      >
+        {initial}
+      </div>
+      <img
+        src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`}
+        onLoad={() => setLoaded(true)}
+        alt=""
+        className="absolute inset-0 w-full h-full rounded-full object-cover transition-opacity duration-300"
+        style={{ opacity: loaded ? 1 : 0, border: border ? '2px solid #2B3139' : undefined }}
+      />
+    </div>
+  );
+}
+
 function WithdrawalCard({ msg, isRequest }: { msg: Message; isRequest?: boolean }) {
   const network = (msg as any).network || NETWORKS[Math.floor(msg.amount * 7) % NETWORKS.length];
   const flag = COUNTRY_FLAGS[msg.country] || '🌍';
@@ -229,13 +260,7 @@ function WithdrawalCard({ msg, isRequest }: { msg: Message; isRequest?: boolean 
       {/* Body */}
       <div className="px-3 py-3 flex items-center gap-3">
         <div className="relative flex-shrink-0">
-          <img
-            src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.username}`}
-            alt={msg.username}
-            className={`w-10 h-10 rounded-full border-2 transition-all duration-700 ${
-              isConfirmed ? 'border-[#F0B90B]/50' : 'border-[#2B3139]'
-            }`}
-          />
+          <Avatar username={msg.username} size={40} />
           {justConfirmed && (
             <div className="absolute inset-0 rounded-full border-2 border-[#F0B90B] animate-ping opacity-60" />
           )}
@@ -334,11 +359,7 @@ function MessageCard({ msg }: { msg: Message }) {
       : 'bg-[#1A1B23]/60 border border-[#2B3139]/40'
     } hover:border-[#F0B90B]/20 transition-all`}>
       <div className="relative flex-shrink-0">
-        <img
-          src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.username}`}
-          alt={msg.username}
-          className="w-9 h-9 rounded-full border-2 border-[#2B3139]"
-        />
+        <Avatar username={msg.username} size={36} />
         {msg.is_featured && (
           <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#F0B90B] rounded-full flex items-center justify-center">
             <Crown className="w-2.5 h-2.5 text-black" />
@@ -706,11 +727,7 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
                   }`}>
                     {getRankMedal(entry.rank)}
                   </div>
-                  <img
-                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${entry.username}`}
-                    alt=""
-                    className="w-9 h-9 rounded-full border-2 border-[#2B3139] flex-shrink-0"
-                  />
+                  <Avatar username={entry.username} size={36} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-white font-semibold text-sm truncate">{entry.username}</span>
