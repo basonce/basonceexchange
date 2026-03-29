@@ -471,7 +471,9 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
               newPrice = lp;
               setHigh24h(parseFloat(ticker.highPrice));
               setLow24h(parseFloat(ticker.lowPrice));
-              setVolume24h(parseFloat(ticker.quoteVolume));
+              const qv = parseFloat(ticker.quoteVolume);
+              setVolume24h(qv);
+              setOpenInterest(prev => prev > 0 ? prev : qv * (0.38 + Math.random() * 0.12));
             }
           } else {
             const pc = PriceCache.getInstance();
