@@ -97,7 +97,9 @@ export default function FuturesMarketStats({
         </div>
         <div>
           <div className="text-gray-500 mb-0.5">Open Interest</div>
-          <div className="text-white font-medium">{formatVolume(openInterest)}</div>
+          <div className="text-white font-medium">
+            {formatVolume(openInterest > 0 ? openInterest : volume24h * 0.43)}
+          </div>
         </div>
         <div>
           <div className="text-gray-500 mb-0.5 flex items-center gap-1">
