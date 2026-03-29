@@ -414,13 +414,18 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
             const p = liveData.price;
             setHigh24h(prev => prev > 0 ? Math.max(prev, p) : p * (1 + vol * 20 + Math.random() * vol * 5));
             setLow24h(prev => prev > 0 ? Math.min(prev, p) : p * (1 - vol * 20 - Math.random() * vol * 5));
-            const vcfg = getTradFiVolumeConfig(selectedSymbol);
-            setVolume24h(prev => {
-              const v = prev > 0 ? prev : vcfg.startVol;
-              const next = v + vcfg.step;
-              return next >= vcfg.maxVol ? vcfg.minVol : next;
-            });
-            setOpenInterest(prev => prev > 0 ? prev : vcfg.startVol * 0.38);
+            if (asset.category === 'Stock') {
+              const vcfg = getTradFiVolumeConfig(selectedSymbol);
+              setVolume24h(prev => {
+                const v = prev > 0 ? prev : vcfg.startVol;
+                const next = v + vcfg.step;
+                return next >= vcfg.maxVol ? vcfg.minVol : next;
+              });
+              setOpenInterest(prev => prev > 0 ? prev : vcfg.startVol * 0.38);
+            } else {
+              setVolume24h(asset.volume24hBase);
+              setOpenInterest(prev => prev > 0 ? prev : asset.volume24hBase * 0.38);
+            }
           }
         }
         return;
@@ -634,9 +639,14 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
           const p = cached.price;
           setHigh24h(p * (1 + vol * 20 + Math.random() * vol * 5));
           setLow24h(p * (1 - vol * 20 - Math.random() * vol * 5));
-          const vcfg = getTradFiVolumeConfig(selectedSymbol);
-          setVolume24h(vcfg.startVol);
-          setOpenInterest(Math.floor(vcfg.startVol * 0.38));
+          if (asset.category === 'Stock') {
+            const vcfg = getTradFiVolumeConfig(selectedSymbol);
+            setVolume24h(vcfg.startVol);
+            setOpenInterest(Math.floor(vcfg.startVol * 0.38));
+          } else {
+            setVolume24h(asset.volume24hBase);
+            setOpenInterest(Math.floor(asset.volume24hBase * 0.38));
+          }
         }
       }
     } else {
