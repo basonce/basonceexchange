@@ -634,31 +634,31 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
           </div>
         </div>
 
-        {/* BIG WIN POPUP — centered in modal */}
-        {bigWinNotif && (
-          <div className="absolute z-50 animate-slide-down" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: 'calc(100% - 32px)' }}>
-            <div className="bg-gradient-to-r from-[#F0B90B] to-[#e0a800] rounded-2xl p-4 shadow-2xl shadow-[#F0B90B]/30 border border-[#F0B90B]/40">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-11 h-11 bg-black/20 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Trophy className="w-6 h-6 text-black" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-black text-[10px] font-bold tracking-widest">🎉 BIG WIN ALERT</div>
-                    <div className="text-black font-black text-base leading-tight truncate">
-                      {bigWinNotif.username} {COUNTRY_FLAGS[bigWinNotif.country] || '🌍'}
-                    </div>
-                    <div className="text-black/70 text-xs">withdrew via {bigWinNotif.network}</div>
+        {/* BIG WIN BANNER — ince, voice room'un yerine */}
+        {bigWinNotif ? (
+          <div className="mx-4 mt-2 mb-1 flex-shrink-0 animate-slide-down">
+            <div className="bg-gradient-to-r from-[#F0B90B] to-[#e0a800] rounded-xl px-3 py-2 flex items-center justify-between gap-2 shadow-lg shadow-[#F0B90B]/20">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 bg-black/20 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Trophy className="w-4 h-4 text-black" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-black text-[9px] font-bold tracking-widest leading-none">🎉 BIG WIN ALERT</div>
+                  <div className="text-black font-black text-sm leading-tight truncate">
+                    {bigWinNotif.username} {COUNTRY_FLAGS[bigWinNotif.country] || '🌍'}
+                    <span className="font-normal text-black/70 text-xs ml-1">via {bigWinNotif.network}</span>
                   </div>
                 </div>
-                <div className="text-black font-black text-2xl flex-shrink-0">
-                  ${bigWinNotif.amount >= 1000
-                    ? `${(bigWinNotif.amount / 1000).toFixed(1)}K`
-                    : bigWinNotif.amount.toLocaleString()}
-                </div>
+              </div>
+              <div className="text-black font-black text-lg flex-shrink-0">
+                ${bigWinNotif.amount >= 1000
+                  ? `${(bigWinNotif.amount / 1000).toFixed(1)}K`
+                  : bigWinNotif.amount.toLocaleString()}
               </div>
             </div>
           </div>
+        ) : (
+          <div className="h-2 flex-shrink-0" />
         )}
 
         {/* TABS */}
