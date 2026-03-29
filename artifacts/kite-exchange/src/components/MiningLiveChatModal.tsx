@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { GENERATED_CHAT_POOL } from './generatedChatPool';
 import {
   X, Send, Radio, TrendingUp, MessageCircle, DollarSign, ArrowUpCircle,
   Award, Flame, Crown, Zap, CheckCircle2, Clock, Trophy, Users,
@@ -104,6 +105,7 @@ const LIVE_POOL: Array<{
   { username: 'HiroshiNakamura', country: 'JP', level: 5, message: 'I started on CPU Miner. Took 8 months to reach Quantum Rig. Now earning $360/cycle. The journey is worth it.', amount: 3600, message_type: 'milestone', is_featured: true },
   { username: 'SergioMontoya', country: 'CO', level: 4, message: 'My coworker laughed when I bought Mining Farm. Now he\'s begging me to explain it after seeing $870 in my wallet.', amount: 870, message_type: 'general', is_featured: false },
   { username: 'AbigailHartley', country: 'AU', level: 5, message: 'Quantum Rig owners — what can I say. We\'re in a different league. $360 per session, no sweat.', amount: 3240, message_type: 'milestone', is_featured: true },
+  ...GENERATED_CHAT_POOL,
 ];
 
 const LEADERBOARD = [
