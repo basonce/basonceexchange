@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import { getPriceDecimals as sharedGetPriceDecimals } from '../lib/format-utils';
 
 interface Props {
   symbol: string;
@@ -59,18 +60,7 @@ export default function FuturesMarketStats({
     return () => clearInterval(interval);
   }, [symbol, priceChange]);
 
-  const getPriceDecimals = (price: number): number => {
-    if (price >= 100) return 2;
-    if (price >= 10) return 3;
-    if (price >= 1) return 4;
-    if (price >= 0.1) return 5;
-    if (price >= 0.01) return 6;
-    if (price >= 0.001) return 7;
-    if (price >= 0.0001) return 8;
-    if (price >= 0.00001) return 9;
-    if (price >= 0.000001) return 8;
-    return 10;
-  };
+  const getPriceDecimals = sharedGetPriceDecimals;
 
   const formatVolume = (num: number) => {
     if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`;

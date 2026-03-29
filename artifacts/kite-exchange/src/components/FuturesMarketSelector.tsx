@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useFuturesFavorites } from '../lib/use-futures-favorites';
+import { getPriceDecimals } from '../lib/format-utils';
 import { Search, Star, X, Megaphone } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { EarnQuestPriceManager } from '../lib/earnquest-price';
@@ -340,10 +341,8 @@ export default function FuturesMarketSelector({
 
   const formatPrice = (price: number) => {
     if (price === 0) return '--';
-    if (price >= 1000) return price.toFixed(2);
-    if (price >= 1) return price.toFixed(4);
-    if (price >= 0.01) return price.toFixed(5);
-    return price.toFixed(8);
+    if (price >= 10000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return price.toFixed(getPriceDecimals(price));
   };
 
   const formatVolume = (vol: number) => {
@@ -473,8 +472,7 @@ export default function FuturesMarketSelector({
                   const isFav = isTradFiFavorite(tc.asset.symbol);
                   const fp = (p: number) => {
                     if (p >= 10000) return p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    if (p >= 1) return p.toFixed(2);
-                    return p.toFixed(4);
+                    return p.toFixed(getPriceDecimals(p));
                   };
                   const fv = (v: number) => {
                     if (v >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
@@ -614,8 +612,7 @@ export default function FuturesMarketSelector({
                     const style = CATEGORY_STYLES[tc.asset.category];
                     const formatTradFiPrice = (p: number) => {
                       if (p >= 10000) return p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                      if (p >= 1) return p.toFixed(2);
-                      return p.toFixed(4);
+                      return p.toFixed(getPriceDecimals(p));
                     };
                     return (
                       <div
