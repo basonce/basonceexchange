@@ -433,10 +433,10 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
   const [tickerOffset, setTickerOffset] = useState(0);
 
   const [activeMiners, setActiveMiners] = useState(17148);
-  const [totalEarnings, setTotalEarnings] = useState(6_420_000);
+  const [totalEarnings, setTotalEarnings] = useState(1_300_000);
   const [recentUpgrades, setRecentUpgrades] = useState(11842);
   const [onlineCount, setOnlineCount] = useState(23774);
-  const [totalWithdrawnToday, setTotalWithdrawnToday] = useState(3_180_000);
+  const [totalWithdrawnToday, setTotalWithdrawnToday] = useState(700_000);
   const injectCycleRef = useRef(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -464,9 +464,20 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
 
     const statsInterval = setInterval(() => {
       setActiveMiners(v => Math.max(15000, v + Math.floor(Math.random() * 20 - 8)));
-      setTotalEarnings(v => Math.min(11_000_000, v + Math.floor(Math.random() * 3000 + 1000)));
       setRecentUpgrades(v => Math.max(10000, v + Math.floor(Math.random() * 8 - 2)));
       setOnlineCount(v => Math.max(20000, v + Math.floor(Math.random() * 40 - 15)));
+      // EARNED: 1.3M → 11M cycle (~20 min per cycle at 22K/tick avg)
+      setTotalEarnings(v => {
+        const step = Math.floor(Math.random() * 12000 + 18000);
+        const next = v + step;
+        return next >= 11_000_000 ? 1_300_000 : next;
+      });
+      // WITHDRAWN: 700K → 4M cycle (~15 min per cycle at 11K/tick avg)
+      setTotalWithdrawnToday(v => {
+        const step = Math.floor(Math.random() * 6000 + 8000);
+        const next = v + step;
+        return next >= 4_000_000 ? 700_000 : next;
+      });
     }, 2500);
 
     // Structured pools for balanced injection
@@ -798,7 +809,6 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
                         isRequest={msg.message_type === 'withdrawal_request'}
                         onConfirmed={(confirmedMsg) => {
                           const amt = Math.min(confirmedMsg.amount, 13789);
-                          setTotalWithdrawnToday(v => v + amt);
                           const notif: BigWinNotif = {
                             id: `bw-confirmed-${Date.now()}`,
                             username: confirmedMsg.username,
