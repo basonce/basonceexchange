@@ -637,7 +637,7 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
 
         {/* VOICE ROOM */}
         <div className="px-4 pt-3 flex-shrink-0">
-          <div className="relative">
+          <div className="relative w-full">
             <VoiceRoomPlayer />
             {/* BIG WIN POPUP — overlays VOICE ROOM exactly */}
             {bigWinNotif && (
