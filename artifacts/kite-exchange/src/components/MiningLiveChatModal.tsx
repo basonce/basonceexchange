@@ -483,8 +483,8 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
 
     let liveTimeout: NodeJS.Timeout;
     const injectLive = () => {
-      // Moderate pace: 3–6s between messages
-      const delay = Math.random() * 3000 + 3000;
+      // Slow pace: 8–15s between messages
+      const delay = Math.random() * 7000 + 8000;
       liveTimeout = setTimeout(() => {
         const cyclePos = injectCycleRef.current % CYCLE.length;
         injectCycleRef.current += 1;
