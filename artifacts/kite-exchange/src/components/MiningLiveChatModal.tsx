@@ -642,18 +642,20 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
             {/* BIG WIN POPUP — overlays VOICE ROOM exactly */}
             {bigWinNotif && (
               <div className="absolute inset-0 z-50 rounded-2xl overflow-hidden animate-slide-down">
-                <div className="w-full h-full bg-gradient-to-r from-[#F0B90B] to-[#e0a800] flex items-center px-4 gap-3 shadow-2xl shadow-[#F0B90B]/30">
-                  <div className="w-11 h-11 bg-black/20 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Trophy className="w-6 h-6 text-black" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-black text-[10px] font-bold tracking-widest">🎉 BIG WIN ALERT</div>
-                    <div className="text-black font-black text-base leading-tight truncate">
-                      {bigWinNotif.username} {COUNTRY_FLAGS[bigWinNotif.country] || '🌍'}
+                <div className="w-full h-full bg-gradient-to-r from-[#F0B90B] to-[#e0a800] flex items-center justify-between pl-4 pr-6 gap-3 shadow-2xl shadow-[#F0B90B]/30">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 bg-black/20 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Trophy className="w-6 h-6 text-black" />
                     </div>
-                    <div className="text-black/70 text-xs">withdrew via {bigWinNotif.network}</div>
+                    <div className="min-w-0">
+                      <div className="text-black text-[10px] font-bold tracking-widest">🎉 BIG WIN ALERT</div>
+                      <div className="text-black font-black text-base leading-tight truncate">
+                        {bigWinNotif.username} {COUNTRY_FLAGS[bigWinNotif.country] || '🌍'}
+                      </div>
+                      <div className="text-black/70 text-xs">withdrew via {bigWinNotif.network}</div>
+                    </div>
                   </div>
-                  <div className="text-black font-black text-2xl flex-shrink-0">
+                  <div className="text-black font-black text-2xl flex-shrink-0 ml-auto">
                     ${bigWinNotif.amount >= 1000
                       ? `${(bigWinNotif.amount / 1000).toFixed(1)}K`
                       : bigWinNotif.amount.toLocaleString()}
