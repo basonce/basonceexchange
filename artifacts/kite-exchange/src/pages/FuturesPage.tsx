@@ -252,6 +252,7 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
   const [high24h, setHigh24h] = useState(0);
   const [low24h, setLow24h] = useState(0);
   const [volume24h, setVolume24h] = useState(0);
+  const [openInterest, setOpenInterest] = useState(0);
 
   const safeHigh = (price: number, stored: number) => {
     if (price <= 0) return stored || 0;
@@ -396,6 +397,16 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
           setLastPrice(liveData.price);
           setPrice(liveData.price.toFixed(getPriceDecimals(liveData.price)));
           await generateOrderBook(liveData.price);
+          // Set stats for TradFi — high/low based on asset volatility, volume from asset base
+          const asset = getTradFiAsset(selectedSymbol);
+          if (asset) {
+            const vol = asset.volatility;
+            const p = liveData.price;
+            setHigh24h(prev => prev > 0 ? Math.max(prev, p) : p * (1 + vol * 20 + Math.random() * vol * 5));
+            setLow24h(prev => prev > 0 ? Math.min(prev, p) : p * (1 - vol * 20 - Math.random() * vol * 5));
+            setVolume24h(asset.volume24hBase);
+            setOpenInterest(prev => prev > 0 ? prev : asset.volume24hBase * (0.30 + Math.random() * 0.20));
+          }
         }
         return;
       }
@@ -590,6 +601,9 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
 
     fetchCoinLogo();
 
+    // Reset stats on symbol change
+    setHigh24h(0); setLow24h(0); setVolume24h(0); setOpenInterest(0);
+
     if (isTradFiSymbol(selectedSymbol)) {
       const cached = getCachedTradFiPrice(selectedSymbol);
       if (cached && cached.price > 0) {
@@ -598,6 +612,16 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
         setLastPrice(cached.price);
         setPrice(cached.price.toFixed(getPriceDecimals(cached.price)));
         setPriceChange(cached.change);
+        // Immediately populate stats from asset config
+        const asset = getTradFiAsset(selectedSymbol);
+        if (asset) {
+          const vol = asset.volatility;
+          const p = cached.price;
+          setHigh24h(p * (1 + vol * 20 + Math.random() * vol * 5));
+          setLow24h(p * (1 - vol * 20 - Math.random() * vol * 5));
+          setVolume24h(asset.volume24hBase);
+          setOpenInterest(asset.volume24hBase * (0.30 + Math.random() * 0.20));
+        }
       }
     } else {
       const indepGetter = INDEPENDENT_PRICE_MANAGERS[selectedSymbol];
@@ -1374,6 +1398,7 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
         low24h={low24h}
         volume24h={volume24h}
         turnover24h={volume24h * currentPrice}
+        openInterest={openInterest}
       />
 
       <div className="flex max-w-full" style={{ minHeight: '460px' }}>
