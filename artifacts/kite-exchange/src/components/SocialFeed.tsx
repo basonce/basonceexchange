@@ -26,6 +26,18 @@ function hashStringToInt(str: string): number {
   return hash;
 }
 
+const VERIFIED_USERNAMES = new Set([
+  'AlphaTrader77','FuturesKing','CryptoWhale88','OnChainOG','BlockchainEmpire',
+  'CryptoMarketLens','SyndicateOfficial','BullishSignals','WhaleWatcher99',
+  'BasonceOfficial','LeverageGod','DegenKing100x','PerpMaster_OG','CryptoKing_X',
+  'TradeMasterPro','WhaleDumpling','GlobalCryptoAlert','DoctorMedia_Crypto',
+  'WhaleDrops_OG','CryptoNewsFlash','BullRunKing','VolumeProfile','DeltaNeutral',
+  'AltSeasonTracker','BitcoinMaximalist','AltcoinProfessor','MomentumRider',
+  'RiskRewardKing','PnL_Printer99','TrendFollower22','EntryMasterX',
+  'DoktorProfit','NightFutures','FuturesAlpha9','BullishOG','SoloBull2025',
+  'CryptoScalper','LongOnlyVibes','BlockchainEmpire','AiResearcher',
+]);
+
 interface CoinTag { symbol: string; change: number; }
 
 interface SocialPost {
@@ -629,6 +641,76 @@ function generateSinglePositionPost(pc: PriceCache): SocialPost | null {
   };
 }
 
+const OPENING_TRADE_CAPTIONS = [
+  'Just entered. Setup was too clean to miss.',
+  'Position opened. Let it cook.',
+  'Entry confirmed. Thesis is live.',
+  'Opened here. Risk is managed.',
+  'In the trade. Watching closely.',
+  'Entry executed. Target set above.',
+  'Opening this now. Structure is clear.',
+  'Entered full size. High conviction.',
+  'Position live. Stop already set.',
+  'Just got in. Volume confirmed the entry.',
+];
+
+const OPENING_TRADE_USERS = [
+  { username: 'AlphaTrader77', avatar: 'https://randomuser.me/api/portraits/men/21.jpg' },
+  { username: 'FuturesKing', avatar: 'https://randomuser.me/api/portraits/men/26.jpg' },
+  { username: 'LeverageGod', avatar: 'https://randomuser.me/api/portraits/women/30.jpg' },
+  { username: 'DegenKing100x', avatar: 'https://randomuser.me/api/portraits/men/54.jpg' },
+  { username: 'PerpMaster_OG', avatar: 'https://randomuser.me/api/portraits/men/56.jpg' },
+  { username: 'CryptoKing_X', avatar: 'https://randomuser.me/api/portraits/men/50.jpg' },
+  { username: 'TradeMasterPro', avatar: 'https://randomuser.me/api/portraits/men/53.jpg' },
+  { username: 'MomentumRider', avatar: 'https://randomuser.me/api/portraits/women/32.jpg' },
+  { username: 'RiskRewardKing', avatar: 'https://randomuser.me/api/portraits/women/33.jpg' },
+  { username: 'EntryMasterX', avatar: 'https://randomuser.me/api/portraits/men/60.jpg' },
+  { username: 'BullishOG', avatar: 'https://randomuser.me/api/portraits/men/52.jpg' },
+  { username: 'FuturesAlpha9', avatar: 'https://randomuser.me/api/portraits/men/51.jpg' },
+];
+
+function generateOpeningTradePost(pc: PriceCache): SocialPost | null {
+  const coin = pickRandom(SINGLE_POS_COINS);
+  const cached = pc.getBySymbol(coin);
+  const markPrice = (cached && cached.price > 0) ? cached.price : (CUSTOM_COIN_PRICES[coin] ?? 0);
+  if (markPrice <= 0) return null;
+  const leverage = pickRandom(LEVERAGES);
+  const tradeType: 'long' | 'short' = Math.random() < 0.72 ? 'long' : 'short';
+  const unrealizedPnl = (Math.random() < 0.78)
+    ? (20 + Math.random() * 980)
+    : -(5 + Math.random() * 180);
+  const user = pickRandom(OPENING_TRADE_USERS);
+  const fakeNow = new Date();
+  fakeNow.setSeconds(fakeNow.getSeconds() - Math.floor(Math.random() * 40));
+  const coinTag: CoinTag = { symbol: coin, change: Number(((Math.random() * 6 - 1)).toFixed(2)) };
+  const extraCoin = pickRandom(SINGLE_POS_COINS.filter(c => c !== coin));
+  const extraChange = Number(((Math.random() * 10 - 1.5)).toFixed(2));
+  return {
+    id: `opening_${Date.now()}_${Math.random()}`,
+    username: user.username,
+    avatar_url: user.avatar,
+    content: pickRandom(OPENING_TRADE_CAPTIONS),
+    coin_symbol: coin,
+    trade_type: tradeType,
+    entry_price: markPrice,
+    exit_price: markPrice,
+    profit_loss: unrealizedPnl,
+    profit_loss_percent: (unrealizedPnl / (1000 + Math.random() * 5000)) * 100,
+    leverage,
+    image_url: null,
+    likes_count: Math.floor(8 + Math.random() * 400),
+    comments_count: Math.floor(2 + Math.random() * 80),
+    shares_count: Math.floor(2 + Math.random() * 60),
+    view_count: Math.floor(300 + Math.random() * 90000),
+    repost_count: Math.floor(1 + Math.random() * 40),
+    is_bullish: tradeType === 'long',
+    created_at: fakeNow.toISOString(),
+    post_type: 'opening_trade',
+    coin_tags: [coinTag, { symbol: extraCoin, change: extraChange }],
+    sentiment: tradeType === 'long' ? 'bullish' : 'bearish',
+  };
+}
+
 function generateMemePost(pc: PriceCache, pickImage?: () => string | null): SocialPost {
   const meme = pickRandom(MEME_CONTENT_POOL);
   const user = pickRandom(MEME_POST_USERS);
@@ -864,6 +946,10 @@ function buildInitialFeed(posts: SocialPost[], newsPool: LiveNewsItem[], pc?: Pr
     if ((idx + 1) % 9 === 0 && pc) {
       const mp = generateMemePost(pc, pickImage);
       if (filterBannedPost(mp)) items.push({ kind: 'post', data: mp });
+    }
+    if ((idx + 1) % 5 === 0 && pc) {
+      const op = generateOpeningTradePost(pc);
+      if (op && filterBannedPost(op)) items.push({ kind: 'post', data: op });
     }
     if ((idx + 1) % 14 === 0) {
       items.push({ kind: 'post', data: generateGiveawayPost() });
@@ -1462,10 +1548,23 @@ export default function SocialFeed() {
               {post.post_type === 'live_embed' && (
                 <div className="absolute -bottom-0.5 -left-0.5 bg-[#F6465D] text-white text-[7px] font-bold px-1 rounded">LIVE</div>
               )}
+              {VERIFIED_USERNAMES.has(post.username) && (
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#F0B90B] flex items-center justify-center shadow-lg">
+                  <svg viewBox="0 0 12 12" fill="none" className="w-2.5 h-2.5">
+                    <path d="M2 6l2.5 2.5L10 3.5" stroke="#0B0E11" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              )}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+              <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
                 <span className="font-semibold text-sm text-white">{post.username}</span>
+                {VERIFIED_USERNAMES.has(post.username) && (
+                  <svg viewBox="0 0 16 16" fill="none" className="w-3.5 h-3.5 flex-shrink-0">
+                    <circle cx="8" cy="8" r="8" fill="#F0B90B"/>
+                    <path d="M4.5 8l2 2 5-5" stroke="#0B0E11" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
                 {getPostTypeIcon(post.post_type) && (
                   <span className="text-[#F0B90B]">{getPostTypeIcon(post.post_type)}</span>
                 )}
@@ -1560,6 +1659,31 @@ function renderPostContent(post: SocialPost, priceCache: PriceCache) {
     case 'educational':
     case 'personal':
       return null;
+    case 'opening_trade': {
+      const isLong = post.trade_type === 'long';
+      const pnl = post.profit_loss;
+      const pnlPositive = pnl >= 0;
+      return (
+        <div className="bg-[#12141a] rounded-xl border border-[#2B3139] px-4 py-3 mb-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-white font-bold text-sm">{post.coin_symbol}USDT</span>
+              <span className="text-[11px] text-gray-400">Perp</span>
+              <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-md ${
+                isLong
+                  ? 'bg-[#0ECB81]/15 text-[#0ECB81] border border-[#0ECB81]/30'
+                  : 'bg-[#F6465D]/15 text-[#F6465D] border border-[#F6465D]/30'
+              }`}>
+                Opening {isLong ? 'Long' : 'Short'}
+              </span>
+            </div>
+            <span className={`font-bold text-base tabular-nums ${pnlPositive ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+              {pnlPositive ? '+' : ''}{pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+        </div>
+      );
+    }
     case 'event':
       return <FeedEventCard content={post.content} />;
     case 'news':
