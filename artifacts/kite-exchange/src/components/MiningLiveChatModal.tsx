@@ -636,7 +636,7 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
 
         {/* BIG WIN POPUP — centered in modal */}
         {bigWinNotif && (
-          <div className="absolute z-50 animate-slide-down" style={{ left: '16px', right: '16px', top: '50%', transform: 'translateY(-50%)' }}>
+          <div className="absolute z-50 animate-slide-down" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: 'calc(100% - 32px)' }}>
             <div className="bg-gradient-to-r from-[#F0B90B] to-[#e0a800] rounded-2xl p-4 shadow-2xl shadow-[#F0B90B]/30 border border-[#F0B90B]/40">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
