@@ -636,22 +636,22 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
         </div>
 
         {/* VOICE ROOM */}
-        <div className="px-4 pt-3 flex-shrink-0 relative">
-          <VoiceRoomPlayer />
-          {/* BIG WIN POPUP — overlays VOICE ROOM */}
-          {bigWinNotif && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center animate-slide-down">
-              <div className="w-full bg-gradient-to-r from-[#F0B90B] to-[#e0a800] rounded-2xl p-4 shadow-2xl shadow-[#F0B90B]/30 border border-[#F0B90B]/40">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-black/20 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Trophy className="w-7 h-7 text-black" />
+        <div className="px-4 pt-3 flex-shrink-0">
+          <div className="relative">
+            <VoiceRoomPlayer />
+            {/* BIG WIN POPUP — overlays VOICE ROOM exactly */}
+            {bigWinNotif && (
+              <div className="absolute inset-0 z-50 rounded-2xl overflow-hidden animate-slide-down">
+                <div className="w-full h-full bg-gradient-to-r from-[#F0B90B] to-[#e0a800] flex items-center px-4 gap-3 shadow-2xl shadow-[#F0B90B]/30">
+                  <div className="w-11 h-11 bg-black/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Trophy className="w-6 h-6 text-black" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-black text-xs font-bold tracking-widest mb-0.5">🎉 BIG WIN ALERT</div>
-                    <div className="text-black font-black text-lg leading-tight truncate">
+                    <div className="text-black text-[10px] font-bold tracking-widest">🎉 BIG WIN ALERT</div>
+                    <div className="text-black font-black text-base leading-tight truncate">
                       {bigWinNotif.username} {COUNTRY_FLAGS[bigWinNotif.country] || '🌍'}
                     </div>
-                    <div className="text-black/80 text-xs">withdrew via {bigWinNotif.network}</div>
+                    <div className="text-black/70 text-xs">withdrew via {bigWinNotif.network}</div>
                   </div>
                   <div className="text-black font-black text-2xl flex-shrink-0">
                     ${bigWinNotif.amount >= 1000
@@ -660,8 +660,8 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* TABS */}
