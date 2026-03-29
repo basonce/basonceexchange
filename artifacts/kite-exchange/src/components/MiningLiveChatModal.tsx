@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { globalMiningStats } from '../lib/global-mining-stats';
-import VoiceRoomPlayer from './VoiceRoomPlayer';
 
 interface Message {
   id: string;
@@ -635,36 +634,32 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
           </div>
         </div>
 
-        {/* VOICE ROOM */}
-        <div className="px-4 pt-3 flex-shrink-0">
-          <div className="relative w-full">
-            <VoiceRoomPlayer />
-            {/* BIG WIN POPUP — overlays VOICE ROOM exactly */}
-            {bigWinNotif && (
-              <div className="absolute inset-0 z-50 rounded-2xl overflow-hidden animate-slide-down">
-                <div className="w-full h-full bg-gradient-to-r from-[#F0B90B] to-[#e0a800] flex items-center justify-between pl-4 pr-2 gap-3 shadow-2xl shadow-[#F0B90B]/30">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-11 h-11 bg-black/20 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Trophy className="w-6 h-6 text-black" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-black text-[10px] font-bold tracking-widest">🎉 BIG WIN ALERT</div>
-                      <div className="text-black font-black text-base leading-tight truncate">
-                        {bigWinNotif.username} {COUNTRY_FLAGS[bigWinNotif.country] || '🌍'}
-                      </div>
-                      <div className="text-black/70 text-xs">withdrew via {bigWinNotif.network}</div>
-                    </div>
+        {/* BIG WIN POPUP — centered in modal */}
+        {bigWinNotif && (
+          <div className="absolute left-4 right-4 top-1/2 -translate-y-1/2 z-50 animate-slide-down">
+            <div className="bg-gradient-to-r from-[#F0B90B] to-[#e0a800] rounded-2xl p-4 shadow-2xl shadow-[#F0B90B]/30 border border-[#F0B90B]/40">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 bg-black/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Trophy className="w-6 h-6 text-black" />
                   </div>
-                  <div className="text-black font-black text-2xl flex-shrink-0 ml-auto">
-                    ${bigWinNotif.amount >= 1000
-                      ? `${(bigWinNotif.amount / 1000).toFixed(1)}K`
-                      : bigWinNotif.amount.toLocaleString()}
+                  <div className="min-w-0">
+                    <div className="text-black text-[10px] font-bold tracking-widest">🎉 BIG WIN ALERT</div>
+                    <div className="text-black font-black text-base leading-tight truncate">
+                      {bigWinNotif.username} {COUNTRY_FLAGS[bigWinNotif.country] || '🌍'}
+                    </div>
+                    <div className="text-black/70 text-xs">withdrew via {bigWinNotif.network}</div>
                   </div>
                 </div>
+                <div className="text-black font-black text-2xl flex-shrink-0">
+                  ${bigWinNotif.amount >= 1000
+                    ? `${(bigWinNotif.amount / 1000).toFixed(1)}K`
+                    : bigWinNotif.amount.toLocaleString()}
+                </div>
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* TABS */}
         <div className="flex items-center gap-1 px-4 py-2 flex-shrink-0 border-b border-[#2B3139]/60">
