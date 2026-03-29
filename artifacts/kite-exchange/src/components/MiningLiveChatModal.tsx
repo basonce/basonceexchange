@@ -642,7 +642,7 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
             {/* BIG WIN POPUP — overlays VOICE ROOM exactly */}
             {bigWinNotif && (
               <div className="absolute inset-0 z-50 rounded-2xl overflow-hidden animate-slide-down">
-                <div className="w-full h-full bg-gradient-to-r from-[#F0B90B] to-[#e0a800] flex items-center justify-between pl-4 pr-6 gap-3 shadow-2xl shadow-[#F0B90B]/30">
+                <div className="w-full h-full bg-gradient-to-r from-[#F0B90B] to-[#e0a800] flex items-center justify-between pl-4 pr-2 gap-3 shadow-2xl shadow-[#F0B90B]/30">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-11 h-11 bg-black/20 rounded-full flex items-center justify-center flex-shrink-0">
                       <Trophy className="w-6 h-6 text-black" />
