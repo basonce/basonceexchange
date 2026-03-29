@@ -466,18 +466,10 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
       setActiveMiners(v => Math.max(15000, v + Math.floor(Math.random() * 20 - 8)));
       setRecentUpgrades(v => Math.max(10000, v + Math.floor(Math.random() * 8 - 2)));
       setOnlineCount(v => Math.max(20000, v + Math.floor(Math.random() * 40 - 15)));
-      // EARNED: 1.3M → 11M cycle (~20 min per cycle at 22K/tick avg)
-      setTotalEarnings(v => {
-        const step = Math.floor(Math.random() * 12000 + 18000);
-        const next = v + step;
-        return next >= 11_000_000 ? 1_300_000 : next;
-      });
-      // WITHDRAWN: 700K → 4M cycle (~15 min per cycle at 11K/tick avg)
-      setTotalWithdrawnToday(v => {
-        const step = Math.floor(Math.random() * 6000 + 8000);
-        const next = v + step;
-        return next >= 4_000_000 ? 700_000 : next;
-      });
+      // EARNED: 1.3M → 11M, only rises, stops at 11M
+      setTotalEarnings(v => Math.min(11_000_000, v + Math.floor(Math.random() * 12000 + 18000)));
+      // WITHDRAWN: 700K → 4M, only rises, stops at 4M
+      setTotalWithdrawnToday(v => Math.min(4_000_000, v + Math.floor(Math.random() * 6000 + 8000)));
     }, 2500);
 
     // Structured pools for balanced injection
