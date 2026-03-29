@@ -1549,9 +1549,9 @@ export default function SocialFeed() {
                 <div className="absolute -bottom-0.5 -left-0.5 bg-[#F6465D] text-white text-[7px] font-bold px-1 rounded">LIVE</div>
               )}
               {VERIFIED_USERNAMES.has(post.username) && (
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#F0B90B] flex items-center justify-center shadow-lg">
-                  <svg viewBox="0 0 12 12" fill="none" className="w-2.5 h-2.5">
-                    <path d="M2 6l2.5 2.5L10 3.5" stroke="#0B0E11" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                <div className="absolute -bottom-1 -right-1 w-[18px] h-[18px] rounded-full flex items-center justify-center shadow-lg" style={{ background: '#F0B90B' }}>
+                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none" shapeRendering="geometricPrecision">
+                    <path d="M1 3.8L3.8 6.8L9.2 1" stroke="#0D0F14" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </div>
               )}
@@ -1560,9 +1560,9 @@ export default function SocialFeed() {
               <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
                 <span className="font-semibold text-sm text-white">{post.username}</span>
                 {VERIFIED_USERNAMES.has(post.username) && (
-                  <svg viewBox="0 0 16 16" fill="none" className="w-3.5 h-3.5 flex-shrink-0">
-                    <circle cx="8" cy="8" r="8" fill="#F0B90B"/>
-                    <path d="M4.5 8l2 2 5-5" stroke="#0B0E11" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" className="flex-shrink-0" shapeRendering="geometricPrecision">
+                    <circle cx="7.5" cy="7.5" r="7.5" fill="#F0B90B"/>
+                    <path d="M3.8 7.8L6.4 10.4L11.8 4.8" stroke="#0D0F14" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 )}
                 {getPostTypeIcon(post.post_type) && (
