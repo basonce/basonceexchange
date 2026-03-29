@@ -457,9 +457,9 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
 
     const unsubGlobal = globalMiningStats.subscribe((stats) => {
       setActiveMiners(stats.activeMiners);
-      setTotalEarnings(stats.hourlyEarnings);
       setRecentUpgrades(stats.recentUpgrades);
       setOnlineCount(stats.onlineCount);
+      // totalEarnings and totalWithdrawnToday are managed by statsInterval below
     });
 
     const statsInterval = setInterval(() => {
