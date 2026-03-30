@@ -13,9 +13,6 @@ import {
   type UserContextData,
 } from '../lib/ai-support-engine';
 
-// Module-level guard — survives React StrictMode double-mount
-const _aiReplyInProgress = new Set<string>(); // key = ticketId
-
 function detectMessageLanguage(text: string): string {
   if (!text || text.trim().length < 2) return 'en';
   const arabicPattern = /[\u0600-\u06FF\u0750-\u077F]/;
@@ -125,7 +122,6 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
   const customerIdRef = useRef<string>('');
   const customerLanguageRef = useRef<string>('ai');
   const assignedAgentRef = useRef<Agent | null>(null);
-  const isSendingRef = useRef(false);
 
   useEffect(() => {
     if (isOpen) { getAgentStats(); }
@@ -239,6 +235,7 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
     };
 
     fetchMessages();
+    const interval = setInterval(fetchMessages, 2000);
 
     const channel = supabase
       .channel(`user_ticket_${ticketId}`)
@@ -251,17 +248,16 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
         const newMsg = payload.new as SupportMessage;
         setMessages(prev => {
           if (prev.find(m => m.id === newMsg.id)) return prev;
-          const withoutOpt = prev.filter(m => !m.id.startsWith('opt_'));
-          const opts = prev.filter(m => m.id.startsWith('opt_'));
-          if (newMsg.sender_type === 'admin' || newMsg.sender_type === 'bot') {
-            setIsAgentTyping(false);
-          }
-          return [...withoutOpt, newMsg, ...opts];
+          const realMsgs = prev.filter(m => !m.id.startsWith('opt_'));
+          const optimisticMsgs = prev.filter(m => m.id.startsWith('opt_'));
+          if (newMsg.sender_type === 'admin') setIsAgentTyping(false);
+          return [...realMsgs, newMsg, ...optimisticMsgs];
         });
       })
       .subscribe();
 
     return () => {
+      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [ticketId]);
@@ -300,22 +296,8 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
     agent: Agent,
     lang: string
   ) => {
-    // Module-level lock — shared across all component instances (StrictMode safe)
-    if (_aiReplyInProgress.has(tickId)) return;
-    _aiReplyInProgress.add(tickId);
     setIsAgentTyping(true);
     try {
-      // DB-level dedup: abort if an agent reply was already inserted in the last 5 seconds
-      const fiveSecsAgo = new Date(Date.now() - 5000).toISOString();
-      const { data: recent } = await supabase
-        .from('support_messages')
-        .select('id')
-        .eq('ticket_id', tickId)
-        .eq('sender_type', 'admin')
-        .gte('created_at', fiveSecsAgo)
-        .limit(1);
-      if (recent && recent.length > 0) return;
-
       const convMsgs = conversationRef.current;
       const updatedConv = [...convMsgs, { role: 'customer' as const, text: userText }];
       const profile = analyzeUserProfile(updatedConv, lang);
@@ -363,7 +345,6 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
     } catch (err) {
       console.error('AI reply error:', err);
     } finally {
-      _aiReplyInProgress.delete(tickId);
       setIsAgentTyping(false);
     }
   }, []);
@@ -485,14 +466,10 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
   };
 
   const handleSendMessage = async (text?: string) => {
-    if (isSendingRef.current) return;
-    isSendingRef.current = true;
-
     const messageText = (text !== undefined ? text : newMessage).trim();
     const activeTicketId = ticketIdRef.current || ticketId;
 
     if (!messageText || !activeTicketId) {
-      isSendingRef.current = false;
       console.warn('No message or ticketId', { messageText: !!messageText, ticketId: activeTicketId });
       return;
     }
@@ -551,8 +528,6 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
     } catch (err) {
       console.error('Message send error:', err);
       setIsAgentTyping(false);
-    } finally {
-      isSendingRef.current = false;
     }
   };
 
@@ -1003,11 +978,14 @@ function ChatScreen({ agent, messages, newMessage, setNewMessage, isAgentTyping,
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-white font-bold text-sm leading-none">{agent.name}</span>
+                {agentFlag && <span className="text-base leading-none">{agentFlag}</span>}
               </div>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
                 <span className="text-green-400 text-xs font-medium">Online</span>
-                <span className="text-gray-500 text-xs">· Global Support</span>
+                {agentCountry && (
+                  <span className="text-gray-500 text-xs">· {agentCountry}</span>
+                )}
               </div>
             </div>
           </div>
