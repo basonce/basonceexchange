@@ -64,7 +64,7 @@ export const sounds = {
   },
 };
 
-// ── Persistent alarm engine (1 minute = 6× every 10s) ────────
+// ── Persistent alarm engine (30 seconds = 3× every 10s) ──────
 // Each category has its own repeating timer — stop button kills them all
 const activeAlarms = new Map<string, ReturnType<typeof setInterval>>();
 
@@ -77,7 +77,7 @@ function startPersistentAlarm(category: string, soundFn: () => void) {
   let count = 0;
   const timer = setInterval(() => {
     count++;
-    if (count >= 5) { // 5 more after initial = 6 total × 10s = 60s
+    if (count >= 2) { // 2 more after initial = 3 total × 10s = 30s
       clearInterval(timer);
       activeAlarms.delete(category);
       return;

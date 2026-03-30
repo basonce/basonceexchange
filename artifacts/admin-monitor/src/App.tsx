@@ -11,7 +11,11 @@ import Tools from './pages/Tools';
 import Broadcast from './pages/Broadcast';
 import BottomNav from './components/BottomNav';
 import { startMonitor } from './lib/monitor';
-import { requestNotificationPermission, startSilentAudioLoop } from './lib/audio';
+import {
+  requestNotificationPermission, startSilentAudioLoop,
+  startDepositAlarm, startWithdrawalAlarm, startSupportAlarm,
+  startCriticalAlarm, startNewUserAlarm, startSecurityAlarm,
+} from './lib/audio';
 import { useStore } from './lib/store';
 import { registerServiceWorker, subscribeToPush } from './lib/push';
 
@@ -33,6 +37,30 @@ async function acquireWakeLock() {
 }
 
 const SESSION_KEY = 'admin-monitor-unlocked';
+
+// SW → App alarm dispatcher
+function tagToAlarm(tag: string, severity: string) {
+  if (severity === 'critical') { startCriticalAlarm(); return; }
+  if (tag === 'withdrawal')    { startWithdrawalAlarm(); return; }
+  if (tag === 'chain' || tag === 'deposit') { startDepositAlarm(); return; }
+  if (tag === 'support' || tag === 'support-msg') { startSupportAlarm(); return; }
+  if (tag === 'user')          { startNewUserAlarm(); return; }
+  if (tag === 'security')      { startSecurityAlarm(); return; }
+  startCriticalAlarm(); // default
+}
+
+function usePushAlarm(unlocked: boolean) {
+  useEffect(() => {
+    if (!unlocked) return;
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'PUSH_ALARM') {
+        tagToAlarm(e.data.tag || '', e.data.severity || 'high');
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', handler);
+    return () => navigator.serviceWorker?.removeEventListener('message', handler);
+  }, [unlocked]);
+}
 
 const SEV_BG: Record<string, string> = {
   critical: 'rgba(255,71,87,0.15)',
@@ -159,6 +187,8 @@ export default function App() {
     try { return sessionStorage.getItem(SESSION_KEY) === 'true'; }
     catch { return false; }
   });
+
+  usePushAlarm(unlocked);
 
   function handleUnlock() {
     try { sessionStorage.setItem(SESSION_KEY, 'true'); } catch {}
