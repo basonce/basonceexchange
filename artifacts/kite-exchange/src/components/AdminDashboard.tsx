@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Users,
   DollarSign,
@@ -92,6 +92,24 @@ const cryptoSymbols = [
 
 type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue';
 
+function playUrgentAlarm() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const beep = (freq: number, start: number, dur: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+      gain.gain.setValueAtTime(0.4, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + dur);
+    };
+    beep(1200, 0, 0.12); beep(900, 0.15, 0.12); beep(1200, 0.30, 0.12);
+    beep(900, 0.45, 0.12); beep(1200, 0.60, 0.20);
+  } catch {}
+}
+
 export default function AdminDashboard({ onBack }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -111,6 +129,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     totalVolume: 0
   });
   const [unreadSupportCount, setUnreadSupportCount] = useState(0);
+  const [incomingAlerts, setIncomingAlerts] = useState<{ id: string; amount: number; coin: string; network: string; user: string; ts: number }[]>([]);
+  const [newTxCount, setNewTxCount] = useState(0);
+  const seenTxIds = useRef(new Set<string>());
+  const seeded = useRef(false);
 
   const [addBalanceForm, setAddBalanceForm] = useState({
     symbol: 'USDT',
@@ -132,13 +154,40 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     loadData();
     loadUnreadSupportCount();
 
+    // Seed existing tx IDs so we don't alarm on historical data
+    supabase.from('wallet_transactions').select('id').order('created_at', { ascending: false }).limit(200)
+      .then(({ data }) => {
+        (data || []).forEach((r: { id: string }) => seenTxIds.current.add(r.id));
+        seeded.current = true;
+      });
+
     const channel = supabase
-      .channel('admin_unread_support')
+      .channel('admin_dashboard_realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'support_messages' }, () => {
         loadUnreadSupportCount();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, () => {
         loadUnreadSupportCount();
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'wallet_transactions' }, (payload) => {
+        if (!seeded.current) return;
+        const rec = payload.new as any;
+        if (!rec?.id || seenTxIds.current.has(rec.id)) return;
+        seenTxIds.current.add(rec.id);
+        const amount = Number(rec.amount) || 0;
+        if (amount <= 0) return;
+        playUrgentAlarm();
+        const alert = {
+          id: rec.id,
+          amount,
+          coin: String(rec.token_symbol || 'USDT'),
+          network: String(rec.network || 'BEP20'),
+          user: String(rec.user_id || ''),
+          ts: Date.now(),
+        };
+        setIncomingAlerts(prev => [alert, ...prev].slice(0, 8));
+        setNewTxCount(n => n + 1);
+        setTimeout(() => setIncomingAlerts(prev => prev.filter(a => a.id !== rec.id)), 30000);
       })
       .subscribe();
 
@@ -379,7 +428,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'overview', label: 'Genel', icon: BarChart3 },
     { id: 'wallets', label: 'Cüzdan Havuz', icon: Wallet },
     { id: 'user-wallets', label: 'Kullanıcı', icon: Users },
-    { id: 'incoming-funds', label: 'Gelen Fonlar', icon: ArrowDownRight },
+    { id: 'incoming-funds', label: 'Gelen Fonlar', icon: ArrowDownRight, badge: newTxCount },
     { id: 'support', label: 'Destek', icon: MessageSquare, badge: unreadSupportCount },
     { id: 'command', label: 'Komut', icon: Zap },
     { id: 'agents', label: 'Ajanlar', icon: Users },
@@ -425,6 +474,35 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
           </button>
         </div>
       </div>
+
+      {/* 🔴 Incoming Transaction Alarm Banners */}
+      {incomingAlerts.length > 0 && (
+        <div className="fixed top-[52px] left-0 right-0 z-[999] flex flex-col gap-1.5 px-2 pt-2 pointer-events-none">
+          {incomingAlerts.map((a) => (
+            <div key={a.id} className="pointer-events-auto flex items-center gap-3 rounded-xl px-4 py-3 shadow-2xl"
+              style={{ background: 'linear-gradient(135deg,#b91c1c,#dc2626)', border: '2px solid #ef4444', animation: 'slideDown 0.3s ease' }}>
+              <div className="flex-shrink-0 w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-lg font-black text-white">
+                💸
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-black text-sm leading-tight">
+                  YENİ {a.network} TRANSFER GELDİ!
+                </p>
+                <p className="text-red-100 text-xs mt-0.5 font-semibold">
+                  +{a.amount.toLocaleString('tr-TR', { maximumFractionDigits: 4 })} {a.coin}
+                  <span className="ml-2 opacity-70">• {new Date(a.ts).toLocaleTimeString('tr-TR')}</span>
+                </p>
+              </div>
+              <button
+                onClick={() => { setIncomingAlerts(prev => prev.filter(x => x.id !== a.id)); setActiveTab('incoming-funds'); setNewTxCount(0); }}
+                className="flex-shrink-0 bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+              >
+                Gör →
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="bg-[#1E2329] border-b border-[#2B3139] px-2 py-2">
         <div className="grid grid-cols-5 gap-1">

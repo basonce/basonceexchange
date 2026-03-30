@@ -26,6 +26,11 @@ body.deposit-modal-open .bottom-nav-bar {
   to { transform: translateY(0); opacity: 1; }
 }
 
+@keyframes slideDown {
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
 @keyframes miningBeam1 {
   0% { left: -70%; }
   100% { left: 120%; }
