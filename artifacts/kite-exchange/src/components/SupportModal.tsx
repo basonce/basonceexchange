@@ -13,6 +13,9 @@ import {
   type UserContextData,
 } from '../lib/ai-support-engine';
 
+// Shared across all React mounts/remounts — prevents StrictMode double-fire
+const _ticketsBeingReplied = new Set<string>();
+
 function detectMessageLanguage(text: string): string {
   if (!text || text.trim().length < 2) return 'en';
   const arabicPattern = /[\u0600-\u06FF\u0750-\u077F]/;
@@ -122,6 +125,8 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
   const customerIdRef = useRef<string>('');
   const customerLanguageRef = useRef<string>('ai');
   const assignedAgentRef = useRef<Agent | null>(null);
+  const _lastSendKey = useRef<string>('');
+  const _lastSendTime = useRef<number>(0);
 
   useEffect(() => {
     if (isOpen) { getAgentStats(); }
@@ -296,6 +301,9 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
     agent: Agent,
     lang: string
   ) => {
+    // Module-level guard — one reply per ticket at a time, survives StrictMode remounts
+    if (_ticketsBeingReplied.has(tickId)) return;
+    _ticketsBeingReplied.add(tickId);
     setIsAgentTyping(true);
     try {
       const convMsgs = conversationRef.current;
@@ -345,6 +353,7 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
     } catch (err) {
       console.error('AI reply error:', err);
     } finally {
+      _ticketsBeingReplied.delete(tickId);
       setIsAgentTyping(false);
     }
   }, []);
@@ -473,6 +482,13 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
       console.warn('No message or ticketId', { messageText: !!messageText, ticketId: activeTicketId });
       return;
     }
+
+    // Prevent double-send (Enter key + button click firing simultaneously)
+    const sendKey = `${activeTicketId}:${messageText}`;
+    const now = Date.now();
+    if (_lastSendKey.current === sendKey && now - _lastSendTime.current < 2000) return;
+    _lastSendKey.current = sendKey;
+    _lastSendTime.current = now;
 
     if (text === undefined) setNewMessage('');
 

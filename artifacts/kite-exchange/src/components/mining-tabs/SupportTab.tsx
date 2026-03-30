@@ -12,6 +12,8 @@ import {
   type UserContextData,
 } from '../../lib/ai-support-engine';
 
+const _miningTicketsBeingReplied = new Set<string>();
+
 function detectMsgLang(text: string): string {
   if (!text || text.trim().length < 2) return 'en';
   if (/[\u0600-\u06FF]/.test(text)) return 'ar';
@@ -262,6 +264,8 @@ export default function SupportTab() {
     ag: Agent,
     lang: string
   ) => {
+    if (_miningTicketsBeingReplied.has(tickId)) return;
+    _miningTicketsBeingReplied.add(tickId);
     setIsAgentTyping(true);
     try {
       const convMsgs = conversationRef.current;
@@ -306,6 +310,7 @@ export default function SupportTab() {
     } catch (err) {
       console.error('Mining support AI reply error:', err);
     } finally {
+      _miningTicketsBeingReplied.delete(tickId);
       setIsAgentTyping(false);
     }
   }, []);
