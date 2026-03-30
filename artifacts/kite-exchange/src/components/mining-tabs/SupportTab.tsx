@@ -131,6 +131,8 @@ export default function SupportTab() {
   const agentRef = useRef<Agent | null>(null);
   const conversationRef = useRef<Array<{ role: 'customer' | 'agent'; text: string }>>([]);
   const userContextRef = useRef<UserContextData | null>(null);
+  const isAIReplyingRef = useRef(false);
+  const lastProcessedMsgRef = useRef<string>('');
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -262,6 +264,11 @@ export default function SupportTab() {
     ag: Agent,
     lang: string
   ) => {
+    if (isAIReplyingRef.current) return;
+    const msgKey = `${tickId}:${userText}`;
+    if (lastProcessedMsgRef.current === msgKey) return;
+    isAIReplyingRef.current = true;
+    lastProcessedMsgRef.current = msgKey;
     setIsAgentTyping(true);
     try {
       const convMsgs = conversationRef.current;
@@ -306,6 +313,7 @@ export default function SupportTab() {
     } catch (err) {
       console.error('Mining support AI reply error:', err);
     } finally {
+      isAIReplyingRef.current = false;
       setIsAgentTyping(false);
     }
   }, []);

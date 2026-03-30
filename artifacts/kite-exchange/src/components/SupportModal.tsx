@@ -122,6 +122,8 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
   const customerIdRef = useRef<string>('');
   const customerLanguageRef = useRef<string>('ai');
   const assignedAgentRef = useRef<Agent | null>(null);
+  const isAIReplyingRef = useRef(false);
+  const lastProcessedMsgRef = useRef<string>('');
 
   useEffect(() => {
     if (isOpen) { getAgentStats(); }
@@ -235,7 +237,6 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
     };
 
     fetchMessages();
-    const interval = setInterval(fetchMessages, 2000);
 
     const channel = supabase
       .channel(`user_ticket_${ticketId}`)
@@ -248,16 +249,17 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
         const newMsg = payload.new as SupportMessage;
         setMessages(prev => {
           if (prev.find(m => m.id === newMsg.id)) return prev;
-          const realMsgs = prev.filter(m => !m.id.startsWith('opt_'));
-          const optimisticMsgs = prev.filter(m => m.id.startsWith('opt_'));
-          if (newMsg.sender_type === 'admin') setIsAgentTyping(false);
-          return [...realMsgs, newMsg, ...optimisticMsgs];
+          const withoutOpt = prev.filter(m => !m.id.startsWith('opt_'));
+          const opts = prev.filter(m => m.id.startsWith('opt_'));
+          if (newMsg.sender_type === 'admin' || newMsg.sender_type === 'bot') {
+            setIsAgentTyping(false);
+          }
+          return [...withoutOpt, newMsg, ...opts];
         });
       })
       .subscribe();
 
     return () => {
-      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [ticketId]);
@@ -296,6 +298,11 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
     agent: Agent,
     lang: string
   ) => {
+    if (isAIReplyingRef.current) return;
+    const msgKey = `${tickId}:${userText}`;
+    if (lastProcessedMsgRef.current === msgKey) return;
+    isAIReplyingRef.current = true;
+    lastProcessedMsgRef.current = msgKey;
     setIsAgentTyping(true);
     try {
       const convMsgs = conversationRef.current;
@@ -345,6 +352,7 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
     } catch (err) {
       console.error('AI reply error:', err);
     } finally {
+      isAIReplyingRef.current = false;
       setIsAgentTyping(false);
     }
   }, []);
