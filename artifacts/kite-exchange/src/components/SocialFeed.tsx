@@ -1549,7 +1549,7 @@ export default function SocialFeed() {
                 <div className="absolute -bottom-0.5 -left-0.5 bg-[#F6465D] text-white text-[7px] font-bold px-1 rounded">LIVE</div>
               )}
               {VERIFIED_USERNAMES.has(post.username) && (
-                <div className="absolute -bottom-1 -right-1 w-[18px] h-[18px] rounded-full flex items-center justify-center shadow-lg" style={{ background: '#F0B90B' }}>
+                <div className="absolute -bottom-1 -left-1 w-[18px] h-[18px] rounded-full flex items-center justify-center shadow-lg" style={{ background: '#F0B90B' }}>
                   <svg width="10" height="8" viewBox="0 0 10 8" fill="none" shapeRendering="geometricPrecision">
                     <path d="M1 3.8L3.8 6.8L9.2 1" stroke="#0D0F14" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
