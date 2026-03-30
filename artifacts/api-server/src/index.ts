@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { loadSubs } from "./lib/push-store";
 import { configurePush } from "./lib/push-sender";
 import { startPushMonitor } from "./lib/push-monitor";
+import { startWalletChainCron } from "./lib/wallet-chain-cron";
 
 const rawPort = process.env["PORT"];
 
@@ -29,4 +30,5 @@ app.listen(port, (err) => {
   loadSubs();
   configurePush();
   startPushMonitor().catch(e => logger.warn({ e }, 'Push monitor başlatılamadı'));
+  startWalletChainCron();
 });
