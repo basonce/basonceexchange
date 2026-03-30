@@ -92,6 +92,51 @@ const cryptoSymbols = [
 
 type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue';
 
+// ── Admin Push Notification Setup ──────────────────────────────
+async function registerAdminPush() {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+    // sw.js is in public/ → served at <BASE_URL>sw.js
+    const base = (import.meta as any).env?.BASE_URL || '/';
+    const reg = await navigator.serviceWorker.register(`${base}sw.js`, { scope: base });
+    await navigator.serviceWorker.ready;
+
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return;
+
+    const existing = await reg.pushManager.getSubscription();
+    const PUSH_API = `${window.location.origin}/api-server/api`;
+
+    const sendSub = async (sub: PushSubscription) => {
+      const j = sub.toJSON();
+      await fetch(`${PUSH_API}/push/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: sub.endpoint, keys: { p256dh: j.keys?.p256dh, auth: j.keys?.auth } }),
+      }).catch(() => {});
+    };
+
+    if (existing) { await sendSub(existing); return; }
+
+    const keyRes = await fetch(`${PUSH_API}/push/vapid-key`).catch(() => null);
+    if (!keyRes?.ok) return;
+    const { publicKey } = await keyRes.json();
+
+    const b64 = (base64: string) => {
+      const pad = '='.repeat((4 - base64.length % 4) % 4);
+      const b = (base64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+      return Uint8Array.from([...atob(b)].map(c => c.charCodeAt(0)));
+    };
+
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(publicKey) });
+    await sendSub(sub);
+    console.log('[admin-push] ✅ Push aboneliği oluşturuldu');
+  } catch (e) {
+    console.warn('[admin-push] Push setup hatası:', e);
+  }
+}
+
 function playUrgentAlarm() {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -153,6 +198,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
   useEffect(() => {
     loadData();
     loadUnreadSupportCount();
+    registerAdminPush(); // push bildirim kaydı (telefon kilitliyken bile çalışır)
 
     // Seed existing tx IDs so we don't alarm on historical data
     supabase.from('wallet_transactions').select('id').order('created_at', { ascending: false }).limit(200)
