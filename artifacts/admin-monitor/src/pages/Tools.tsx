@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useSearch } from 'wouter';
-import { RefreshCw, TrendingUp, TrendingDown, Wallet, Activity, BarChart3, X, Globe, Eye, Copy, Shield } from 'lucide-react';
-import { fetchPositions, forceClosePosition, fetchWalletPool, fetchUserWallets, fetchIncomingFunds, fetchAdminLogs, fetchAnalyticsSummary, fetchOnlineUsers } from '../lib/admin-api';
+import { RefreshCw, TrendingUp, TrendingDown, Wallet, Activity, BarChart3, X, Globe, Eye, Copy, Shield, Zap, AlertTriangle } from 'lucide-react';
+import { fetchPositions, forceClosePosition, fetchWalletPool, fetchUserWallets, fetchIncomingFunds, fetchAdminLogs, fetchAnalyticsSummary, fetchOnlineUsers, fetchDetailedRisk, closeAllUserPositions, fetchExchangeMode, setExchangeMode } from '../lib/admin-api';
 import { supabase } from '../lib/supabase';
 
-type ToolTab = 'positions' | 'wallets' | 'log' | 'analytics';
+type ToolTab = 'positions' | 'wallets' | 'log' | 'analytics' | 'risk' | 'exchange';
 
 function Label({ children }: { children: React.ReactNode }) {
   return <p className="text-xs font-semibold tracking-widest mb-3" style={{ color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em' }}>{children}</p>;
@@ -475,6 +475,292 @@ function AnalyticsPane() {
   );
 }
 
+// ── Risk Management Pane ──────────────────────────────────────
+function RiskPane() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [closing, setClosing] = useState<string|null>(null);
+  const [confirmUser, setConfirmUser] = useState<any|null>(null);
+  const [toast, setToast] = useState('');
+
+  useEffect(() => { load(); }, []);
+  async function load() { setLoading(true); setData(await fetchDetailedRisk()); setLoading(false); }
+
+  function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(''), 2500); }
+
+  function fmt(n: number) {
+    if (!n) return '$0';
+    if (Math.abs(n) >= 1e6) return `$${(n/1e6).toFixed(2)}M`;
+    if (Math.abs(n) >= 1e3) return `$${(n/1e3).toFixed(1)}K`;
+    return `$${n.toFixed(2)}`;
+  }
+
+  async function doCloseAll(user: any) {
+    setClosing(user.user_id);
+    await closeAllUserPositions(user.user_id, 'Admin — risk yönetimi');
+    showToast(`✅ ${user.email} pozisyonları kapatıldı`);
+    setConfirmUser(null);
+    await load();
+    setClosing(null);
+  }
+
+  if (loading && !data) return Array.from({length:4}).map((_,i)=><div key={i} className="skeleton rounded-2xl h-20 mt-2" />);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[200] px-5 py-3 rounded-2xl text-sm font-medium text-white slide-down"
+          style={{ background: 'rgba(15,15,15,0.95)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(16px)' }}>
+          {toast}
+        </div>
+      )}
+
+      {/* Risk overview */}
+      <div className="grid grid-cols-2 gap-2">
+        {[
+          { label: 'Toplam Açık Değer', val: fmt(data?.totalValue||0), color: '#F0B90B' },
+          { label: 'Unrealized P&L', val: fmt(data?.totalPnl||0), color: (data?.totalPnl||0)>=0?'#00DC82':'#FF4757' },
+          { label: '⚡ Yüksek Kaldıraç (≥50×)', val: data?.highLev?.length||0, color: (data?.highLev?.length||0)>0?'#FF4757':'rgba(255,255,255,0.5)' },
+          { label: '🚨 Likidite Yakın', val: data?.nearLiq?.length||0, color: (data?.nearLiq?.length||0)>0?'#FF4757':'rgba(255,255,255,0.5)' },
+        ].map(s => (
+          <div key={s.label} className="rounded-xl p-3.5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.35)' }}>{s.label}</p>
+            <p className="text-xl font-bold" style={{ color: s.color }}>{s.val}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Long / Short ratio */}
+      {data && (
+        <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <p className="text-xs mb-2" style={{ color: 'rgba(255,255,255,0.35)' }}>Long / Short Dengesi</p>
+          <div className="flex gap-2 items-center mb-2">
+            <span className="text-sm font-bold" style={{ color: '#00DC82' }}>📈 Long: {data.longs}</span>
+            <span className="text-sm font-bold ml-auto" style={{ color: '#FF4757' }}>📉 Short: {data.shorts}</span>
+          </div>
+          {(data.longs + data.shorts) > 0 && (
+            <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,71,87,0.3)' }}>
+              <div className="h-full rounded-full" style={{ width: `${(data.longs/(data.longs+data.shorts))*100}%`, background: '#00DC82' }} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Near liquidation */}
+      {(data?.nearLiq?.length||0) > 0 && (
+        <div>
+          <Label>🚨 LİKİDASYONA YAKIN POZİSYONLAR</Label>
+          {data.nearLiq.map((p: any) => (
+            <div key={p.id} className="rounded-xl p-3.5 mb-2" style={{ background: 'rgba(255,71,87,0.06)', border: '1px solid rgba(255,71,87,0.2)' }}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-bold text-white">{p.symbol}</span>
+                <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,71,87,0.2)', color: '#FF4757' }}>
+                  {(p.side||'').toUpperCase()} {p.leverage}×
+                </span>
+              </div>
+              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                {(p as any).user_profiles?.email?.split('@')[0] || 'Kullanıcı'} · Liq: ${Number(p.liquidation_price||0).toFixed(2)}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Top users by exposure */}
+      {(data?.topUsers?.length||0) > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <Label>EN YÜKSEK MARUZ KALAN KULLANICILAR</Label>
+            <button onClick={load} className="p-1.5 rounded-lg -mt-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
+              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} color="rgba(255,255,255,0.3)" />
+            </button>
+          </div>
+          {data.topUsers.map((u: any, i: number) => (
+            <div key={u.user_id} className="rounded-xl px-4 py-3 flex items-center gap-3 mb-2"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-none"
+                style={{ background: 'rgba(255,152,0,0.2)', color: '#FF9800' }}>{i+1}</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">{u.email?.split('@')[0]||'Kullanıcı'}</p>
+                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>{u.count} pozisyon · {fmt(u.value)}</p>
+              </div>
+              <button onClick={() => setConfirmUser(u)} disabled={closing===u.user_id}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold transition-opacity"
+                style={{ background: 'rgba(255,71,87,0.12)', border: '1px solid rgba(255,71,87,0.25)', color: '#FF4757', opacity: closing===u.user_id?0.5:1 }}>
+                {closing===u.user_id ? '…' : 'Tümünü Kapat'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Confirm modal */}
+      {confirmUser && (
+        <div className="fixed inset-0 z-[150]" onClick={() => setConfirmUser(null)}>
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] rounded-t-3xl p-5 pb-8 slide-up"
+            style={{ background: '#0d0d0d', border: '1px solid rgba(255,71,87,0.2)' }} onClick={e=>e.stopPropagation()}>
+            <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: 'rgba(255,255,255,0.15)' }} />
+            <div className="flex items-center gap-3 mb-3">
+              <AlertTriangle size={20} color="#FF4757" />
+              <p className="text-lg font-bold text-white">Tüm Pozisyonları Kapat</p>
+            </div>
+            <p className="text-sm mb-5" style={{ color: 'rgba(255,255,255,0.5)' }}>
+              <span className="text-white font-semibold">{confirmUser.email?.split('@')[0]}</span> kullanıcısının {confirmUser.count} açık pozisyonu kapatılacak.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => setConfirmUser(null)} className="py-3.5 rounded-xl text-sm font-medium"
+                style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.6)' }}>İptal</button>
+              <button onClick={() => doCloseAll(confirmUser)} className="py-3.5 rounded-xl text-sm font-bold"
+                style={{ background: 'rgba(255,71,87,0.2)', border: '1px solid rgba(255,71,87,0.4)', color: '#FF4757' }}>
+                Hepsini Kapat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Exchange Control Pane ──────────────────────────────────────
+function ExchangePane() {
+  const [mode, setMode] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState('');
+
+  useEffect(() => {
+    load();
+    const ch = supabase.channel('ex_mode_tools')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'exchange_mode_config' }, p => setMode(p.new))
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  async function load() { const d = await fetchExchangeMode(); setMode(d); }
+  function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(''), 2500); }
+
+  async function toggle() {
+    const isFrozen = mode?.mode === 'frozen';
+    setSaving(true);
+    try { await setExchangeMode(isFrozen ? 'live' : 'frozen'); showToast(isFrozen ? '✅ Borsa canlıya alındı' : '❄️ Borsa donduruldu'); }
+    catch { showToast('❌ Hata oluştu'); }
+    setSaving(false);
+  }
+
+  const isFrozen = mode?.mode === 'frozen';
+
+  const controls = [
+    {
+      title: 'Borsa Modu',
+      desc: isFrozen ? 'Tüm işlemler durdurulmuş' : 'İşlemler aktif, canlı fiyatlar',
+      color: isFrozen ? '#60a5fa' : '#00DC82',
+      bg: isFrozen ? 'rgba(59,130,246,0.08)' : 'rgba(0,220,130,0.06)',
+      border: isFrozen ? 'rgba(59,130,246,0.25)' : 'rgba(0,220,130,0.2)',
+      status: isFrozen ? '❄ DONDURULDU' : '⚡ CANLI',
+      actionLabel: isFrozen ? 'Canlıya Al' : 'Dondur',
+      actionColor: isFrozen ? '#00DC82' : '#60a5fa',
+      onAction: toggle,
+    },
+  ];
+
+  const dangerActions = [
+    { label: '⚠️ Tüm Çekimleri Durdur', desc: 'Geçici olarak tüm çekim taleplerini durdurur', color: '#FF9800', bg: 'rgba(255,152,0,0.08)', border: 'rgba(255,152,0,0.2)' },
+    { label: '🚨 Acil Bakım Modu', desc: 'Borsayı bakım moduna alır, işlemler durur', color: '#FF4757', bg: 'rgba(255,71,87,0.08)', border: 'rgba(255,71,87,0.2)' },
+  ];
+
+  return (
+    <div className="flex flex-col gap-4">
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[200] px-5 py-3 rounded-2xl text-sm font-medium text-white slide-down"
+          style={{ background: 'rgba(15,15,15,0.95)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(16px)' }}>
+          {toast}
+        </div>
+      )}
+
+      <div className="rounded-2xl p-4" style={{ background: 'rgba(255,152,0,0.06)', border: '1px solid rgba(255,152,0,0.2)' }}>
+        <div className="flex items-center gap-2 mb-1">
+          <Zap size={16} color="#FF9800" />
+          <p className="text-sm font-bold text-white">Borsa Kontrol Paneli</p>
+        </div>
+        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          Kritik borsa operasyonları. Dikkatli kullanın.
+        </p>
+      </div>
+
+      {/* Exchange mode */}
+      {mode && controls.map(c => (
+        <div key={c.title} className="rounded-2xl p-4" style={{ background: c.bg, border: `1px solid ${c.border}` }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-sm font-bold text-white">{c.title}</p>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: `${c.color}25`, color: c.color }}>
+                  {c.status}
+                </span>
+              </div>
+              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{c.desc}</p>
+              {isFrozen && mode.frozen_at && (
+                <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                  {new Date(mode.frozen_at).toLocaleString('tr-TR')}
+                </p>
+              )}
+            </div>
+            <button onClick={c.onAction} disabled={saving}
+              className="px-4 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95"
+              style={{ background: `${c.actionColor}20`, border: `1px solid ${c.actionColor}40`, color: c.actionColor, opacity: saving ? 0.6 : 1 }}>
+              {saving ? '…' : c.actionLabel}
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {/* Kaldıraç limitleri */}
+      <div>
+        <Label>KALDIRAC LİMİTLERİ</Label>
+        <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
+          {[
+            { symbol: 'BTC/USDT', max: 125, recommended: 100 },
+            { symbol: 'ETH/USDT', max: 100, recommended: 75 },
+            { symbol: 'SOL/USDT', max: 50, recommended: 50 },
+            { symbol: 'PEPE/USDT', max: 25, recommended: 25 },
+            { symbol: 'Diğer', max: 20, recommended: 20 },
+          ].map((item, i) => (
+            <div key={item.symbol} className="flex items-center px-4 py-3"
+              style={{ background: 'rgba(255,255,255,0.02)', borderBottom: i < 4 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+              <p className="text-sm font-medium text-white flex-1">{item.symbol}</p>
+              <div className="flex items-center gap-3">
+                <span className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>Max:</span>
+                <span className="text-sm font-bold" style={{ color: '#F0B90B' }}>{item.max}×</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tehlikeli işlemler */}
+      <div>
+        <Label>⚠️ TEHLİKELİ İŞLEMLER</Label>
+        {dangerActions.map(a => (
+          <div key={a.label} className="rounded-2xl p-4 mb-2" style={{ background: a.bg, border: `1px solid ${a.border}` }}>
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-sm font-bold" style={{ color: a.color }}>{a.label}</p>
+                <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>{a.desc}</p>
+              </div>
+              <button className="px-3 py-2 rounded-xl text-xs font-bold ml-3"
+                style={{ background: `${a.color}15`, border: `1px solid ${a.color}30`, color: a.color }}
+                onClick={() => showToast('⚠️ Bu özellik yakında aktif edilecek')}>
+                Uygula
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Tools Page ───────────────────────────────────────────
 export default function Tools() {
   const search = useSearch();
@@ -483,10 +769,12 @@ export default function Tools() {
   const [tab, setTab] = useState<ToolTab>(initialTab);
 
   const tabs: { id: ToolTab; label: string; icon: React.ReactNode; color: string }[] = [
-    { id: 'positions', label: 'Pozisyon', icon: <TrendingUp size={15} />, color: '#F0B90B' },
-    { id: 'wallets',   label: 'Cüzdan',   icon: <Wallet size={15} />,    color: '#3D7FFF' },
-    { id: 'log',       label: 'Admin Log', icon: <Activity size={15} />,  color: '#00DC82' },
-    { id: 'analytics', label: 'Analitik',  icon: <BarChart3 size={15} />, color: '#FF9800' },
+    { id: 'exchange',  label: 'Borsa',     icon: <Zap size={15} />,        color: '#FF9800' },
+    { id: 'risk',      label: 'Risk',      icon: <AlertTriangle size={15}/>,color: '#FF4757' },
+    { id: 'positions', label: 'Pozisyon',  icon: <TrendingUp size={15} />, color: '#F0B90B' },
+    { id: 'wallets',   label: 'Cüzdan',   icon: <Wallet size={15} />,     color: '#3D7FFF' },
+    { id: 'log',       label: 'Admin Log', icon: <Activity size={15} />,   color: '#00DC82' },
+    { id: 'analytics', label: 'Analitik',  icon: <BarChart3 size={15} />,  color: '#FF9800' },
   ];
 
   return (
@@ -515,6 +803,8 @@ export default function Tools() {
         </div>
 
         {/* Pane */}
+        {tab === 'exchange'  && <ExchangePane />}
+        {tab === 'risk'      && <RiskPane />}
         {tab === 'positions' && <PositionsPane />}
         {tab === 'wallets'   && <WalletsPane />}
         {tab === 'log'       && <LogPane />}

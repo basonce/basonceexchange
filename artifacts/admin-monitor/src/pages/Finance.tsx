@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Check, X, RefreshCw, Clock, TrendingDown, TrendingUp, Copy, ArrowDownLeft } from 'lucide-react';
-import { fetchWithdrawals, approveWithdrawal, rejectWithdrawal, fetchTransactions, manualDeposit, searchUsersByEmail, fetchIncomingFunds, creditIncomingFund } from '../lib/admin-api';
+import { Check, X, RefreshCw, Clock, TrendingDown, TrendingUp, Copy, ArrowDownLeft, BarChart2 } from 'lucide-react';
+import { fetchWithdrawals, approveWithdrawal, rejectWithdrawal, fetchTransactions, manualDeposit, searchUsersByEmail, fetchIncomingFunds, creditIncomingFund, fetchRevenueSummary, fetchTopTraders } from '../lib/admin-api';
 import { supabase } from '../lib/supabase';
 
-type FinTab = 'withdrawals' | 'incoming' | 'history' | 'deposit';
+type FinTab = 'withdrawals' | 'incoming' | 'history' | 'deposit' | 'revenue';
 
 interface Withdrawal {
   id: string; coin_symbol?: string; currency?: string; amount: number; status: string;
@@ -14,6 +14,119 @@ interface Withdrawal {
 interface Tx { id: string; type: string; symbol: string; amount: number; created_at: string; user_profiles?: { email: string }; notes?: string; }
 interface Fund { id: string; wallet_address?: string; token_symbol?: string; amount: number; amount_usd?: number; status?: string; tx_hash?: string; network?: string; created_at: string; user_profiles?: { email: string }; user_id?: string; is_notified?: boolean; }
 interface User { id: string; email: string; full_name: string; is_active: boolean; }
+
+function RevenuePane() {
+  const [rev, setRev] = useState<any>(null);
+  const [traders, setTraders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { load(); }, []);
+
+  async function load() {
+    setLoading(true);
+    const [r, t] = await Promise.all([fetchRevenueSummary(), fetchTopTraders(8)]);
+    setRev(r); setTraders(t);
+    setLoading(false);
+  }
+
+  function fmt(n: number) {
+    if (!n) return '$0.00';
+    if (n >= 1e6) return `$${(n/1e6).toFixed(2)}M`;
+    if (n >= 1e3) return `$${(n/1e3).toFixed(1)}K`;
+    return `$${n.toFixed(2)}`;
+  }
+
+  function fmtV(n: number) {
+    if (!n) return '$0';
+    if (n >= 1e9) return `$${(n/1e9).toFixed(2)}B`;
+    if (n >= 1e6) return `$${(n/1e6).toFixed(2)}M`;
+    if (n >= 1e3) return `$${(n/1e3).toFixed(1)}K`;
+    return `$${n.toFixed(0)}`;
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="rounded-2xl p-4" style={{ background: 'rgba(0,220,130,0.06)', border: '1px solid rgba(0,220,130,0.15)' }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-bold text-white mb-0.5">Komisyon & Gelir Takibi</p>
+            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>İşlem ücretlerinden elde edilen gelir</p>
+          </div>
+          <button onClick={load} className="p-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} color="rgba(255,255,255,0.4)" />
+          </button>
+        </div>
+      </div>
+
+      {/* Revenue cards */}
+      {loading ? (
+        Array.from({length:4}).map((_,i)=><div key={i} className="skeleton rounded-2xl h-20" />)
+      ) : rev && (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: 'Bugün', val: fmt(rev.today), sub: `${rev.tx_count_today} işlem`, color: '#00DC82', bg: 'rgba(0,220,130,0.07)' },
+              { label: 'Bu Hafta', val: fmt(rev.week), sub: 'son 7 gün', color: '#3D7FFF', bg: 'rgba(61,127,255,0.07)' },
+              { label: 'Bu Ay', val: fmt(rev.month), sub: `${rev.tx_count_month} işlem`, color: '#F0B90B', bg: 'rgba(240,185,11,0.07)' },
+              { label: 'Toplam', val: fmt(rev.total), sub: 'tüm zamanlar', color: '#FF9800', bg: 'rgba(255,152,0,0.07)' },
+            ].map(s => (
+              <div key={s.label} className="rounded-2xl p-4" style={{ background: s.bg, border: `1px solid ${s.color}25` }}>
+                <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>{s.label}</p>
+                <p className="text-xl font-black" style={{ color: s.color }}>{s.val}</p>
+                <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.25)' }}>{s.sub}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Info note */}
+          {rev.total === 0 && (
+            <div className="rounded-xl p-3.5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                💡 Komisyon verileri <span className="text-white">trading_fee</span> tipli işlemlerden hesaplanmaktadır.
+                Futures işlemlerinde ücretler kaydedilince burada görünür.
+              </p>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Top traders */}
+      {traders.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em' }}>EN YÜKSEK HACİMLİ KULLANICILAR</p>
+          <div className="flex flex-col gap-2">
+            {traders.map((t: any, i: number) => (
+              <div key={t.user_id} className="rounded-xl px-4 py-3 flex items-center gap-3"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-none"
+                  style={{ background: i===0?'rgba(240,185,11,0.25)':i===1?'rgba(192,192,192,0.15)':i===2?'rgba(205,127,50,0.15)':'rgba(255,255,255,0.07)', color: i===0?'#F0B90B':i===1?'#C0C0C0':i===2?'#CD7F32':'rgba(255,255,255,0.5)' }}>
+                  {i+1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">{t.email?.split('@')[0]||'Kullanıcı'}</p>
+                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>{t.count} pozisyon</p>
+                </div>
+                <div className="text-right flex-none">
+                  <p className="text-sm font-bold" style={{ color: '#F0B90B' }}>{fmtV(t.volume)}</p>
+                  <p className="text-xs" style={{ color: t.pnl>=0?'#00DC82':'#FF4757' }}>
+                    {t.pnl>=0?'+':''}{fmtV(t.pnl)} P&L
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {traders.length === 0 && !loading && (
+        <div className="rounded-2xl p-10 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <p className="text-3xl mb-2">📊</p>
+          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.35)' }}>Henüz veri yok</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Finance() {
   const [tab, setTab] = useState<FinTab>('withdrawals');
@@ -152,11 +265,11 @@ export default function Finance() {
         </div>
 
         {/* Tab bar */}
-        <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-          {([['withdrawals','Çekim'],['incoming','Gelen'],['history','Geçmiş'],['deposit','Yatır']] as const).map(([k,l]) => (
+        <div className="flex gap-1 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+          {([['withdrawals','Çekim'],['incoming','Gelen'],['revenue','Gelir'],['history','Geçmiş'],['deposit','Yatır']] as const).map(([k,l]) => (
             <button key={k} onClick={() => setTab(k)}
-              className="py-2.5 rounded-xl text-xs font-semibold transition-all"
-              style={{ background: tab === k ? 'rgba(255,255,255,0.1)' : 'transparent', color: tab === k ? '#F0B90B' : 'rgba(255,255,255,0.35)' }}>
+              className="flex-none px-4 py-2.5 rounded-xl text-xs font-semibold transition-all"
+              style={{ background: tab === k ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)', border: `1px solid ${tab===k?'rgba(240,185,11,0.3)':'rgba(255,255,255,0.07)'}`, color: tab === k ? '#F0B90B' : 'rgba(255,255,255,0.35)' }}>
               {l}
               {k === 'withdrawals' && pendingWds.length > 0 ? ` (${pendingWds.length})` : ''}
               {k === 'incoming' && unnotified.length > 0 ? ` (${unnotified.length})` : ''}
@@ -347,6 +460,9 @@ export default function Finance() {
              })}
           </div>
         )}
+
+        {/* ── Revenue ── */}
+        {tab === 'revenue' && <RevenuePane />}
 
         {/* ── Manual deposit ── */}
         {tab === 'deposit' && (

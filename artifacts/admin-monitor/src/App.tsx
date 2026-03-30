@@ -8,6 +8,7 @@ import Finance from './pages/Finance';
 import Support from './pages/Support';
 import Settings from './pages/Settings';
 import Tools from './pages/Tools';
+import Broadcast from './pages/Broadcast';
 import BottomNav from './components/BottomNav';
 import { startMonitor } from './lib/monitor';
 import { requestNotificationPermission, startSilentAudioLoop } from './lib/audio';
@@ -139,6 +140,7 @@ function AppContent() {
             <Route path="/support" component={Support} />
             <Route path="/settings" component={Settings} />
             <Route path="/tools" component={Tools} />
+            <Route path="/broadcast" component={Broadcast} />
             <Route>
               <div className="flex items-center justify-center min-h-screen" style={{ color: 'rgba(255,255,255,0.3)' }}>
                 Sayfa bulunamadı

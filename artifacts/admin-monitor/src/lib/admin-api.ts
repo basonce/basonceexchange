@@ -388,3 +388,162 @@ export async function fetchVIPUsers(limit = 5) {
     return data || [];
   }
 }
+
+// ── Revenue / Commission ───────────────────────────────────────
+export async function fetchRevenueSummary() {
+  try {
+    const now = new Date();
+    const day1 = new Date(now); day1.setHours(0,0,0,0);
+    const week1 = new Date(now); week1.setDate(now.getDate()-7);
+    const month1 = new Date(now); month1.setDate(1); month1.setHours(0,0,0,0);
+
+    const [{ data: dayTx }, { data: weekTx }, { data: monthTx }, { data: allTx }] = await Promise.all([
+      supabase.from('transactions').select('amount,symbol').eq('type','trading_fee').gte('created_at', day1.toISOString()),
+      supabase.from('transactions').select('amount,symbol').eq('type','trading_fee').gte('created_at', week1.toISOString()),
+      supabase.from('transactions').select('amount,symbol').eq('type','trading_fee').gte('created_at', month1.toISOString()),
+      supabase.from('transactions').select('amount,symbol').eq('type','trading_fee'),
+    ]);
+
+    const sum = (arr: any[]) => (arr||[]).reduce((s,r) => s + Number(r.amount||0), 0);
+    return {
+      today: sum(dayTx||[]),
+      week: sum(weekTx||[]),
+      month: sum(monthTx||[]),
+      total: sum(allTx||[]),
+      tx_count_today: (dayTx||[]).length,
+      tx_count_month: (monthTx||[]).length,
+    };
+  } catch { return { today:0,week:0,month:0,total:0,tx_count_today:0,tx_count_month:0 }; }
+}
+
+export async function fetchTopTraders(limit = 10) {
+  try {
+    const { data } = await supabase
+      .from('futures_positions')
+      .select('user_id, realized_pnl, position_value, user_profiles(email,full_name)')
+      .order('position_value', { ascending: false })
+      .limit(limit * 3);
+
+    if (!data) return [];
+    const map: Record<string, any> = {};
+    for (const p of data) {
+      const uid = p.user_id;
+      if (!map[uid]) map[uid] = { user_id: uid, email: (p as any).user_profiles?.email, pnl: 0, volume: 0, count: 0 };
+      map[uid].pnl += Number(p.realized_pnl||0);
+      map[uid].volume += Number(p.position_value||0);
+      map[uid].count++;
+    }
+    return Object.values(map).sort((a,b) => b.volume - a.volume).slice(0, limit);
+  } catch { return []; }
+}
+
+// ── IP Blocking ────────────────────────────────────────────────
+export async function fetchBlockedIPs() {
+  try {
+    const { data } = await supabase
+      .from('blocked_ips')
+      .select('*')
+      .order('created_at', { ascending: false });
+    return data || [];
+  } catch { return []; }
+}
+
+export async function blockIP(ip: string, reason: string) {
+  try {
+    await supabase.from('blocked_ips').upsert({ ip_address: ip, reason, is_active: true, created_at: new Date().toISOString() }, { onConflict: 'ip_address' });
+    await supabase.from('admin_actions').insert({ action_type: 'block_ip', details: { ip, reason } });
+  } catch {
+    await supabase.from('admin_actions').insert({ action_type: 'block_ip', details: { ip, reason } });
+  }
+}
+
+export async function unblockIP(id: string) {
+  try {
+    await supabase.from('blocked_ips').update({ is_active: false }).eq('id', id);
+    await supabase.from('admin_actions').insert({ action_type: 'unblock_ip', details: { id } });
+  } catch {}
+}
+
+// ── Broadcast Notifications ────────────────────────────────────
+export async function sendBroadcast(title: string, body: string, target: 'all'|'active'|'vip') {
+  await supabase.from('admin_actions').insert({
+    action_type: 'broadcast_notification',
+    details: { title, body, target, sent_at: new Date().toISOString() },
+  });
+}
+
+export async function fetchBroadcastHistory(limit = 20) {
+  try {
+    const { data } = await supabase
+      .from('admin_actions')
+      .select('*')
+      .eq('action_type', 'broadcast_notification')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    return (data||[]).map(r => ({ id: r.id, ...r.details, created_at: r.created_at }));
+  } catch { return []; }
+}
+
+export async function fetchBannerMessage() {
+  try {
+    const { data } = await supabase.from('exchange_mode_config').select('banner_message,banner_type').eq('id',1).maybeSingle();
+    return data || null;
+  } catch { return null; }
+}
+
+export async function setBannerMessage(message: string, type: 'info'|'warning'|'success'|'') {
+  try {
+    await supabase.from('exchange_mode_config').update({ banner_message: message||null, banner_type: type||null }).eq('id',1);
+    await supabase.from('admin_actions').insert({ action_type: 'set_banner', details: { message, type } });
+  } catch {
+    await supabase.from('admin_actions').insert({ action_type: 'set_banner', details: { message, type } });
+  }
+}
+
+// ── Risk Management ────────────────────────────────────────────
+export async function fetchDetailedRisk() {
+  try {
+    const { data: positions } = await supabase
+      .from('futures_positions')
+      .select('*,user_profiles(email)')
+      .eq('status','open')
+      .order('position_value', { ascending: false })
+      .limit(200);
+
+    const pos = positions||[];
+    const totalValue = pos.reduce((s,p)=>s+Number(p.position_value||0),0);
+    const totalPnl = pos.reduce((s,p)=>s+Number(p.unrealized_pnl||p.pnl||0),0);
+    const nearLiq = pos.filter(p => {
+      const entry = Number(p.entry_price||0);
+      const liq = Number(p.liquidation_price||0);
+      const mark = Number(p.mark_price||p.current_price||entry);
+      if (!liq||!entry) return false;
+      const isLong = (p.side||'').toLowerCase()==='long';
+      const dist = isLong ? (mark-liq)/mark : (liq-mark)/mark;
+      return dist < 0.05;
+    });
+    const highLev = pos.filter(p=>Number(p.leverage||1)>=50);
+    const longs = pos.filter(p=>(p.side||'').toLowerCase()==='long');
+    const shorts = pos.filter(p=>(p.side||'').toLowerCase()==='short');
+
+    const userMap: Record<string,{email:string;count:number;value:number}> = {};
+    for (const p of pos) {
+      const uid = p.user_id;
+      if (!userMap[uid]) userMap[uid] = { email:(p as any).user_profiles?.email||uid, count:0, value:0 };
+      userMap[uid].count++;
+      userMap[uid].value += Number(p.position_value||0);
+    }
+    const topUsers = Object.values(userMap).sort((a,b)=>b.value-a.value).slice(0,5);
+
+    return { pos, totalValue, totalPnl, nearLiq, highLev, longs: longs.length, shorts: shorts.length, topUsers };
+  } catch { return { pos:[], totalValue:0, totalPnl:0, nearLiq:[], highLev:[], longs:0, shorts:0, topUsers:[] }; }
+}
+
+export async function closeAllUserPositions(userId: string, reason: string) {
+  try {
+    await supabase.from('futures_positions')
+      .update({ status: 'closed', close_reason: reason, closed_at: new Date().toISOString() })
+      .eq('user_id', userId).eq('status', 'open');
+    await supabase.from('admin_actions').insert({ action_type: 'close_all_user_positions', target_user_id: userId, details: { reason } });
+  } catch {}
+}
