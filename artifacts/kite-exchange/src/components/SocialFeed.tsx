@@ -1549,9 +1549,10 @@ export default function SocialFeed() {
                 <div className="absolute -bottom-0.5 -left-0.5 bg-[#F6465D] text-white text-[7px] font-bold px-1 rounded">LIVE</div>
               )}
               {VERIFIED_USERNAMES.has(post.username) && (
-                <div className="absolute -bottom-1 -left-1 w-[18px] h-[18px] rounded-full flex items-center justify-center shadow-lg" style={{ background: '#F0B90B' }}>
-                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none" shapeRendering="geometricPrecision">
-                    <path d="M1 3.8L3.8 6.8L9.2 1" stroke="#0D0F14" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                <div className="absolute -bottom-1 -right-1 drop-shadow-md">
+                  <svg width="18" height="18" viewBox="0 0 20 20" fill="none" shapeRendering="geometricPrecision">
+                    <path d="M10,0.5 L12.07,2.27 L14.75,1.77 L15.66,4.34 L18.23,5.25 L17.73,7.93 L19.5,10 L17.73,12.07 L18.23,14.75 L15.66,15.66 L14.75,18.23 L12.07,17.73 L10,19.5 L7.93,17.73 L5.25,18.23 L4.34,15.66 L1.77,14.75 L2.27,12.07 L0.5,10 L2.27,7.93 L1.77,5.25 L4.34,4.34 L5.25,1.77 L7.93,2.27 Z" fill="#F0B90B"/>
+                    <path d="M6.5 10.3L8.9 12.7L14 7.3" stroke="#0D0F14" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </div>
               )}
@@ -1560,9 +1561,9 @@ export default function SocialFeed() {
               <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
                 <span className="font-semibold text-sm text-white">{post.username}</span>
                 {VERIFIED_USERNAMES.has(post.username) && (
-                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" className="flex-shrink-0" shapeRendering="geometricPrecision">
-                    <circle cx="7.5" cy="7.5" r="7.5" fill="#F0B90B"/>
-                    <path d="M3.8 7.8L6.4 10.4L11.8 4.8" stroke="#0D0F14" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+                  <svg width="15" height="15" viewBox="0 0 20 20" fill="none" className="flex-shrink-0" shapeRendering="geometricPrecision">
+                    <path d="M10,0.5 L12.07,2.27 L14.75,1.77 L15.66,4.34 L18.23,5.25 L17.73,7.93 L19.5,10 L17.73,12.07 L18.23,14.75 L15.66,15.66 L14.75,18.23 L12.07,17.73 L10,19.5 L7.93,17.73 L5.25,18.23 L4.34,15.66 L1.77,14.75 L2.27,12.07 L0.5,10 L2.27,7.93 L1.77,5.25 L4.34,4.34 L5.25,1.77 L7.93,2.27 Z" fill="#F0B90B"/>
+                    <path d="M6.5 10.3L8.9 12.7L14 7.3" stroke="#0D0F14" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 )}
                 {getPostTypeIcon(post.post_type) && (
