@@ -47,6 +47,7 @@ import UserWalletAssignments from './UserWalletAssignments';
 import IncomingFundsPanel from './IncomingFundsPanel';
 import WithdrawalApprovalPanel from './WithdrawalApprovalPanel';
 import TradfiLogosPanel from './TradfiLogosPanel';
+import RevenuePanel from './RevenuePanel';
 
 interface UserProfile {
   id: string;
@@ -89,7 +90,7 @@ const cryptoSymbols = [
   'AVAX', 'DOT', 'MATIC', 'LINK', 'UNI', 'LTC', 'ATOM', 'PEPE', 'SHIB', 'WIF', 'BONK'
 ];
 
-type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos';
+type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue';
 
 export default function AdminDashboard({ onBack }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
@@ -393,6 +394,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'wallet-gen', label: 'Üretici', icon: Wallet },
     { id: 'data-protection', label: 'Veri Koruma', icon: Shield },
     { id: 'tradfi-logos', label: 'TradeFi', icon: Image },
+    { id: 'revenue', label: 'Gelir', icon: TrendingUp },
   ];
 
   return (
@@ -750,6 +752,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
 
         {activeTab === 'tradfi-logos' && (
           <TradfiLogosPanel />
+        )}
+
+        {activeTab === 'revenue' && (
+          <RevenuePanel />
         )}
 
         {activeTab === 'analytics' && (
