@@ -123,7 +123,7 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
   const customerLanguageRef = useRef<string>('ai');
   const assignedAgentRef = useRef<Agent | null>(null);
   const isAIReplyingRef = useRef(false);
-  const lastProcessedMsgRef = useRef<string>('');
+  const isSendingRef = useRef(false);
 
   useEffect(() => {
     if (isOpen) { getAgentStats(); }
@@ -299,10 +299,7 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
     lang: string
   ) => {
     if (isAIReplyingRef.current) return;
-    const msgKey = `${tickId}:${userText}`;
-    if (lastProcessedMsgRef.current === msgKey) return;
     isAIReplyingRef.current = true;
-    lastProcessedMsgRef.current = msgKey;
     setIsAgentTyping(true);
     try {
       const convMsgs = conversationRef.current;
@@ -474,10 +471,14 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
   };
 
   const handleSendMessage = async (text?: string) => {
+    if (isSendingRef.current) return;
+    isSendingRef.current = true;
+
     const messageText = (text !== undefined ? text : newMessage).trim();
     const activeTicketId = ticketIdRef.current || ticketId;
 
     if (!messageText || !activeTicketId) {
+      isSendingRef.current = false;
       console.warn('No message or ticketId', { messageText: !!messageText, ticketId: activeTicketId });
       return;
     }
@@ -536,6 +537,8 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
     } catch (err) {
       console.error('Message send error:', err);
       setIsAgentTyping(false);
+    } finally {
+      isSendingRef.current = false;
     }
   };
 
@@ -986,14 +989,11 @@ function ChatScreen({ agent, messages, newMessage, setNewMessage, isAgentTyping,
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-white font-bold text-sm leading-none">{agent.name}</span>
-                {agentFlag && <span className="text-base leading-none">{agentFlag}</span>}
               </div>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
                 <span className="text-green-400 text-xs font-medium">Online</span>
-                {agentCountry && (
-                  <span className="text-gray-500 text-xs">· {agentCountry}</span>
-                )}
+                <span className="text-gray-500 text-xs">· Global Support</span>
               </div>
             </div>
           </div>
