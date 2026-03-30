@@ -3,7 +3,16 @@ import { X, Send, Check, CheckCheck, ChevronRight, Shield, Clock, Star, Zap, Mes
 import { supabase } from '../lib/supabase';
 import { detectUserCountry } from '../lib/geolocation';
 import { assignBestAgent, getAgentStats, type Agent } from '../lib/agent-assignment';
-import { verifyUserAndGetContext, type UserProfile, type UserContextData } from '../lib/ai-support-engine';
+import { getAgentGreeting } from '../lib/agent-greetings';
+import {
+  verifyUserAndGetContext,
+  generateAIResponseFromOpenAI,
+  generateAIResponse,
+  analyzeUserProfile,
+  getTypingDelay,
+  type UserProfile,
+  type UserContextData,
+} from '../lib/ai-support-engine';
 
 function detectMessageLanguage(text: string): string {
   if (!text || text.trim().length < 2) return 'en';
@@ -113,6 +122,7 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
   const ticketIdRef = useRef<string | null>(null);
   const customerIdRef = useRef<string>('');
   const customerLanguageRef = useRef<string>('ai');
+  const assignedAgentRef = useRef<Agent | null>(null);
 
   useEffect(() => {
     if (isOpen) { getAgentStats(); }
@@ -282,12 +292,62 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
   }, []);
 
   const triggerAIReply = useCallback(async (
-    _userText: string,
-    _tickId: string,
-    _agent: Agent,
-    _lang: string
+    userText: string,
+    tickId: string,
+    agent: Agent,
+    lang: string
   ) => {
     setIsAgentTyping(true);
+    try {
+      const convMsgs = conversationRef.current;
+      const updatedConv = [...convMsgs, { role: 'customer' as const, text: userText }];
+      const profile = analyzeUserProfile(updatedConv, lang);
+      userProfileRef.current = profile;
+
+      let replyText: string | null = null;
+
+      try {
+        replyText = await generateAIResponseFromOpenAI(userText, {
+          messages: convMsgs,
+          customerLanguage: lang,
+          agentName: agent.name,
+          userProfile: profile,
+          userContext: userContextRef.current,
+        });
+      } catch {}
+
+      if (!replyText) {
+        replyText = generateAIResponse(userText, {
+          messages: convMsgs,
+          customerLanguage: lang,
+          agentName: agent.name,
+          userProfile: profile,
+          userContext: userContextRef.current,
+        });
+      }
+
+      const delay = getTypingDelay(replyText);
+      await new Promise(r => setTimeout(r, delay));
+
+      await supabase.from('support_messages').insert({
+        ticket_id: tickId,
+        sender_type: 'admin',
+        sender_name: agent.name,
+        message: replyText,
+        original_message: replyText,
+        original_language: 'ai',
+        read: false,
+      });
+
+      conversationRef.current = [
+        ...updatedConv,
+        { role: 'agent' as const, text: replyText },
+      ];
+    } catch (err) {
+      console.error('AI reply error:', err);
+    } finally {
+      setIsAgentTyping(false);
+    }
   }, []);
 
   const handleStartChat = async () => {
@@ -359,6 +419,7 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
       setTicketId(ticket.id);
       ticketIdRef.current = ticket.id;
       setAssignedAgent(agent);
+      assignedAgentRef.current = agent;
 
       const customerLang = await detectLanguage(countryInfo.country_code);
       setCustomerLanguage(customerLang);
@@ -369,6 +430,22 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
       setAgentConnecting(false);
 
       const activeTicketId = ticket.id;
+      const activeAgent = agent;
+      const activeLang = customerLang;
+
+      const greetingText = getAgentGreeting(agent, customerLang);
+      setTimeout(async () => {
+        await supabase.from('support_messages').insert({
+          ticket_id: activeTicketId,
+          sender_type: 'admin',
+          sender_name: activeAgent.name,
+          message: greetingText,
+          original_message: greetingText,
+          original_language: 'ai',
+          read: false,
+        });
+        conversationRef.current = [{ role: 'agent', text: greetingText }];
+      }, 800);
 
       if (pendingInitialMessageRef.current) {
         const initMsg = pendingInitialMessageRef.current;
@@ -384,8 +461,10 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
             original_language: detectMessageLanguage(initMsg),
             read: false,
           });
-          setIsAgentTyping(true);
-        }, 1400);
+          setTimeout(() => {
+            triggerAIReply(initMsg, activeTicketId, activeAgent, activeLang);
+          }, 500);
+        }, 1800);
       }
     } catch (error) {
       console.error('Error creating ticket:', error);
@@ -448,7 +527,14 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
         setMessages(prev => prev.map(m => m.id === optimisticId ? { ...optimisticMsg, id: inserted.id } : m));
       }
 
-      setTimeout(() => setIsAgentTyping(false), 30000);
+      const currentAgent = assignedAgentRef.current;
+      const currentTicketId = ticketIdRef.current;
+      const currentLang = customerLanguageRef.current;
+      if (currentAgent && currentTicketId) {
+        triggerAIReply(messageText, currentTicketId, currentAgent, currentLang);
+      } else {
+        setTimeout(() => setIsAgentTyping(false), 30000);
+      }
     } catch (err) {
       console.error('Message send error:', err);
       setIsAgentTyping(false);

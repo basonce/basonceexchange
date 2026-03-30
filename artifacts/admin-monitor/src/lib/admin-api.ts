@@ -335,11 +335,79 @@ export async function fetchOnlineUsers() {
 
 // ── Support ───────────────────────────────────────────────────
 export async function fetchSupportTickets() {
-  const { data } = await supabase
+  const { data: tickets } = await supabase
     .from('support_tickets')
     .select('*, user_profiles(email, full_name)')
-    .order('created_at', { ascending: false }).limit(50);
-  return data || [];
+    .order('created_at', { ascending: false }).limit(60);
+  if (!tickets || tickets.length === 0) return [];
+
+  const ticketIds = tickets.map((t: any) => t.id);
+  const { data: allMsgs } = await supabase
+    .from('support_messages')
+    .select('ticket_id, message, sender_type, created_at')
+    .in('ticket_id', ticketIds)
+    .order('created_at', { ascending: false });
+
+  const lastMsgMap: Record<string, any> = {};
+  for (const m of (allMsgs || [])) {
+    if (!lastMsgMap[m.ticket_id]) lastMsgMap[m.ticket_id] = m;
+  }
+
+  return tickets.map((t: any) => ({ ...t, last_message: lastMsgMap[t.id] || null }));
+}
+
+export async function fetchTicketUserProfile(customerId: string) {
+  if (!customerId) return null;
+  try {
+    let profile: any = null;
+    const numericId = parseInt(customerId, 10);
+    if (!isNaN(numericId)) {
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', numericId)
+        .maybeSingle();
+      profile = data;
+    }
+    if (!profile) {
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', customerId)
+        .maybeSingle();
+      profile = data;
+    }
+    if (!profile) return null;
+
+    const { data: balances } = await supabase
+      .from('user_balances')
+      .select('symbol, balance, locked_balance, futures_balance')
+      .eq('user_id', profile.id);
+
+    return { profile, balances: balances || [] };
+  } catch { return null; }
+}
+
+export async function generateAISupportDraft(
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+  lang: string,
+  agentName: string
+): Promise<string | null> {
+  try {
+    const SUPABASE_URL = 'https://mgfviqdxeupajntpylig.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nZnZpcWR4ZXVwYWpudHB5bGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0NjgwNDksImV4cCI6MjA4NzA0NDA0OX0.zxca3lBfqHt4EQ1pFLGlDkZUQJY1iQXaZA0cOflJc18';
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/ai-support-chat`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ messages, agentName, customerLanguage: lang }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.response || null;
+  } catch { return null; }
 }
 
 export async function fetchSupportMessages(ticketId: string) {

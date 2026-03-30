@@ -4,7 +4,14 @@ import { supabase } from '../../lib/supabase';
 import { detectUserCountry } from '../../lib/geolocation';
 import { assignBestAgent, type Agent } from '../../lib/agent-assignment';
 import { getAgentGreeting } from '../../lib/agent-greetings';
-import { verifyUserAndGetContext, type UserContextData } from '../../lib/ai-support-engine';
+import {
+  verifyUserAndGetContext,
+  generateAIResponseFromOpenAI,
+  generateAIResponse,
+  analyzeUserProfile,
+  getTypingDelay,
+  type UserContextData,
+} from '../../lib/ai-support-engine';
 
 interface SupportMessage {
   id: string;
@@ -106,6 +113,9 @@ export default function SupportTab() {
   const inputRef = useRef<HTMLInputElement>(null);
   const ticketIdRef = useRef<string | null>(null);
   const customerIdRef = useRef<string>('');
+  const agentRef = useRef<Agent | null>(null);
+  const conversationRef = useRef<Array<{ role: 'customer' | 'agent'; text: string }>>([]);
+  const userContextRef = useRef<UserContextData | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -231,6 +241,60 @@ export default function SupportTab() {
     setStep('form');
   };
 
+  const triggerAIReply = useCallback(async (
+    userText: string,
+    tickId: string,
+    ag: Agent,
+    lang: string
+  ) => {
+    setIsAgentTyping(true);
+    try {
+      const convMsgs = conversationRef.current;
+      const updatedConv = [...convMsgs, { role: 'customer' as const, text: userText }];
+      const profile = analyzeUserProfile(updatedConv, lang);
+
+      let replyText: string | null = null;
+      try {
+        replyText = await generateAIResponseFromOpenAI(userText, {
+          messages: convMsgs,
+          customerLanguage: lang,
+          agentName: ag.name,
+          userProfile: profile,
+          userContext: userContextRef.current,
+        });
+      } catch {}
+
+      if (!replyText) {
+        replyText = generateAIResponse(userText, {
+          messages: convMsgs,
+          customerLanguage: lang,
+          agentName: ag.name,
+          userProfile: profile,
+          userContext: userContextRef.current,
+        });
+      }
+
+      const delay = getTypingDelay(replyText);
+      await new Promise(r => setTimeout(r, delay));
+
+      await supabase.from('support_messages').insert({
+        ticket_id: tickId,
+        sender_type: 'admin',
+        sender_name: ag.name,
+        message: replyText,
+        original_message: replyText,
+        original_language: 'ai',
+        read: false,
+      });
+
+      conversationRef.current = [...updatedConv, { role: 'agent' as const, text: replyText }];
+    } catch (err) {
+      console.error('Mining support AI reply error:', err);
+    } finally {
+      setIsAgentTyping(false);
+    }
+  }, []);
+
   const handleStartChat = async () => {
     if (!customerId.trim() || !email.trim()) {
       setFormError('Please fill in all fields');
@@ -303,22 +367,29 @@ export default function SupportTab() {
       setTicketId(ticket.id);
       ticketIdRef.current = ticket.id;
       setAgent(assignedAgent);
+      agentRef.current = assignedAgent;
       setMessages([]);
       setStep('chat');
       setAgentConnecting(false);
 
       const activeTicketId = ticket.id;
-      const greetingText = getAgentGreeting(assignedAgent);
+      const activeAgent = assignedAgent;
+      const browserLang = navigator.language.split('-')[0].toLowerCase();
+      const supportedLangs = ['tr', 'en', 'es', 'de', 'fr', 'it', 'ar', 'zh', 'ja', 'ko', 'ru', 'pt'];
+      const activeLang = supportedLangs.includes(browserLang) ? browserLang : 'en';
+
+      const greetingText = getAgentGreeting(assignedAgent, activeLang);
       setTimeout(async () => {
         await supabase.from('support_messages').insert({
           ticket_id: activeTicketId,
           sender_type: 'admin',
-          sender_name: assignedAgent.name,
+          sender_name: activeAgent.name,
           message: greetingText,
           original_message: greetingText,
           original_language: 'ai',
           read: false,
         });
+        conversationRef.current = [{ role: 'agent', text: greetingText }];
       }, 600);
 
       if (pendingQuestion) {
@@ -333,7 +404,6 @@ export default function SupportTab() {
           read: false,
         };
         setMessages([optimisticMsg]);
-        setIsAgentTyping(true);
 
         const { data: inserted } = await supabase.from('support_messages').insert({
           ticket_id: ticket.id,
@@ -341,14 +411,16 @@ export default function SupportTab() {
           sender_name: String(userId),
           message: q,
           original_message: q,
-          original_language: 'ai',
+          original_language: activeLang,
           read: false,
         }).select().maybeSingle();
 
         if (inserted?.id) {
           setMessages(prev => prev.map(m => m.id === optimisticId ? { ...optimisticMsg, id: inserted.id } : m));
         }
-        setTimeout(() => setIsAgentTyping(false), 30000);
+        setTimeout(() => {
+          triggerAIReply(q, activeTicketId, activeAgent, activeLang);
+        }, 800);
       }
     } catch (err) {
       console.error('Mining support start chat error:', err);
@@ -401,7 +473,17 @@ export default function SupportTab() {
         setMessages(prev => prev.map(m => m.id === optimisticId ? { ...optimisticMsg, id: inserted.id } : m));
       }
 
-      setTimeout(() => setIsAgentTyping(false), 30000);
+      const browserLang = navigator.language.split('-')[0].toLowerCase();
+      const supportedLangs = ['tr', 'en', 'es', 'de', 'fr', 'it', 'ar', 'zh', 'ja', 'ko', 'ru', 'pt'];
+      const activeLang = supportedLangs.includes(browserLang) ? browserLang : 'en';
+      const activeAgent = agentRef.current;
+      if (activeAgent) {
+        setTimeout(() => {
+          triggerAIReply(msgText, activeTicketId, activeAgent, activeLang);
+        }, 400);
+      } else {
+        setTimeout(() => setIsAgentTyping(false), 30000);
+      }
     } catch (err) {
       console.error('Mining support send error:', err);
       setIsAgentTyping(false);
