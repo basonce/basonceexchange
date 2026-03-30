@@ -12,6 +12,9 @@ import {
   type UserContextData,
 } from '../../lib/ai-support-engine';
 
+// Module-level guard — survives React StrictMode double-mount
+const _miningAIReplyInProgress = new Set<string>(); // key = ticketId
+
 function detectMsgLang(text: string): string {
   if (!text || text.trim().length < 2) return 'en';
   if (/[\u0600-\u06FF]/.test(text)) return 'ar';
@@ -131,8 +134,6 @@ export default function SupportTab() {
   const agentRef = useRef<Agent | null>(null);
   const conversationRef = useRef<Array<{ role: 'customer' | 'agent'; text: string }>>([]);
   const userContextRef = useRef<UserContextData | null>(null);
-  const isAIReplyingRef = useRef(false);
-  const lastProcessedMsgRef = useRef<string>('');
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -264,13 +265,22 @@ export default function SupportTab() {
     ag: Agent,
     lang: string
   ) => {
-    if (isAIReplyingRef.current) return;
-    const msgKey = `${tickId}:${userText}`;
-    if (lastProcessedMsgRef.current === msgKey) return;
-    isAIReplyingRef.current = true;
-    lastProcessedMsgRef.current = msgKey;
+    // Module-level lock — shared across all component instances (StrictMode safe)
+    if (_miningAIReplyInProgress.has(tickId)) return;
+    _miningAIReplyInProgress.add(tickId);
     setIsAgentTyping(true);
     try {
+      // DB-level dedup: abort if an agent reply already exists in the last 5 seconds
+      const fiveSecsAgo = new Date(Date.now() - 5000).toISOString();
+      const { data: recent } = await supabase
+        .from('support_messages')
+        .select('id')
+        .eq('ticket_id', tickId)
+        .eq('sender_type', 'admin')
+        .gte('created_at', fiveSecsAgo)
+        .limit(1);
+      if (recent && recent.length > 0) return;
+
       const convMsgs = conversationRef.current;
       const updatedConv = [...convMsgs, { role: 'customer' as const, text: userText }];
       const profile = analyzeUserProfile(updatedConv, lang);
@@ -313,7 +323,7 @@ export default function SupportTab() {
     } catch (err) {
       console.error('Mining support AI reply error:', err);
     } finally {
-      isAIReplyingRef.current = false;
+      _miningAIReplyInProgress.delete(tickId);
       setIsAgentTyping(false);
     }
   }, []);

@@ -13,6 +13,9 @@ import {
   type UserContextData,
 } from '../lib/ai-support-engine';
 
+// Module-level guard — survives React StrictMode double-mount
+const _aiReplyInProgress = new Set<string>(); // key = ticketId
+
 function detectMessageLanguage(text: string): string {
   if (!text || text.trim().length < 2) return 'en';
   const arabicPattern = /[\u0600-\u06FF\u0750-\u077F]/;
@@ -122,7 +125,6 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
   const customerIdRef = useRef<string>('');
   const customerLanguageRef = useRef<string>('ai');
   const assignedAgentRef = useRef<Agent | null>(null);
-  const isAIReplyingRef = useRef(false);
   const isSendingRef = useRef(false);
 
   useEffect(() => {
@@ -298,10 +300,22 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
     agent: Agent,
     lang: string
   ) => {
-    if (isAIReplyingRef.current) return;
-    isAIReplyingRef.current = true;
+    // Module-level lock — shared across all component instances (StrictMode safe)
+    if (_aiReplyInProgress.has(tickId)) return;
+    _aiReplyInProgress.add(tickId);
     setIsAgentTyping(true);
     try {
+      // DB-level dedup: abort if an agent reply was already inserted in the last 5 seconds
+      const fiveSecsAgo = new Date(Date.now() - 5000).toISOString();
+      const { data: recent } = await supabase
+        .from('support_messages')
+        .select('id')
+        .eq('ticket_id', tickId)
+        .eq('sender_type', 'admin')
+        .gte('created_at', fiveSecsAgo)
+        .limit(1);
+      if (recent && recent.length > 0) return;
+
       const convMsgs = conversationRef.current;
       const updatedConv = [...convMsgs, { role: 'customer' as const, text: userText }];
       const profile = analyzeUserProfile(updatedConv, lang);
@@ -349,7 +363,7 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
     } catch (err) {
       console.error('AI reply error:', err);
     } finally {
-      isAIReplyingRef.current = false;
+      _aiReplyInProgress.delete(tickId);
       setIsAgentTyping(false);
     }
   }, []);
