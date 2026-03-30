@@ -3,7 +3,6 @@ import { ChevronRight, MessageCircle, Cpu, Zap, DollarSign, HelpCircle, Shield, 
 import { supabase } from '../../lib/supabase';
 import { detectUserCountry } from '../../lib/geolocation';
 import { assignBestAgent, type Agent } from '../../lib/agent-assignment';
-import { getAgentGreeting } from '../../lib/agent-greetings';
 import {
   verifyUserAndGetContext,
   generateAIResponseFromOpenAI,
@@ -12,6 +11,22 @@ import {
   getTypingDelay,
   type UserContextData,
 } from '../../lib/ai-support-engine';
+
+function detectMsgLang(text: string): string {
+  if (!text || text.trim().length < 2) return 'en';
+  if (/[\u0600-\u06FF]/.test(text)) return 'ar';
+  if (/[\u4E00-\u9FFF]/.test(text)) return 'zh';
+  if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text)) return 'ja';
+  if (/[\uAC00-\uD7AF]/.test(text)) return 'ko';
+  if (/[\u0400-\u04FF]/.test(text)) return 'ru';
+  if (/[çşğıöüÇŞĞİÖÜ]/.test(text)) return 'tr';
+  if (/\b(merhaba|selam|nasıl|yardım|teşekkür|sorun|para|çekim)\b/i.test(text)) return 'tr';
+  if (/[äöüßÄÖÜ]/.test(text)) return 'de';
+  if (/\b(hallo|danke|bitte|hilfe)\b/i.test(text)) return 'de';
+  if (/\b(bonjour|merci|aide|problème)\b/i.test(text)) return 'fr';
+  if (/\b(hola|gracias|ayuda|problema)\b/i.test(text)) return 'es';
+  return 'en';
+}
 
 interface SupportMessage {
   id: string;
@@ -374,26 +389,11 @@ export default function SupportTab() {
 
       const activeTicketId = ticket.id;
       const activeAgent = assignedAgent;
-      const browserLang = navigator.language.split('-')[0].toLowerCase();
-      const supportedLangs = ['tr', 'en', 'es', 'de', 'fr', 'it', 'ar', 'zh', 'ja', 'ko', 'ru', 'pt'];
-      const activeLang = supportedLangs.includes(browserLang) ? browserLang : 'en';
-
-      const greetingText = getAgentGreeting(assignedAgent, activeLang);
-      setTimeout(async () => {
-        await supabase.from('support_messages').insert({
-          ticket_id: activeTicketId,
-          sender_type: 'admin',
-          sender_name: activeAgent.name,
-          message: greetingText,
-          original_message: greetingText,
-          original_language: 'ai',
-          read: false,
-        });
-        conversationRef.current = [{ role: 'agent', text: greetingText }];
-      }, 600);
+      conversationRef.current = [];
 
       if (pendingQuestion) {
         const q = pendingQuestion;
+        const qLang = detectMsgLang(q);
         const optimisticId = `opt_${Date.now()}`;
         const optimisticMsg: SupportMessage = {
           id: optimisticId,
@@ -411,7 +411,7 @@ export default function SupportTab() {
           sender_name: String(userId),
           message: q,
           original_message: q,
-          original_language: activeLang,
+          original_language: qLang,
           read: false,
         }).select().maybeSingle();
 
@@ -419,8 +419,8 @@ export default function SupportTab() {
           setMessages(prev => prev.map(m => m.id === optimisticId ? { ...optimisticMsg, id: inserted.id } : m));
         }
         setTimeout(() => {
-          triggerAIReply(q, activeTicketId, activeAgent, activeLang);
-        }, 800);
+          triggerAIReply(q, activeTicketId, activeAgent, qLang);
+        }, 600);
       }
     } catch (err) {
       console.error('Mining support start chat error:', err);
@@ -473,13 +473,11 @@ export default function SupportTab() {
         setMessages(prev => prev.map(m => m.id === optimisticId ? { ...optimisticMsg, id: inserted.id } : m));
       }
 
-      const browserLang = navigator.language.split('-')[0].toLowerCase();
-      const supportedLangs = ['tr', 'en', 'es', 'de', 'fr', 'it', 'ar', 'zh', 'ja', 'ko', 'ru', 'pt'];
-      const activeLang = supportedLangs.includes(browserLang) ? browserLang : 'en';
       const activeAgent = agentRef.current;
       if (activeAgent) {
+        const msgLang = detectMsgLang(msgText);
         setTimeout(() => {
-          triggerAIReply(msgText, activeTicketId, activeAgent, activeLang);
+          triggerAIReply(msgText, activeTicketId, activeAgent, msgLang);
         }, 400);
       } else {
         setTimeout(() => setIsAgentTyping(false), 30000);

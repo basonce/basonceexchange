@@ -3,7 +3,6 @@ import { X, Send, Check, CheckCheck, ChevronRight, Shield, Clock, Star, Zap, Mes
 import { supabase } from '../lib/supabase';
 import { detectUserCountry } from '../lib/geolocation';
 import { assignBestAgent, getAgentStats, type Agent } from '../lib/agent-assignment';
-import { getAgentGreeting } from '../lib/agent-greetings';
 import {
   verifyUserAndGetContext,
   generateAIResponseFromOpenAI,
@@ -433,23 +432,14 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
       const activeAgent = agent;
       const activeLang = customerLang;
 
-      const greetingText = getAgentGreeting(agent, customerLang);
-      setTimeout(async () => {
-        await supabase.from('support_messages').insert({
-          ticket_id: activeTicketId,
-          sender_type: 'admin',
-          sender_name: activeAgent.name,
-          message: greetingText,
-          original_message: greetingText,
-          original_language: 'ai',
-          read: false,
-        });
-        conversationRef.current = [{ role: 'agent', text: greetingText }];
-      }, 800);
+      conversationRef.current = [];
 
       if (pendingInitialMessageRef.current) {
         const initMsg = pendingInitialMessageRef.current;
         pendingInitialMessageRef.current = null;
+        const msgLang = detectMessageLanguage(initMsg);
+        customerLanguageRef.current = msgLang;
+        setCustomerLanguage(msgLang);
         setTimeout(async () => {
           const senderId = userId;
           await supabase.from('support_messages').insert({
@@ -458,13 +448,13 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
             sender_name: senderId,
             message: initMsg,
             original_message: initMsg,
-            original_language: detectMessageLanguage(initMsg),
+            original_language: msgLang,
             read: false,
           });
           setTimeout(() => {
-            triggerAIReply(initMsg, activeTicketId, activeAgent, activeLang);
+            triggerAIReply(initMsg, activeTicketId, activeAgent, msgLang);
           }, 500);
-        }, 1800);
+        }, 600);
       }
     } catch (error) {
       console.error('Error creating ticket:', error);
@@ -529,9 +519,9 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
 
       const currentAgent = assignedAgentRef.current;
       const currentTicketId = ticketIdRef.current;
-      const currentLang = customerLanguageRef.current;
+      const msgLang = detectMessageLanguage(messageText);
       if (currentAgent && currentTicketId) {
-        triggerAIReply(messageText, currentTicketId, currentAgent, currentLang);
+        triggerAIReply(messageText, currentTicketId, currentAgent, msgLang);
       } else {
         setTimeout(() => setIsAgentTyping(false), 30000);
       }
