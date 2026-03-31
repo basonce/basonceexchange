@@ -15,9 +15,9 @@ export const TRADFI_ASSETS: TradFiAsset[] = [
   // Metals (fallback prices — real-time prices come from API server via Yahoo Finance)
   { symbol: 'XAUUSDT',    displayName: 'XAU',    category: 'Gold',      basePrice: 4400.00,  volatility: 0.0004, volume24hBase: 139770000, logoUrl: 'https://assets.staticimg.com/cms/media/1lB3PkckFDyfxz6VudCEACBeRRBi6sQQ7DDjFFpvgUA.png' },
   { symbol: 'XAGUSDT',    displayName: 'XAG',    category: 'Silver',    basePrice: 69.75,    volatility: 0.0008, volume24hBase: 79730000,  logoUrl: 'https://assets.staticimg.com/cms/media/3uuqWjtaP8Cn1nBpIL_Q6tB7C6jP5Q4G0L6Z1Q6uOlg.png' },
-  { symbol: 'XPTUSDT',    displayName: 'XPT',    category: 'Platinum',  basePrice: 1020.00,  volatility: 0.0006, volume24hBase: 1660000,   logoUrl: '' },
-  { symbol: 'XPDUSDT',    displayName: 'XPD',    category: 'Palladium', basePrice: 1010.00,  volatility: 0.0007, volume24hBase: 1960000,   logoUrl: '' },
-  { symbol: 'COPPERUSDT', displayName: 'COPPER', category: 'Palladium', basePrice: 4.80,     volatility: 0.0006, volume24hBase: 2760000,   logoUrl: '' },
+  { symbol: 'XPTUSDT',    displayName: 'XPT',    category: 'Platinum',  basePrice: 1020.00,  volatility: 0.0006, volume24hBase: 1660000,   logoUrl: 'https://assets.parqet.com/logos/symbol/PPLT?format=jpg',  bgColor: '#1a2a3a' },
+  { symbol: 'XPDUSDT',    displayName: 'XPD',    category: 'Palladium', basePrice: 1010.00,  volatility: 0.0007, volume24hBase: 1960000,   logoUrl: 'https://assets.parqet.com/logos/symbol/PALL?format=jpg',  bgColor: '#2a1f0a' },
+  { symbol: 'COPPERUSDT', displayName: 'COPPER', category: 'Commodity', basePrice: 4.80,     volatility: 0.0006, volume24hBase: 2760000,   logoUrl: 'https://assets.parqet.com/logos/symbol/CPER?format=jpg',  bgColor: '#2a1408' },
 
   // Stocks (fallback prices — real-time prices come from API server via Yahoo Finance)
   // volume24hBase: starting value for the cycling vol display (11M–372M, each unique)
@@ -110,6 +110,9 @@ export const TEXT_LOGO_ASSETS: Record<string, { text: string; bg: string; textCo
   LUMBER:  { text: 'LBR', bg: '#7c3a0a', textColor: '#f5deb3', fontSize: 9 },
   LHOG:    { text: 'HOG', bg: '#8b3a3a', textColor: '#ffffff', fontSize: 9 },
   FCATTLE: { text: 'FCT', bg: '#5c3a0a', textColor: '#ffd700', fontSize: 9 },
+  XPT:     { text: 'XPT', bg: '#1a2a3a', textColor: '#7CB9E8', fontSize: 9 },
+  XPD:     { text: 'XPD', bg: '#2a1f0a', textColor: '#CDA434', fontSize: 9 },
+  COPPER:  { text: 'COP', bg: '#2a1408', textColor: '#b87333', fontSize: 9 },
   WTI:     { text: 'WTI', bg: '#1a0e00', textColor: '#f97316', fontSize: 9 },
   BRENT:   { text: 'BRT', bg: '#1a1208', textColor: '#f97316', fontSize: 9 },
   NATGAS:  { text: 'GAS', bg: '#0a1a2a', textColor: '#38bdf8', fontSize: 9 },

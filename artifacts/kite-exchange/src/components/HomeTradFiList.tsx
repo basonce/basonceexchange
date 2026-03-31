@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { TRADFI_ASSETS } from '../lib/tradfi-data';
+import { TRADFI_ASSETS, CATEGORY_STYLES, TEXT_LOGO_ASSETS } from '../lib/tradfi-data';
 import { getAllTradFiPrices, subscribeAllTradFiPrices, startTradFiPriceUpdater } from '../lib/tradfi-price-service';
 import { supabase } from '../lib/supabase';
 
@@ -25,6 +25,49 @@ function formatVolume(n: number): string {
 }
 
 const CATEGORY_ORDER = ['Gold', 'Silver', 'Platinum', 'Palladium', 'Index', 'Stock', 'Commodity', 'Agriculture', 'Forex', 'ETF'];
+
+function AssetLogo({ displayName, logoUrl, bgColor }: { displayName: string; logoUrl: string; bgColor?: string }) {
+  const [imgError, setImgError] = useState(false);
+  const textDef = TEXT_LOGO_ASSETS[displayName];
+
+  if (logoUrl && !imgError) {
+    return (
+      <div
+        className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center"
+        style={{ background: bgColor || '#2B3139' }}
+      >
+        <img
+          src={logoUrl}
+          alt={displayName}
+          className="w-full h-full object-cover"
+          onError={() => setImgError(true)}
+        />
+      </div>
+    );
+  }
+
+  if (textDef) {
+    return (
+      <div
+        className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center"
+        style={{ background: textDef.bg }}
+      >
+        <span
+          className="font-black leading-none"
+          style={{ color: textDef.textColor, fontSize: `${textDef.fontSize ?? 9}px` }}
+        >
+          {textDef.text}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center bg-[#2B3139]">
+      <span className="text-white font-bold text-[10px]">{displayName.slice(0, 3)}</span>
+    </div>
+  );
+}
 
 export default function HomeTradFiList() {
   const [prices, setPrices] = useState(() => getAllTradFiPrices());
@@ -93,6 +136,7 @@ export default function HomeTradFiList() {
         const isUp = change >= 0;
         const flashDir = flash.get(asset.symbol);
         const logoUrl = resolveLogoUrl(asset.displayName, asset.logoUrl);
+        const catStyle = CATEGORY_STYLES[asset.category];
 
         return (
           <div
@@ -107,36 +151,29 @@ export default function HomeTradFiList() {
             }`}
           >
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div
-                className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center"
-                style={{ background: asset.bgColor || '#2B3139' }}
-              >
-                {logoUrl ? (
-                  <img
-                    src={logoUrl}
-                    alt={asset.displayName}
-                    className="w-full h-full object-cover"
-                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  />
-                ) : (
-                  <span className="text-white font-bold text-[10px]">{asset.displayName.slice(0, 3)}</span>
-                )}
-              </div>
+              <AssetLogo displayName={asset.displayName} logoUrl={logoUrl} bgColor={asset.bgColor} />
+
               <div className="min-w-0">
-                <div className="text-white font-bold text-[14px] leading-tight">{asset.displayName}</div>
-                <div className="text-[#848E9C] text-[11px]">
-                  {asset.category} · Vol <span className="text-white">{formatVolume(asset.volume24hBase)}</span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-white font-bold text-[14px] leading-tight">{asset.displayName}</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#2B3139] text-[#848E9C] leading-none">Perp</span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded leading-none ${catStyle.bg} ${catStyle.text}`}>
+                    {catStyle.label}
+                  </span>
+                </div>
+                <div className="text-[#848E9C] text-[11px] mt-0.5">
+                  Vol <span className="text-white">{formatVolume(asset.volume24hBase)}</span>
                 </div>
               </div>
             </div>
 
-            <div className={`w-28 text-right font-medium text-[13px] transition-colors duration-500 ${
+            <div className={`w-28 text-right font-medium text-[13px] transition-colors duration-500 tabular-nums ${
               flashDir === 'up' ? 'text-[#0ECB81]' : flashDir === 'down' ? 'text-[#F6465D]' : 'text-white'
             }`}>
               ${formatTradFiPrice(price)}
             </div>
 
-            <div className={`w-20 text-right text-[13px] font-semibold ${isUp ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+            <div className={`w-20 text-right text-[13px] font-semibold tabular-nums ${isUp ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
               {isUp ? '+' : ''}{change.toFixed(2)}%
             </div>
           </div>
