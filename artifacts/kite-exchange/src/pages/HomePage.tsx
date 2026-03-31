@@ -42,12 +42,13 @@ export default function HomePage({ onNavigate }: HomePageProps) {
   useEffect(() => {
     const el = socialSectionRef.current;
     if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => setShowFAB(entry.isIntersecting),
-      { threshold: 0.05 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
+    const checkVisibility = () => {
+      const rect = el.getBoundingClientRect();
+      setShowFAB(rect.top < window.innerHeight && rect.bottom > 0);
+    };
+    checkVisibility();
+    window.addEventListener('scroll', checkVisibility, { passive: true });
+    return () => window.removeEventListener('scroll', checkVisibility);
   }, []);
   const [mainTab, setMainTab] = useState<'exchange' | 'wallet'>('exchange');
   const [showSupportModal, setShowSupportModal] = useState(false);
