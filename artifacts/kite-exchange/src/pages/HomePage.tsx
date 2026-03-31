@@ -38,13 +38,24 @@ export default function HomePage({ onNavigate }: HomePageProps) {
   const [showFAB, setShowFAB] = useState(false);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const socialSectionRef = useRef<HTMLDivElement>(null);
+  const [myProfile, setMyProfile] = useState<{ avatar_url: string | null; username: string | null } | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      const uid = data.session?.user?.id;
+      if (!uid) return;
+      supabase.from('user_profiles').select('avatar_url, username').eq('id', uid).maybeSingle()
+        .then(({ data: p }) => { if (p) setMyProfile(p); });
+    });
+  }, []);
 
   useEffect(() => {
     const el = socialSectionRef.current;
     if (!el) return;
     const checkVisibility = () => {
       const rect = el.getBoundingClientRect();
-      setShowFAB(rect.top < window.innerHeight && rect.bottom > 0);
+      // FAB sadece social section yukarı kaçmışken (kullanıcı içine kaymışken) görünür
+      setShowFAB(rect.top < -40 && rect.bottom > 60);
     };
     checkVisibility();
     window.addEventListener('scroll', checkVisibility, { passive: true });
@@ -515,10 +526,22 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,#F0B90B,#E8831D)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <span style={{ color: '#000', fontWeight: 900, fontSize: 16 }}>B</span>
-                    </div>
-                    <span style={{ color: '#fff', fontWeight: 600, fontSize: 15 }}>My Profile</span>
+                    {myProfile?.avatar_url ? (
+                      <img
+                        src={myProfile.avatar_url}
+                        alt="profile"
+                        style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid #F0B90B' }}
+                      />
+                    ) : (
+                      <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,#F0B90B,#E8831D)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <span style={{ color: '#000', fontWeight: 900, fontSize: 16 }}>
+                          {myProfile?.username ? myProfile.username[0].toUpperCase() : 'B'}
+                        </span>
+                      </div>
+                    )}
+                    <span style={{ color: '#fff', fontWeight: 600, fontSize: 15 }}>
+                      {myProfile?.username || 'My Profile'}
+                    </span>
                   </div>
                   <button style={{ width: 36, height: 36, borderRadius: '50%', background: '#2B3139', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer' }}>
                     <Bell style={{ width: 18, height: 18, color: '#aaa' }} />
