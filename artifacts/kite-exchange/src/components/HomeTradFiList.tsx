@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { TRADFI_ASSETS, CATEGORY_STYLES, TEXT_LOGO_ASSETS } from '../lib/tradfi-data';
 import { getAllTradFiPrices, subscribeAllTradFiPrices, startTradFiPriceUpdater } from '../lib/tradfi-price-service';
 import { supabase } from '../lib/supabase';
+import MetalIcon, { isMetalSymbol } from './MetalIcon';
 
 const DB_KEY_MAP: Record<string, string> = {
   WTI: 'USOIL',
@@ -30,16 +31,20 @@ function AssetLogo({ displayName, logoUrl, bgColor }: { displayName: string; log
   const [imgError, setImgError] = useState(false);
   const textDef = TEXT_LOGO_ASSETS[displayName];
 
+  if (isMetalSymbol(displayName)) {
+    return <MetalIcon symbol={displayName} size={36} />;
+  }
+
   if (logoUrl && !imgError) {
     return (
       <div
         className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center"
-        style={{ background: bgColor || '#2B3139' }}
+        style={{ background: bgColor || '#2B3139', border: '2px solid rgba(255,255,255,0.12)', boxShadow: '0 2px 10px rgba(0,0,0,0.5)' }}
       >
         <img
           src={logoUrl}
           alt={displayName}
-          className="w-full h-full object-cover"
+          style={{ width: '90%', height: '90%', objectFit: 'contain' }}
           onError={() => setImgError(true)}
         />
       </div>
@@ -50,7 +55,7 @@ function AssetLogo({ displayName, logoUrl, bgColor }: { displayName: string; log
     return (
       <div
         className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center"
-        style={{ background: textDef.bg }}
+        style={{ background: textDef.bg, border: '2px solid rgba(255,255,255,0.15)', boxShadow: '0 2px 10px rgba(0,0,0,0.5)' }}
       >
         <span
           className="font-black leading-none"
@@ -63,7 +68,7 @@ function AssetLogo({ displayName, logoUrl, bgColor }: { displayName: string; log
   }
 
   return (
-    <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center bg-[#2B3139]">
+    <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center bg-[#2B3139]" style={{ border: '2px solid rgba(255,255,255,0.12)' }}>
       <span className="text-white font-bold text-[10px]">{displayName.slice(0, 3)}</span>
     </div>
   );
