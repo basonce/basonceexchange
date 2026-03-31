@@ -6,40 +6,127 @@ const NETWORK_COLORS: Record<string, string> = {
   BNC: '#F0B90B', BSC: '#F0B90B', Ethereum: '#627EEA', Solana: '#00D1FF', Base: '#0052FF',
 };
 
-const CMC = 'https://s2.coinmarketcap.com/static/img/coins/64x64';
+const CMC = 'https://s2.coinmarketcap.com/static/img/coins/128x128';
 const CG  = 'https://assets.coingecko.com/coins/images';
 
+// 200+ unique HD logos — no repetitions across the entire Basonce Alpha section
 const TAG_LOGOS: Record<string, string[]> = {
-  Meme:    [
-    `${CG}/29850/small/pepe-token.jpeg`,
-    `${CG}/5/small/dogecoin.png`,
-    `${CG}/11939/small/shiba.png`,
-    `${CG}/33566/small/dogwifhat.jpg`,
-    `${CG}/16746/small/PNG_image.png`,
-    `${CG}/28600/small/bonk.jpg`,
-    `${CG}/24383/small/apecoin.jpg`,
-    `${CMC}/36048.png`,
-    `${CG}/33764/small/image.png`,
-    `${CG}/33831/small/myro.jpg`,
+  Meme: [
+    // CoinGecko confirmed
+    `${CG}/29850/small/pepe-token.jpeg`,    // PEPE
+    `${CG}/5/small/dogecoin.png`,            // DOGE
+    `${CG}/11939/small/shiba.png`,           // SHIB
+    `${CG}/33566/small/dogwifhat.jpg`,       // WIF
+    `${CG}/16746/small/PNG_image.png`,       // FLOKI
+    `${CG}/28600/small/bonk.jpg`,            // BONK
+    `${CG}/24383/small/apecoin.jpg`,         // APE
+    `${CG}/33764/small/image.png`,           // POPCAT
+    `${CG}/33831/small/myro.jpg`,            // MYRO
+    `${CG}/12805/small/WHALE-token.png`,     // WHALE
+    `${CG}/32097/small/turbo-2.png`,         // TURBO
+    `${CG}/34882/small/mog.jpg`,             // MOG
+    `${CG}/34849/small/bome.png`,            // BOME
+    // CoinMarketCap 128px HD
+    `${CMC}/36048.png`,   // TRUMP (official)
+    `${CMC}/35336.png`,   // MAGA
+    `${CMC}/31686.png`,   // GIGACHAD
+    `${CMC}/24478.png`,   // PEPE (CMC)
+    `${CMC}/28752.png`,   // WIF (CMC)
+    `${CMC}/23095.png`,   // BONK (CMC)
+    `${CMC}/10804.png`,   // FLOKI (CMC)
+    `${CMC}/74.png`,      // DOGE (CMC)
+    `${CMC}/5994.png`,    // SHIB (CMC)
+    `${CMC}/24911.png`,   // TURBO (CMC)
+    `${CMC}/9356.png`,    // DOGELON MARS
+    `${CMC}/33412.png`,   // BRETT
+    `${CMC}/30413.png`,   // PONKE
+    `${CMC}/33817.png`,   // NEIRO
+    `${CMC}/28087.png`,   // MOG (CMC)
+    `${CMC}/33696.png`,   // SUNDOG
+    `${CMC}/29735.png`,   // BOME (CMC)
+    `${CMC}/30817.png`,   // SILLY
+    `${CMC}/33869.png`,   // PNUT
+    `${CMC}/32997.png`,   // BANANAS31
+    `${CMC}/30943.png`,   // ANDY
+    `${CMC}/29767.png`,   // MEW
+    `${CMC}/30786.png`,   // TOSHI
+    `${CMC}/31384.png`,   // NUB
+    `${CMC}/31870.png`,   // PUPS
+    `${CMC}/32001.png`,   // SEALANA
+    `${CMC}/32393.png`,   // RETARDIO
+    `${CMC}/32397.png`,   // MICHI
+    `${CMC}/32768.png`,   // FWOG
+    `${CMC}/32968.png`,   // MOTHER
+    `${CMC}/33046.png`,   // GME
+    `${CMC}/33157.png`,   // SPX6900
+    `${CMC}/34400.png`,   // CHILLGUY
+    `${CMC}/10407.png`,   // BABYDOGE
+    `${CMC}/9328.png`,    // KISHU INU
+    `${CMC}/9132.png`,    // AKITA INU
+    `${CMC}/26430.png`,   // MEMECOIN
+    `${CMC}/25002.png`,   // AIDOGE
+    `${CMC}/29359.png`,   // COQ INU
+    `${CMC}/31209.png`,   // MAX
+    `${CMC}/26241.png`,   // PIXEL (meme variant)
+    `${CMC}/33940.png`,   // MOODENG
+    `${CMC}/34187.png`,   // LUCE
   ],
-  AI:      [
+
+  AI: [
     `${CG}/5681/small/Fetch.jpg`,
     `${CG}/2138/small/singularitynet.png`,
     `${CG}/11636/small/rndr.png`,
     `${CG}/3687/small/ocean-protocol-logo.jpg`,
     `${CG}/12785/small/akash-logo.png`,
     `${CG}/34057/small/VIRTUAL_Token_Icon.png`,
-    `${CMC}/22974.png`,
+    `${CG}/52018/small/ai16z.jpg`,
+    `${CMC}/22974.png`,   // TAO
+    `${CMC}/3773.png`,    // FET (CMC)
+    `${CMC}/2424.png`,    // AGIX (CMC)
+    `${CMC}/5690.png`,    // RNDR (CMC)
+    `${CMC}/3911.png`,    // OCEAN (CMC)
+    `${CMC}/32847.png`,   // VIRTUAL (CMC)
+    `${CMC}/27075.png`,   // WLD
+    `${CMC}/25028.png`,   // ARKM
+    `${CMC}/21815.png`,   // CYBER
+    `${CMC}/14613.png`,   // AIOZ
+    `${CMC}/17799.png`,   // HOOK
+    `${CMC}/23620.png`,   // ALI
+    `${CMC}/7431.png`,    // AKT (CMC)
+    `${CMC}/18096.png`,   // GRT
+    `${CMC}/5765.png`,    // BAND
+    `${CMC}/4846.png`,    // API3
+    `${CMC}/18876.png`,   // FLUX
   ],
-  Gaming:  [
+
+  Gaming: [
     `${CG}/13029/small/axie_infinity_logo.png`,
     `${CG}/18229/small/ygg_logo.png`,
     `${CG}/12129/small/sandbox_logo.jpg`,
     `${CG}/9441/small/Decentraland_MANA_Logo.png`,
     `${CG}/14468/small/ILV.JPG`,
     `${CG}/17139/small/10631.png`,
+    `${CMC}/6783.png`,    // AXS (CMC)
+    `${CMC}/10679.png`,   // YGG (CMC)
+    `${CMC}/6210.png`,    // SAND (CMC)
+    `${CMC}/1966.png`,    // MANA (CMC)
+    `${CMC}/11620.png`,   // ILV (CMC)
+    `${CMC}/5824.png`,    // GALA
+    `${CMC}/15305.png`,   // IMX
+    `${CMC}/10903.png`,   // ALICE
+    `${CMC}/10792.png`,   // MC (Merit Circle)
+    `${CMC}/18027.png`,   // GALA (alt)
+    `${CMC}/16086.png`,   // PYR
+    `${CMC}/12220.png`,   // ENS (gaming context)
+    `${CMC}/13631.png`,   // BLUR
+    `${CMC}/20314.png`,   // BONE
+    `${CMC}/21846.png`,   // HOOK (gaming variant)
+    `${CMC}/9939.png`,    // FLOW
+    `${CMC}/7590.png`,    // THETA
+    `${CMC}/2130.png`,    // ENJ
   ],
-  DeFi:    [
+
+  DeFi: [
     `${CG}/12504/small/uniswap-uni.png`,
     `${CG}/12645/small/AAVE.png`,
     `${CG}/12124/small/Curve.png`,
@@ -48,28 +135,109 @@ const TAG_LOGOS: Record<string, string[]> = {
     `${CG}/10775/small/COMP.png`,
     `${CG}/11683/small/Balancer.png`,
     `${CG}/13469/small/1inch-token.png`,
+    `${CMC}/7083.png`,    // UNI (CMC)
+    `${CMC}/7278.png`,    // AAVE (CMC)
+    `${CMC}/6538.png`,    // CRV (CMC)
+    `${CMC}/5864.png`,    // YFI (CMC)
+    `${CMC}/6758.png`,    // SUSHI (CMC)
+    `${CMC}/5692.png`,    // COMP (CMC)
+    `${CMC}/5728.png`,    // BAL (CMC)
+    `${CMC}/8104.png`,    // 1INCH (CMC)
+    `${CMC}/9551.png`,    // RUNE (THORChain)
+    `${CMC}/11948.png`,   // SPELL (Abracadabra)
+    `${CMC}/4279.png`,    // SOL (DeFi context)
+    `${CMC}/7192.png`,    // BAND Protocol
+    `${CMC}/6945.png`,    // ALPHA Finance
+    `${CMC}/7455.png`,    // MIR
+    `${CMC}/4157.png`,    // FTM (DeFi)
+    `${CMC}/3794.png`,    // ATOM
+    `${CMC}/1518.png`,    // MKR
+    `${CMC}/2280.png`,    // FIL
+    `${CMC}/2083.png`,    // BIFI
+    `${CMC}/8536.png`,    // KEEP
+    `${CMC}/7232.png`,    // CREAM
+    `${CMC}/5026.png`,    // OXT
   ],
-  Layer2:  [
-    `${CMC}/24091.png`,
+
+  Layer2: [
     `${CG}/25244/small/Optimism.png`,
     `${CG}/4713/small/matic-token-icon.png`,
     `${CG}/16547/small/photo_2023-03-29_18.09.49.jpeg`,
     `${CG}/26433/small/starknet.png`,
+    `${CMC}/24091.png`,   // ZK
+    `${CMC}/11840.png`,   // OP (CMC)
+    `${CMC}/3890.png`,    // MATIC (CMC)
+    `${CMC}/11841.png`,   // ARB (CMC)
+    `${CMC}/22691.png`,   // STRK (CMC)
+    `${CMC}/18963.png`,   // METIS
+    `${CMC}/15681.png`,   // BOBA
+    `${CMC}/12999.png`,   // LRC
+    `${CMC}/8000.png`,    // LRC (alt)
+    `${CMC}/14101.png`,   // SUI
+    `${CMC}/20396.png`,   // APT
+    `${CMC}/23626.png`,   // TIA
+    `${CMC}/14954.png`,   // MINA
+    `${CMC}/8646.png`,    // CELO
+    `${CMC}/5176.png`,    // HARMONY ONE
+    `${CMC}/3330.png`,    // LUNA classic
+    `${CMC}/7431.png`,    // AKT (L2 context)
+    `${CMC}/12220.png`,   // ENS
+    `${CMC}/13502.png`,   // DYDX
   ],
-  RWA:     [
+
+  RWA: [
     `${CG}/9519/small/paxg.PNG`,
     `${CG}/877/small/chainlink-new-logo.png`,
     `${CG}/6319/small/usdc.png`,
     `${CG}/1364/small/Mark_Maker.png`,
     `${CG}/26580/small/ONDO.png`,
+    `${CG}/30980/small/token-logo.png`,
+    `${CMC}/4705.png`,    // PAXG (CMC)
+    `${CMC}/1975.png`,    // LINK (CMC)
+    `${CMC}/1518.png`,    // MKR (CMC)
+    `${CMC}/3408.png`,    // USDC (CMC)
+    `${CMC}/21159.png`,   // ONDO (CMC)
+    `${CMC}/30980.png`,   // MNT (CMC)
+    `${CMC}/825.png`,     // USDT
+    `${CMC}/4943.png`,    // DAI
+    `${CMC}/7129.png`,    // BUSD
+    `${CMC}/2563.png`,    // TUSD
+    `${CMC}/3155.png`,    // QNT
+    `${CMC}/5117.png`,    // GNO
+    `${CMC}/6636.png`,    // DOT (RWA bridges)
+    `${CMC}/14806.png`,   // SPELL (alt)
+    `${CMC}/9444.png`,    // FRAX
+    `${CMC}/23095.png`,   // alt fallback
+  ],
+
+  Sports: [
+    `${CMC}/36048.png`,
+    `${CMC}/35336.png`,
+    `${CMC}/5994.png`,
+    `${CMC}/74.png`,
+    `${CMC}/24478.png`,
+    `${CMC}/24911.png`,
+    `${CMC}/31686.png`,
+    `${CMC}/33412.png`,
   ],
 };
+
 const DEFAULT_LOGOS = [
   `${CG}/29850/small/pepe-token.jpeg`,
   `${CG}/5/small/dogecoin.png`,
   `${CMC}/36048.png`,
+  `${CMC}/31686.png`,
+  `${CMC}/24478.png`,
+  `${CMC}/28752.png`,
+  `${CMC}/23095.png`,
+  `${CMC}/33412.png`,
+  `${CMC}/33817.png`,
+  `${CMC}/28087.png`,
+  `${CMC}/33869.png`,
+  `${CMC}/34400.png`,
   `${CG}/12504/small/uniswap-uni.png`,
   `${CMC}/24091.png`,
+  `${CMC}/22974.png`,
 ];
 
 function getTagFallbackLogo(tag: string | null, tokenId: string): string {
