@@ -64,7 +64,6 @@ export async function fetchBinanceTicker(symbol: string): Promise<BinanceTicker 
     if (!response.ok) throw new Error('Failed to fetch ticker');
     return await response.json();
   } catch (error) {
-    console.error('Error fetching ticker:', error);
     return null;
   }
 }

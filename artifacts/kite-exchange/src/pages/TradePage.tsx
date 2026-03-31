@@ -1706,35 +1706,51 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
 
         {orderBookTab === 'order-book' ? (
           <div className="px-3 py-3 bg-[#181A20] max-h-[500px] overflow-y-auto">
-            <div className="flex items-center text-[#5E6673] font-medium mb-2">
-              <div style={{ width: '80px' }}>Bid</div>
-              <div className="flex-1 text-center">Price (USDT)</div>
-              <div style={{ width: '80px' }} className="text-right">Ask</div>
+            <div className="flex items-center text-[#5E6673] text-[11px] font-medium mb-1.5">
+              <div className="w-1/2 flex items-center gap-1 pr-1">
+                <span className="w-[45px] shrink-0">Amount</span>
+                <span className="flex-1 text-right text-[#0ECB81]">Bid</span>
+              </div>
+              <div className="w-px bg-[#2B3139] self-stretch mx-1" />
+              <div className="w-1/2 flex items-center gap-1 pl-1">
+                <span className="flex-1 text-[#F6465D]">Ask</span>
+                <span className="w-[45px] shrink-0 text-right">Amount</span>
+              </div>
             </div>
 
             <div className="space-y-0">
               {bidOrders.slice(0, 24).map((bid, index) => {
                 const ask = askOrders[index];
+                if (!ask) return null;
                 return (
-                  <div key={index} className="flex items-center py-0.5 relative hover:bg-[#181A20]/20 transition-colors">
+                  <div key={index} className="flex items-center py-[2px] relative">
                     <div
-                      className="absolute left-0 h-full bg-[#0ECB81]/8"
-                      style={{ width: `${Math.min((bid.amount / 2) * 100, 100)}%`, zIndex: 0 }}
+                      className="absolute left-0 top-0 h-full bg-[#0ECB81]/10 rounded-sm"
+                      style={{ width: `${Math.min(Math.log10(bid.amount + 1) * 15, 48)}%`, zIndex: 0 }}
                     />
                     <div
-                      className="absolute right-0 h-full bg-[#F6465D]/8"
-                      style={{ width: `${Math.min((ask.amount / 2) * 100, 100)}%`, zIndex: 0 }}
+                      className="absolute right-0 top-0 h-full bg-[#F6465D]/10 rounded-sm"
+                      style={{ width: `${Math.min(Math.log10(ask.amount + 1) * 15, 48)}%`, zIndex: 0 }}
                     />
 
-                    <div style={{ width: '80px' }} className="text-[13px] relative z-10 pl-1">
-                      {formatAmount(bid.amount)}
+                    <div className="w-1/2 flex items-center gap-1 pr-1 relative z-10 min-w-0">
+                      <span className="w-[45px] shrink-0 text-[11px] text-[#848E9C] tabular-nums">
+                        {formatAmount(bid.amount)}
+                      </span>
+                      <span className="flex-1 text-right text-[12px] font-semibold text-[#0ECB81] tabular-nums truncate">
+                        {formatPrice(bid.price)}
+                      </span>
                     </div>
-                    <div className="flex-1 flex items-center justify-center gap-3 relative z-10">
-                      <span className="font-bold text-[14px] text-[#0ECB81]">{formatPrice(bid.price)}</span>
-                      <span className="font-bold text-[14px] text-[#F6465D]">{formatPrice(ask.price)}</span>
-                    </div>
-                    <div style={{ width: '80px' }} className="text-[13px] relative z-10 pr-1">
-                      {formatAmount(ask.amount)}
+
+                    <div className="w-px bg-[#2B3139] self-stretch mx-1 shrink-0" />
+
+                    <div className="w-1/2 flex items-center gap-1 pl-1 relative z-10 min-w-0">
+                      <span className="flex-1 text-[12px] font-semibold text-[#F6465D] tabular-nums truncate">
+                        {formatPrice(ask.price)}
+                      </span>
+                      <span className="w-[45px] shrink-0 text-right text-[11px] text-[#848E9C] tabular-nums">
+                        {formatAmount(ask.amount)}
+                      </span>
                     </div>
                   </div>
                 );
