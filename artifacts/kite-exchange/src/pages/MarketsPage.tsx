@@ -514,22 +514,22 @@ export default function MarketsPage() {
                     </svg>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-2 mb-4 text-xs">
-                    <div>
-                      <div className="text-[#848E9C] mb-1">24h High</div>
-                      <div className="text-white font-medium">{formatPrice(high)}</div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-4 text-xs">
+                    <div className="min-w-0">
+                      <div className="text-[#848E9C] mb-0.5">24h High</div>
+                      <div className="text-white font-medium truncate">{formatPrice(high)}</div>
                     </div>
-                    <div>
-                      <div className="text-[#848E9C] mb-1">24h Low</div>
-                      <div className="text-white font-medium">{formatPrice(low)}</div>
+                    <div className="min-w-0">
+                      <div className="text-[#848E9C] mb-0.5">24h Low</div>
+                      <div className="text-white font-medium truncate">{formatPrice(low)}</div>
                     </div>
-                    <div>
-                      <div className="text-[#848E9C] mb-1">Bid</div>
-                      <div className="text-[#0ECB81] font-semibold">{formatPrice(bid)}</div>
+                    <div className="min-w-0">
+                      <div className="text-[#848E9C] mb-0.5">Bid</div>
+                      <div className="text-[#0ECB81] font-semibold truncate">{formatPrice(bid)}</div>
                     </div>
-                    <div>
-                      <div className="text-[#848E9C] mb-1">Ask</div>
-                      <div className="text-[#F6465D] font-semibold">{formatPrice(ask)}</div>
+                    <div className="min-w-0">
+                      <div className="text-[#848E9C] mb-0.5">Ask</div>
+                      <div className="text-[#F6465D] font-semibold truncate">{formatPrice(ask)}</div>
                     </div>
                   </div>
 

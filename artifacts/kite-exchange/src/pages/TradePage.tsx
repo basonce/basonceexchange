@@ -8,6 +8,7 @@ import { SZNPPriceManager } from '../lib/sznp-price';
 import { PunchPriceManager } from '../lib/punch-price';
 import { BNCPriceManager } from '../lib/bnc-price';
 import { fetchBinanceTicker, fetchBinanceDepth } from '../lib/binance';
+import { fetchCoinGeckoPrices } from '../lib/coingecko-price';
 import { PriceCache } from '../lib/price-cache';
 import { supabase } from '../lib/supabase';
 import { TradingService } from '../lib/trading-service';
@@ -752,6 +753,24 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
           }
         }
 
+        if (fetchedPrice <= 0) {
+          try {
+            const cgMap = await fetchCoinGeckoPrices([targetSymbol]);
+            if (fetchGenRef.current !== gen) return;
+            const cgData = cgMap.get(targetSymbol);
+            if (cgData && cgData.price > 0) {
+              fetchedPrice = cgData.price;
+              setCurrentPrice(cgData.price);
+              setChange24h(cgData.change24h);
+              setHigh24h(cgData.high24h);
+              setLow24h(cgData.low24h);
+              setVolume24h(cgData.volume);
+              setVolumeBase(cgData.volume / 2);
+              setPrice(cgData.price.toFixed(getPriceDecimals(cgData.price)));
+            }
+          } catch {}
+        }
+
         if (fetchedPrice > 0) {
           generateInitialTrades(fetchedPrice);
         }
@@ -817,6 +836,17 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
             setChange24h(parseFloat(ticker.priceChangePercent));
             if (!isManualPriceChange) {
               setPrice(newPrice.toFixed(getPriceDecimals(newPrice)));
+            }
+          } else {
+            const cgMap = await fetchCoinGeckoPrices([target]);
+            if (activeSymbolRef.current !== target) return;
+            const cgData = cgMap.get(target);
+            if (cgData && cgData.price > 0) {
+              setCurrentPrice(cgData.price);
+              setChange24h(cgData.change24h);
+              if (!isManualPriceChange) {
+                setPrice(cgData.price.toFixed(getPriceDecimals(cgData.price)));
+              }
             }
           }
         }
