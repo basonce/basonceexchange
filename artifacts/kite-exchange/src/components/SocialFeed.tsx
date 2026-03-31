@@ -1572,10 +1572,10 @@ export default function SocialFeed() {
                 <span className="text-xs text-gray-500">{formatTimeAgo(post.created_at)}</span>
                 {getSentimentBadge(post)}
               </div>
-              <p className="text-sm leading-relaxed mb-2 whitespace-pre-line text-gray-100">
+              <p className="text-[15px] leading-relaxed mb-2 whitespace-pre-line text-gray-100">
                 {post.content?.split(/(\$[A-Z][A-Z0-9]{1,9})/g).map((part, idx) =>
                   /^\$[A-Z][A-Z0-9]{1,9}$/.test(part)
-                    ? <span key={idx} style={{ color: '#F0B90B' }} className="font-bold">{part}</span>
+                    ? <span key={idx} style={{ color: '#F0B90B', fontWeight: 800, letterSpacing: '0.01em' }}>{part}</span>
                     : part
                 )}
               </p>
