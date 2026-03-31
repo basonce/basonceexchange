@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { TRADFI_ASSETS, CATEGORY_STYLES, TEXT_LOGO_ASSETS } from '../lib/tradfi-data';
 import { getAllTradFiPrices, subscribeAllTradFiPrices, startTradFiPriceUpdater } from '../lib/tradfi-price-service';
 import { supabase } from '../lib/supabase';
 import MetalIcon, { isMetalSymbol } from './MetalIcon';
+import { buildLogoChain } from '../lib/logo-utils';
 
 const DB_KEY_MAP: Record<string, string> = {
   WTI: 'USOIL',
@@ -27,49 +28,70 @@ function formatVolume(n: number): string {
 
 const CATEGORY_ORDER = ['Gold', 'Silver', 'Platinum', 'Palladium', 'Index', 'Stock', 'Commodity', 'Agriculture', 'Forex', 'ETF'];
 
-function AssetLogo({ displayName, logoUrl, bgColor }: { displayName: string; logoUrl: string; bgColor?: string }) {
-  const [imgError, setImgError] = useState(false);
+function TextLogo({ text, bg, textColor, size, fontSize }: { text: string; bg: string; textColor: string; size: number; fontSize?: number }) {
+  return (
+    <div
+      className="flex-shrink-0 rounded-full flex items-center justify-center"
+      style={{ width: size, height: size, background: bg, border: '2px solid rgba(255,255,255,0.15)', boxShadow: '0 2px 10px rgba(0,0,0,0.5)' }}
+    >
+      <span style={{ color: textColor, fontSize: fontSize ?? 10, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1 }}>
+        {text}
+      </span>
+    </div>
+  );
+}
+
+function AssetLogo({ displayName, dbLogoUrl, fallbackLogoUrl, bgColor }: {
+  displayName: string;
+  dbLogoUrl?: string;
+  fallbackLogoUrl: string;
+  bgColor?: string;
+}) {
+  const chain = useMemo(
+    () => buildLogoChain(displayName, dbLogoUrl || fallbackLogoUrl),
+    [displayName, dbLogoUrl, fallbackLogoUrl]
+  );
+  const [urlIdx, setUrlIdx] = useState(0);
   const textDef = TEXT_LOGO_ASSETS[displayName];
+  const size = 36;
 
   if (isMetalSymbol(displayName)) {
-    return <MetalIcon symbol={displayName} size={36} />;
+    return <MetalIcon symbol={displayName} size={size} />;
   }
 
-  if (logoUrl && !imgError) {
+  const currentUrl = chain[urlIdx];
+  const bg = bgColor ?? '#ffffff';
+
+  if (currentUrl && urlIdx < chain.length) {
     return (
       <div
-        className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center"
-        style={{ background: bgColor || '#2B3139', border: '2px solid rgba(255,255,255,0.12)', boxShadow: '0 2px 10px rgba(0,0,0,0.5)' }}
+        className="flex-shrink-0 rounded-full overflow-hidden flex items-center justify-center"
+        style={{ width: size, height: size, background: bg, border: '2px solid rgba(255,255,255,0.12)', boxShadow: '0 2px 10px rgba(0,0,0,0.5)', flexShrink: 0 }}
       >
         <img
-          src={logoUrl}
+          src={currentUrl}
           alt={displayName}
           style={{ width: '90%', height: '90%', objectFit: 'contain' }}
-          onError={() => setImgError(true)}
+          onError={() => setUrlIdx(i => i + 1)}
         />
       </div>
     );
   }
 
   if (textDef) {
-    return (
-      <div
-        className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center"
-        style={{ background: textDef.bg, border: '2px solid rgba(255,255,255,0.15)', boxShadow: '0 2px 10px rgba(0,0,0,0.5)' }}
-      >
-        <span
-          className="font-black leading-none"
-          style={{ color: textDef.textColor, fontSize: `${textDef.fontSize ?? 9}px` }}
-        >
-          {textDef.text}
-        </span>
-      </div>
-    );
+    return <TextLogo text={textDef.text} bg={textDef.bg} textColor={textDef.textColor} size={size} fontSize={textDef.fontSize} />;
   }
 
+  const colors = ['#F0B90B', '#0ECB81', '#3861FB', '#E8831D', '#00D1FF', '#FF6B35'];
+  const fb = colors[(displayName.charCodeAt(0) + (displayName.charCodeAt(1) || 0)) % colors.length];
   return (
-    <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center bg-[#2B3139]" style={{ border: '2px solid rgba(255,255,255,0.12)' }}>
-      <span className="text-white font-bold text-[10px]">{displayName.slice(0, 3)}</span>
+    <div
+      className="flex-shrink-0 rounded-full flex items-center justify-center"
+      style={{ width: size, height: size, background: fb, border: '2px solid rgba(255,255,255,0.12)', boxShadow: '0 2px 10px rgba(0,0,0,0.5)' }}
+    >
+      <span className="font-extrabold text-white" style={{ fontSize: size * 0.3 }}>
+        {displayName.slice(0, 2)}
+      </span>
     </div>
   );
 }
@@ -115,9 +137,9 @@ export default function HomeTradFiList() {
     return () => { stop(); unsub(); };
   }, []);
 
-  const resolveLogoUrl = (displayName: string, fallbackUrl: string): string => {
+  const resolveDbLogoUrl = (displayName: string): string | undefined => {
     const dbKey = DB_KEY_MAP[displayName] || displayName;
-    return dbLogos.current[dbKey] || dbLogos.current[displayName] || fallbackUrl;
+    return dbLogos.current[dbKey] || dbLogos.current[displayName];
   };
 
   const sorted = [...TRADFI_ASSETS].sort((a, b) => {
@@ -140,7 +162,7 @@ export default function HomeTradFiList() {
         const change = priceData?.change24h ?? 0;
         const isUp = change >= 0;
         const flashDir = flash.get(asset.symbol);
-        const logoUrl = resolveLogoUrl(asset.displayName, asset.logoUrl);
+        const dbLogoUrl = resolveDbLogoUrl(asset.displayName);
         const catStyle = CATEGORY_STYLES[asset.category];
 
         return (
@@ -156,7 +178,12 @@ export default function HomeTradFiList() {
             }`}
           >
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <AssetLogo displayName={asset.displayName} logoUrl={logoUrl} bgColor={asset.bgColor} />
+              <AssetLogo
+                displayName={asset.displayName}
+                dbLogoUrl={dbLogoUrl}
+                fallbackLogoUrl={asset.logoUrl}
+                bgColor={asset.bgColor}
+              />
 
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
