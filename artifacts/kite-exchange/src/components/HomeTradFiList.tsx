@@ -1,0 +1,112 @@
+import { useState, useEffect } from 'react';
+import { TRADFI_ASSETS } from '../lib/tradfi-data';
+import { getAllTradFiPrices, subscribeAllTradFiPrices, startTradFiPriceUpdater } from '../lib/tradfi-price-service';
+
+function formatTradFiPrice(price: number): string {
+  if (price >= 10000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (price >= 1000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (price >= 100) return price.toFixed(2);
+  if (price >= 10) return price.toFixed(3);
+  return price.toFixed(4);
+}
+
+function formatVolume(n: number): string {
+  if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
+  if (n >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
+  if (n >= 1e3) return `${(n / 1e3).toFixed(2)}K`;
+  return n.toFixed(0);
+}
+
+const CATEGORY_ORDER = ['Gold', 'Silver', 'Platinum', 'Palladium', 'Index', 'Stock', 'Commodity', 'Forex', 'ETF', 'Agriculture'];
+
+export default function HomeTradFiList() {
+  const [prices, setPrices] = useState(() => getAllTradFiPrices());
+  const [flash, setFlash] = useState<Map<string, 'up' | 'down'>>(new Map());
+
+  useEffect(() => {
+    const stop = startTradFiPriceUpdater();
+    const unsub = subscribeAllTradFiPrices(() => {
+      const next = getAllTradFiPrices();
+      setPrices(prev => {
+        const newFlash = new Map<string, 'up' | 'down'>();
+        next.forEach((data, sym) => {
+          const old = prev.get(sym);
+          if (old && data.price !== old.price) {
+            newFlash.set(sym, data.price > old.price ? 'up' : 'down');
+          }
+        });
+        if (newFlash.size > 0) {
+          setFlash(newFlash);
+          setTimeout(() => setFlash(new Map()), 600);
+        }
+        return next;
+      });
+    });
+    return () => { stop(); unsub(); };
+  }, []);
+
+  const sorted = [...TRADFI_ASSETS].sort((a, b) => {
+    const ai = CATEGORY_ORDER.indexOf(a.category);
+    const bi = CATEGORY_ORDER.indexOf(b.category);
+    return ai - bi;
+  });
+
+  return (
+    <div className="bg-[#0B0E11]">
+      <div className="flex items-center px-4 py-2 text-[11px] font-medium text-[#848E9C] border-b border-[#2B3139]/40">
+        <span className="flex-1">NAME</span>
+        <span className="w-28 text-right">LAST PRICE</span>
+        <span className="w-20 text-right">24H CHG%</span>
+      </div>
+
+      {sorted.map(asset => {
+        const priceData = prices.get(asset.symbol);
+        const price = priceData?.price ?? asset.basePrice;
+        const change = priceData?.change24h ?? 0;
+        const isUp = change >= 0;
+        const flashDir = flash.get(asset.symbol);
+
+        return (
+          <div
+            key={asset.symbol}
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('navigate-to-futures', {
+                detail: { symbol: asset.symbol }
+              }));
+            }}
+            className={`flex items-center px-4 py-3 border-b border-[#2B3139]/40 cursor-pointer active:bg-[#2B3139]/50 transition-colors duration-200 ${
+              flashDir === 'up' ? 'bg-[#0ECB81]/8' : flashDir === 'down' ? 'bg-[#F6465D]/8' : 'hover:bg-[#2B3139]/20'
+            }`}
+          >
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="w-9 h-9 rounded-full bg-[#2B3139] flex-shrink-0 overflow-hidden">
+                <img
+                  src={asset.logoUrl}
+                  alt={asset.displayName}
+                  className="w-full h-full object-cover"
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              </div>
+              <div className="min-w-0">
+                <div className="text-white font-bold text-[14px] leading-tight">{asset.displayName}</div>
+                <div className="text-[#848E9C] text-[11px]">
+                  {asset.category} · Vol <span className="text-white">{formatVolume(asset.volume24hBase)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className={`w-28 text-right font-medium text-[13px] transition-colors duration-500 ${
+              flashDir === 'up' ? 'text-[#0ECB81]' : flashDir === 'down' ? 'text-[#F6465D]' : 'text-white'
+            }`}>
+              ${formatTradFiPrice(price)}
+            </div>
+
+            <div className={`w-20 text-right text-[13px] font-semibold ${isUp ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+              {isUp ? '+' : ''}{change.toFixed(2)}%
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
