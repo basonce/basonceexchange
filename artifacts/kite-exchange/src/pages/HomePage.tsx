@@ -491,8 +491,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 width: '54px',
                 height: '54px',
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #F0B90B 0%, #F8D33A 100%)',
-                boxShadow: '0 4px 24px rgba(240,185,11,0.65)',
+                background: '#F0B90B',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -501,7 +500,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 cursor: 'pointer',
               }}
             >
-              <Plus style={{ width: 28, height: 28, color: '#000', strokeWidth: 3 }} />
+              <Plus style={{ width: 26, height: 26, color: '#000', strokeWidth: 2 }} />
             </button>
           )}
 
