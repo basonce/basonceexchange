@@ -1,6 +1,4 @@
 import { useState, useEffect, Component, ReactNode, Suspense, lazy } from 'react';
-import { createPortal } from 'react-dom';
-import { Plus, PenLine, FileText, Video, Bell, LayoutDashboard, Pencil } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { analyticsTracker } from './lib/analytics-tracker';
 import ExchangeModeProvider from './components/ExchangeModeProvider';
@@ -98,8 +96,6 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [futuresInitialSymbol, setFuturesInitialSymbol] = useState<string | undefined>(undefined);
-  const [showCreateMenu, setShowCreateMenu] = useState(false);
-
   useEffect(() => {
     const refCode = new URLSearchParams(window.location.search).get('ref');
     if (refCode) {
@@ -289,100 +285,6 @@ function App() {
   return (
     <ExchangeModeProvider>
       <ExchangeModeBanner />
-      {/* Social Feed FAB — createPortal ile document.body'ye render, her container'dan bağımsız */}
-      {mobileTab === 'home' && createPortal(
-        <>
-          <button
-            onClick={() => setShowCreateMenu(true)}
-            style={{
-              position: 'fixed',
-              bottom: '72px',
-              right: '18px',
-              width: '54px',
-              height: '54px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #F0B90B 0%, #F8D33A 100%)',
-              boxShadow: '0 4px 24px rgba(240,185,11,0.65)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 9999,
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            <Plus style={{ width: 28, height: 28, color: '#000', strokeWidth: 3 }} />
-          </button>
-
-          {showCreateMenu && (
-            <div
-              onClick={() => setShowCreateMenu(false)}
-              style={{
-                position: 'fixed',
-                inset: 0,
-                zIndex: 10000,
-                background: 'rgba(0,0,0,0.6)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-end',
-              }}
-            >
-              <div
-                onClick={e => e.stopPropagation()}
-                style={{
-                  background: '#1E2026',
-                  borderRadius: '20px 20px 0 0',
-                  padding: '20px 16px 36px',
-                }}
-              >
-                {/* My Profile */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,#F0B90B,#E8831D)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <span style={{ color: '#000', fontWeight: 900, fontSize: 16 }}>B</span>
-                    </div>
-                    <span style={{ color: '#fff', fontWeight: 600, fontSize: 15 }}>My Profile</span>
-                  </div>
-                  <button style={{ width: 36, height: 36, borderRadius: '50%', background: '#2B3139', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer' }}>
-                    <Bell style={{ width: 18, height: 18, color: '#aaa' }} />
-                  </button>
-                </div>
-
-                {/* Post / Article / Video */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
-                  {([
-                    { icon: PenLine, label: 'Post' },
-                    { icon: FileText, label: 'Article' },
-                    { icon: Video, label: 'Video' },
-                  ] as const).map(({ icon: Icon, label }) => (
-                    <button key={label} style={{ background: '#2B3139', border: 'none', borderRadius: 16, padding: '16px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                      <div style={{ width: 44, height: 44, borderRadius: 12, background: '#3A3F4A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Icon style={{ width: 22, height: 22, color: '#F0B90B' }} />
-                      </div>
-                      <span style={{ color: '#fff', fontSize: 14, fontWeight: 500 }}>{label}</span>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Creator Center / CreatorPad */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  {([
-                    { icon: LayoutDashboard, label: 'Creator Center' },
-                    { icon: Pencil, label: 'CreatorPad' },
-                  ] as const).map(({ icon: Icon, label }) => (
-                    <button key={label} style={{ background: '#2B3139', border: 'none', borderRadius: 16, padding: '14px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: 'pointer' }}>
-                      <Icon style={{ width: 20, height: 20, color: '#aaa' }} />
-                      <span style={{ color: '#fff', fontSize: 14, fontWeight: 500 }}>{label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </>,
-        document.body
-      )}
-
       <div className="min-h-screen bg-[#181A20] flex justify-center">
         <div className="w-full max-w-[428px] relative">
           <main

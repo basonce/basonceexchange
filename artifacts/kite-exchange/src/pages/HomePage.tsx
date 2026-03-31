@@ -1,5 +1,6 @@
 import React, { useState, lazy, Suspense, useEffect, useRef } from 'react';
-import { Menu, Headphones, Shield, X, Gift, Zap, TrendingUp, Star, Users } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Menu, Headphones, Shield, X, Gift, Zap, TrendingUp, Star, Users, Plus, PenLine, FileText, Video, Bell, LayoutDashboard, Pencil } from 'lucide-react';
 import HomeMarketList from '../components/HomeMarketList';
 import FuturesMarketList from '../components/FuturesMarketList';
 import NewListingSection from '../components/NewListingSection';
@@ -34,6 +35,20 @@ export default function HomePage({ onNavigate }: HomePageProps) {
   const [activeTab, setActiveTab] = useState<'crypto' | 'spot' | 'futures' | 'new-listing' | 'alpha'>('crypto');
   const [activeFilter, setActiveFilter] = useState<'gainers' | 'losers' | '24h-vol' | 'tradfi'>('gainers');
   const [discoverTab, setDiscoverTab] = useState<'discover' | 'following' | 'campaign' | 'announcement'>('discover');
+  const [showFAB, setShowFAB] = useState(false);
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
+  const socialSectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = socialSectionRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => setShowFAB(entry.isIntersecting),
+      { threshold: 0.05 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
   const [mainTab, setMainTab] = useState<'exchange' | 'wallet'>('exchange');
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportUserInfo, setSupportUserInfo] = useState<{ userId: string; email: string } | null>(null);
@@ -413,7 +428,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
           </Suspense>
           </div>
 
-          <div className="bg-[#181A20] mt-4">
+          <div ref={socialSectionRef} className="bg-[#181A20] mt-4">
             <div className="flex items-center gap-1 px-3 py-2 border-b border-[#2B3139] overflow-x-auto scrollbar-hide bg-[#181A20]">
               {[
                 { id: 'discover', label: 'Discover', color: 'from-[#F0B90B] to-[#F8D347]', dot: null },
@@ -461,6 +476,78 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       <CampaignDetailModal campaign={selectedCampaign} onClose={() => setSelectedCampaign(null)} />
       <FuturesCampaignModal isOpen={showFuturesCampaign} onClose={() => setShowFuturesCampaign(false)} />
       <LaunchpoolModal isOpen={showLaunchpool} onClose={() => setShowLaunchpool(false)} />
+
+      {/* Social Feed FAB - yalnızca social feed görünürken çıkar, createPortal ile sabit konumda */}
+      {createPortal(
+        <>
+          {showFAB && (
+            <button
+              onClick={() => setShowCreateMenu(true)}
+              style={{
+                position: 'fixed',
+                bottom: '72px',
+                right: '18px',
+                width: '54px',
+                height: '54px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #F0B90B 0%, #F8D33A 100%)',
+                boxShadow: '0 4px 24px rgba(240,185,11,0.65)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 9999,
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <Plus style={{ width: 28, height: 28, color: '#000', strokeWidth: 3 }} />
+            </button>
+          )}
+
+          {showCreateMenu && (
+            <div
+              onClick={() => setShowCreateMenu(false)}
+              style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}
+            >
+              <div
+                onClick={e => e.stopPropagation()}
+                style={{ background: '#1E2026', borderRadius: '20px 20px 0 0', padding: '20px 16px 36px' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,#F0B90B,#E8831D)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <span style={{ color: '#000', fontWeight: 900, fontSize: 16 }}>B</span>
+                    </div>
+                    <span style={{ color: '#fff', fontWeight: 600, fontSize: 15 }}>My Profile</span>
+                  </div>
+                  <button style={{ width: 36, height: 36, borderRadius: '50%', background: '#2B3139', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer' }}>
+                    <Bell style={{ width: 18, height: 18, color: '#aaa' }} />
+                  </button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+                  {([{ icon: PenLine, label: 'Post' }, { icon: FileText, label: 'Article' }, { icon: Video, label: 'Video' }] as const).map(({ icon: Icon, label }) => (
+                    <button key={label} style={{ background: '#2B3139', border: 'none', borderRadius: 16, padding: '16px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                      <div style={{ width: 44, height: 44, borderRadius: 12, background: '#3A3F4A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon style={{ width: 22, height: 22, color: '#F0B90B' }} />
+                      </div>
+                      <span style={{ color: '#fff', fontSize: 14, fontWeight: 500 }}>{label}</span>
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  {([{ icon: LayoutDashboard, label: 'Creator Center' }, { icon: Pencil, label: 'CreatorPad' }] as const).map(({ icon: Icon, label }) => (
+                    <button key={label} style={{ background: '#2B3139', border: 'none', borderRadius: 16, padding: '14px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: 'pointer' }}>
+                      <Icon style={{ width: 20, height: 20, color: '#aaa' }} />
+                      <span style={{ color: '#fff', fontSize: 14, fontWeight: 500 }}>{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </>,
+        document.body
+      )}
 
       <MenuDrawer
         isOpen={showMenuDrawer}
