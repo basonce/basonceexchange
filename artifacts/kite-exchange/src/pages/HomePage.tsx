@@ -1,5 +1,5 @@
 import React, { useState, lazy, Suspense, useEffect, useRef } from 'react';
-import { Menu, Headphones, Shield, X, Gift, Zap, TrendingUp, Star, Users } from 'lucide-react';
+import { Menu, Headphones, Shield, X, Gift, Zap, TrendingUp, Star, Users, Plus, PenLine, FileText, Video, Bell, LayoutDashboard, Pencil } from 'lucide-react';
 import HomeMarketList from '../components/HomeMarketList';
 import FuturesMarketList from '../components/FuturesMarketList';
 import NewListingSection from '../components/NewListingSection';
@@ -34,6 +34,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
   const [activeTab, setActiveTab] = useState<'crypto' | 'spot' | 'futures' | 'new-listing' | 'alpha'>('crypto');
   const [activeFilter, setActiveFilter] = useState<'gainers' | 'losers' | '24h-vol' | 'tradfi'>('gainers');
   const [discoverTab, setDiscoverTab] = useState<'discover' | 'following' | 'campaign' | 'announcement'>('discover');
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [mainTab, setMainTab] = useState<'exchange' | 'wallet'>('exchange');
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportUserInfo, setSupportUserInfo] = useState<{ userId: string; email: string } | null>(null);
@@ -461,6 +462,89 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       <CampaignDetailModal campaign={selectedCampaign} onClose={() => setSelectedCampaign(null)} />
       <FuturesCampaignModal isOpen={showFuturesCampaign} onClose={() => setShowFuturesCampaign(false)} />
       <LaunchpoolModal isOpen={showLaunchpool} onClose={() => setShowLaunchpool(false)} />
+
+      {/* Discover FAB - sarı "+" butonu Binance Social Feed stili */}
+      {discoverTab === 'discover' && (
+        <button
+          onClick={() => setShowCreateMenu(true)}
+          className="fixed z-40 flex items-center justify-center rounded-full"
+          style={{
+            bottom: '72px',
+            right: '18px',
+            width: '54px',
+            height: '54px',
+            background: 'linear-gradient(135deg, #F0B90B 0%, #F8D33A 100%)',
+            boxShadow: '0 4px 24px rgba(240,185,11,0.6)',
+          }}
+        >
+          <Plus className="w-7 h-7 text-black" strokeWidth={3} />
+        </button>
+      )}
+
+      {/* Create Menu Bottom Sheet */}
+      {showCreateMenu && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col justify-end"
+          style={{ background: 'rgba(0,0,0,0.6)' }}
+          onClick={() => setShowCreateMenu(false)}
+        >
+          <div
+            className="rounded-t-2xl px-4 pt-5 pb-8"
+            style={{ background: '#1E2026' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* My Profile */}
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#F0B90B] to-[#E8831D] flex items-center justify-center flex-shrink-0">
+                  <span className="text-black font-black text-base">B</span>
+                </div>
+                <span className="text-white font-semibold text-[15px]">My Profile</span>
+              </div>
+              <button className="w-9 h-9 rounded-full bg-[#2B3139] flex items-center justify-center">
+                <Bell className="w-5 h-5 text-gray-300" />
+              </button>
+            </div>
+
+            {/* Post / Article / Video */}
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              {([
+                { icon: PenLine, label: 'Post' },
+                { icon: FileText, label: 'Article' },
+                { icon: Video, label: 'Video' },
+              ] as const).map(({ icon: Icon, label }) => (
+                <button
+                  key={label}
+                  className="flex flex-col items-center justify-center gap-2.5 rounded-2xl py-4 active:scale-95 transition-transform"
+                  style={{ background: '#2B3139' }}
+                >
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: '#3A3F4A' }}>
+                    <Icon className="w-5 h-5" style={{ color: '#F0B90B' }} />
+                  </div>
+                  <span className="text-white text-sm font-medium">{label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Creator Center / CreatorPad */}
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                { icon: LayoutDashboard, label: 'Creator Center' },
+                { icon: Pencil, label: 'CreatorPad' },
+              ] as const).map(({ icon: Icon, label }) => (
+                <button
+                  key={label}
+                  className="flex items-center justify-center gap-2.5 rounded-2xl py-4 active:scale-95 transition-transform"
+                  style={{ background: '#2B3139' }}
+                >
+                  <Icon className="w-5 h-5 text-gray-300" />
+                  <span className="text-white text-sm font-medium">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <MenuDrawer
         isOpen={showMenuDrawer}

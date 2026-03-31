@@ -1640,6 +1640,7 @@ export default function SocialFeed() {
           onRoomChange={setSelectedRoom}
         />
       )}
+
     </div>
   );
 }
