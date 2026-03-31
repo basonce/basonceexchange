@@ -81,9 +81,16 @@ class PageErrorBoundary extends Component<{ children: ReactNode; name: string },
 
 type Page = 'markets' | 'trade' | 'wallet' | 'admin';
 
+const VALID_TABS = new Set(['home', 'markets', 'trade', 'futures', 'aibot', 'mining', 'assets', 'profile']);
+
+function getTabFromHash(): string {
+  const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase().split('?')[0];
+  return VALID_TABS.has(hash) ? hash : 'home';
+}
+
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('markets');
-  const [mobileTab, setMobileTab] = useState('home');
+  const [mobileTab, setMobileTab] = useState(getTabFromHash);
   const [prevTab, setPrevTab] = useState('home');
   const [selectedCrypto, setSelectedCrypto] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -169,7 +176,23 @@ function App() {
   useEffect(() => {
     localStorage.setItem('currentTab', mobileTab);
     analyticsTracker.trackPageView(`/${mobileTab}`);
+    const newHash = `#${mobileTab}`;
+    if (window.location.hash !== newHash) {
+      window.history.pushState(null, '', newHash);
+    }
   }, [mobileTab]);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const tab = getTabFromHash();
+      setMobileTab(prev => {
+        if (prev !== tab) setPrevTab(prev);
+        return tab;
+      });
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   useEffect(() => {
     const handleNavigateToTrade = async (e: any) => {
