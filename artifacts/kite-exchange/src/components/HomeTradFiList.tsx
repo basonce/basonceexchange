@@ -1,9 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { TRADFI_ASSETS } from '../lib/tradfi-data';
 import { getAllTradFiPrices, subscribeAllTradFiPrices, startTradFiPriceUpdater } from '../lib/tradfi-price-service';
+import { supabase } from '../lib/supabase';
+
+const DB_KEY_MAP: Record<string, string> = {
+  WTI: 'USOIL',
+  SPX: 'SPX500',
+  NDX: 'NAS100',
+  DJI: 'US30',
+};
 
 function formatTradFiPrice(price: number): string {
-  if (price >= 10000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (price >= 1000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (price >= 100) return price.toFixed(2);
   if (price >= 10) return price.toFixed(3);
@@ -17,11 +24,26 @@ function formatVolume(n: number): string {
   return n.toFixed(0);
 }
 
-const CATEGORY_ORDER = ['Gold', 'Silver', 'Platinum', 'Palladium', 'Index', 'Stock', 'Commodity', 'Forex', 'ETF', 'Agriculture'];
+const CATEGORY_ORDER = ['Gold', 'Silver', 'Platinum', 'Palladium', 'Index', 'Stock', 'Commodity', 'Agriculture', 'Forex', 'ETF'];
 
 export default function HomeTradFiList() {
   const [prices, setPrices] = useState(() => getAllTradFiPrices());
   const [flash, setFlash] = useState<Map<string, 'up' | 'down'>>(new Map());
+  const dbLogos = useRef<Record<string, string>>({});
+  const [, forceRender] = useState(0);
+
+  useEffect(() => {
+    supabase.from('tradfi_logos').select('symbol, logo_url').then(({ data }) => {
+      if (data) {
+        const map: Record<string, string> = {};
+        for (const row of data) {
+          if (row.symbol && row.logo_url) map[row.symbol] = row.logo_url;
+        }
+        dbLogos.current = map;
+        forceRender(n => n + 1);
+      }
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const stop = startTradFiPriceUpdater();
@@ -45,10 +67,15 @@ export default function HomeTradFiList() {
     return () => { stop(); unsub(); };
   }, []);
 
+  const resolveLogoUrl = (displayName: string, fallbackUrl: string): string => {
+    const dbKey = DB_KEY_MAP[displayName] || displayName;
+    return dbLogos.current[dbKey] || dbLogos.current[displayName] || fallbackUrl;
+  };
+
   const sorted = [...TRADFI_ASSETS].sort((a, b) => {
     const ai = CATEGORY_ORDER.indexOf(a.category);
     const bi = CATEGORY_ORDER.indexOf(b.category);
-    return ai - bi;
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
   });
 
   return (
@@ -65,6 +92,7 @@ export default function HomeTradFiList() {
         const change = priceData?.change24h ?? 0;
         const isUp = change >= 0;
         const flashDir = flash.get(asset.symbol);
+        const logoUrl = resolveLogoUrl(asset.displayName, asset.logoUrl);
 
         return (
           <div
@@ -74,18 +102,25 @@ export default function HomeTradFiList() {
                 detail: { symbol: asset.symbol }
               }));
             }}
-            className={`flex items-center px-4 py-3 border-b border-[#2B3139]/40 cursor-pointer active:bg-[#2B3139]/50 transition-colors duration-200 ${
+            className={`flex items-center px-4 py-3 border-b border-[#2B3139]/40 cursor-pointer active:bg-[#2B3139]/50 transition-colors duration-200 overflow-hidden ${
               flashDir === 'up' ? 'bg-[#0ECB81]/8' : flashDir === 'down' ? 'bg-[#F6465D]/8' : 'hover:bg-[#2B3139]/20'
             }`}
           >
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="w-9 h-9 rounded-full bg-[#2B3139] flex-shrink-0 overflow-hidden">
-                <img
-                  src={asset.logoUrl}
-                  alt={asset.displayName}
-                  className="w-full h-full object-cover"
-                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
+              <div
+                className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center"
+                style={{ background: asset.bgColor || '#2B3139' }}
+              >
+                {logoUrl ? (
+                  <img
+                    src={logoUrl}
+                    alt={asset.displayName}
+                    className="w-full h-full object-cover"
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                ) : (
+                  <span className="text-white font-bold text-[10px]">{asset.displayName.slice(0, 3)}</span>
+                )}
               </div>
               <div className="min-w-0">
                 <div className="text-white font-bold text-[14px] leading-tight">{asset.displayName}</div>
