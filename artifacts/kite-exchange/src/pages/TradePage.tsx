@@ -778,18 +778,18 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
         const depth = await fetchBinanceDepth(binanceSymbol, 20);
         if (fetchGenRef.current !== gen) return;
         if (depth && depth.bids.length > 0 && depth.asks.length > 0) {
-          const initWhalesBid = 1 + Math.floor(Math.random() * 2);
+          const initWhalesBid = 2 + Math.floor(Math.random() * 3);
           const initWhaleIdxs = Array.from({ length: initWhalesBid }, () => Math.floor(Math.random() * 20));
           const bids: OrderBookItem[] = depth.bids.map(([price, amount], idx) => {
             const p = parseFloat(price);
             const a = parseFloat(amount);
-            const boost = initWhaleIdxs.includes(idx) ? (15 + Math.random() * 30) : (2.5 + Math.random() * 3);
+            const boost = initWhaleIdxs.includes(idx) ? (25 + Math.random() * 55) : (5 + Math.random() * 6);
             return { price: p, amount: a * boost, total: p * a * boost };
           });
           const asks: OrderBookItem[] = depth.asks.map(([price, amount]) => {
             const p = parseFloat(price);
             const a = parseFloat(amount);
-            const shrink = 0.15 + Math.random() * 0.25;
+            const shrink = 0.06 + Math.random() * 0.12;
             return { price: p, amount: a * shrink, total: p * a * shrink };
           });
           setBidOrders(bids);

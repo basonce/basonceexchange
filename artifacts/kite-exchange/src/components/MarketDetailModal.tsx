@@ -192,7 +192,7 @@ export default function MarketDetailModal({ market, isOpen, onClose, initialTab 
 
     for (let i = 0; i < 15; i++) {
       const bidPrice = basePrice - spread - (i * spread * 0.2);
-      const bidAmount = (Math.random() * 5 + 1) * (1 - i * 0.05);
+      const bidAmount = (Math.random() * 20 + 10) * (1 - i * 0.04);
       bids.push({
         price: bidPrice,
         amount: bidAmount,
@@ -200,7 +200,7 @@ export default function MarketDetailModal({ market, isOpen, onClose, initialTab 
       });
 
       const askPrice = basePrice + spread + (i * spread * 0.2);
-      const askAmount = (Math.random() * 5 + 1) * (1 - i * 0.05);
+      const askAmount = (Math.random() * 2.2 + 0.3) * (1 - i * 0.06);
       asks.push({
         price: askPrice,
         amount: askAmount,

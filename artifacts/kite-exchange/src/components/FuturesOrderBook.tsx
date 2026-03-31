@@ -48,12 +48,12 @@ export default function FuturesOrderBook({ symbol, currentPrice }: FuturesOrderB
       const newBids: OrderBookEntry[] = [];
       for (let i = 9; i >= 1; i--) {
         const askPrice = currentPrice + i * (currentPrice * increment);
-        const askAmount = Math.random() * 5 + 0.5;
+        const askAmount = Math.random() * 1.8 + 0.2;
         newAsks.push({ price: askPrice, amount: askAmount, total: askAmount * askPrice });
       }
       for (let i = 1; i <= 9; i++) {
         const bidPrice = currentPrice - i * (currentPrice * increment);
-        const bidAmount = (Math.random() * 20 + 8) * bidMult;
+        const bidAmount = (Math.random() * 40 + 18) * bidMult;
         newBids.push({ price: bidPrice, amount: bidAmount, total: bidAmount * bidPrice });
       }
       setAsks(newAsks);
@@ -93,13 +93,13 @@ export default function FuturesOrderBook({ symbol, currentPrice }: FuturesOrderB
 
         for (let i = 9; i >= 1; i--) {
           const askPrice = currentPrice + i * (currentPrice * increment);
-          const askAmount = isBNC ? Math.random() * 8 + 1 : Math.random() * 20 + 3;
+          const askAmount = isBNC ? Math.random() * 2 + 0.3 : Math.random() * 4 + 0.5;
           newAsks.push({ price: askPrice, amount: askAmount, total: askAmount * askPrice });
         }
 
         for (let i = 1; i <= 9; i++) {
           const bidPrice = currentPrice - i * (currentPrice * increment);
-          const bidAmount = isBNC ? Math.random() * 500 + 200 : Math.random() * 300 + 80;
+          const bidAmount = isBNC ? Math.random() * 1200 + 600 : Math.random() * 700 + 250;
           newBids.push({ price: bidPrice, amount: bidAmount, total: bidAmount * bidPrice });
         }
 
@@ -127,11 +127,11 @@ export default function FuturesOrderBook({ symbol, currentPrice }: FuturesOrderB
                 return { price: p, amount: a, total: p * a };
               }).filter(o => !isNaN(o.price) && !isNaN(o.amount) && o.price > 0);
 
-            let rawAsksProcessed = mapEntries(rawAsks, 0.55).filter(o => o.total >= minTotalValue);
-            let rawBidsProcessed = mapEntries(rawBids, 1.9).filter(o => o.total >= minTotalValue);
+            let rawAsksProcessed = mapEntries(rawAsks, 0.18).filter(o => o.total >= minTotalValue);
+            let rawBidsProcessed = mapEntries(rawBids, 4.5).filter(o => o.total >= minTotalValue);
 
-            if (rawAsksProcessed.length < 9) rawAsksProcessed = mapEntries(rawAsks.slice(0, 20), 0.55);
-            if (rawBidsProcessed.length < 9) rawBidsProcessed = mapEntries(rawBids.slice(0, 20), 1.9);
+            if (rawAsksProcessed.length < 9) rawAsksProcessed = mapEntries(rawAsks.slice(0, 20), 0.18);
+            if (rawBidsProcessed.length < 9) rawBidsProcessed = mapEntries(rawBids.slice(0, 20), 4.5);
 
             const sortedAsks = rawAsksProcessed.sort((a, b) => a.price - b.price).slice(0, 9).reverse();
             const sortedBids = rawBidsProcessed.sort((a, b) => b.price - a.price).slice(0, 9);
