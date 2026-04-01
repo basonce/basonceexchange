@@ -12,6 +12,7 @@ import MiningPage from './pages/MiningPage';
 import AssetsPage from './pages/AssetsPage';
 import AIBotPage from './pages/AIBotPage';
 import ProfilePage from './pages/ProfilePage';
+import SocialProfilePage from './pages/SocialProfilePage';
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 
 function isChunkLoadError(msg: string) {
@@ -81,7 +82,7 @@ class PageErrorBoundary extends Component<{ children: ReactNode; name: string },
 
 type Page = 'markets' | 'trade' | 'wallet' | 'admin';
 
-const VALID_TABS = new Set(['home', 'markets', 'trade', 'futures', 'aibot', 'mining', 'assets', 'profile']);
+const VALID_TABS = new Set(['home', 'markets', 'trade', 'futures', 'aibot', 'mining', 'assets', 'profile', 'social-profile']);
 
 function getTabFromHash(): string {
   const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase().split('?')[0];
@@ -289,7 +290,7 @@ function App() {
         <div className="w-full max-w-[428px] relative">
           <main
             role="main"
-            style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
+            style={{ paddingBottom: mobileTab === 'social-profile' ? 0 : 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
           >
             {mobileTab === 'home' && <PageErrorBoundary name="home"><HomePage /></PageErrorBoundary>}
             {mobileTab === 'markets' && <PageErrorBoundary name="markets"><MarketsPage /></PageErrorBoundary>}
@@ -306,9 +307,21 @@ function App() {
                 />
               </PageErrorBoundary>
             )}
+            {mobileTab === 'social-profile' && (
+              <PageErrorBoundary name="social-profile">
+                <SocialProfilePage
+                  onBack={() => {
+                    const back = prevTab !== 'social-profile' ? prevTab : 'home';
+                    setMobileTab(back);
+                  }}
+                />
+              </PageErrorBoundary>
+            )}
           </main>
 
-          <BottomNav activeTab={mobileTab} onTabChange={(tab) => { setPrevTab(mobileTab); setMobileTab(tab); }} />
+          {mobileTab !== 'social-profile' && (
+            <BottomNav activeTab={mobileTab} onTabChange={(tab) => { setPrevTab(mobileTab); setMobileTab(tab); }} />
+          )}
         </div>
       </div>
     </ExchangeModeProvider>

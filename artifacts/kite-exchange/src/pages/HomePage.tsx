@@ -524,7 +524,14 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 onClick={e => e.stopPropagation()}
                 style={{ background: '#1E2026', borderRadius: '20px 20px 0 0', padding: '20px 16px 36px' }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <div
+                  onClick={() => {
+                    setShowCreateMenu(false);
+                    window.history.pushState(null, '', '#social-profile');
+                    window.dispatchEvent(new HashChangeEvent('hashchange'));
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, cursor: 'pointer' }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     {myProfile?.avatar_url ? (
                       <img
@@ -539,11 +546,17 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                         </span>
                       </div>
                     )}
-                    <span style={{ color: '#fff', fontWeight: 600, fontSize: 15 }}>
-                      {myProfile?.username || 'My Profile'}
-                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>
+                        {myProfile?.username || 'My Profile'}
+                      </span>
+                      <span style={{ color: '#848E9C', fontSize: 12 }}>View your profile →</span>
+                    </div>
                   </div>
-                  <button style={{ width: 36, height: 36, borderRadius: '50%', background: '#2B3139', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer' }}>
+                  <button
+                    onClick={e => e.stopPropagation()}
+                    style={{ width: 36, height: 36, borderRadius: '50%', background: '#2B3139', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer' }}
+                  >
                     <Bell style={{ width: 18, height: 18, color: '#aaa' }} />
                   </button>
                 </div>
