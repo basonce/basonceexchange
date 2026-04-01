@@ -1,6 +1,7 @@
 import React, { useState, lazy, Suspense, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, Headphones, Shield, X, Gift, Zap, TrendingUp, Star, Users, Plus, PenLine, FileText, Video, Bell, LayoutDashboard, Pencil } from 'lucide-react';
+import { Menu, Headphones, Shield, X, Gift, Zap, TrendingUp, Star, Users, Plus, PenLine, FileText, Video, Bell, LayoutDashboard, Pencil, Search } from 'lucide-react';
+import HotSearchOverlay from '../components/HotSearchOverlay';
 import HomeMarketList from '../components/HomeMarketList';
 import FuturesMarketList from '../components/FuturesMarketList';
 import NewListingSection from '../components/NewListingSection';
@@ -62,6 +63,32 @@ export default function HomePage({ onNavigate }: HomePageProps) {
     return () => window.removeEventListener('scroll', checkVisibility);
   }, []);
   const [mainTab, setMainTab] = useState<'exchange' | 'wallet'>('exchange');
+  const [showSearch, setShowSearch] = useState(false);
+  const [hotSearchIdx, setHotSearchIdx] = useState(0);
+  const [hotSearchFade, setHotSearchFade] = useState(true);
+
+  const HOT_SEARCHES = [
+    '🔥 BTC hot search',
+    '🔥 ETH top gainer',
+    '🔥 KERNEL top gainer',
+    '🔥 EQ surging now',
+    '🔥 SOL trending',
+    '🔥 KITE hot pick',
+    '🔥 WIF meme wave',
+    '🔥 AI Agent volume',
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHotSearchFade(false);
+      setTimeout(() => {
+        setHotSearchIdx(prev => (prev + 1) % HOT_SEARCHES.length);
+        setHotSearchFade(true);
+      }, 250);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportUserInfo, setSupportUserInfo] = useState<{ userId: string; email: string } | null>(null);
   const [showAlphaEvents, setShowAlphaEvents] = useState(false);
@@ -243,6 +270,13 @@ export default function HomePage({ onNavigate }: HomePageProps) {
 
   return (
     <div className="min-h-screen bg-[#0B0E11] pb-20">
+      {showSearch && createPortal(
+        <HotSearchOverlay
+          onClose={() => setShowSearch(false)}
+          initialQuery={HOT_SEARCHES[hotSearchIdx]}
+        />,
+        document.body
+      )}
       <div className="bg-[#181A20] px-4 pt-8 pb-4 sticky top-0 z-10">
         <div className="flex items-center justify-between mb-4">
           <button
@@ -265,7 +299,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
           </div>
         </div>
 
-        <div className="flex rounded-xl overflow-hidden mb-4" style={{ background: '#0B0E11' }}>
+        <div className="flex rounded-xl overflow-hidden mb-3" style={{ background: '#0B0E11' }}>
           <button
             onClick={() => setMainTab('exchange')}
             className={`flex-1 py-2.5 text-sm font-bold transition-all ${mainTab === 'exchange' ? 'bg-[#F0B90B] text-black rounded-xl' : 'text-gray-500'}`}
@@ -279,6 +313,28 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             Wallet
           </button>
         </div>
+
+        {/* Animated Hot Search Bar */}
+        <button
+          onClick={() => setShowSearch(true)}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+            background: '#2B3139', borderRadius: 10, padding: '9px 12px',
+            border: 'none', cursor: 'pointer', marginBottom: 4,
+          }}
+        >
+          <span
+            style={{
+              flex: 1, textAlign: 'left', fontSize: 14,
+              color: '#9B9EA4',
+              opacity: hotSearchFade ? 1 : 0,
+              transition: 'opacity 0.25s ease',
+            }}
+          >
+            {HOT_SEARCHES[hotSearchIdx]}
+          </span>
+          <Search size={16} color="#848E9C" />
+        </button>
 
       </div>
 
