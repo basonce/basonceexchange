@@ -334,10 +334,13 @@ export default function HomePage({ onNavigate }: HomePageProps) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
             <button
               onClick={() => setShowSupportModal(true)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 6px', display: 'flex', alignItems: 'center' }}
             >
-              <Headphones size={22} color="#C6CBD4" strokeWidth={2.4} />
-              <span style={{ fontSize: 9, color: '#C6CBD4', fontWeight: 600, letterSpacing: 0.2, lineHeight: 1 }}>Support</span>
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#C6CBD4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12a8 8 0 0 1 16 0" />
+                <path d="M4 12v5a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H4z" />
+                <path d="M20 12v5a2 2 0 0 1-2 2h0a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h2z" />
+              </svg>
             </button>
             <button
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 6px', display: 'flex', alignItems: 'center' }}
