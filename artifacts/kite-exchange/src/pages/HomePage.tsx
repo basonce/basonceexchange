@@ -294,7 +294,13 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             <button
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 6px', display: 'flex', alignItems: 'center' }}
             >
-              <MessageSquare size={19} color="#C6CBD4" strokeWidth={1.8} />
+              {/* Binance mesaj ikonu: balon + içinde 3 çizgi */}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C6CBD4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7l-4 3V6a2 2 0 0 1 2-2z" />
+                <line x1="8" y1="8" x2="16" y2="8" />
+                <line x1="8" y1="11" x2="16" y2="11" />
+                <line x1="8" y1="14" x2="13" y2="14" />
+              </svg>
             </button>
           </div>
 
