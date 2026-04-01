@@ -355,37 +355,50 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
     if (driftTimerRef.current) clearInterval(driftTimerRef.current);
 
     driftTimerRef.current = setInterval(() => {
-      setStableCoins(prev => {
-        const updated = prev.map((coin, idx) => {
-          if (coin.symbol === 'EQ' || coin.symbol === 'BNC' || coin.symbol === 'PAYAI' || coin.symbol === 'SGP' || coin.symbol === 'POWERAI' || coin.symbol === 'SZNP' || coin.symbol === 'PUNCH') return coin;
-          const speed = 0.03 + seededRandom(idx * 7 + Date.now() % 100) * 0.05;
-          let newChange = coin.stableChange + coin.driftDir * speed;
-          let newDir = coin.driftDir;
+      const prev = stableCoinsRef.current;
+      if (prev.length === 0) return;
 
-          const margin = (coin.bandMax - coin.bandMin) * 0.08;
-          if (newChange >= coin.bandMax - margin) {
-            newDir = -1;
-            newChange = coin.bandMax - margin - seededRandom(idx + 1) * 0.1;
-          } else if (newChange <= coin.bandMin + margin) {
-            newDir = 1;
-            newChange = coin.bandMin + margin + seededRandom(idx + 2) * 0.1;
-          }
+      const newFlash = new Map<string, 'up' | 'down'>();
+      const updated = prev.map((coin, idx) => {
+        if (coin.symbol === 'EQ' || coin.symbol === 'BNC' || coin.symbol === 'PAYAI' || coin.symbol === 'SGP' || coin.symbol === 'POWERAI' || coin.symbol === 'SZNP' || coin.symbol === 'PUNCH') return coin;
+        const speed = 0.03 + seededRandom(idx * 7 + Date.now() % 100) * 0.05;
+        let newChange = coin.stableChange + coin.driftDir * speed;
+        let newDir = coin.driftDir;
 
-          if (seededRandom(idx + Date.now() % 1000) < 0.03) {
-            newDir = newDir * -1;
-          }
+        const margin = (coin.bandMax - coin.bandMin) * 0.08;
+        if (newChange >= coin.bandMax - margin) {
+          newDir = -1;
+          newChange = coin.bandMax - margin - seededRandom(idx + 1) * 0.1;
+        } else if (newChange <= coin.bandMin + margin) {
+          newDir = 1;
+          newChange = coin.bandMin + margin + seededRandom(idx + 2) * 0.1;
+        }
 
-          const roundedChange = Math.round(newChange * 100) / 100;
-          const basePrice = coin.price / (1 + coin.stableChange / 100);
-          const newPrice = basePrice * (1 + roundedChange / 100);
+        if (seededRandom(idx + Date.now() % 1000) < 0.03) {
+          newDir = newDir * -1;
+        }
 
-          return { ...coin, stableChange: roundedChange, price: newPrice > 0 ? newPrice : coin.price, driftDir: newDir };
-        });
-        stableCoinsRef.current = updated;
-        return updated;
+        const roundedChange = Math.round(newChange * 100) / 100;
+        const basePrice = coin.price / (1 + coin.stableChange / 100);
+        const newPrice = basePrice * (1 + roundedChange / 100);
+
+        if (newPrice > coin.price) newFlash.set(coin.symbol, 'up');
+        else if (newPrice < coin.price) newFlash.set(coin.symbol, 'down');
+
+        return { ...coin, stableChange: roundedChange, price: newPrice > 0 ? newPrice : coin.price, driftDir: newDir };
       });
+
+      stableCoinsRef.current = updated;
+      setStableCoins(updated);
+
+      if (newFlash.size > 0) {
+        setFlash(newFlash);
+        if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+        flashTimerRef.current = setTimeout(() => setFlash(new Map()), 1200);
+      }
+
       setTick(t => t + 1);
-    }, 5000);
+    }, 2000);
 
     return () => { if (driftTimerRef.current) clearInterval(driftTimerRef.current); };
   }, [activeFilter]);
