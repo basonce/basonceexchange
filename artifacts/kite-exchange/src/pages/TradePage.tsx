@@ -1017,16 +1017,19 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
   const _c = change24h;
   const _absC = Math.abs(_c);
   const _shortSign = _c >= 0 ? 1 : -1;
-  const _longSign = pseudoRand(20) > 0.42 ? 1 : -1;
-  const _cap = (v: number, max: number) => Math.max(-max, Math.min(max, v));
+  const _longSign  = pseudoRand(20) > 0.42 ? 1 : -1;
+  // cap: negative side max -99% (can't lose more than 100%), positive uncapped
+  const _capV = (v: number) => Math.max(-99, v);
 
   const periodData = change24h !== 0 ? [
-    { label: 'Today',    value: _cap(_c * (0.38 + pseudoRand(1) * 0.32), 99) },
-    { label: '7 Days',   value: _cap(_shortSign * _absC * (0.90 + pseudoRand(2) * 0.55), 150) },
-    { label: '30 Days',  value: _cap(_longSign  * _absC * (0.40 + pseudoRand(3) * 1.60), 200) },
-    { label: '90 Days',  value: _cap(_longSign  * _absC * (0.80 + pseudoRand(4) * 1.80), 280) },
-    { label: '180 Days', value: _cap(_longSign  * _absC * (1.10 + pseudoRand(5) * 2.00), 350) },
-    { label: '1 Year',   value: _cap(_longSign  * _absC * (1.60 + pseudoRand(6) * 2.50), 500) },
+    // Today & 7D follow current price direction, scaled from change24h
+    { label: 'Today',    value: _capV(_c * (0.35 + pseudoRand(1) * 0.35)) },
+    { label: '7 Days',   value: _capV(_shortSign * _absC * (0.85 + pseudoRand(2) * 0.65)) },
+    // 30D–1Y use fixed realistic % ranges (independent of extreme daily change)
+    { label: '30 Days',  value: _capV(_longSign * (5  + pseudoRand(3) * 35)) },
+    { label: '90 Days',  value: _capV(_longSign * (10 + pseudoRand(4) * 55)) },
+    { label: '180 Days', value: _capV(_longSign * (15 + pseudoRand(5) * 85)) },
+    { label: '1 Year',   value: _capV(_longSign * (25 + pseudoRand(6) * 175)) },
   ].map(d => ({ ...d, isPositive: d.value >= 0 })) : [
     { label: 'Today',    value: (pseudoRand(1) - 0.50) * 3,  isPositive: true },
     { label: '7 Days',   value: (pseudoRand(2) - 0.45) * 8,  isPositive: true },

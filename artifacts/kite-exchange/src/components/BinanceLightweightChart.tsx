@@ -120,51 +120,48 @@ function generateSimulatedKlines(basePrice: number, count: number, intervalMs: n
   const data: KlineData[] = [];
   const now = Math.floor(Date.now() / 1000);
 
-  // Start much lower to simulate an upward journey to current price
-  const startMult = count >= 100 ? 0.02 : count >= 50 ? 0.08 : count >= 20 ? 0.30 : 0.65;
+  // Start at 55–80% of current price — gives a nice uptrend without wild extremes
+  const startMult = count >= 100 ? 0.55 : count >= 50 ? 0.65 : count >= 20 ? 0.78 : 0.88;
   const startPrice = basePrice * startMult;
-  // Per-candle growth needed to reach basePrice from startPrice
   const perCandleGrowth = Math.pow(basePrice / startPrice, 1 / count);
 
   let price = startPrice;
 
   for (let i = count; i > 0; i--) {
     const time = now - i * (intervalMs / 1000);
+    const idx  = count - i; // 0 → count-1
+
+    // Target price at this point on the smooth growth curve
+    const targetPrice = startPrice * Math.pow(perCandleGrowth, idx + 1);
+
+    // Mean-reverting noise: small random move + pull toward target
+    const pullStrength = 0.22;
+    const revert = (targetPrice / price - 1) * pullStrength;
+    const noise  = (Math.random() - 0.48) * 0.06; // ±3% random
+
+    let close = price * (1 + noise + revert);
+    // Hard per-candle clamp: max ±8% from open
+    close = Math.max(price * 0.92, Math.min(price * 1.08, close));
+    close = Math.max(0.000001, close);
+
     const open = price;
+    const body  = Math.abs(close - open);
+    const wMult = 0.25 + Math.random() * 0.50;
+    const high  = Math.max(open, close) + body * wMult + price * 0.003;
+    const low   = Math.max(0.000001, Math.min(open, close) - body * wMult - price * 0.003);
+    const volume = (100_000 + Math.random() * 500_000) * price;
 
-    // Trend + noise: upward biased random walk
-    const noise = (Math.random() - 0.42) * 0.14;
-    let close = open * perCandleGrowth * Math.exp(noise);
-    close = Math.max(close, open * 0.80); // max 20% drop per candle
-    close = Math.min(close, open * 1.35); // max 35% rise per candle
-
-    // Wick sizes — visually meaningful
-    const body = Math.abs(close - open);
-    const wickMult = 0.3 + Math.random() * 0.5;
-    const high = Math.max(open, close) + body * wickMult + price * 0.005;
-    const low  = Math.min(open, close) - body * wickMult - price * 0.005;
-
-    const volume = (200_000 + Math.random() * 800_000) * price;
-
-    data.push({
-      time,
-      open,
-      high,
-      low: Math.max(low, high * 0.0001),
-      close: Math.max(close, low * 1.0001),
-      volume,
-    });
-
-    price = data[data.length - 1].close;
+    data.push({ time, open, high, low, close, volume });
+    price = close;
   }
 
-  // Smoothly scale last few candles so chart ends exactly at basePrice
+  // Minimal end correction — only last 4 candles, smooth blend
   if (data.length > 0) {
     const ratio = basePrice / data[data.length - 1].close;
-    const blend = Math.min(Math.ceil(count * 0.10), 10);
-    for (let k = 0; k < data.length; k++) {
-      const adjIdx = k - (data.length - blend);
-      const r = adjIdx < 0 ? 1 : 1 + (ratio - 1) * ((adjIdx + 1) / blend);
+    const adj   = Math.min(4, data.length);
+    for (let k = data.length - adj; k < data.length; k++) {
+      const t = (k - (data.length - adj) + 1) / adj;
+      const r = 1 + (ratio - 1) * t;
       data[k].open  *= r;
       data[k].high  *= r;
       data[k].low   *= r;

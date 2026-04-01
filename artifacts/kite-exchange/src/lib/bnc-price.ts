@@ -1,6 +1,6 @@
 import { loadSnapshot, saveSnapshot } from './price-persist';
 
-const STORAGE_KEY = 'BNC_v3';
+const STORAGE_KEY = 'BNC_v4';
 
 class BNCPriceManager {
   private static instance: BNCPriceManager;
@@ -14,8 +14,6 @@ class BNCPriceManager {
 
   private readonly MIN_PRICE = 0.85;
   private readonly MAX_PRICE = 12.00;
-  private readonly MIN_CHANGE = 95;
-  private readonly MAX_CHANGE = 2400;
   private direction: number = 1;
 
   private constructor() {
@@ -53,7 +51,7 @@ class BNCPriceManager {
           }
           this.marketCap = parseFloat(data.market_cap);
           const sbChange = parseFloat(data.change_percentage);
-          if (sbChange > 0) this.change = Math.min(sbChange, this.MAX_CHANGE);
+          if (sbChange > 0) this.change = Math.round(((this.price - this.MIN_PRICE) / this.MIN_PRICE) * 10000) / 100;
         }
       } catch { }
     }
@@ -79,11 +77,10 @@ class BNCPriceManager {
 
     this.price = Math.round(newPrice * 100000) / 100000;
     this.high24h = Math.max(this.high24h, this.price);
-    this.low24h = Math.min(this.low24h, this.price);
+    this.low24h = this.MIN_PRICE;
 
-    const driftAmt = (Math.random() - 0.44) * 1.5;
-    this.change = Math.max(this.MIN_CHANGE, Math.min(this.MAX_CHANGE, this.change + driftAmt));
-    this.change = Math.round(this.change * 100) / 100;
+    // change24h derived from MIN_PRICE as the 24h open floor — always consistent with Low
+    this.change = Math.round(((this.price - this.MIN_PRICE) / this.MIN_PRICE) * 10000) / 100;
 
     saveSnapshot(STORAGE_KEY, { price: this.price, change: this.change, high24h: this.high24h, low24h: this.low24h, savedAt: Date.now() });
     this.notifySubscribers();
