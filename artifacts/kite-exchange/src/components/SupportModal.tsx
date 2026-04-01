@@ -965,8 +965,6 @@ function ChatScreen({ agent, messages, newMessage, setNewMessage, isAgentTyping,
   onClose: () => void;
 }) {
   const showQuickReplies = messages.filter(m => m.sender_type === 'customer').length === 0;
-  const agentFlag = agent.flag_emoji || getFlagEmoji(agent.country_code);
-  const agentCountry = agent.country_name || '';
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -994,14 +992,10 @@ function ChatScreen({ agent, messages, newMessage, setNewMessage, isAgentTyping,
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-white font-bold text-sm leading-none">{agent.name}</span>
-                {agentFlag && <span className="text-base leading-none">{agentFlag}</span>}
               </div>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
                 <span className="text-green-400 text-xs font-medium">Online</span>
-                {agentCountry && (
-                  <span className="text-gray-500 text-xs">· {agentCountry}</span>
-                )}
               </div>
             </div>
           </div>
