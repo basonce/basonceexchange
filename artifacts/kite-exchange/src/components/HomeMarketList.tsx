@@ -505,16 +505,9 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
               </div>
 
               <div className="text-right mr-4 flex-shrink-0 max-w-[140px]">
-                {(() => {
-                  const priceStr = '$' + formatPrice(coin.price);
-                  const len = priceStr.length;
-                  const fontSize = len <= 8 ? '15px' : '13px';
-                  return (
-                    <div className={`font-black tabular-nums leading-tight transition-colors duration-300 ${priceColor}`} style={{ fontSize }}>
-                      {priceStr}
-                    </div>
-                  );
-                })()}
+                <div className={`font-black text-[16px] tabular-nums leading-tight transition-colors duration-300 ${priceColor}`}>
+                  ${formatPrice(coin.price)}
+                </div>
               </div>
 
               <div className={`w-[90px] py-2 rounded-xl text-center font-black text-[13.5px] flex-shrink-0 transition-all duration-700 ${
