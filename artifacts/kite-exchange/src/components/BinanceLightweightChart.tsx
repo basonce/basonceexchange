@@ -457,15 +457,24 @@ function BinanceLightweightChart({ symbol, binanceSymbol, timeframe, currentPric
     if (klineDataRef.current.length === 0) return;
     const lastKline = klineDataRef.current[klineDataRef.current.length - 1];
     if (lastKline && lastKline.close > 0 && (currentPrice / lastKline.close > 50 || currentPrice / lastKline.close < 0.02)) return;
+
     const now = Math.floor(Date.now() / 1000);
+    const intSec = (INTERVAL_MS[interval] || 86400000) / 1000;
+    const timeSinceLast = now - lastKline.time;
+
+    // If the last kline is within the current period → update it in-place (Binance real data)
+    // If the last kline is from a previous period → add the next candle (simulated data)
+    const isCurrentPeriod = timeSinceLast < intSec;
+    const liveTime = isCurrentPeriod ? lastKline.time : lastKline.time + intSec;
+
     candleSeriesRef.current.update({
-      time: now as any,
-      open: currentPrice,
-      high: currentPrice * 1.0002,
-      low: currentPrice * 0.9998,
+      time: liveTime as any,
+      open:  isCurrentPeriod ? lastKline.open  : lastKline.close,
+      high:  isCurrentPeriod ? Math.max(lastKline.high, currentPrice) : Math.max(lastKline.close, currentPrice),
+      low:   isCurrentPeriod ? Math.min(lastKline.low,  currentPrice) : Math.min(lastKline.close, currentPrice),
       close: currentPrice,
     });
-  }, [currentPrice, symbol, isFrozen]);
+  }, [currentPrice, symbol, isFrozen, interval]);
 
   const indicators: { key: IndicatorType; label: string }[] = [
     { key: 'MA', label: 'MA' },
