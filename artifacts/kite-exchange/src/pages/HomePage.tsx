@@ -68,13 +68,16 @@ export default function HomePage({ onNavigate }: HomePageProps) {
   const [hotSearchFade, setHotSearchFade] = useState(true);
 
   const HOT_SEARCHES = [
+    '🔥🔥🔥 BNC platform coin',
     '🔥 BTC hot search',
     '🔥 ETH top gainer',
     '🔥 KERNEL top gainer',
     '🔥 EQ surging now',
     '🔥 SOL trending',
+    '🔥🔥🔥 BNC top volume',
     '🔥 KITE hot pick',
     '🔥 WIF meme wave',
+    '🔥🔥🔥 BNC all-time high',
     '🔥 AI Agent volume',
   ];
 
