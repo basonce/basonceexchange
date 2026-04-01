@@ -336,7 +336,18 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               onClick={() => setShowSupportModal(true)}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 6px', display: 'flex', alignItems: 'center' }}
             >
-              <Headphones size={19} color="#C6CBD4" strokeWidth={1.8} />
+              {/* Headset: yay + iki kulak kasası + aşağı kıvrılan mikrofon kolu */}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C6CBD4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                {/* Headband arc */}
+                <path d="M5 11a7 7 0 0 1 14 0" />
+                {/* Left ear cup */}
+                <rect x="3" y="11" width="4" height="6" rx="2" />
+                {/* Right ear cup */}
+                <rect x="17" y="11" width="4" height="6" rx="2" />
+                {/* Mic arm: right ear cup bottom → curves down-left → small circle */}
+                <path d="M21 17v1a3 3 0 0 1-3 3h-3" />
+                <circle cx="14" cy="21" r="1" fill="#C6CBD4" stroke="none" />
+              </svg>
             </button>
             <button
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 6px', display: 'flex', alignItems: 'center' }}
