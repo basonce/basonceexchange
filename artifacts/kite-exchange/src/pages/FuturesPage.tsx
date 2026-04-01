@@ -335,16 +335,15 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
           const sortedAsksAsc = [...depth.asks].sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]));
           const nearestAsks = sortedAsksAsc.slice(0, 9);
           const newAsks: OrderBookEntry[] = nearestAsks.reverse().map(([p, a], idx) => {
-            const spike = Math.random() < 0.1 ? (1.8 + Math.random() * 2.5) : 1;
             const wave = 0.4 + 0.6 * Math.abs(Math.sin((idx / 9) * Math.PI * (1.2 + Math.random() * 0.8)));
-            return { price: parseFloat(p), amount: parseFloat(a) * (0.25 + Math.pow(Math.random(), 0.55) * 1.2) * wave * spike };
+            return { price: parseFloat(p), amount: parseFloat(a) * (0.03 + Math.random() * 0.07) * wave };
           });
           // Binance bids: DESC sıralı (en yüksek önce). İlk 9 zaten doğru sıra → yüksek üstte, düşük altta
           const sortedBidsDesc = [...depth.bids].sort((a, b) => parseFloat(b[0]) - parseFloat(a[0]));
           const newBids: OrderBookEntry[] = sortedBidsDesc.slice(0, 9).map(([p, a], idx) => {
-            const spike = Math.random() < 0.12 ? (2 + Math.random() * 3) : 1;
-            const wave = 0.4 + 0.6 * Math.abs(Math.sin((idx / 9) * Math.PI * (1.2 + Math.random() * 0.8)));
-            return { price: parseFloat(p), amount: parseFloat(a) * (0.3 + Math.pow(Math.random(), 0.55) * 1.5) * wave * spike };
+            const spike = Math.random() < 0.18 ? (4 + Math.random() * 8) : 1;
+            const wave = 0.6 + 0.4 * Math.abs(Math.sin((idx / 9) * Math.PI * (1.2 + Math.random() * 0.8)));
+            return { price: parseFloat(p), amount: parseFloat(a) * (8 + Math.pow(Math.random(), 0.4) * 16) * wave * spike };
           });
           setAsks(newAsks);
           setBids(newBids);
@@ -364,8 +363,9 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
     const decimals = getPriceDecimals(price);
     const rawTick = Math.pow(10, -decimals);
     const tickSize = rawTick;
-    const askBase = isTradFi ? (price > 1000 ? 600 : price > 100 ? 1500 : price > 10 ? 3000 : 8000) : (price > 1000 ? 800 : price > 10 ? 2000 : 8000);
-    const bidBase = isTradFi ? (price > 1000 ? 4000 : price > 100 ? 12000 : price > 10 ? 25000 : 60000) : (price > 1000 ? 5000 : price > 10 ? 15000 : 60000);
+    const pp = Math.max(price, 0.0001);
+    const askBase = (800 + Math.random() * 4_200) / pp;
+    const bidBase = (2_000_000 + Math.random() * 8_000_000) / pp;
 
     const organicQty = (base: number, idx: number): number => {
       const spike = Math.random() < 0.12 ? (2.2 + Math.random() * 3.5) : 1;

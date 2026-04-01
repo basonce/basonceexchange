@@ -42,18 +42,19 @@ export default function FuturesOrderBook({ symbol, currentPrice }: FuturesOrderB
   };
 
   useEffect(() => {
-    const generateSyntheticBook = (increment: number, dec: number, bidMult = 1) => {
+    const generateSyntheticBook = (increment: number, dec: number) => {
       setPriceDecimals(dec);
       const newAsks: OrderBookEntry[] = [];
       const newBids: OrderBookEntry[] = [];
+      const p = Math.max(currentPrice, 0.0001);
       for (let i = 9; i >= 1; i--) {
         const askPrice = currentPrice + i * (currentPrice * increment);
-        const askAmount = Math.random() * 1.8 + 0.2;
+        const askAmount = (500 + Math.random() * 4_500) / p;
         newAsks.push({ price: askPrice, amount: askAmount, total: askAmount * askPrice });
       }
       for (let i = 1; i <= 9; i++) {
         const bidPrice = currentPrice - i * (currentPrice * increment);
-        const bidAmount = (Math.random() * 40 + 18) * bidMult;
+        const bidAmount = (2_000_000 + Math.random() * 8_000_000) / p;
         newBids.push({ price: bidPrice, amount: bidAmount, total: bidAmount * bidPrice });
       }
       setAsks(newAsks);
@@ -71,13 +72,12 @@ export default function FuturesOrderBook({ symbol, currentPrice }: FuturesOrderB
           currentPrice >= 100   ? 2 :
           currentPrice >= 10    ? 3 :
           currentPrice >= 1     ? 4 : 5;
-        generateSyntheticBook(0.0005, dec, 3.2);
+        generateSyntheticBook(0.0005, dec);
         return;
       }
 
       if (symbol === 'EQUSDT' || symbol === 'BNCUSDT') {
         const increment = 0.001;
-        const isBNC = symbol === 'BNCUSDT';
         const dec =
           currentPrice < 0.0001 ? 8 :
           currentPrice < 0.001 ? 8 :
@@ -86,25 +86,7 @@ export default function FuturesOrderBook({ symbol, currentPrice }: FuturesOrderB
           currentPrice < 1 ? 5 :
           currentPrice < 10 ? 4 :
           currentPrice < 100 ? 3 : 2;
-        setPriceDecimals(dec);
-
-        const newAsks: OrderBookEntry[] = [];
-        const newBids: OrderBookEntry[] = [];
-
-        for (let i = 9; i >= 1; i--) {
-          const askPrice = currentPrice + i * (currentPrice * increment);
-          const askAmount = isBNC ? Math.random() * 2 + 0.3 : Math.random() * 4 + 0.5;
-          newAsks.push({ price: askPrice, amount: askAmount, total: askAmount * askPrice });
-        }
-
-        for (let i = 1; i <= 9; i++) {
-          const bidPrice = currentPrice - i * (currentPrice * increment);
-          const bidAmount = isBNC ? Math.random() * 1200 + 600 : Math.random() * 700 + 250;
-          newBids.push({ price: bidPrice, amount: bidAmount, total: bidAmount * bidPrice });
-        }
-
-        setAsks(newAsks);
-        setBids(newBids);
+        generateSyntheticBook(increment, dec);
       } else {
         try {
           const depth = await fetchBinanceDepth(symbol, 100);
@@ -127,11 +109,11 @@ export default function FuturesOrderBook({ symbol, currentPrice }: FuturesOrderB
                 return { price: p, amount: a, total: p * a };
               }).filter(o => !isNaN(o.price) && !isNaN(o.amount) && o.price > 0);
 
-            let rawAsksProcessed = mapEntries(rawAsks, 0.18).filter(o => o.total >= minTotalValue);
-            let rawBidsProcessed = mapEntries(rawBids, 4.5).filter(o => o.total >= minTotalValue);
+            let rawAsksProcessed = mapEntries(rawAsks, 0.05).filter(o => o.total >= minTotalValue);
+            let rawBidsProcessed = mapEntries(rawBids, 22).filter(o => o.total >= minTotalValue);
 
-            if (rawAsksProcessed.length < 9) rawAsksProcessed = mapEntries(rawAsks.slice(0, 20), 0.18);
-            if (rawBidsProcessed.length < 9) rawBidsProcessed = mapEntries(rawBids.slice(0, 20), 4.5);
+            if (rawAsksProcessed.length < 9) rawAsksProcessed = mapEntries(rawAsks.slice(0, 20), 0.05);
+            if (rawBidsProcessed.length < 9) rawBidsProcessed = mapEntries(rawBids.slice(0, 20), 22);
 
             const sortedAsks = rawAsksProcessed.sort((a, b) => a.price - b.price).slice(0, 9).reverse();
             const sortedBids = rawBidsProcessed.sort((a, b) => b.price - a.price).slice(0, 9);

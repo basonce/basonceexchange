@@ -25,11 +25,13 @@ export default function RecentTrades({ symbol }: RecentTradesProps) {
         const priceChange = (Math.random() - 0.5) * 2;
         basePrice += priceChange;
 
-        const side: 'buy' | 'sell' = Math.random() > 0.30 ? 'buy' : 'sell';
+        const side: 'buy' | 'sell' = Math.random() > 0.12 ? 'buy' : 'sell';
+        const buyAmt = (80_000 + Math.random() * 920_000) / Math.max(basePrice, 0.0001);
+        const sellAmt = (200 + Math.random() * 1_800) / Math.max(basePrice, 0.0001);
         newTrades.push({
           id: `trade-${Date.now()}-${i}`,
           price: basePrice,
-          amount: side === 'buy' ? Math.random() * 18 + 4 : Math.random() * 3 + 0.05,
+          amount: side === 'buy' ? buyAmt : sellAmt,
           time: new Date(Date.now() - i * 1000),
           side,
         });

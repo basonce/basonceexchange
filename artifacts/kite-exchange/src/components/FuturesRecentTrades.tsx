@@ -25,10 +25,13 @@ export default function FuturesRecentTrades({ symbol, currentPrice }: Props) {
   const generateInitialTrades = () => {
     const initialTrades: Trade[] = [];
     for (let i = 0; i < 30; i++) {
-      const side: 'buy' | 'sell' = Math.random() > 0.30 ? 'buy' : 'sell';
+      const side: 'buy' | 'sell' = Math.random() > 0.12 ? 'buy' : 'sell';
+      const p = Math.max(currentPrice, 0.0001);
+      const buyAmt = (80_000 + Math.random() * 920_000) / p;
+      const sellAmt = (200 + Math.random() * 1_800) / p;
       initialTrades.push({
         price: currentPrice * (0.9995 + Math.random() * 0.001),
-        amount: side === 'buy' ? Math.random() * 18 + 4 : Math.random() * 4 + 0.05,
+        amount: side === 'buy' ? buyAmt : sellAmt,
         time: new Date(Date.now() - i * 1000).toLocaleTimeString(),
         side,
       });
@@ -39,10 +42,13 @@ export default function FuturesRecentTrades({ symbol, currentPrice }: Props) {
   const generateNewTrade = () => {
     if (currentPrice > 0) {
       const priceVariation = (Math.random() - 0.5) * 0.0005;
-      const side: 'buy' | 'sell' = Math.random() > 0.30 ? 'buy' : 'sell';
+      const side: 'buy' | 'sell' = Math.random() > 0.12 ? 'buy' : 'sell';
+      const p = Math.max(currentPrice, 0.0001);
+      const buyAmt = (80_000 + Math.random() * 920_000) / p;
+      const sellAmt = (200 + Math.random() * 1_800) / p;
       const newTrade: Trade = {
         price: currentPrice * (1 + priceVariation),
-        amount: side === 'buy' ? Math.random() * 18 + 4 : Math.random() * 4 + 0.05,
+        amount: side === 'buy' ? buyAmt : sellAmt,
         time: new Date().toLocaleTimeString(),
         side,
       };

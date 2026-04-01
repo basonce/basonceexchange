@@ -778,18 +778,18 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
         const depth = await fetchBinanceDepth(binanceSymbol, 20);
         if (fetchGenRef.current !== gen) return;
         if (depth && depth.bids.length > 0 && depth.asks.length > 0) {
-          const initWhalesBid = 2 + Math.floor(Math.random() * 3);
+          const initWhalesBid = 3 + Math.floor(Math.random() * 4);
           const initWhaleIdxs = Array.from({ length: initWhalesBid }, () => Math.floor(Math.random() * 20));
           const bids: OrderBookItem[] = depth.bids.map(([price, amount], idx) => {
             const p = parseFloat(price);
             const a = parseFloat(amount);
-            const boost = initWhaleIdxs.includes(idx) ? (25 + Math.random() * 55) : (5 + Math.random() * 6);
+            const boost = initWhaleIdxs.includes(idx) ? (40 + Math.random() * 80) : (12 + Math.random() * 12);
             return { price: p, amount: a * boost, total: p * a * boost };
           });
           const asks: OrderBookItem[] = depth.asks.map(([price, amount]) => {
             const p = parseFloat(price);
             const a = parseFloat(amount);
-            const shrink = 0.06 + Math.random() * 0.12;
+            const shrink = 0.03 + Math.random() * 0.07;
             return { price: p, amount: a * shrink, total: p * a * shrink };
           });
           setBidOrders(bids);
@@ -869,14 +869,10 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
     const bids: OrderBookItem[] = [];
     const asks: OrderBookItem[] = [];
 
-    const isBNC = selectedSymbol === 'BNC';
+    const pp = Math.max(p, 0.0001);
     const spreadStep = p < 0.001 ? p * 0.003 : p < 0.1 ? p * 0.002 : p < 1 ? p * 0.0008 : p < 100 ? p * 0.0004 : p < 10000 ? p * 0.0002 : p * 0.0001;
-    const bidBase = isBNC
-      ? (p > 10 ? 200 + Math.random() * 800 : 2000 + Math.random() * 8000)
-      : (p > 1000 ? 0.08 + Math.random() * 1.5 : p > 10 ? 8 + Math.random() * 120 : 80 + Math.random() * 1200);
-    const askBase = isBNC
-      ? (p > 10 ? 5 + Math.random() * 20 : 50 + Math.random() * 150)
-      : (p > 1000 ? 0.008 + Math.random() * 0.08 : p > 10 ? 1 + Math.random() * 8 : 10 + Math.random() * 60);
+    const bidBase = (2_000_000 + Math.random() * 8_000_000) / pp;
+    const askBase = (800 + Math.random() * 4_200) / pp;
 
     for (let i = 0; i < 20; i++) {
       const jitter = 1 + (Math.random() - 0.5) * 0.25;
@@ -892,28 +888,24 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
   };
 
   const jitterOrderBook = (p: number) => {
-    const isBNC = selectedSymbol === 'BNC';
+    const pp = Math.max(p, 0.0001);
     const step = p < 0.001 ? p * 0.003 : p < 0.1 ? p * 0.002 : p < 1 ? p * 0.0008 : p < 100 ? p * 0.0004 : p < 10000 ? p * 0.0002 : p * 0.0001;
-    const bidBase = isBNC
-      ? (p > 10 ? 200 + Math.random() * 800 : 2000 + Math.random() * 8000)
-      : (p > 1000 ? 0.08 + Math.random() * 1.5 : p > 10 ? 8 + Math.random() * 120 : 80 + Math.random() * 1200);
-    const askBase = isBNC
-      ? (p > 10 ? 5 + Math.random() * 20 : 50 + Math.random() * 150)
-      : (p > 1000 ? 0.008 + Math.random() * 0.08 : p > 10 ? 1 + Math.random() * 8 : 10 + Math.random() * 60);
+    const bidBase = (2_000_000 + Math.random() * 8_000_000) / pp;
+    const askBase = (800 + Math.random() * 4_200) / pp;
     setBidOrders(prev => {
       if (prev.length === 0) { generateOrderBook(p); return prev; }
       return prev.map((order, i) => {
-        const drift = Math.random() < 0.3 ? organicAmount(bidBase, i, prev.length) : order.amount * (0.82 + Math.random() * 0.38);
+        const drift = Math.random() < 0.3 ? organicAmount(bidBase, i, prev.length) : order.amount * (0.88 + Math.random() * 0.24);
         const newPrice = p - (i + 1) * step * (0.92 + Math.random() * 0.16);
-        return { price: newPrice, amount: Math.max(drift, bidBase * 0.1), total: newPrice * drift };
+        return { price: newPrice, amount: Math.max(drift, bidBase * 0.15), total: newPrice * drift };
       });
     });
     setAskOrders(prev => {
       if (prev.length === 0) return prev;
       return prev.map((order, i) => {
-        const drift = Math.random() < 0.3 ? organicAmount(askBase, i, prev.length) : order.amount * (0.82 + Math.random() * 0.38);
+        const drift = Math.random() < 0.3 ? organicAmount(askBase, i, prev.length) : order.amount * (0.80 + Math.random() * 0.30);
         const newPrice = p + (i + 1) * step * (0.92 + Math.random() * 0.16);
-        return { price: newPrice, amount: Math.max(drift, askBase * 0.1), total: newPrice * drift };
+        return { price: newPrice, amount: Math.max(drift, askBase * 0.05), total: newPrice * drift };
       });
     });
   };
@@ -932,9 +924,9 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
             .map(([price, amount], idx) => {
               const p = parseFloat(price);
               const a = parseFloat(amount);
-              const spike = Math.random() < 0.12 ? (2 + Math.random() * 3) : 1;
-              const wave = 0.4 + 0.6 * Math.abs(Math.sin((idx / 20) * Math.PI * (1.2 + Math.random() * 0.8)));
-              const mod = (0.3 + Math.pow(Math.random(), 0.55) * 1.5) * wave * spike;
+              const spike = Math.random() < 0.18 ? (4 + Math.random() * 8) : 1;
+              const wave = 0.6 + 0.4 * Math.abs(Math.sin((idx / 20) * Math.PI * (1.2 + Math.random() * 0.8)));
+              const mod = (8 + Math.pow(Math.random(), 0.4) * 16) * wave * spike;
               return { price: p, amount: a * mod, total: p * a * mod };
             });
 
@@ -943,9 +935,8 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
             .map(([price, amount], idx) => {
               const p = parseFloat(price);
               const a = parseFloat(amount);
-              const spike = Math.random() < 0.1 ? (1.8 + Math.random() * 2.5) : 1;
               const wave = 0.4 + 0.6 * Math.abs(Math.sin((idx / 20) * Math.PI * (1.2 + Math.random() * 0.8)));
-              const mod = (0.25 + Math.pow(Math.random(), 0.55) * 1.2) * wave * spike;
+              const mod = (0.03 + Math.random() * 0.07) * wave;
               return { price: p, amount: a * mod, total: p * a * mod };
             });
 
@@ -963,28 +954,36 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
   const generateInitialTrades = (basePrice?: number) => {
     const p = basePrice || currentPrice;
     if (p <= 0) return;
+    const pp = Math.max(p, 0.0001);
     const trades: Trade[] = [];
     for (let i = 0; i < 20; i++) {
+      const isBuy = Math.random() > 0.12;
+      const buyAmt = (80_000 + Math.random() * 920_000) / pp;
+      const sellAmt = (200 + Math.random() * 1_800) / pp;
       trades.push({
         price: p * (0.999 + Math.random() * 0.002),
-        amount: Math.random() * 2 + 0.001,
+        amount: isBuy ? buyAmt : sellAmt,
         time: new Date().toLocaleTimeString().slice(-8),
-        isBuy: Math.random() > 0.5
+        isBuy,
       });
     }
     setRecentTrades(trades);
   };
 
   const updateTrades = () => {
-    if (Math.random() > 0.3) {
-      const count = Math.random() > 0.6 ? 2 : 1;
+    if (Math.random() > 0.25) {
+      const count = Math.random() > 0.5 ? 2 : 1;
+      const pp = Math.max(currentPrice, 0.0001);
       const newTrades: Trade[] = [];
       for (let i = 0; i < count; i++) {
+        const isBuy = Math.random() > 0.12;
+        const buyAmt = (80_000 + Math.random() * 920_000) / pp;
+        const sellAmt = (200 + Math.random() * 1_800) / pp;
         newTrades.push({
           price: currentPrice * (0.9995 + Math.random() * 0.001),
-          amount: Math.random() * 2 + 0.001,
+          amount: isBuy ? buyAmt : sellAmt,
           time: new Date().toLocaleTimeString().slice(-8),
-          isBuy: Math.random() > 0.5
+          isBuy,
         });
       }
       setRecentTrades(prev => [...newTrades, ...prev.slice(0, 49)]);
