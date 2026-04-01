@@ -2,6 +2,7 @@ import React, { useState, lazy, Suspense, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Menu, Headphones, X, Gift, Zap, TrendingUp, Star, Users, Plus, PenLine, FileText, Video, Bell, LayoutDashboard, Pencil, Search, MessageSquare, ScanLine } from 'lucide-react';
 import HotSearchOverlay from '../components/HotSearchOverlay';
+import MessagesPage from './MessagesPage';
 import HomeMarketList from '../components/HomeMarketList';
 import FuturesMarketList from '../components/FuturesMarketList';
 import NewListingSection from '../components/NewListingSection';
@@ -64,6 +65,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
   }, []);
   const [mainTab, setMainTab] = useState<'exchange' | 'wallet'>('exchange');
   const [showSearch, setShowSearch] = useState(false);
+  const [showMessages, setShowMessages] = useState(false);
   const [hotSearchIdx, setHotSearchIdx] = useState(0);
   const [hotSearchFade, setHotSearchFade] = useState(true);
 
@@ -278,6 +280,10 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         />,
         document.body
       )}
+      {showMessages && createPortal(
+        <MessagesPage onClose={() => setShowMessages(false)} />,
+        document.body
+      )}
       <div className="bg-[#181A20] px-4 pt-3 pb-2 sticky top-0 z-10">
         {/* Row 1 — birebir Binance: [≡][💬] [Exchange Wallet] [🎧][🔗] */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
@@ -291,6 +297,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               <Menu size={20} color="#C6CBD4" />
             </button>
             <button
+              onClick={() => setShowMessages(true)}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 6px', display: 'flex', alignItems: 'center' }}
             >
               {/* Binance mesaj ikonu: balon + içinde 3 çizgi */}
