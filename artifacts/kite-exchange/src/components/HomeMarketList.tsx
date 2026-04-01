@@ -73,6 +73,8 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
   const [stableCoins, setStableCoins] = useState<StableCoin[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [tick, setTick] = useState(0);
+  const [flash, setFlash] = useState<Map<string, 'up' | 'down'>>(new Map());
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const [dbLogosLoaded, setDbLogosLoaded] = useState(false);
   const priceManager = useRef(EarnQuestPriceManager.getInstance());
   const payaiManager = useRef(PayAIPriceManager.getInstance());
@@ -188,7 +190,24 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
     }
 
     if (coins.length > 0) {
-      setAllCoins(coins);
+      setAllCoins(prev => {
+        if (prev.length > 0) {
+          const prevMap = new Map(prev.map(c => [c.symbol, c.price]));
+          const newFlash = new Map<string, 'up' | 'down'>();
+          for (const coin of coins) {
+            const oldPrice = prevMap.get(coin.symbol);
+            if (oldPrice !== undefined && oldPrice !== coin.price) {
+              newFlash.set(coin.symbol, coin.price > oldPrice ? 'up' : 'down');
+            }
+          }
+          if (newFlash.size > 0) {
+            setFlash(newFlash);
+            if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+            flashTimerRef.current = setTimeout(() => setFlash(new Map()), 600);
+          }
+        }
+        return coins;
+      });
     }
   }, []);
 
@@ -471,9 +490,10 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
 
       {displayCoins.map((coin, coinIdx) => {
         const displayChange = isStableFilter ? (coin as StableCoin).stableChange : coin.change24h;
+        const flashDir = flash.get(coin.symbol);
         const priceColor = isStableFilter
           ? displayChange >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'
-          : 'text-white';
+          : flashDir === 'up' ? 'text-[#0ECB81]' : flashDir === 'down' ? 'text-[#F6465D]' : 'text-white';
 
         return (
           <div
