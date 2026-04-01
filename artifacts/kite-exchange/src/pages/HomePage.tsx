@@ -296,21 +296,19 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             </button>
           </div>
 
-          {/* Orta: Exchange / Wallet — Binance style (dark pill, white/gray text) */}
+          {/* Orta: Exchange / Wallet — Binance birebir: compact pill, sarı aktif */}
           <div style={{
-            flex: 1, display: 'flex', alignItems: 'center',
+            display: 'flex', alignItems: 'center',
             background: '#2B3139', borderRadius: 20, padding: '3px',
-            justifyContent: 'center',
           }}>
             <button
               onClick={() => setMainTab('exchange')}
               style={{
-                flex: 1, textAlign: 'center',
-                background: mainTab === 'exchange' ? '#474D57' : 'transparent',
-                border: 'none', borderRadius: 17, padding: '5px 12px',
-                cursor: 'pointer', fontSize: 13, fontWeight: 700,
-                color: mainTab === 'exchange' ? '#fff' : '#848E9C',
-                transition: 'all 0.15s',
+                background: mainTab === 'exchange' ? '#F0B90B' : 'transparent',
+                border: 'none', borderRadius: 17, padding: '4px 14px',
+                cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                color: mainTab === 'exchange' ? '#000' : '#848E9C',
+                transition: 'all 0.15s', whiteSpace: 'nowrap',
               }}
             >
               Exchange
@@ -318,30 +316,41 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             <button
               onClick={() => setMainTab('wallet')}
               style={{
-                flex: 1, textAlign: 'center',
-                background: mainTab === 'wallet' ? '#474D57' : 'transparent',
-                border: 'none', borderRadius: 17, padding: '5px 12px',
-                cursor: 'pointer', fontSize: 13, fontWeight: 700,
-                color: mainTab === 'wallet' ? '#fff' : '#848E9C',
-                transition: 'all 0.15s',
+                background: mainTab === 'wallet' ? '#F0B90B' : 'transparent',
+                border: 'none', borderRadius: 17, padding: '4px 14px',
+                cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                color: mainTab === 'wallet' ? '#000' : '#848E9C',
+                transition: 'all 0.15s', whiteSpace: 'nowrap',
               }}
             >
               Wallet
             </button>
           </div>
 
-          {/* Sağ: headphones + scan/connect */}
+          {/* Boşluk ortayı dengele */}
+          <div style={{ flex: 1 }} />
+
+          {/* Sağ: headphones (Binance tarzı SVG) + ikinci ikon */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
             <button
               onClick={() => setShowSupportModal(true)}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 6px', display: 'flex', alignItems: 'center' }}
             >
-              <Headphones size={19} color="#C6CBD4" strokeWidth={1.8} />
+              {/* Binance headset SVG — yukarı yay + iki kulak + mic kolu */}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C6CBD4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
+                <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+              </svg>
             </button>
             <button
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 6px', display: 'flex', alignItems: 'center' }}
             >
-              <ScanLine size={19} color="#C6CBD4" strokeWidth={1.8} />
+              {/* Binance sağ ikon — dairesel ok/scan */}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C6CBD4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12a9 9 0 1 1-9-9" />
+                <path d="M21 3v9h-9" />
+              </svg>
             </button>
           </div>
         </div>
