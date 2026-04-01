@@ -414,7 +414,7 @@ export default function FuturesMarketList() {
           }`}
         >
           TradFi
-          <Megaphone className="w-3 h-3" style={{ color: '#0ECB81', animation: 'megaflash 1.2s ease-in-out infinite' }} />
+          <Megaphone className="w-3 h-3" style={{ animation: 'megaflash 1.2s ease-in-out infinite' }} />
         </button>
       </div>
 

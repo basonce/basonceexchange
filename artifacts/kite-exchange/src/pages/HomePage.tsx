@@ -534,7 +534,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                     {id === 'tradfi' && (
                       <Megaphone
                         size={13}
-                        style={{ color: '#0ECB81', animation: 'megaflash 1.2s ease-in-out infinite', flexShrink: 0 }}
+                        style={{ animation: 'megaflash 1.2s ease-in-out infinite', flexShrink: 0 }}
                       />
                     )}
                   </button>
