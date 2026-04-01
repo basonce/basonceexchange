@@ -277,8 +277,8 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         />,
         document.body
       )}
-      <div className="bg-[#181A20] px-4 pt-8 pb-4 sticky top-0 z-10">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-[#181A20] px-4 pt-3 pb-2 sticky top-0 z-10">
+        <div className="flex items-center justify-between mb-2">
           <button
             onClick={() => setShowMenuDrawer(true)}
             className="p-2 hover:bg-[#2B3139] rounded-lg transition-colors"
@@ -299,16 +299,16 @@ export default function HomePage({ onNavigate }: HomePageProps) {
           </div>
         </div>
 
-        <div className="flex rounded-xl overflow-hidden mb-3" style={{ background: '#0B0E11' }}>
+        <div className="flex rounded-xl overflow-hidden mb-2" style={{ background: '#0B0E11' }}>
           <button
             onClick={() => setMainTab('exchange')}
-            className={`flex-1 py-2.5 text-sm font-bold transition-all ${mainTab === 'exchange' ? 'bg-[#F0B90B] text-black rounded-xl' : 'text-gray-500'}`}
+            className={`flex-1 py-2 text-sm font-bold transition-all ${mainTab === 'exchange' ? 'bg-[#F0B90B] text-black rounded-xl' : 'text-gray-500'}`}
           >
             Exchange
           </button>
           <button
             onClick={() => setMainTab('wallet')}
-            className={`flex-1 py-2.5 text-sm font-bold transition-all ${mainTab === 'wallet' ? 'bg-[#F0B90B] text-black rounded-xl' : 'text-gray-500'}`}
+            className={`flex-1 py-2 text-sm font-bold transition-all ${mainTab === 'wallet' ? 'bg-[#F0B90B] text-black rounded-xl' : 'text-gray-500'}`}
           >
             Wallet
           </button>
@@ -319,8 +319,8 @@ export default function HomePage({ onNavigate }: HomePageProps) {
           onClick={() => setShowSearch(true)}
           style={{
             width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-            background: '#2B3139', borderRadius: 10, padding: '9px 12px',
-            border: 'none', cursor: 'pointer', marginBottom: 4,
+            background: '#2B3139', borderRadius: 10, padding: '7px 12px',
+            border: 'none', cursor: 'pointer', marginBottom: 0,
           }}
         >
           <span
@@ -338,17 +338,17 @@ export default function HomePage({ onNavigate }: HomePageProps) {
 
       </div>
 
-      <div className="bg-[#181A20] px-4 pb-4">
-        <div className="flex items-center justify-around mb-2">
+      <div className="bg-[#181A20] px-4 pb-2 pt-2">
+        <div className="flex items-center justify-around">
           {quickActions.map(({ icon, label, onClick, bg }) => (
-            <button key={label} onClick={onClick} className="flex flex-col items-center gap-1.5 group">
+            <button key={label} onClick={onClick} className="flex flex-col items-center gap-1 group">
               <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200 active:scale-95"
+                className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-200 active:scale-95"
                 style={{ background: bg ?? '#2B3139' }}
               >
-                {icon}
+                {React.cloneElement(icon as React.ReactElement, { width: 22, height: 22 })}
               </div>
-              <span className="text-white text-[11px] font-medium text-center leading-tight whitespace-pre-line">{label}</span>
+              <span className="text-white text-[10px] font-medium text-center leading-tight whitespace-pre-line">{label}</span>
             </button>
           ))}
         </div>
@@ -389,25 +389,25 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             const slideParticipants: number | null = slide.participants ?? null;
             const fmtParts = (n: number) => n >= 1000000 ? `${(n/1000000).toFixed(1)}M` : n >= 1000 ? `${(n/1000).toFixed(0)}K` : `${n}`;
             return (
-              <div className="mx-4 mt-3 mb-1 bg-[#1E2329] rounded-2xl px-4 pt-3 pb-4 relative overflow-hidden">
+              <div className="mx-4 mt-2 mb-1 bg-[#1E2329] rounded-2xl px-3 pt-2 pb-2 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 opacity-5 pointer-events-none">
                   <svg viewBox="0 0 100 100" fill="none">
                     <line x1="80" y1="0" x2="0" y2="80" stroke="white" strokeWidth="12"/>
                     <line x1="100" y1="20" x2="20" y2="100" stroke="white" strokeWidth="12"/>
                   </svg>
                 </div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[#848E9C] text-[13px] font-medium">{slide.title}</span>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[#848E9C] text-[12px] font-medium">{slide.title}</span>
                   <button onClick={() => setShowPromoBanner(false)} className="text-[#848E9C] hover:text-gray-300 p-0.5">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
                   <div className="flex-shrink-0">{slide.icon}</div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-white font-bold text-[15px] leading-snug">{slide.content}</div>
+                    <div className="text-white font-bold text-[14px] leading-snug">{slide.content}</div>
                     {slideParticipants && (
-                      <div className="flex items-center gap-1 mt-1">
+                      <div className="flex items-center gap-1 mt-0.5">
                         <Users className="w-2.5 h-2.5 text-[#848E9C]" />
                         <span className="text-[#848E9C] text-[10px] font-semibold">{fmtParts(slideParticipants)} joined</span>
                       </div>
@@ -415,12 +415,12 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                   </div>
                   <button
                     onClick={slide.btnAction}
-                    className="flex-shrink-0 bg-[#F0B90B] hover:bg-[#F0B90B]/90 text-black font-bold text-[13px] px-4 py-2 rounded-lg active:scale-95 transition-all"
+                    className="flex-shrink-0 bg-[#F0B90B] hover:bg-[#F0B90B]/90 text-black font-bold text-[13px] px-3 py-1.5 rounded-lg active:scale-95 transition-all"
                   >
                     {slide.btnLabel}
                   </button>
                 </div>
-                <div className="flex items-center justify-center gap-1.5 mt-3">
+                <div className="flex items-center justify-center gap-1.5 mt-2">
                   {allSlides.map((_, i) => (
                     <button
                       key={i}
