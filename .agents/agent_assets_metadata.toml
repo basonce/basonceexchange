@@ -1,0 +1,20 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "IOK2McKqAFB1Q7k5eKji6"
+uri = "file://artifacts/kite-exchange/public/payai-logo.png"
+type = "image"
+title = "payai crypto token logo"
+
+[[generated]]
+id = "PDo_wQo7OsbORsPH7uxui"
+uri = "file://artifacts/kite-exchange/public/sgp-logo.png"
+type = "image"
+title = "sgp sagapop crypto logo"
+
+[[generated]]
+id = "k5yJ8OF7ChCzxU5L_5PLr"
+uri = "file://artifacts/kite-exchange/public/powerai-logo.png"
+type = "image"
+title = "powerai crypto token logo"

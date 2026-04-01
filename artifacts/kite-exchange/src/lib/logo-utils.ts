@@ -164,9 +164,17 @@ const TRADFI_LOGO_URLS: Record<string, string[]> = {
   SNAP:   [WVL('snapchat'),                GL('snap.com'),              CMC_LOGO('SNAP')],
 };
 
+const LOCAL_HD_LOGOS: Record<string, string> = {
+  'PAYAI':   '/payai-logo.png',
+  'SGP':     '/sgp-logo.png',
+  'POWERAI': '/powerai-logo.png',
+  'SZNP':    '/SZNP.jpg',
+};
+
 export function buildLogoChain(symbol: string, dbUrl?: string | null): string[] {
   if (symbol === 'EQ') return ['/earnquest-logo-icon-2.png'];
   if (symbol === 'BNC') return ['/ChatGPT_Image_28_Sub_2026_03_53_59 copy.png'];
+  if (LOCAL_HD_LOGOS[symbol]) return [LOCAL_HD_LOGOS[symbol]];
 
   if (TRADFI_LOGO_URLS[symbol]) {
     return TRADFI_LOGO_URLS[symbol];
