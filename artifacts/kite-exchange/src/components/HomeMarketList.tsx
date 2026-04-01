@@ -75,6 +75,7 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
   const [tick, setTick] = useState(0);
   const [flash, setFlash] = useState<Map<string, 'up' | 'down'>>(new Map());
   const flashTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const prevPricesRef = useRef<Map<string, number>>(new Map());
   const [dbLogosLoaded, setDbLogosLoaded] = useState(false);
   const priceManager = useRef(EarnQuestPriceManager.getInstance());
   const payaiManager = useRef(PayAIPriceManager.getInstance());
@@ -190,24 +191,22 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
     }
 
     if (coins.length > 0) {
-      setAllCoins(prev => {
-        if (prev.length > 0) {
-          const prevMap = new Map(prev.map(c => [c.symbol, c.price]));
-          const newFlash = new Map<string, 'up' | 'down'>();
-          for (const coin of coins) {
-            const oldPrice = prevMap.get(coin.symbol);
-            if (oldPrice !== undefined && oldPrice !== coin.price) {
-              newFlash.set(coin.symbol, coin.price > oldPrice ? 'up' : 'down');
-            }
-          }
-          if (newFlash.size > 0) {
-            setFlash(newFlash);
-            if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-            flashTimerRef.current = setTimeout(() => setFlash(new Map()), 600);
+      if (prevPricesRef.current.size > 0) {
+        const newFlash = new Map<string, 'up' | 'down'>();
+        for (const coin of coins) {
+          const oldPrice = prevPricesRef.current.get(coin.symbol);
+          if (oldPrice !== undefined && oldPrice !== coin.price) {
+            newFlash.set(coin.symbol, coin.price > oldPrice ? 'up' : 'down');
           }
         }
-        return coins;
-      });
+        if (newFlash.size > 0) {
+          setFlash(newFlash);
+          if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+          flashTimerRef.current = setTimeout(() => setFlash(new Map()), 700);
+        }
+      }
+      prevPricesRef.current = new Map(coins.map(c => [c.symbol, c.price]));
+      setAllCoins(coins);
     }
   }, []);
 
