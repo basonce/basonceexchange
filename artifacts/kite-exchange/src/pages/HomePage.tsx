@@ -275,7 +275,6 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       {showSearch && createPortal(
         <HotSearchOverlay
           onClose={() => setShowSearch(false)}
-          initialQuery={HOT_SEARCHES[hotSearchIdx]}
         />,
         document.body
       )}
