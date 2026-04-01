@@ -118,29 +118,60 @@ function calculateBOLL(data: KlineData[], period: number = 20) {
 
 function generateSimulatedKlines(basePrice: number, count: number, intervalMs: number): KlineData[] {
   const data: KlineData[] = [];
-  let price = basePrice * (0.97 + Math.random() * 0.04);
   const now = Math.floor(Date.now() / 1000);
+
+  // Start much lower to simulate an upward journey to current price
+  const startMult = count >= 100 ? 0.02 : count >= 50 ? 0.08 : count >= 20 ? 0.30 : 0.65;
+  const startPrice = basePrice * startMult;
+  // Per-candle growth needed to reach basePrice from startPrice
+  const perCandleGrowth = Math.pow(basePrice / startPrice, 1 / count);
+
+  let price = startPrice;
+
   for (let i = count; i > 0; i--) {
     const time = now - i * (intervalMs / 1000);
-    const volatility = price * 0.003;
     const open = price;
-    const trend = Math.random() - 0.49;
-    const close = open + trend * volatility;
-    const high = Math.max(open, close) + Math.random() * volatility * 0.3;
-    const low = Math.min(open, close) - Math.random() * volatility * 0.3;
-    const volume = Math.random() * 1000 + 100;
-    data.push({ time, open, high, low, close: Math.max(close, low * 1.0001), volume });
+
+    // Trend + noise: upward biased random walk
+    const noise = (Math.random() - 0.42) * 0.14;
+    let close = open * perCandleGrowth * Math.exp(noise);
+    close = Math.max(close, open * 0.80); // max 20% drop per candle
+    close = Math.min(close, open * 1.35); // max 35% rise per candle
+
+    // Wick sizes — visually meaningful
+    const body = Math.abs(close - open);
+    const wickMult = 0.3 + Math.random() * 0.5;
+    const high = Math.max(open, close) + body * wickMult + price * 0.005;
+    const low  = Math.min(open, close) - body * wickMult - price * 0.005;
+
+    const volume = (200_000 + Math.random() * 800_000) * price;
+
+    data.push({
+      time,
+      open,
+      high,
+      low: Math.max(low, high * 0.0001),
+      close: Math.max(close, low * 1.0001),
+      volume,
+    });
+
     price = data[data.length - 1].close;
   }
+
+  // Smoothly scale last few candles so chart ends exactly at basePrice
   if (data.length > 0) {
     const ratio = basePrice / data[data.length - 1].close;
-    for (const d of data) {
-      d.open *= ratio;
-      d.high *= ratio;
-      d.low *= ratio;
-      d.close *= ratio;
+    const blend = Math.min(Math.ceil(count * 0.10), 10);
+    for (let k = 0; k < data.length; k++) {
+      const adjIdx = k - (data.length - blend);
+      const r = adjIdx < 0 ? 1 : 1 + (ratio - 1) * ((adjIdx + 1) / blend);
+      data[k].open  *= r;
+      data[k].high  *= r;
+      data[k].low   *= r;
+      data[k].close *= r;
     }
   }
+
   return data;
 }
 
