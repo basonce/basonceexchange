@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App.tsx';
 import './index.css';
+import { prewarmAllPriceManagers } from './lib/price-init';
+
+prewarmAllPriceManagers();
 
 window.addEventListener('unhandledrejection', (e) => {
   const msg = e.reason?.message || String(e.reason || '');

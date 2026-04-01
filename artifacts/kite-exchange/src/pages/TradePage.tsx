@@ -316,12 +316,18 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
   useEffect(() => {
     if (INDEPENDENT_SYMBOLS.has(selectedSymbol)) {
       const mgr = getIndepManager(selectedSymbol);
-      const unsubscribe = mgr ? mgr.subscribe(() => { updatePrice(); }) : () => {};
+      // When price manager ticks → update price, orderbook, trades all at once
+      const unsubscribe = mgr ? mgr.subscribe(() => {
+        updatePrice();
+        updateOrderBook();
+        updateTrades();
+      }) : () => {};
 
+      // Fallback interval keeps things fresh if subscription misses a tick
       const interval = setInterval(() => {
         updateOrderBook();
         updateTrades();
-      }, 2000);
+      }, 3000);
 
       return () => {
         unsubscribe();
@@ -814,6 +820,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
     if (indepMgr) {
       const p = indepMgr.getPrice();
       const c = indepMgr.getChange();
+      currentPriceRef.current = p;
       setCurrentPrice(p);
       setChange24h(c);
       if (!isManualPriceChange) {
