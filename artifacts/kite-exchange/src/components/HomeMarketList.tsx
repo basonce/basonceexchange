@@ -76,6 +76,7 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
   const [flash, setFlash] = useState<Map<string, 'up' | 'down'>>(new Map());
   const flashTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const prevPricesRef = useRef<Map<string, number>>(new Map());
+  const lastFlashTimeRef = useRef<number>(0);
   const [dbLogosLoaded, setDbLogosLoaded] = useState(false);
   const priceManager = useRef(EarnQuestPriceManager.getInstance());
   const payaiManager = useRef(PayAIPriceManager.getInstance());
@@ -199,10 +200,12 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
             newFlash.set(coin.symbol, coin.price > oldPrice ? 'up' : 'down');
           }
         }
-        if (newFlash.size > 0) {
+        const now = Date.now();
+        if (newFlash.size > 0 && now - lastFlashTimeRef.current > 1500) {
+          lastFlashTimeRef.current = now;
           setFlash(newFlash);
           if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-          flashTimerRef.current = setTimeout(() => setFlash(new Map()), 700);
+          flashTimerRef.current = setTimeout(() => setFlash(new Map()), 400);
         }
       }
       prevPricesRef.current = new Map(coins.map(c => [c.symbol, c.price]));
