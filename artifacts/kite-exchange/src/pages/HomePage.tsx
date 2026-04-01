@@ -1,6 +1,6 @@
 import React, { useState, lazy, Suspense, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, Headphones, Shield, X, Gift, Zap, TrendingUp, Star, Users, Plus, PenLine, FileText, Video, Bell, LayoutDashboard, Pencil, Search } from 'lucide-react';
+import { Menu, Headphones, X, Gift, Zap, TrendingUp, Star, Users, Plus, PenLine, FileText, Video, Bell, LayoutDashboard, Pencil, Search, MessageSquare, ScanLine } from 'lucide-react';
 import HotSearchOverlay from '../components/HotSearchOverlay';
 import HomeMarketList from '../components/HomeMarketList';
 import FuturesMarketList from '../components/FuturesMarketList';
@@ -278,40 +278,70 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         document.body
       )}
       <div className="bg-[#181A20] px-4 pt-3 pb-2 sticky top-0 z-10">
-        {/* Row 1: Menu | Exchange/Wallet toggle | Icons — exactly like Binance */}
-        <div className="flex items-center gap-3 mb-2">
-          <button
-            onClick={() => setShowMenuDrawer(true)}
-            className="p-1.5 hover:bg-[#2B3139] rounded-lg transition-colors flex-shrink-0"
-          >
-            <Menu className="w-5 h-5 text-gray-300" />
-          </button>
+        {/* Row 1 — birebir Binance: [≡][💬] [Exchange Wallet] [🎧][🔗] */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
 
-          {/* Inline Exchange / Wallet toggle */}
-          <div className="flex rounded-xl overflow-hidden flex-1" style={{ background: '#0B0E11' }}>
+          {/* Sol: hamburger + mesaj */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+            <button
+              onClick={() => setShowMenuDrawer(true)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 6px', display: 'flex', alignItems: 'center' }}
+            >
+              <Menu size={20} color="#C6CBD4" />
+            </button>
+            <button
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 6px', display: 'flex', alignItems: 'center' }}
+            >
+              <MessageSquare size={19} color="#C6CBD4" strokeWidth={1.8} />
+            </button>
+          </div>
+
+          {/* Orta: Exchange / Wallet — Binance style (dark pill, white/gray text) */}
+          <div style={{
+            flex: 1, display: 'flex', alignItems: 'center',
+            background: '#2B3139', borderRadius: 20, padding: '3px',
+            justifyContent: 'center',
+          }}>
             <button
               onClick={() => setMainTab('exchange')}
-              className={`flex-1 py-1.5 text-sm font-bold transition-all ${mainTab === 'exchange' ? 'bg-[#F0B90B] text-black rounded-xl' : 'text-gray-400'}`}
+              style={{
+                flex: 1, textAlign: 'center',
+                background: mainTab === 'exchange' ? '#474D57' : 'transparent',
+                border: 'none', borderRadius: 17, padding: '5px 12px',
+                cursor: 'pointer', fontSize: 13, fontWeight: 700,
+                color: mainTab === 'exchange' ? '#fff' : '#848E9C',
+                transition: 'all 0.15s',
+              }}
             >
               Exchange
             </button>
             <button
               onClick={() => setMainTab('wallet')}
-              className={`flex-1 py-1.5 text-sm font-bold transition-all ${mainTab === 'wallet' ? 'bg-[#F0B90B] text-black rounded-xl' : 'text-gray-400'}`}
+              style={{
+                flex: 1, textAlign: 'center',
+                background: mainTab === 'wallet' ? '#474D57' : 'transparent',
+                border: 'none', borderRadius: 17, padding: '5px 12px',
+                cursor: 'pointer', fontSize: 13, fontWeight: 700,
+                color: mainTab === 'wallet' ? '#fff' : '#848E9C',
+                transition: 'all 0.15s',
+              }}
             >
               Wallet
             </button>
           </div>
 
-          <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Sağ: headphones + scan/connect */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
             <button
               onClick={() => setShowSupportModal(true)}
-              className="p-1.5 hover:bg-[#2B3139] rounded-lg transition-colors"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 6px', display: 'flex', alignItems: 'center' }}
             >
-              <Headphones className="w-5 h-5 text-[#F0B90B]" />
+              <Headphones size={19} color="#C6CBD4" strokeWidth={1.8} />
             </button>
-            <button className="p-1.5 rounded-lg transition-colors text-green-500 hover:text-green-400">
-              <Shield className="w-5 h-5" />
+            <button
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 6px', display: 'flex', alignItems: 'center' }}
+            >
+              <ScanLine size={19} color="#C6CBD4" strokeWidth={1.8} />
             </button>
           </div>
         </div>
