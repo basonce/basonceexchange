@@ -466,7 +466,7 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
           <div>Name</div>
         </div>
         <div className="w-28 text-right pr-0 mr-2.5">Last Price</div>
-        <div className="w-[80px] text-center">24h Chg%</div>
+        <div className="w-[90px] text-center">24h Chg%</div>
       </div>
 
       {displayCoins.map((coin, coinIdx) => {
@@ -510,7 +510,7 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
                 </div>
               </div>
 
-              <div className={`min-w-[80px] py-1.5 px-2.5 rounded-lg text-center font-black text-[13px] flex-shrink-0 transition-all duration-700 ${
+              <div className={`w-[90px] py-2 rounded-xl text-center font-black text-[13.5px] flex-shrink-0 transition-all duration-700 ${
                 displayChange >= 0
                   ? 'bg-[#0ECB81] text-white'
                   : 'bg-[#F6465D] text-white'
