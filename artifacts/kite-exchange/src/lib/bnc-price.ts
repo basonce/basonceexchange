@@ -1,3 +1,5 @@
+import { loadSnapshot, saveSnapshot } from './price-persist';
+
 class BNCPriceManager {
   private static instance: BNCPriceManager;
   private price: number = 1.18;
@@ -8,12 +10,20 @@ class BNCPriceManager {
   private subscribers: Array<() => void> = [];
   private updateInterval: number | null = null;
 
-  private basePrice: number = 1.18;
   private readonly MIN_PRICE = 0.85;
   private readonly MAX_PRICE = 1.40;
+  private readonly MIN_CHANGE = 95;
+  private readonly MAX_CHANGE = 185;
   private direction: number = 1;
 
   private constructor() {
+    const snap = loadSnapshot('BNC');
+    if (snap) {
+      this.price = snap.price;
+      this.change = snap.change;
+      this.high24h = snap.high24h;
+      this.low24h = snap.low24h;
+    }
     this.fetchAndInit();
   }
 
@@ -33,12 +43,16 @@ class BNCPriceManager {
       );
       const { data } = await supabase.from('bnc_price').select('*').eq('id', 1).maybeSingle();
       if (data && parseFloat(data.current_price) > 0) {
-        this.price = parseFloat(data.current_price);
-        this.basePrice = this.price;
-        this.change = parseFloat(data.change_percentage);
-        this.high24h = Math.max(this.MAX_PRICE, parseFloat(data.high_24h));
-        this.low24h = Math.min(this.MIN_PRICE, parseFloat(data.low_24h));
+        const sbPrice = parseFloat(data.current_price);
+        if (Math.abs(sbPrice - this.price) / this.price > 0.15) {
+          this.price = sbPrice;
+        }
         this.marketCap = parseFloat(data.market_cap);
+        if (!loadSnapshot('BNC')) {
+          this.change = parseFloat(data.change_percentage);
+          this.high24h = Math.max(this.MAX_PRICE, parseFloat(data.high_24h));
+          this.low24h = Math.min(this.MIN_PRICE, parseFloat(data.low_24h));
+        }
       }
     } catch { }
     this.startLocalWalk();
@@ -56,23 +70,22 @@ class BNCPriceManager {
       newPrice = this.MIN_PRICE + Math.random() * 0.02;
       this.direction = 1;
     }
-
     if (Math.random() < 0.07) this.direction *= -1;
 
     this.price = Math.round(newPrice * 100000) / 100000;
     this.high24h = Math.max(this.high24h, this.price);
     this.low24h = Math.min(this.low24h, this.price);
 
-    const ref = this.basePrice * 0.70;
-    this.change = Math.round(((this.price - ref) / ref) * 10000) / 100;
+    this.change += (Math.random() - 0.46) * 0.4;
+    this.change = Math.max(this.MIN_CHANGE, Math.min(this.MAX_CHANGE, this.change));
+    this.change = Math.round(this.change * 100) / 100;
 
+    saveSnapshot('BNC', { price: this.price, change: this.change, high24h: this.high24h, low24h: this.low24h, savedAt: Date.now() });
     this.notifySubscribers();
   }
 
   private startLocalWalk() {
-    this.updateInterval = window.setInterval(() => {
-      this.tick();
-    }, 3000);
+    this.updateInterval = window.setInterval(() => this.tick(), 3000);
   }
 
   getPrice(): number { return this.price; }
@@ -83,18 +96,12 @@ class BNCPriceManager {
 
   subscribe(callback: () => void): () => void {
     this.subscribers.push(callback);
-    return () => {
-      this.subscribers = this.subscribers.filter(cb => cb !== callback);
-    };
+    return () => { this.subscribers = this.subscribers.filter(cb => cb !== callback); };
   }
 
-  private notifySubscribers() {
-    this.subscribers.forEach(callback => callback());
-  }
+  private notifySubscribers() { this.subscribers.forEach(cb => cb()); }
 
-  destroy() {
-    if (this.updateInterval) clearInterval(this.updateInterval);
-  }
+  destroy() { if (this.updateInterval) clearInterval(this.updateInterval); }
 }
 
 export { BNCPriceManager };
