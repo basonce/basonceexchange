@@ -172,13 +172,13 @@ export default function HomeTradFiList() {
               </div>
             </div>
 
-            <div className={`w-28 text-right font-medium text-[13px] transition-colors duration-500 tabular-nums ${
+            <div className={`w-28 text-right font-black text-[14px] transition-colors duration-500 tabular-nums ${
               flashDir === 'up' ? 'text-[#0ECB81]' : flashDir === 'down' ? 'text-[#F6465D]' : 'text-white'
             }`}>
               ${formatTradFiPrice(price)}
             </div>
 
-            <div className={`w-20 text-right text-[13px] font-semibold tabular-nums ${isUp ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+            <div className={`w-20 text-right text-[14px] font-black tabular-nums ${isUp ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
               {isUp ? '+' : ''}{change.toFixed(2)}%
             </div>
           </div>

@@ -524,12 +524,20 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                   <button
                     key={id}
                     onClick={() => setActiveFilter(id as typeof activeFilter)}
-                    className={`px-3 py-1 rounded text-[13px] font-bold transition-all whitespace-nowrap flex-shrink-0 ${
+                    className={`px-3 py-1 rounded text-[13px] font-bold transition-all whitespace-nowrap flex-shrink-0 flex items-center gap-1 ${
                       activeFilter === id
                         ? 'bg-[#F0B90B] text-[#0B0E11]'
                         : 'bg-transparent text-[#848E9C] hover:text-[#B7BDC6]'
                     }`}
                   >
+                    {id === 'tradfi' && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={activeFilter === 'tradfi' ? '#0B0E11' : '#F0B90B'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                        <line x1="12" y1="19" x2="12" y2="23"/>
+                        <line x1="8" y1="23" x2="16" y2="23"/>
+                      </svg>
+                    )}
                     {label}
                   </button>
                 ))}
