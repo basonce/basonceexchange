@@ -31,7 +31,15 @@ const CMC_NEW: Record<string, number> = {
   AVA: 3816,
 };
 
+const LOCAL_HD_LOGOS: Record<string, string> = {
+  'PAYAI':   '/payai-logo.png',
+  'SGP':     '/sgp-logo.png',
+  'POWERAI': '/powerai-logo.png',
+  'SZNP':    '/SZNP.jpg',
+};
+
 function buildLogoUrls(symbol: string, cmcId?: number): string[] {
+  if (LOCAL_HD_LOGOS[symbol]) return [LOCAL_HD_LOGOS[symbol]];
   const urls: string[] = [];
   const lc = symbol.toLowerCase();
   if (cmcId) {
