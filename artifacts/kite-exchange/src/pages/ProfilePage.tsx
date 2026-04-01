@@ -13,7 +13,7 @@ import { EarnQuestPriceManager } from '../lib/earnquest-price';
 import { RealtimePnLService, RealtimePnL } from '../lib/realtime-pnl-service';
 import {
   User, Mail, LogOut, Shield, ChevronRight, Wallet as WalletIcon, Plus, Loader2,
-  ArrowLeft, QrCode, Headphones, Settings, Gift, TrendingUp, Repeat, DollarSign,
+  ArrowLeft, QrCode, Settings, Gift, TrendingUp, Repeat, DollarSign,
   Users, BarChart3, Lock, CheckCircle, ArrowUpRight, Calendar, Activity, Copy, Check
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -404,7 +404,13 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
             onClick={() => setShowSupportModal(true)}
             className="text-[#F0B90B] hover:text-[#F0B90B] transition-colors"
           >
-            <Headphones className="w-6 h-6" strokeWidth={2.5} />
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 11a7 7 0 0 1 14 0" />
+              <rect x="3" y="11" width="4" height="6" rx="2" />
+              <rect x="17" y="11" width="4" height="6" rx="2" />
+              <path d="M21 17v1a3 3 0 0 1-3 3h-3" />
+              <circle cx="14" cy="21" r="1" fill="currentColor" stroke="none" />
+            </svg>
           </button>
           <button className="text-green-500 hover:text-green-400 transition-colors">
             <Shield className="w-6 h-6" />

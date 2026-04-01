@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { Pickaxe, ShoppingBag, Radio, Users, UserPlus, Headphones } from 'lucide-react';
+import { Pickaxe, ShoppingBag, Radio, Users, UserPlus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { globalMiningStats } from '../lib/global-mining-stats';
 
@@ -132,7 +132,13 @@ export default function MiningPage() {
               }`}
             >
               <div className="relative">
-                <Headphones className="w-5 h-5" />
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 11a7 7 0 0 1 14 0" />
+                  <rect x="3" y="11" width="4" height="6" rx="2" />
+                  <rect x="17" y="11" width="4" height="6" rx="2" />
+                  <path d="M21 17v1a3 3 0 0 1-3 3h-3" />
+                  <circle cx="14" cy="21" r="1" fill="currentColor" stroke="none" />
+                </svg>
                 {activeTab !== 'support' && (
                   <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 )}
