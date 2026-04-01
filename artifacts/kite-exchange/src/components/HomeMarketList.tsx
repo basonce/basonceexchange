@@ -465,7 +465,7 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
           <div className="w-10 flex-shrink-0" />
           <div>Name</div>
         </div>
-        <div className="w-28 text-right pr-0 mr-2.5">Last Price</div>
+        <div className="w-28 text-right pr-0 mr-4">Last Price</div>
         <div className="w-[90px] text-center">24h Chg%</div>
       </div>
 
@@ -504,7 +504,7 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
                 </div>
               </div>
 
-              <div className="text-right mr-2 flex-shrink-0 max-w-[140px]">
+              <div className="text-right mr-4 flex-shrink-0 max-w-[140px]">
                 {(() => {
                   const priceStr = '$' + formatPrice(coin.price);
                   const len = priceStr.length;
