@@ -1,23 +1,25 @@
 import { loadSnapshot, saveSnapshot } from './price-persist';
 
+const STORAGE_KEY = 'EQ_v3';
+
 class EarnQuestPriceManager {
   private static instance: EarnQuestPriceManager;
   private price: number = 0.41;
   private change: number = 3856.34;
-  private high24h: number = 0.55;
-  private low24h: number = 0.30;
+  private high24h: number = 1.20;
+  private low24h: number = 0.10;
   private marketCap: number = 296_000_000;
   private subscribers: Array<() => void> = [];
   private updateInterval: number | null = null;
 
-  private readonly MIN_PRICE = 0.30;
-  private readonly MAX_PRICE = 0.55;
+  private readonly MIN_PRICE = 0.10;
+  private readonly MAX_PRICE = 1.60;
   private readonly MIN_CHANGE = 2800;
-  private readonly MAX_CHANGE = 5800;
+  private readonly MAX_CHANGE = 16000;
   private direction: number = 1;
 
   private constructor() {
-    const snap = loadSnapshot('EQ');
+    const snap = loadSnapshot(STORAGE_KEY);
     if (snap) {
       this.price = snap.price;
       this.change = snap.change;
@@ -35,7 +37,7 @@ class EarnQuestPriceManager {
   }
 
   private async fetchAndInit() {
-    const hasLocal = !!loadSnapshot('EQ');
+    const hasLocal = !!loadSnapshot(STORAGE_KEY);
     if (!hasLocal) {
       try {
         const { createClient } = await import('@supabase/supabase-js');
@@ -50,6 +52,8 @@ class EarnQuestPriceManager {
             this.price = sbPrice;
           }
           this.marketCap = parseFloat(data.market_cap);
+          const sbChange = parseFloat(data.change_percentage);
+          if (sbChange > 0) this.change = Math.min(sbChange, this.MAX_CHANGE);
         }
       } catch { }
     }
@@ -57,28 +61,31 @@ class EarnQuestPriceManager {
   }
 
   private tick() {
-    const volatility = 0.004 + Math.random() * 0.008;
+    const volatility = 0.005 + Math.random() * 0.012;
+    const upBias = this.price < this.MAX_PRICE * 0.7 ? 0.62 : 0.52;
+    if (Math.random() < upBias) this.direction = 1;
+    else if (Math.random() < 0.35) this.direction = -1;
+
     const step = this.price * volatility * this.direction;
     let newPrice = this.price + step;
 
     if (newPrice >= this.MAX_PRICE) {
-      newPrice = this.MAX_PRICE - Math.random() * 0.01;
+      newPrice = this.MAX_PRICE - Math.random() * 0.05;
       this.direction = -1;
     } else if (newPrice <= this.MIN_PRICE) {
-      newPrice = this.MIN_PRICE + Math.random() * 0.01;
+      newPrice = this.MIN_PRICE + Math.random() * 0.02;
       this.direction = 1;
     }
-    if (Math.random() < 0.07) this.direction *= -1;
 
     this.price = Math.round(newPrice * 100000) / 100000;
     this.high24h = Math.max(this.high24h, this.price);
     this.low24h = Math.min(this.low24h, this.price);
 
-    this.change += (Math.random() - 0.46) * 8;
-    this.change = Math.max(this.MIN_CHANGE, Math.min(this.MAX_CHANGE, this.change));
+    const driftAmt = (Math.random() - 0.44) * 18;
+    this.change = Math.max(this.MIN_CHANGE, Math.min(this.MAX_CHANGE, this.change + driftAmt));
     this.change = Math.round(this.change * 100) / 100;
 
-    saveSnapshot('EQ', { price: this.price, change: this.change, high24h: this.high24h, low24h: this.low24h, savedAt: Date.now() });
+    saveSnapshot(STORAGE_KEY, { price: this.price, change: this.change, high24h: this.high24h, low24h: this.low24h, savedAt: Date.now() });
     this.notifySubscribers();
   }
 
