@@ -201,11 +201,11 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
           }
         }
         const now = Date.now();
-        if (newFlash.size > 0 && now - lastFlashTimeRef.current > 1500) {
+        if (newFlash.size > 0 && now - lastFlashTimeRef.current > 3000) {
           lastFlashTimeRef.current = now;
           setFlash(newFlash);
           if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-          flashTimerRef.current = setTimeout(() => setFlash(new Map()), 400);
+          flashTimerRef.current = setTimeout(() => setFlash(new Map()), 1200);
         }
       }
       prevPricesRef.current = new Map(coins.map(c => [c.symbol, c.price]));
