@@ -35,26 +35,24 @@ class EarnQuestPriceManager {
   }
 
   private async fetchAndInit() {
-    try {
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(
-        import.meta.env.VITE_SUPABASE_URL,
-        import.meta.env.VITE_SUPABASE_ANON_KEY
-      );
-      const { data } = await supabase.from('earnquest_price').select('*').eq('id', 1).maybeSingle();
-      if (data && parseFloat(data.current_price) > 0) {
-        const sbPrice = parseFloat(data.current_price);
-        if (Math.abs(sbPrice - this.price) / this.price > 0.15) {
-          this.price = sbPrice;
+    const hasLocal = !!loadSnapshot('EQ');
+    if (!hasLocal) {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabase = createClient(
+          import.meta.env.VITE_SUPABASE_URL,
+          import.meta.env.VITE_SUPABASE_ANON_KEY
+        );
+        const { data } = await supabase.from('earnquest_price').select('*').eq('id', 1).maybeSingle();
+        if (data && parseFloat(data.current_price) > 0) {
+          const sbPrice = parseFloat(data.current_price);
+          if (sbPrice >= this.MIN_PRICE && sbPrice <= this.MAX_PRICE) {
+            this.price = sbPrice;
+          }
+          this.marketCap = parseFloat(data.market_cap);
         }
-        this.marketCap = parseFloat(data.market_cap);
-        if (!loadSnapshot('EQ')) {
-          this.change = parseFloat(data.change_percentage);
-          this.high24h = Math.max(this.MAX_PRICE, parseFloat(data.high_24h));
-          this.low24h = Math.min(this.MIN_PRICE, parseFloat(data.low_24h));
-        }
-      }
-    } catch { }
+      } catch { }
+    }
     this.startLocalWalk();
   }
 

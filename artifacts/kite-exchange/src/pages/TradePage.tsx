@@ -156,6 +156,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
   const [showStopCopyConfirm, setShowStopCopyConfirm] = useState<string | null>(null);
   const activeSymbolRef = useRef(getInitialSymbol());
   const fetchGenRef = useRef(0);
+  const currentPriceRef = useRef<number>(0);
 
   const changeSymbol = (newSymbol: string) => {
     activeSymbolRef.current = newSymbol;
@@ -309,6 +310,10 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
   }, [selectedSymbol]);
 
   useEffect(() => {
+    currentPriceRef.current = currentPrice;
+  }, [currentPrice]);
+
+  useEffect(() => {
     if (INDEPENDENT_SYMBOLS.has(selectedSymbol)) {
       const mgr = getIndepManager(selectedSymbol);
       const unsubscribe = mgr ? mgr.subscribe(() => { updatePrice(); }) : () => {};
@@ -316,7 +321,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
       const interval = setInterval(() => {
         updateOrderBook();
         updateTrades();
-      }, 400);
+      }, 2000);
 
       return () => {
         unsubscribe();
@@ -329,11 +334,11 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
 
       const orderBookInterval = setInterval(() => {
         updateOrderBook();
-      }, 400);
+      }, 1500);
 
       const tradesInterval = setInterval(() => {
         updateTrades();
-      }, 500);
+      }, 1200);
 
       return () => {
         clearInterval(priceInterval);
@@ -341,7 +346,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
         clearInterval(tradesInterval);
       };
     }
-  }, [selectedSymbol, currentPrice]);
+  }, [selectedSymbol]);
 
   useEffect(() => {
     if (user?.id) {
@@ -911,8 +916,9 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
   };
 
   const updateOrderBook = async () => {
+    const livePrice = currentPriceRef.current;
     if (INDEPENDENT_SYMBOLS.has(selectedSymbol)) {
-      jitterOrderBook(currentPrice);
+      if (livePrice > 0) jitterOrderBook(livePrice);
     } else {
       try {
         const coin = allCoins.find(c => c.symbol === selectedSymbol);
@@ -942,11 +948,11 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
 
           if (bids.length > 0) setBidOrders(bids);
           if (asks.length > 0) setAskOrders(asks);
-        } else if (currentPrice > 0) {
-          jitterOrderBook(currentPrice);
+        } else if (livePrice > 0) {
+          jitterOrderBook(livePrice);
         }
       } catch {
-        if (currentPrice > 0) jitterOrderBook(currentPrice);
+        if (livePrice > 0) jitterOrderBook(livePrice);
       }
     }
   };
@@ -971,16 +977,18 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
   };
 
   const updateTrades = () => {
+    const livePrice = currentPriceRef.current;
+    if (livePrice <= 0) return;
     if (Math.random() > 0.25) {
       const count = Math.random() > 0.5 ? 2 : 1;
-      const pp = Math.max(currentPrice, 0.0001);
+      const pp = Math.max(livePrice, 0.0001);
       const newTrades: Trade[] = [];
       for (let i = 0; i < count; i++) {
         const isBuy = Math.random() > 0.12;
         const buyAmt = (80_000 + Math.random() * 920_000) / pp;
         const sellAmt = (200 + Math.random() * 1_800) / pp;
         newTrades.push({
-          price: currentPrice * (0.9995 + Math.random() * 0.001),
+          price: livePrice * (0.9995 + Math.random() * 0.001),
           amount: isBuy ? buyAmt : sellAmt,
           time: new Date().toLocaleTimeString().slice(-8),
           isBuy,
