@@ -414,10 +414,7 @@ export default function FuturesMarketList() {
           }`}
         >
           TradFi
-          <Megaphone className="w-3 h-3" />
-          {activeTab === 'tradfi' && (
-            <span className="w-1.5 h-1.5 rounded-full bg-[#F0B90B] animate-pulse" />
-          )}
+          <Megaphone className="w-3 h-3" style={{ color: '#0ECB81', animation: 'megaflash 1.2s ease-in-out infinite' }} />
         </button>
       </div>
 

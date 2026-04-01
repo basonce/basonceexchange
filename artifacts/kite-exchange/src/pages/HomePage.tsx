@@ -1,6 +1,6 @@
 import React, { useState, lazy, Suspense, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, Headphones, X, Gift, Zap, TrendingUp, Star, Users, Plus, PenLine, FileText, Video, Bell, LayoutDashboard, Pencil, Search, MessageSquare, ScanLine } from 'lucide-react';
+import { Menu, Headphones, X, Gift, Zap, TrendingUp, Star, Users, Plus, PenLine, FileText, Video, Bell, LayoutDashboard, Pencil, Search, MessageSquare, ScanLine, Megaphone } from 'lucide-react';
 import HotSearchOverlay from '../components/HotSearchOverlay';
 import MessagesPage from './MessagesPage';
 import HomeMarketList from '../components/HomeMarketList';
@@ -530,15 +530,13 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                         : 'bg-transparent text-[#848E9C] hover:text-[#B7BDC6]'
                     }`}
                   >
-                    {id === 'tradfi' && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={activeFilter === 'tradfi' ? '#0B0E11' : '#F0B90B'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                        <line x1="12" y1="19" x2="12" y2="23"/>
-                        <line x1="8" y1="23" x2="16" y2="23"/>
-                      </svg>
-                    )}
                     {label}
+                    {id === 'tradfi' && (
+                      <Megaphone
+                        size={13}
+                        style={{ color: '#0ECB81', animation: 'megaflash 1.2s ease-in-out infinite', flexShrink: 0 }}
+                      />
+                    )}
                   </button>
                 ))}
               </div>
