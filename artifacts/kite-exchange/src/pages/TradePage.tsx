@@ -1013,13 +1013,27 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
     const x = Math.sin(periodSeed * 100 + i * 7.3) * 10000;
     return x - Math.floor(x);
   };
-  const periodData = [
-    { label: 'Today', value: change24h !== 0 ? change24h * (0.4 + pseudoRand(1) * 0.3) : (pseudoRand(1) - 0.5) * 2, isPositive: true },
-    { label: '7 Days', value: change24h !== 0 ? change24h * (1.0 + pseudoRand(2) * 0.5) : (pseudoRand(2) - 0.4) * 6, isPositive: true },
-    { label: '30 Days', value: change24h !== 0 ? change24h * (0.5 + pseudoRand(3) * 1.5) * (pseudoRand(6) > 0.4 ? 1 : -1) : (pseudoRand(3) - 0.5) * 15, isPositive: true },
-    { label: '90 Days', value: change24h !== 0 ? change24h * (1.2 + pseudoRand(4) * 1.5) * (pseudoRand(7) > 0.5 ? 1 : -1) : (pseudoRand(4) - 0.45) * 25, isPositive: true },
-    { label: '180 Days', value: change24h !== 0 ? change24h * (1.5 + pseudoRand(5) * 2.5) * (pseudoRand(8) > 0.45 ? 1 : -1) : (pseudoRand(5) - 0.4) * 40, isPositive: true },
-    { label: '1 Year', value: change24h !== 0 ? change24h * (2.0 + pseudoRand(6) * 3.0) * (pseudoRand(9) > 0.5 ? 1 : -1) : (pseudoRand(6) - 0.35) * 60, isPositive: true }
+
+  const _c = change24h;
+  const _absC = Math.abs(_c);
+  const _shortSign = _c >= 0 ? 1 : -1;
+  const _longSign = pseudoRand(20) > 0.42 ? 1 : -1;
+  const _cap = (v: number, max: number) => Math.max(-max, Math.min(max, v));
+
+  const periodData = change24h !== 0 ? [
+    { label: 'Today',    value: _cap(_c * (0.38 + pseudoRand(1) * 0.32), 99) },
+    { label: '7 Days',   value: _cap(_shortSign * _absC * (0.90 + pseudoRand(2) * 0.55), 150) },
+    { label: '30 Days',  value: _cap(_longSign  * _absC * (0.40 + pseudoRand(3) * 1.60), 200) },
+    { label: '90 Days',  value: _cap(_longSign  * _absC * (0.80 + pseudoRand(4) * 1.80), 280) },
+    { label: '180 Days', value: _cap(_longSign  * _absC * (1.10 + pseudoRand(5) * 2.00), 350) },
+    { label: '1 Year',   value: _cap(_longSign  * _absC * (1.60 + pseudoRand(6) * 2.50), 500) },
+  ].map(d => ({ ...d, isPositive: d.value >= 0 })) : [
+    { label: 'Today',    value: (pseudoRand(1) - 0.50) * 3,  isPositive: true },
+    { label: '7 Days',   value: (pseudoRand(2) - 0.45) * 8,  isPositive: true },
+    { label: '30 Days',  value: (pseudoRand(3) - 0.50) * 18, isPositive: true },
+    { label: '90 Days',  value: (pseudoRand(4) - 0.45) * 28, isPositive: true },
+    { label: '180 Days', value: (pseudoRand(5) - 0.45) * 40, isPositive: true },
+    { label: '1 Year',   value: (pseudoRand(6) - 0.40) * 60, isPositive: true },
   ].map(d => ({ ...d, isPositive: d.value >= 0 }));
 
   const bidTotal = bidOrders.slice(0, 8).reduce((s, o) => s + o.amount, 0);
