@@ -306,10 +306,10 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               onClick={() => setMainTab('exchange')}
               style={{
                 flex: 1, textAlign: 'center',
-                background: mainTab === 'exchange' ? '#474D57' : 'transparent',
+                background: mainTab === 'exchange' ? '#F0B90B' : 'transparent',
                 border: 'none', borderRadius: 17, padding: '5px 12px',
                 cursor: 'pointer', fontSize: 13, fontWeight: 700,
-                color: mainTab === 'exchange' ? '#fff' : '#848E9C',
+                color: mainTab === 'exchange' ? '#000' : '#848E9C',
                 transition: 'all 0.15s',
               }}
             >
@@ -319,10 +319,10 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               onClick={() => setMainTab('wallet')}
               style={{
                 flex: 1, textAlign: 'center',
-                background: mainTab === 'wallet' ? '#474D57' : 'transparent',
+                background: mainTab === 'wallet' ? '#F0B90B' : 'transparent',
                 border: 'none', borderRadius: 17, padding: '5px 12px',
                 cursor: 'pointer', fontSize: 13, fontWeight: 700,
-                color: mainTab === 'wallet' ? '#fff' : '#848E9C',
+                color: mainTab === 'wallet' ? '#000' : '#848E9C',
                 transition: 'all 0.15s',
               }}
             >
