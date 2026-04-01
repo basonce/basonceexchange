@@ -26,3 +26,24 @@ export function saveSnapshot(key: string, snap: PriceSnapshot) {
     localStorage.setItem(`kite_price_${key}`, JSON.stringify({ ...snap, savedAt: Date.now() }));
   } catch { }
 }
+
+/** Persist the cycle start timestamp separately — never expires. */
+export function saveCycleStart(key: string, ts: number) {
+  try { localStorage.setItem(`kite_cycle_${key}`, String(ts)); } catch { }
+}
+
+/** Load persisted cycle start timestamp. Returns null if not found. */
+export function loadCycleStart(key: string): number | null {
+  try {
+    const v = localStorage.getItem(`kite_cycle_${key}`);
+    return v ? parseInt(v, 10) : null;
+  } catch { return null; }
+}
+
+/** Clear all kite_ prefixed localStorage entries for a key (price + cycle). */
+export function clearCycleData(key: string) {
+  try {
+    localStorage.removeItem(`kite_price_${key}`);
+    localStorage.removeItem(`kite_cycle_${key}`);
+  } catch { }
+}
