@@ -40,18 +40,13 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
-          const isMining = tab.id === 'mining';
 
           return (
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex flex-col items-center gap-0.5 p-1.5 relative ${isMining && isActive ? 'animate-pulse' : ''}`}
+              className="flex flex-col items-center gap-0.5 p-1.5 relative"
             >
-              {isMining && isActive && (
-                <div className="absolute inset-0 bg-gradient-to-t from-[#F0B90B]/20 to-transparent rounded-lg" />
-              )}
-
               {tab.id === 'home' ? (
                 <div className="w-7 h-7 flex items-center justify-center relative z-10">
                   <img
@@ -69,22 +64,15 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                 Icon && (
                   <div className="relative z-10">
                     <Icon
-                      className={`w-7 h-7 ${isMining ? 'text-[#F0B90B]' : isActive ? 'text-[#F0B90B]' : 'text-gray-400'}`}
-                      style={isMining ? { filter: 'drop-shadow(0 0 3px rgba(240,185,11,0.15))' } : undefined}
+                      className={`w-7 h-7 ${isActive ? 'text-[#F0B90B]' : 'text-gray-400'}`}
                     />
-                    {isMining && !isActive && (
-                      <div className="absolute inset-0 bg-[#F0B90B] opacity-5 blur-sm rounded-full" />
-                    )}
                   </div>
                 )
               )}
               <span
                 className={`text-[10px] font-medium relative z-10 leading-tight ${
-                  isMining
-                    ? isActive ? 'text-[#F0B90B] font-bold' : 'text-[#F0B90B] font-semibold'
-                    : isActive ? 'text-[#F0B90B]' : 'text-gray-400'
+                  isActive ? 'text-[#F0B90B]' : 'text-gray-400'
                 }`}
-                style={isMining ? { filter: 'drop-shadow(0 0 2px rgba(240,185,11,0.2))' } : undefined}
               >
                 {tab.label}
               </span>
