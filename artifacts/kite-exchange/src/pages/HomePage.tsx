@@ -278,49 +278,51 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         document.body
       )}
       <div className="bg-[#181A20] px-4 pt-3 pb-2 sticky top-0 z-10">
-        <div className="flex items-center justify-between mb-2">
+        {/* Row 1: Menu | Exchange/Wallet toggle | Icons — exactly like Binance */}
+        <div className="flex items-center gap-3 mb-2">
           <button
             onClick={() => setShowMenuDrawer(true)}
-            className="p-2 hover:bg-[#2B3139] rounded-lg transition-colors"
+            className="p-1.5 hover:bg-[#2B3139] rounded-lg transition-colors flex-shrink-0"
           >
             <Menu className="w-5 h-5 text-gray-300" />
           </button>
 
-          <div className="flex items-center gap-2">
+          {/* Inline Exchange / Wallet toggle */}
+          <div className="flex rounded-xl overflow-hidden flex-1" style={{ background: '#0B0E11' }}>
+            <button
+              onClick={() => setMainTab('exchange')}
+              className={`flex-1 py-1.5 text-sm font-bold transition-all ${mainTab === 'exchange' ? 'bg-[#F0B90B] text-black rounded-xl' : 'text-gray-400'}`}
+            >
+              Exchange
+            </button>
+            <button
+              onClick={() => setMainTab('wallet')}
+              className={`flex-1 py-1.5 text-sm font-bold transition-all ${mainTab === 'wallet' ? 'bg-[#F0B90B] text-black rounded-xl' : 'text-gray-400'}`}
+            >
+              Wallet
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={() => setShowSupportModal(true)}
-              className="p-2 hover:bg-[#2B3139] rounded-lg transition-colors"
+              className="p-1.5 hover:bg-[#2B3139] rounded-lg transition-colors"
             >
               <Headphones className="w-5 h-5 text-[#F0B90B]" />
             </button>
-            <button className="p-2 rounded-lg transition-colors text-green-500 hover:text-green-400">
+            <button className="p-1.5 rounded-lg transition-colors text-green-500 hover:text-green-400">
               <Shield className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        <div className="flex rounded-xl overflow-hidden mb-2" style={{ background: '#0B0E11' }}>
-          <button
-            onClick={() => setMainTab('exchange')}
-            className={`flex-1 py-2 text-sm font-bold transition-all ${mainTab === 'exchange' ? 'bg-[#F0B90B] text-black rounded-xl' : 'text-gray-500'}`}
-          >
-            Exchange
-          </button>
-          <button
-            onClick={() => setMainTab('wallet')}
-            className={`flex-1 py-2 text-sm font-bold transition-all ${mainTab === 'wallet' ? 'bg-[#F0B90B] text-black rounded-xl' : 'text-gray-500'}`}
-          >
-            Wallet
-          </button>
-        </div>
-
-        {/* Animated Hot Search Bar */}
+        {/* Row 2: Animated Hot Search Bar */}
         <button
           onClick={() => setShowSearch(true)}
           style={{
             width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-            background: '#2B3139', borderRadius: 10, padding: '7px 12px',
-            border: 'none', cursor: 'pointer', marginBottom: 0,
+            background: '#2B3139', borderRadius: 10, padding: '8px 12px',
+            border: 'none', cursor: 'pointer',
           }}
         >
           <span
@@ -338,17 +340,17 @@ export default function HomePage({ onNavigate }: HomePageProps) {
 
       </div>
 
-      <div className="bg-[#181A20] px-4 pb-2 pt-2">
-        <div className="flex items-center justify-around">
+      <div className="bg-[#181A20] px-4 pb-3 pt-3">
+        <div className="flex items-center justify-around mb-2">
           {quickActions.map(({ icon, label, onClick, bg }) => (
-            <button key={label} onClick={onClick} className="flex flex-col items-center gap-1 group">
+            <button key={label} onClick={onClick} className="flex flex-col items-center gap-1.5 group">
               <div
-                className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-200 active:scale-95"
+                className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200 active:scale-95"
                 style={{ background: bg ?? '#2B3139' }}
               >
-                {React.cloneElement(icon as React.ReactElement, { width: 22, height: 22 })}
+                {icon}
               </div>
-              <span className="text-white text-[10px] font-medium text-center leading-tight whitespace-pre-line">{label}</span>
+              <span className="text-white text-[11px] font-medium text-center leading-tight whitespace-pre-line">{label}</span>
             </button>
           ))}
         </div>
