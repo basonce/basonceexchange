@@ -1,13 +1,21 @@
 import { loadSnapshot, saveSnapshot } from './price-persist';
 
-const STORAGE_KEY = 'BNC_v4';
+const STORAGE_KEY = 'BNC_v5';
+
+function isSameUtcDay(tsA: number, tsB: number): boolean {
+  const a = new Date(tsA);
+  const b = new Date(tsB);
+  return a.getUTCFullYear() === b.getUTCFullYear() &&
+         a.getUTCMonth()    === b.getUTCMonth()    &&
+         a.getUTCDate()     === b.getUTCDate();
+}
 
 class BNCPriceManager {
   private static instance: BNCPriceManager;
-  private price: number = 1.18;
-  private change: number = 132.59;
-  private high24h: number = 6.00;
-  private low24h: number = 0.85;
+  private price: number;
+  private change: number = 0;
+  private high24h: number;
+  private low24h: number;
   private marketCap: number = 180_000_000;
   private subscribers: Array<() => void> = [];
   private updateInterval: number | null = null;
@@ -18,11 +26,19 @@ class BNCPriceManager {
 
   private constructor() {
     const snap = loadSnapshot(STORAGE_KEY);
-    if (snap) {
-      this.price = snap.price;
-      this.change = snap.change;
-      this.high24h = snap.high24h;
-      this.low24h = snap.low24h;
+    const todaySnap = snap && isSameUtcDay(snap.savedAt, Date.now());
+
+    if (todaySnap) {
+      this.price   = snap!.price;
+      this.change  = snap!.change;
+      this.high24h = snap!.high24h;
+      this.low24h  = snap!.low24h;
+    } else {
+      // New UTC day (or first load) — start from floor price
+      this.price   = this.MIN_PRICE;
+      this.high24h = this.MIN_PRICE;
+      this.low24h  = this.MIN_PRICE;
+      this.change  = 0;
     }
     this.fetchAndInit();
   }
@@ -50,8 +66,6 @@ class BNCPriceManager {
             this.price = sbPrice;
           }
           this.marketCap = parseFloat(data.market_cap);
-          const sbChange = parseFloat(data.change_percentage);
-          if (sbChange > 0) this.change = Math.round(((this.price - this.MIN_PRICE) / this.MIN_PRICE) * 10000) / 100;
         }
       } catch { }
     }
@@ -59,6 +73,17 @@ class BNCPriceManager {
   }
 
   private tick() {
+    // Midnight UTC reset — if we've crossed into a new day, restart from floor
+    const now = Date.now();
+    const savedAt = loadSnapshot(STORAGE_KEY)?.savedAt ?? now;
+    if (!isSameUtcDay(savedAt, now)) {
+      this.price   = this.MIN_PRICE;
+      this.high24h = this.MIN_PRICE;
+      this.low24h  = this.MIN_PRICE;
+      this.change  = 0;
+      this.direction = 1;
+    }
+
     const volatility = 0.005 + Math.random() * 0.012;
     const upBias = this.price < this.MAX_PRICE * 0.7 ? 0.60 : 0.52;
     if (Math.random() < upBias) this.direction = 1;
@@ -75,11 +100,11 @@ class BNCPriceManager {
       this.direction = 1;
     }
 
-    this.price = Math.round(newPrice * 100000) / 100000;
+    this.price   = Math.round(newPrice * 100000) / 100000;
     this.high24h = Math.max(this.high24h, this.price);
-    this.low24h = this.MIN_PRICE;
+    this.low24h  = this.MIN_PRICE;
 
-    // change24h derived from MIN_PRICE as the 24h open floor — always consistent with Low
+    // change24h = % gain from MIN_PRICE (today's open floor) — consistent with 24h Low
     this.change = Math.round(((this.price - this.MIN_PRICE) / this.MIN_PRICE) * 10000) / 100;
 
     saveSnapshot(STORAGE_KEY, { price: this.price, change: this.change, high24h: this.high24h, low24h: this.low24h, savedAt: Date.now() });
@@ -90,10 +115,10 @@ class BNCPriceManager {
     this.updateInterval = window.setInterval(() => this.tick(), 3000);
   }
 
-  getPrice(): number { return this.price; }
-  getChange(): number { return this.change; }
+  getPrice(): number   { return this.price; }
+  getChange(): number  { return this.change; }
   getHigh24h(): number { return this.high24h; }
-  getLow24h(): number { return this.low24h; }
+  getLow24h(): number  { return this.low24h; }
   getMarketCap(): number { return this.marketCap; }
 
   subscribe(callback: () => void): () => void {
@@ -102,7 +127,6 @@ class BNCPriceManager {
   }
 
   private notifySubscribers() { this.subscribers.forEach(cb => cb()); }
-
   destroy() { if (this.updateInterval) clearInterval(this.updateInterval); }
 }
 

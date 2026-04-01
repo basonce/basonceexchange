@@ -12,13 +12,13 @@ import { useExchangeMode } from '../lib/exchange-mode';
 import { Maximize2, Snowflake } from 'lucide-react';
 
 const CHART_INDEP_PRICES: Record<string, () => number> = {
-  BNC: () => BNCPriceManager.getInstance().getPrice() || 7.12,
-  EQ: () => EarnQuestPriceManager.getInstance().getPrice() || 0.055,
-  PAYAI: () => PayAIPriceManager.getInstance().getPrice() || 0.003,
-  SGP: () => SGPPriceManager.getInstance().getPrice() || 0.01,
-  POWERAI: () => PowerAIPriceManager.getInstance().getPrice() || 0.0004,
-  SZNP: () => SZNPPriceManager.getInstance().getPrice() || 0.00013,
-  PUNCH: () => PunchPriceManager.getInstance().getPrice() || 0.005,
+  BNC:     () => BNCPriceManager.getInstance().getPrice()     || 0.85,
+  EQ:      () => EarnQuestPriceManager.getInstance().getPrice() || 0.10,
+  PAYAI:   () => PayAIPriceManager.getInstance().getPrice()   || 1.50,
+  SGP:     () => SGPPriceManager.getInstance().getPrice()     || 0.45,
+  POWERAI: () => PowerAIPriceManager.getInstance().getPrice() || 9.50,
+  SZNP:    () => SZNPPriceManager.getInstance().getPrice()    || 4.90,
+  PUNCH:   () => PunchPriceManager.getInstance().getPrice()   || 3.68,
 };
 
 interface Props {
