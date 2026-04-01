@@ -74,10 +74,8 @@ export default function HomePage({ onNavigate }: HomePageProps) {
     '🔥 KERNEL top gainer',
     '🔥 EQ surging now',
     '🔥 SOL trending',
-    '🔥🔥🔥 BNC top volume',
     '🔥 KITE hot pick',
     '🔥 WIF meme wave',
-    '🔥🔥🔥 BNC all-time high',
     '🔥 AI Agent volume',
   ];
 
