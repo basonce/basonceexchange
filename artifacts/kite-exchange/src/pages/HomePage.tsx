@@ -336,12 +336,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               onClick={() => setShowSupportModal(true)}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 6px', display: 'flex', alignItems: 'center' }}
             >
-              {/* Binance headset: yay + iki kulak kasası, çubuk yok */}
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C6CBD4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 13a8 8 0 0 1 16 0" />
-                <rect x="2" y="13" width="4" height="6" rx="2" />
-                <rect x="18" y="13" width="4" height="6" rx="2" />
-              </svg>
+              <Headphones size={19} color="#C6CBD4" strokeWidth={1.8} />
             </button>
             <button
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 6px', display: 'flex', alignItems: 'center' }}
