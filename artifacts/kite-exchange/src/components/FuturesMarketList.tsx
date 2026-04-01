@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { useFuturesFavorites } from '../lib/use-futures-favorites';
 import { getPriceDecimals } from '../lib/format-utils';
-import { ChevronDown, ChevronUp, Megaphone, Star } from 'lucide-react';
+import { ChevronDown, ChevronUp, Star } from 'lucide-react';
+import MegaphoneAnim from './MegaphoneAnim';
 import CoinLogo from './CoinLogo';
 import { supabase } from '../lib/supabase';
 import { BNCPriceManager } from '../lib/bnc-price';
@@ -414,7 +415,7 @@ export default function FuturesMarketList() {
           }`}
         >
           TradFi
-          <Megaphone className="w-3 h-3" style={{ animation: 'megaflash 1.2s ease-in-out infinite' }} />
+          <MegaphoneAnim size={12} />
         </button>
       </div>
 

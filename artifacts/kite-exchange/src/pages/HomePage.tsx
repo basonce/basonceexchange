@@ -1,6 +1,7 @@
 import React, { useState, lazy, Suspense, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, Headphones, X, Gift, Zap, TrendingUp, Star, Users, Plus, PenLine, FileText, Video, Bell, LayoutDashboard, Pencil, Search, MessageSquare, ScanLine, Megaphone } from 'lucide-react';
+import { Menu, Headphones, X, Gift, Zap, TrendingUp, Star, Users, Plus, PenLine, FileText, Video, Bell, LayoutDashboard, Pencil, Search, MessageSquare, ScanLine } from 'lucide-react';
+import MegaphoneAnim from '../components/MegaphoneAnim';
 import HotSearchOverlay from '../components/HotSearchOverlay';
 import MessagesPage from './MessagesPage';
 import HomeMarketList from '../components/HomeMarketList';
@@ -531,12 +532,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                     }`}
                   >
                     {label}
-                    {id === 'tradfi' && (
-                      <Megaphone
-                        size={13}
-                        style={{ animation: 'megaflash 1.2s ease-in-out infinite', flexShrink: 0 }}
-                      />
-                    )}
+                    {id === 'tradfi' && <MegaphoneAnim size={13} />}
                   </button>
                 ))}
               </div>

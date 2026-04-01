@@ -22,8 +22,14 @@ body.deposit-modal-open .bottom-nav-bar {
 }
 
 @keyframes megaflash {
-  0%, 100% { color: #0ECB81; transform: scale(1); }
-  50% { color: #F6465D; transform: scale(0.9); }
+  0%, 49% { color: #0ECB81; }
+  50%, 100% { color: #F6465D; }
+}
+
+@keyframes soundarc {
+  0%   { opacity: 1; transform: translateY(-50%) scale(0.3); }
+  80%  { opacity: 0.3; }
+  100% { opacity: 0; transform: translateY(-50%) scale(1); }
 }
 
 @keyframes slideUp {
