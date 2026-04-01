@@ -77,6 +77,7 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
   const flashTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const prevPricesRef = useRef<Map<string, number>>(new Map());
   const lastFlashTimeRef = useRef<number>(0);
+  const lastIndepPricesRef = useRef<Map<string, number>>(new Map());
   const [dbLogosLoaded, setDbLogosLoaded] = useState(false);
   const priceManager = useRef(EarnQuestPriceManager.getInstance());
   const payaiManager = useRef(PayAIPriceManager.getInstance());
@@ -358,9 +359,31 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
       const prev = stableCoinsRef.current;
       if (prev.length === 0) return;
 
+      const indepPriceMap: Record<string, () => number> = {
+        EQ: () => priceManager.current.getPrice(),
+        BNC: () => bncManager.current.getPrice(),
+        PAYAI: () => payaiManager.current.getPrice(),
+        SGP: () => sgpManager.current.getPrice(),
+        POWERAI: () => poweraiManager.current.getPrice(),
+        SZNP: () => sznpManager.current.getPrice(),
+        PUNCH: () => punchManager.current.getPrice(),
+      };
+
       const newFlash = new Map<string, 'up' | 'down'>();
       const updated = prev.map((coin, idx) => {
-        if (coin.symbol === 'EQ' || coin.symbol === 'BNC' || coin.symbol === 'PAYAI' || coin.symbol === 'SGP' || coin.symbol === 'POWERAI' || coin.symbol === 'SZNP' || coin.symbol === 'PUNCH') return coin;
+        const indepGetter = indepPriceMap[coin.symbol];
+        if (indepGetter) {
+          const livePrice = indepGetter();
+          const lastPrice = lastIndepPricesRef.current.get(coin.symbol);
+          if (livePrice > 0) {
+            if (lastPrice !== undefined && livePrice !== lastPrice) {
+              newFlash.set(coin.symbol, livePrice > lastPrice ? 'up' : 'down');
+            }
+            lastIndepPricesRef.current.set(coin.symbol, livePrice);
+            return { ...coin, price: livePrice };
+          }
+          return coin;
+        }
         const speed = 0.03 + seededRandom(idx * 7 + Date.now() % 100) * 0.05;
         let newChange = coin.stableChange + coin.driftDir * speed;
         let newDir = coin.driftDir;
