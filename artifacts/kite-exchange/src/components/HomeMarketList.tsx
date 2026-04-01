@@ -493,9 +493,7 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
       {displayCoins.map((coin, coinIdx) => {
         const displayChange = isStableFilter ? (coin as StableCoin).stableChange : coin.change24h;
         const flashDir = flash.get(coin.symbol);
-        const priceColor = isStableFilter
-          ? displayChange >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'
-          : flashDir === 'up' ? 'text-[#0ECB81]' : flashDir === 'down' ? 'text-[#F6465D]' : 'text-white';
+        const priceColor = flashDir === 'up' ? 'text-[#0ECB81]' : flashDir === 'down' ? 'text-[#F6465D]' : 'text-white';
 
         return (
           <div
