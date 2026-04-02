@@ -177,8 +177,11 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
   const [unreadSupportCount, setUnreadSupportCount] = useState(0);
   const [incomingAlerts, setIncomingAlerts] = useState<{ id: string; amount: number; coin: string; network: string; user: string; ts: number }[]>([]);
   const [newTxCount, setNewTxCount] = useState(0);
+  const [newVisitorCount, setNewVisitorCount] = useState(0);
   const seenTxIds = useRef(new Set<string>());
+  const seenUserIds = useRef(new Set<string>());
   const seeded = useRef(false);
+  const userSeeded = useRef(false);
 
   const [addBalanceForm, setAddBalanceForm] = useState({
     symbol: 'USDT',
@@ -208,6 +211,13 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         seeded.current = true;
       });
 
+    // Seed existing user IDs so we don't badge on historical registrations
+    supabase.from('user_profiles').select('id').order('created_at', { ascending: false }).limit(500)
+      .then(({ data }) => {
+        (data || []).forEach((r: { id: string }) => seenUserIds.current.add(r.id));
+        userSeeded.current = true;
+      });
+
     const channel = supabase
       .channel('admin_dashboard_realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'support_messages' }, () => {
@@ -215,6 +225,14 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, () => {
         loadUnreadSupportCount();
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_profiles' }, (payload) => {
+        if (!userSeeded.current) return;
+        const rec = payload.new as any;
+        if (!rec?.id || seenUserIds.current.has(rec.id)) return;
+        seenUserIds.current.add(rec.id);
+        setNewVisitorCount(n => n + 1);
+        loadUsers(); // refresh user list too
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'wallet_transactions' }, (payload) => {
         if (!seeded.current) return;
@@ -474,7 +492,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
   const tabs: { id: AdminTab; label: string; icon: any; badge?: number }[] = [
     { id: 'overview', label: 'Genel', icon: BarChart3 },
     { id: 'wallets', label: 'Cüzdan Havuz', icon: Wallet },
-    { id: 'user-wallets', label: 'Kullanıcı', icon: Users },
+    { id: 'user-wallets', label: 'Kullanıcı', icon: Users, badge: newVisitorCount },
     { id: 'incoming-funds', label: 'Gelen Fonlar', icon: ArrowDownRight, badge: newTxCount },
     { id: 'support', label: 'Destek', icon: MessageSquare, badge: unreadSupportCount },
     { id: 'command', label: 'Komut', icon: Zap },
@@ -491,7 +509,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'data-protection', label: 'Veri Koruma', icon: Shield },
     { id: 'tradfi-logos', label: 'TradeFi', icon: Image },
     { id: 'revenue', label: 'Gelir', icon: TrendingUp },
-    { id: 'visitors', label: 'Gelenler', icon: Eye },
+    { id: 'visitors', label: 'Gelenler', icon: Eye, badge: newVisitorCount },
   ];
 
   return (
@@ -557,7 +575,11 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
           {tabs.map(({ id, label, icon: Icon, badge }) => (
             <button
               key={id}
-              onClick={() => setActiveTab(id)}
+              onClick={() => {
+                setActiveTab(id);
+                if (id === 'visitors' || id === 'user-wallets') setNewVisitorCount(0);
+                if (id === 'incoming-funds') setNewTxCount(0);
+              }}
               className={`relative flex flex-col items-center justify-center gap-1 px-1 py-2.5 rounded-xl transition-all ${
                 activeTab === id
                   ? 'bg-yellow-500 text-black'
