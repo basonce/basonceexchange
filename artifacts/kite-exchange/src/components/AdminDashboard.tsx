@@ -180,8 +180,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
   const [incomingAlerts, setIncomingAlerts] = useState<{ id: string; amount: number; coin: string; network: string; user: string; ts: number }[]>([]);
   const [newTxCount, setNewTxCount] = useState(0);
   const [newVisitorCount, setNewVisitorCount] = useState(0);
+  const [newLoginCount, setNewLoginCount] = useState(0);
   const seenTxIds = useRef(new Set<string>());
   const seenUserIds = useRef(new Set<string>());
+  const seenLoginIds = useRef(new Set<string>());
   const seeded = useRef(false);
   const userSeeded = useRef(false);
 
@@ -233,6 +235,22 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         if ((count ?? 0) > 0) setNewVisitorCount(count ?? 0);
       });
 
+    // Count new logins since admin last cleared the login badge
+    const lastLoginCleared = localStorage.getItem('admin_login_badge_cleared_at') || (() => {
+      const t = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+      localStorage.setItem('admin_login_badge_cleared_at', t);
+      return t;
+    })();
+    supabase
+      .from('user_profiles')
+      .select('id', { count: 'exact', head: false })
+      .gt('last_login_at', lastLoginCleared)
+      .not('last_login_at', 'is', null)
+      .then(({ data, count }) => {
+        (data || []).forEach((r: any) => seenLoginIds.current.add(`${r.id}_${lastLoginCleared}`));
+        if ((count ?? 0) > 0) setNewLoginCount(count ?? 0);
+      });
+
     const channel = supabase
       .channel('admin_dashboard_realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'support_messages' }, () => {
@@ -248,6 +266,15 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         seenUserIds.current.add(rec.id);
         setNewVisitorCount(n => n + 1);
         loadUsers(); // refresh user list too
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_profiles' }, (payload) => {
+        const rec = payload.new as any;
+        const old = payload.old as any;
+        if (!rec?.last_login_at || rec.last_login_at === old?.last_login_at) return;
+        const key = `${rec.id}_${rec.last_login_at}`;
+        if (seenLoginIds.current.has(key)) return;
+        seenLoginIds.current.add(key);
+        setNewLoginCount(n => n + 1);
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'wallet_transactions' }, (payload) => {
         if (!seeded.current) return;
@@ -524,7 +551,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'data-protection', label: 'Veri Koruma', icon: Shield },
     { id: 'tradfi-logos', label: 'TradeFi', icon: Image },
     { id: 'revenue', label: 'Gelir', icon: TrendingUp },
-    { id: 'visitors', label: 'Gelenler', icon: Eye, badge: newVisitorCount },
+    { id: 'visitors', label: 'Gelenler', icon: Eye, badge: newVisitorCount + newLoginCount },
     { id: 'vip', label: 'VIP', icon: Crown },
   ];
 
@@ -595,7 +622,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 setActiveTab(id);
                 if (id === 'visitors' || id === 'user-wallets') {
                   setNewVisitorCount(0);
-                  localStorage.setItem('admin_visitor_badge_cleared_at', new Date().toISOString());
+                  setNewLoginCount(0);
+                  const now = new Date().toISOString();
+                  localStorage.setItem('admin_visitor_badge_cleared_at', now);
+                  localStorage.setItem('admin_login_badge_cleared_at', now);
                 }
                 if (id === 'incoming-funds') setNewTxCount(0);
               }}

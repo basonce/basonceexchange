@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, UserCheck, UserPlus, Clock, ChevronRight, X } from 'lucide-react';
+import { RefreshCw, UserCheck, UserPlus, Clock, ChevronRight, X, Activity } from 'lucide-react';
 
 interface VisitorEvent {
   id: string;
@@ -9,6 +9,14 @@ interface VisitorEvent {
   full_name: string;
   ts: string;
   user_id: string;
+}
+
+interface ActivityEntry {
+  id: number;
+  action: string;
+  page: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
 }
 
 interface UserDetail {
@@ -25,6 +33,8 @@ interface UserDetail {
   spotCount: number;
   supportCount: number;
   recentTx: Array<{ type: string; symbol: string; amount: number; created_at: string }>;
+  activityLog: ActivityEntry[];
+  hasActivityLog: boolean;
 }
 
 function timeAgo(ts: string) {
@@ -134,15 +144,18 @@ export default function VisitorsPanel() {
   async function loadDetail(ev: VisitorEvent) {
     setDetailLoading(true);
     try {
-      const [{ data: prof }, { data: txs }, { data: fut }, { data: spot }, { data: sup }] = await Promise.all([
+      const [{ data: prof }, { data: txs }, { data: fut }, { data: spot }, { data: sup }, activityResult] = await Promise.all([
         supabase.from('user_profiles').select('id,email,full_name,created_at,last_login_at,is_active,user_level,total_trades').eq('id', ev.user_id).maybeSingle(),
         supabase.from('transactions').select('type,symbol,amount,created_at').eq('user_id', ev.user_id).order('created_at', { ascending: false }).limit(8),
         supabase.from('futures_history').select('id').eq('user_id', ev.user_id),
         supabase.from('spot_orders').select('id').eq('user_id', ev.user_id),
         supabase.from('support_tickets').select('id').eq('user_id', ev.user_id),
+        supabase.from('activity_log').select('id,action,page,metadata,created_at').eq('user_id', ev.user_id).order('created_at', { ascending: false }).limit(30),
       ]);
       const deposits = (txs || []).filter((t: any) => ['deposit', 'manual_deposit', 'admin_credit'].includes(t.type));
       const depositTotal = deposits.reduce((s: number, t: any) => s + (Number(t.amount) || 0), 0);
+      const activityLog = (activityResult.data || []) as ActivityEntry[];
+      const hasActivityLog = !activityResult.error;
       setSelected({
         id: ev.user_id,
         email: prof?.email || ev.email,
@@ -157,6 +170,8 @@ export default function VisitorsPanel() {
         spotCount: (spot || []).length,
         supportCount: (sup || []).length,
         recentTx: (txs || []).slice(0, 6) as any,
+        activityLog,
+        hasActivityLog,
       });
     } catch {}
     setDetailLoading(false);
@@ -343,6 +358,49 @@ export default function VisitorsPanel() {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* Activity Log */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Activity className="w-4 h-4 text-blue-600" />
+                    <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Son Hareketler</p>
+                    {!selected.hasActivityLog && (
+                      <span className="text-[10px] text-amber-600 font-semibold bg-amber-50 px-1.5 py-0.5 rounded">
+                        Tablo henüz kurulmadı
+                      </span>
+                    )}
+                  </div>
+                  {selected.hasActivityLog && selected.activityLog.length === 0 ? (
+                    <div className="bg-gray-50 rounded-xl p-4 text-center text-gray-400 text-sm">
+                      Henüz aktivite kaydı yok
+                    </div>
+                  ) : selected.hasActivityLog ? (
+                    <div className="bg-gray-50 rounded-xl overflow-hidden divide-y divide-gray-100 max-h-56 overflow-y-auto">
+                      {selected.activityLog.map((a) => (
+                        <div key={a.id} className="flex items-start gap-2 px-3 py-2">
+                          <span className="text-base flex-shrink-0 mt-0.5">
+                            {a.action === 'page_view' ? (
+                              (a.metadata as any)?.label?.split(' ')[0] || '📄'
+                            ) : '⚡'}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-800 font-medium truncate">
+                              {a.action === 'page_view'
+                                ? (a.metadata as any)?.label?.split(' ').slice(1).join(' ') || a.page || 'Sayfa'
+                                : a.action}
+                            </p>
+                            <p className="text-[10px] text-gray-400">{timeAgo(a.created_at)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-amber-50 rounded-xl p-3 text-sm text-amber-700">
+                      <p className="font-semibold mb-1">Aktivite logu için SQL çalıştır:</p>
+                      <code className="text-xs bg-amber-100 px-2 py-1 rounded block">activity_log_migration.sql</code>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

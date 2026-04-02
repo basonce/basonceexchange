@@ -1,6 +1,7 @@
 import { useState, useEffect, Component, ReactNode, Suspense, lazy } from 'react';
 import { supabase } from './lib/supabase';
 import { analyticsTracker } from './lib/analytics-tracker';
+import { setActivityUserId, trackPageView as trackActivityPage } from './lib/activity-tracker';
 import ExchangeModeProvider from './components/ExchangeModeProvider';
 import ExchangeModeBanner from './components/ExchangeModeBanner';
 import BottomNav from './components/BottomNav';
@@ -151,6 +152,7 @@ function App() {
         analyticsTracker.updateUserRegistration(session.user.id);
 
         if (event === 'SIGNED_IN') {
+          setActivityUserId(session.user.id);
           (async () => {
             try {
               // Track login event in user_profiles
@@ -176,7 +178,13 @@ function App() {
         }
       } else {
         setIsAdmin(false);
+        setActivityUserId(null);
       }
+    });
+
+    // Restore user id for activity tracking on reload
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) setActivityUserId(session.user.id);
     });
 
     return () => subscription.unsubscribe();
@@ -185,6 +193,7 @@ function App() {
   useEffect(() => {
     localStorage.setItem('currentTab', mobileTab);
     analyticsTracker.trackPageView(`/${mobileTab}`);
+    trackActivityPage(mobileTab);
     const newHash = `#${mobileTab}`;
     if (window.location.hash !== newHash) {
       window.history.pushState(null, '', newHash);
