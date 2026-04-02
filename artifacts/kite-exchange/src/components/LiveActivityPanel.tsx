@@ -217,36 +217,45 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
     return (
       <div className="p-4 space-y-4">
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600" />
-            <p className="font-bold text-amber-800 text-base">Tek Seferlik Kurulum Gerekli</p>
-          </div>
-          <p className="text-sm text-amber-700 mb-4">
-            Aşağıdaki SQL'i Supabase SQL Editor'a yapıştır ve çalıştır. Sonra bu panele tekrar bak — her kullanıcının her hareketini anlık takip edeceksin.
+          <p className="font-black text-gray-900 text-lg mb-1">Son 1 Adım Kaldı</p>
+          <p className="text-sm text-gray-500 mb-5">
+            Alttaki butona bas → Supabase açılır → <strong>Ctrl+V</strong> yap → <strong>Ctrl+Enter</strong> bas. Bitti.
           </p>
-          <div className="bg-gray-900 rounded-xl p-3 mb-3">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs text-gray-400 font-mono">SQL</span>
-              <button
-                onClick={() => { navigator.clipboard.writeText(SETUP_SQL); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-                className="flex items-center gap-1 text-xs text-yellow-400 hover:text-yellow-300 font-medium"
-              >
-                {copied ? <><Check className="w-3 h-3" />Kopyalandı!</> : <><Copy className="w-3 h-3" />Kopyala</>}
-              </button>
-            </div>
-            <pre className="text-green-400 text-[10px] leading-relaxed overflow-x-auto whitespace-pre-wrap select-all">{SETUP_SQL}</pre>
-          </div>
-          <a
-            href="https://supabase.com/dashboard/project/mgfviqdxeupajntpylig/sql/new"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full py-3 bg-[#F0B90B] hover:bg-yellow-400 text-black text-center font-black rounded-xl text-sm transition-colors mb-2"
+
+          {/* SINGLE BIG BUTTON */}
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(SETUP_SQL);
+              setCopied(true);
+              setTimeout(() => {
+                window.open('https://supabase.com/dashboard/project/mgfviqdxeupajntpylig/sql/new', '_blank');
+              }, 300);
+              setTimeout(() => setCopied(false), 4000);
+            }}
+            className={`w-full py-4 rounded-2xl font-black text-base transition-all mb-3 flex items-center justify-center gap-2 ${
+              copied
+                ? 'bg-green-500 text-white'
+                : 'bg-[#F0B90B] hover:bg-yellow-400 text-black'
+            }`}
           >
-            → Supabase SQL Editor Aç
-          </a>
-          <button onClick={loadInitial} className="w-full py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors">
-            <RefreshCw className="w-4 h-4" /> SQL Çalıştırdım, Kontrol Et
+            {copied ? (
+              <><Check className="w-5 h-5" /> SQL Kopyalandı! → Ctrl+V yapıp Ctrl+Enter bas</>
+            ) : (
+              <>⚡ SQL'i Kopyala ve Supabase'i Aç</>
+            )}
           </button>
+
+          <button onClick={loadInitial} className="w-full py-3 bg-[#1E2329] text-gray-300 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors">
+            <RefreshCw className="w-4 h-4" /> Çalıştırdım, kontrol et
+          </button>
+
+          {/* Collapsible SQL for reference */}
+          <details className="mt-3">
+            <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">SQL'i göster</summary>
+            <div className="bg-gray-900 rounded-xl p-3 mt-2">
+              <pre className="text-green-400 text-[9px] leading-relaxed overflow-x-auto whitespace-pre-wrap select-all">{SETUP_SQL}</pre>
+            </div>
+          </details>
         </div>
         <div className="bg-white border border-gray-100 rounded-2xl p-4 space-y-2">
           <p className="text-xs font-black text-gray-700 uppercase tracking-wider mb-3">Kurulunca şunları göreceksin</p>
