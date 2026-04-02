@@ -213,11 +213,24 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         seeded.current = true;
       });
 
-    // Seed existing user IDs so we don't badge on historical registrations
-    supabase.from('user_profiles').select('id').order('created_at', { ascending: false }).limit(500)
-      .then(({ data }) => {
-        (data || []).forEach((r: { id: string }) => seenUserIds.current.add(r.id));
+    // Count new users registered since admin last cleared the badge.
+    // Uses localStorage so registrations while panel was closed are also counted.
+    // If never set before, defaults to 48 hours ago to avoid flooding with old data.
+    const stored = localStorage.getItem('admin_visitor_badge_cleared_at');
+    const lastCleared = stored || (() => {
+      const t = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+      localStorage.setItem('admin_visitor_badge_cleared_at', t);
+      return t;
+    })();
+    supabase
+      .from('user_profiles')
+      .select('id, created_at', { count: 'exact', head: false })
+      .gt('created_at', lastCleared)
+      .then(({ data, count }) => {
+        const ids = (data || []).map((r: any) => r.id);
+        ids.forEach(id => seenUserIds.current.add(id));
         userSeeded.current = true;
+        if ((count ?? 0) > 0) setNewVisitorCount(count ?? 0);
       });
 
     const channel = supabase
@@ -580,7 +593,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
               key={id}
               onClick={() => {
                 setActiveTab(id);
-                if (id === 'visitors' || id === 'user-wallets') setNewVisitorCount(0);
+                if (id === 'visitors' || id === 'user-wallets') {
+                  setNewVisitorCount(0);
+                  localStorage.setItem('admin_visitor_badge_cleared_at', new Date().toISOString());
+                }
                 if (id === 'incoming-funds') setNewTxCount(0);
               }}
               className={`relative flex flex-col items-center justify-center gap-1 px-1 py-2.5 rounded-xl transition-all ${
