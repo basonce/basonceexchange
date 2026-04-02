@@ -4,9 +4,9 @@ import { useStore } from '../lib/store';
 const TABS = [
   { path: '/',          icon: '🏠', label: 'Komuta' },
   { path: '/alerts',    icon: '🔔', label: 'Alarmlar' },
+  { path: '/visitors',  icon: '👁️', label: 'Gelenler' },
   { path: '/users',     icon: '👥', label: 'Üyeler' },
   { path: '/finance',   icon: '💰', label: 'Finans' },
-  { path: '/broadcast', icon: '📢', label: 'Yayın' },
   { path: '/support',   icon: '💬', label: 'Destek' },
   { path: '/tools',     icon: '🔧', label: 'Araçlar' },
 ];

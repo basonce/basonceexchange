@@ -205,10 +205,30 @@ function handleNewUser(rec: Record<string, unknown>) {
 
   const name  = String(rec.full_name || rec.email || 'Bilinmeyen');
   const email = String(rec.email || '');
-  fireAlert('high', 'user', '🆕 Yeni Üye Kaydı',
+  fireAlert('high', 'user', '🆕 Yeni Üye Kaydı!',
     `${name}${email && name !== email ? ` (${email})` : ''} platforma katıldı`,
-    { user: name }, startNewUserAlarm);
+    { user: name, email }, startNewUserAlarm);
   useStore.getState().setStats({ totalUsers: useStore.getState().totalUsers + 1 });
+}
+
+const seenLogins = new Set<string>();
+
+function handleUserLogin(rec: Record<string, unknown>, old: Record<string, unknown>) {
+  const id = String(rec.id || '');
+  if (!id) return;
+  const newLogin = String(rec.last_login_at || '');
+  const oldLogin = String(old.last_login_at || '');
+  if (!newLogin || newLogin === oldLogin) return;
+  const loginKey = `${id}_${newLogin}`;
+  if (seenLogins.has(loginKey)) return;
+  seenLogins.add(loginKey);
+  if (new Date(newLogin) < new Date(monitorStartedAt)) return;
+
+  const name   = String(rec.full_name || rec.email || 'Üye');
+  const email  = String(rec.email || '');
+  fireAlert('low', 'visitor', `🔑 Üye Giriş Yaptı`,
+    `${name}${email && name !== email ? ` (${email})` : ''} sisteme giriş yaptı`,
+    { user: name, email }, undefined);
 }
 
 // ── Seed existing IDs (prevents alarm for historical data) ─────
@@ -283,7 +303,16 @@ function subscribeRealtime() {
   sub('wallet_addresses',      'wallet_addresses',        handleWalletAddress);
   sub('user_profiles',         'user_profiles',           handleNewUser);
 
-  console.log('[monitor] 10 Realtime kanal başlatıldı');
+  // Login tracking via UPDATE on user_profiles
+  const loginCh = supabase.channel('rt_user_logins')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_profiles' },
+      p => handleUserLogin(p.new as Record<string, unknown>, p.old as Record<string, unknown>))
+    .subscribe(status => {
+      if (status === 'SUBSCRIBED') console.log('[rt] ✅ user_logins bağlandı');
+    });
+  channels.push(loginCh);
+
+  console.log('[monitor] 11 Realtime kanal başlatıldı');
 }
 
 // ── Polling (fallback — runs every 10s via silent-loop timer) ──
@@ -355,6 +384,19 @@ async function poll() {
     const { data } = await supabase.rpc('admin_get_real_users_with_wallets');
     for (const r of (data || []) as Array<{ user_id: string; email: string; full_name: string; created_at: string }>) {
       handleNewUser({ id: r.user_id, ...r });
+    }
+  } catch {}
+
+  // 10. New users (direct user_profiles SELECT — double coverage)
+  try {
+    const { data } = await supabase
+      .from('user_profiles')
+      .select('id,email,full_name,created_at')
+      .gte('created_at', new Date(new Date(monitorStartedAt).getTime() - 60_000).toISOString())
+      .order('created_at', { ascending: false })
+      .limit(20);
+    for (const r of (data || [])) {
+      handleNewUser(r as Record<string, unknown>);
     }
   } catch {}
 }

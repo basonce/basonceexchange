@@ -9,6 +9,7 @@ import Support from './pages/Support';
 import Settings from './pages/Settings';
 import Tools from './pages/Tools';
 import Broadcast from './pages/Broadcast';
+import Visitors from './pages/Visitors';
 import BottomNav from './components/BottomNav';
 import { startMonitor } from './lib/monitor';
 import {
@@ -169,6 +170,7 @@ function AppContent() {
             <Route path="/settings" component={Settings} />
             <Route path="/tools" component={Tools} />
             <Route path="/broadcast" component={Broadcast} />
+            <Route path="/visitors" component={Visitors} />
             <Route>
               <div className="flex items-center justify-center min-h-screen" style={{ color: 'rgba(255,255,255,0.3)' }}>
                 Sayfa bulunamadı

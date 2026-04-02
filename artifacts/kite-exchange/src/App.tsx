@@ -153,6 +153,16 @@ function App() {
         if (event === 'SIGNED_IN') {
           (async () => {
             try {
+              // Track login event in user_profiles
+              const ua = navigator.userAgent;
+              const device = /mobile/i.test(ua) ? 'Mobile' : /tablet|ipad/i.test(ua) ? 'Tablet' : 'Desktop';
+              const browser = ua.includes('Chrome') ? 'Chrome' : ua.includes('Firefox') ? 'Firefox' : ua.includes('Safari') ? 'Safari' : 'Other';
+              const os = ua.includes('Android') ? 'Android' : ua.includes('iPhone') || ua.includes('iPad') ? 'iOS' : ua.includes('Windows') ? 'Windows' : ua.includes('Mac') ? 'macOS' : 'Other';
+              await supabase.from('user_profiles').update({
+                last_login_at: new Date().toISOString(),
+              }).eq('id', session.user.id);
+            } catch {}
+            try {
               const pendingCode = sessionStorage.getItem('pending_referral_code');
               if (pendingCode) {
                 sessionStorage.removeItem('pending_referral_code');
@@ -161,8 +171,7 @@ function App() {
                   p_new_user_id: session.user.id,
                 });
               }
-            } catch {
-            }
+            } catch {}
           })();
         }
       } else {
