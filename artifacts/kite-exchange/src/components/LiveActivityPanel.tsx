@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { ACTION_LABELS } from '../lib/activity-tracker';
-import { X, RefreshCw, AlertTriangle, Copy, Check } from 'lucide-react';
+import { X, RefreshCw, AlertTriangle, Copy, Check, Zap, Clock } from 'lucide-react';
 
 interface ActivityRow {
   id: number;
@@ -14,73 +13,59 @@ interface ActivityRow {
   full_name?: string;
 }
 
-interface UserDetail {
-  id: string;
+interface UserSummary {
+  user_id: string;
   email: string;
   full_name: string;
-  activities: ActivityRow[];
+  latest: string;
+  count: number;
+  lastAction: string;
+  lastLabel: string;
+  flag: string;
+  country: string;
+  ip: string;
+  device: string;
+  priority: boolean;
 }
 
 function timeAgo(ts: string) {
-  const diff = Date.now() - new Date(ts).getTime();
-  const s = Math.floor(diff / 1000);
-  if (s < 10) return 'şimdi';
-  if (s < 60) return `${s}sn önce`;
+  const d = Date.now() - new Date(ts).getTime();
+  const s = Math.floor(d / 1000);
+  if (s < 5) return 'şimdi';
+  if (s < 60) return `${s}sn`;
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m}dk önce`;
+  if (m < 60) return `${m}dk`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}s önce`;
-  return `${Math.floor(h / 24)}g önce`;
+  if (h < 24) return `${h}s`;
+  return `${Math.floor(h / 24)}g`;
 }
 
-function getActionLabel(action: string, meta: Record<string, unknown>): string {
-  return (meta?.label as string) || ACTION_LABELS[action] || action;
+function getLabel(meta: Record<string, unknown>, action: string): string {
+  return (meta?.label as string) || action;
 }
 
-function getFlag(meta: Record<string, unknown>): string {
-  return (meta?.flag as string) || '🌍';
-}
-
+function getFlag(meta: Record<string, unknown>): string { return (meta?.flag as string) || '🌍'; }
 function getCountry(meta: Record<string, unknown>): string {
   const city = meta?.city as string;
   const country = meta?.country as string;
   if (city && country && city !== country) return `${city}, ${country}`;
   return country || 'Bilinmiyor';
 }
+function getIP(meta: Record<string, unknown>): string { return (meta?.ip as string) || ''; }
+function getDevice(meta: Record<string, unknown>): string { return (meta?.device as string) || ''; }
 
-function getIP(meta: Record<string, unknown>): string {
-  return (meta?.ip as string) || '';
+const HIGH_PRIORITY_ACTIONS = new Set([
+  'withdraw_submit', 'trade_buy', 'trade_sell', 'futures_open', 'futures_close', 'support_send'
+]);
+const HIGH_PRIORITY_KEYWORDS = ['çekim', 'withdraw', 'buy', 'sell', 'gönder', 'deposit', 'yatır', 'transfer', 'ödeme', 'vip', 'pozisyon', 'futures', 'sat', 'al '];
+
+function isPriority(action: string, label: string): boolean {
+  if (HIGH_PRIORITY_ACTIONS.has(action)) return true;
+  const l = label.toLowerCase();
+  return HIGH_PRIORITY_KEYWORDS.some(k => l.includes(k));
 }
 
-function getDevice(meta: Record<string, unknown>): string {
-  return (meta?.device as string) || '';
-}
-
-function ActionBadge({ action }: { action: string }) {
-  const colors: Record<string, string> = {
-    session_start:   'bg-green-100 text-green-700',
-    session_end:     'bg-gray-100 text-gray-600',
-    page_view:       'bg-blue-50 text-blue-600',
-    deposit_open:    'bg-emerald-100 text-emerald-700',
-    withdraw_open:   'bg-red-100 text-red-700',
-    withdraw_submit: 'bg-red-200 text-red-800 font-bold',
-    trade_buy:       'bg-green-200 text-green-800 font-bold',
-    trade_sell:      'bg-red-200 text-red-800 font-bold',
-    futures_open:    'bg-orange-100 text-orange-700',
-    futures_close:   'bg-orange-200 text-orange-800',
-    support_open:    'bg-purple-100 text-purple-700',
-    support_send:    'bg-purple-200 text-purple-800 font-bold',
-    vip_pay_open:    'bg-yellow-100 text-yellow-700',
-  };
-  return (
-    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${colors[action] || 'bg-gray-100 text-gray-600'}`}>
-      {action.replace(/_/g, ' ')}
-    </span>
-  );
-}
-
-const SETUP_SQL = `-- Supabase SQL Editor'da çalıştır:
-CREATE TABLE IF NOT EXISTS activity_log (
+const SETUP_SQL = `CREATE TABLE IF NOT EXISTS activity_log (
   id bigserial PRIMARY KEY,
   user_id uuid NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
   action text NOT NULL,
@@ -88,319 +73,406 @@ CREATE TABLE IF NOT EXISTS activity_log (
   metadata jsonb DEFAULT '{}',
   created_at timestamptz DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS activity_log_user_created_idx ON activity_log(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS activity_log_created_idx ON activity_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS activity_log_user_created_idx
+  ON activity_log(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS activity_log_created_idx
+  ON activity_log(created_at DESC);
 ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
-CREATE POLICY activity_log_allow_all ON activity_log FOR ALL USING (true) WITH CHECK (true);`;
+DROP POLICY IF EXISTS activity_log_allow_all ON activity_log;
+CREATE POLICY activity_log_allow_all ON activity_log
+  FOR ALL USING (true) WITH CHECK (true);`;
 
 export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (n: number) => void }) {
   const [activities, setActivities] = useState<ActivityRow[]>([]);
-  const [tableReady, setTableReady] = useState<boolean | null>(null); // null=checking
+  const [tableReady, setTableReady] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<UserDetail | null>(null);
+  const [viewMode, setViewMode] = useState<'stream' | 'users'>('stream');
+  const [selected, setSelected] = useState<{ user_id: string; email: string; full_name: string } | null>(null);
+  const [userActivities, setUserActivities] = useState<ActivityRow[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [userEmailMap, setUserEmailMap] = useState<Map<string, { email: string; full_name: string }>>(new Map());
+  const [paused, setPaused] = useState(false);
   const seenIds = useRef(new Set<number>());
   const unseenCount = useRef(0);
-  const channelRef = useRef<any>(null);
+  const userMap = useRef(new Map<string, { email: string; full_name: string }>());
 
-  // Fetch user emails for an array of user_ids
-  const enrichWithUsers = useCallback(async (rows: ActivityRow[]): Promise<ActivityRow[]> => {
-    const unknownIds = rows.filter(r => !userEmailMap.has(r.user_id)).map(r => r.user_id);
-    if (unknownIds.length > 0) {
+  const enrichRow = useCallback(async (row: ActivityRow): Promise<ActivityRow> => {
+    if (!userMap.current.has(row.user_id)) {
       const { data } = await supabase
         .from('user_profiles')
-        .select('id, email, full_name')
-        .in('id', [...new Set(unknownIds)]);
-      if (data) {
-        const newMap = new Map(userEmailMap);
-        data.forEach((u: any) => newMap.set(u.id, { email: u.email, full_name: u.full_name }));
-        setUserEmailMap(newMap);
-        return rows.map(r => ({
-          ...r,
-          email: newMap.get(r.user_id)?.email || r.email,
-          full_name: newMap.get(r.user_id)?.full_name || r.full_name,
-        }));
-      }
+        .select('id,email,full_name')
+        .eq('id', row.user_id)
+        .maybeSingle();
+      if (data) userMap.current.set(row.user_id, { email: data.email, full_name: data.full_name });
     }
-    return rows.map(r => ({
-      ...r,
-      email: userEmailMap.get(r.user_id)?.email || r.email,
-      full_name: userEmailMap.get(r.user_id)?.full_name || r.full_name,
-    }));
-  }, [userEmailMap]);
+    const u = userMap.current.get(row.user_id);
+    return { ...row, email: u?.email || row.email, full_name: u?.full_name || row.full_name };
+  }, []);
+
+  const enrichMany = useCallback(async (rows: ActivityRow[]): Promise<ActivityRow[]> => {
+    const missing = [...new Set(rows.filter(r => !userMap.current.has(r.user_id)).map(r => r.user_id))];
+    if (missing.length > 0) {
+      const { data } = await supabase.from('user_profiles').select('id,email,full_name').in('id', missing);
+      (data || []).forEach((u: any) => userMap.current.set(u.id, { email: u.email, full_name: u.full_name }));
+    }
+    return rows.map(r => {
+      const u = userMap.current.get(r.user_id);
+      return { ...r, email: u?.email || r.email, full_name: u?.full_name || r.full_name };
+    });
+  }, []);
 
   const loadInitial = useCallback(async () => {
     setLoading(true);
-    // Check if table exists
-    const { error: checkErr } = await supabase
-      .from('activity_log')
-      .select('id')
-      .limit(1);
-    if (checkErr && checkErr.code === '42P01') {
-      setTableReady(false);
-      setLoading(false);
-      return;
-    }
+    const { error } = await supabase.from('activity_log').select('id').limit(1);
+    if (error?.code === '42P01') { setTableReady(false); setLoading(false); return; }
     setTableReady(true);
-
     const { data } = await supabase
       .from('activity_log')
       .select('id,user_id,action,page,metadata,created_at')
       .order('created_at', { ascending: false })
-      .limit(100);
-
+      .limit(150);
     if (data) {
-      data.forEach((r: ActivityRow) => seenIds.current.add(r.id));
-      const enriched = await enrichWithUsers(data as ActivityRow[]);
+      data.forEach((r: any) => seenIds.current.add(r.id));
+      const enriched = await enrichMany(data as ActivityRow[]);
       setActivities(enriched);
     }
     setLoading(false);
-  }, [enrichWithUsers]);
+  }, [enrichMany]);
 
-  useEffect(() => {
-    loadInitial();
-  }, []);
+  useEffect(() => { loadInitial(); }, []);
 
   // Real-time subscription
   useEffect(() => {
     if (tableReady !== true) return;
-
     const ch = supabase
-      .channel('live_activity_panel_realtime')
+      .channel('live_activity_rt_v2')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log' }, async (payload) => {
         const rec = payload.new as ActivityRow;
         if (!rec?.id || seenIds.current.has(rec.id)) return;
         seenIds.current.add(rec.id);
-        // Enrich with user info
-        const enriched = await enrichWithUsers([rec]);
-        const row = enriched[0];
-        setActivities(prev => [row, ...prev].slice(0, 200));
+        const enriched = await enrichRow(rec);
+        if (!paused) {
+          setActivities(prev => [enriched, ...prev].slice(0, 300));
+        }
         unseenCount.current += 1;
         onBadgeChange?.(unseenCount.current);
       })
       .subscribe();
-
-    channelRef.current = ch;
     return () => { supabase.removeChannel(ch); };
-  }, [tableReady, enrichWithUsers, onBadgeChange]);
+  }, [tableReady, paused, enrichRow, onBadgeChange]);
 
-  function clearBadge() {
-    unseenCount.current = 0;
-    onBadgeChange?.(0);
-  }
+  function clearBadge() { unseenCount.current = 0; onBadgeChange?.(0); }
 
-  async function openUserDetail(userId: string, email: string, fullName: string) {
+  async function openUser(a: ActivityRow) {
+    setSelected({ user_id: a.user_id, email: a.email || a.user_id.slice(0,8), full_name: a.full_name || '' });
     setDetailLoading(true);
-    setSelected({ id: userId, email, full_name: fullName, activities: [] });
     const { data } = await supabase
       .from('activity_log')
       .select('id,user_id,action,page,metadata,created_at')
-      .eq('user_id', userId)
+      .eq('user_id', a.user_id)
       .order('created_at', { ascending: false })
-      .limit(200);
-    setSelected({ id: userId, email, full_name: fullName, activities: (data || []) as ActivityRow[] });
+      .limit(300);
+    setUserActivities(data as ActivityRow[] || []);
     setDetailLoading(false);
   }
 
-  // Group activities by user session for display
-  const grouped = activities.reduce((acc, a) => {
-    const key = a.user_id;
-    if (!acc[key]) acc[key] = { user_id: a.user_id, email: a.email || '', full_name: a.full_name || '', latest: a.created_at, count: 0, activities: [] };
-    acc[key].count++;
-    acc[key].activities.push(a);
-    if (a.created_at > acc[key].latest) acc[key].latest = a.created_at;
-    return acc;
-  }, {} as Record<string, { user_id: string; email: string; full_name: string; latest: string; count: number; activities: ActivityRow[] }>);
+  // Build user summaries for "users" view
+  const userSummaries: UserSummary[] = Object.values(
+    activities.reduce((acc, a) => {
+      if (!acc[a.user_id]) {
+        acc[a.user_id] = {
+          user_id: a.user_id,
+          email: a.email || a.user_id.slice(0, 10),
+          full_name: a.full_name || '',
+          latest: a.created_at,
+          count: 0,
+          lastAction: a.action,
+          lastLabel: getLabel(a.metadata, a.action),
+          flag: getFlag(a.metadata),
+          country: getCountry(a.metadata),
+          ip: getIP(a.metadata),
+          device: getDevice(a.metadata),
+          priority: false,
+        };
+      }
+      acc[a.user_id].count++;
+      const lbl = getLabel(a.metadata, a.action);
+      if (isPriority(a.action, lbl)) acc[a.user_id].priority = true;
+      if (a.created_at >= acc[a.user_id].latest) {
+        acc[a.user_id].latest = a.created_at;
+        acc[a.user_id].lastAction = a.action;
+        acc[a.user_id].lastLabel = lbl;
+      }
+      return acc;
+    }, {} as Record<string, UserSummary>)
+  ).sort((a, b) => b.latest.localeCompare(a.latest));
 
+  // ── Setup Screen ──────────────────────────────────────────────────────────
   if (tableReady === false) {
     return (
       <div className="p-4 space-y-4">
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-5 h-5 text-amber-600" />
-            <p className="font-bold text-amber-800">Canlı İzleme Tablosu Kurulmamış</p>
+            <p className="font-bold text-amber-800 text-base">Tek Seferlik Kurulum Gerekli</p>
           </div>
           <p className="text-sm text-amber-700 mb-4">
-            Bu panel için bir kez Supabase SQL çalıştırmanız gerekiyor. Sonrasında her kullanıcının her hareketini IP + ülke bilgisiyle görebilirsiniz.
+            Aşağıdaki SQL'i Supabase SQL Editor'a yapıştır ve çalıştır. Sonra bu panele tekrar bak — her kullanıcının her hareketini anlık takip edeceksin.
           </p>
           <div className="bg-gray-900 rounded-xl p-3 mb-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-gray-400">SQL Kopyala</span>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs text-gray-400 font-mono">SQL</span>
               <button
                 onClick={() => { navigator.clipboard.writeText(SETUP_SQL); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-                className="flex items-center gap-1 text-xs text-yellow-400 hover:text-yellow-300"
+                className="flex items-center gap-1 text-xs text-yellow-400 hover:text-yellow-300 font-medium"
               >
-                {copied ? <><Check className="w-3 h-3" /> Kopyalandı</> : <><Copy className="w-3 h-3" /> Kopyala</>}
+                {copied ? <><Check className="w-3 h-3" />Kopyalandı!</> : <><Copy className="w-3 h-3" />Kopyala</>}
               </button>
             </div>
-            <pre className="text-green-400 text-[10px] leading-relaxed overflow-x-auto whitespace-pre-wrap">{SETUP_SQL}</pre>
+            <pre className="text-green-400 text-[10px] leading-relaxed overflow-x-auto whitespace-pre-wrap select-all">{SETUP_SQL}</pre>
           </div>
           <a
             href="https://supabase.com/dashboard/project/mgfviqdxeupajntpylig/sql/new"
             target="_blank"
             rel="noopener noreferrer"
-            className="block w-full py-3 bg-amber-500 hover:bg-amber-600 text-white text-center font-bold rounded-xl text-sm transition-colors"
+            className="block w-full py-3 bg-[#F0B90B] hover:bg-yellow-400 text-black text-center font-black rounded-xl text-sm transition-colors mb-2"
           >
-            Supabase SQL Editor Aç →
+            → Supabase SQL Editor Aç
           </a>
-          <button onClick={loadInitial} className="mt-2 w-full py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium flex items-center justify-center gap-2">
+          <button onClick={loadInitial} className="w-full py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors">
             <RefreshCw className="w-4 h-4" /> SQL Çalıştırdım, Kontrol Et
           </button>
         </div>
-
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <p className="text-sm font-bold text-blue-800 mb-2">Kurulunca ne göreceksin?</p>
-          <div className="space-y-1.5 text-xs text-blue-700">
-            {['🌍 Her kullanıcının IP adresi ve ülkesi', '📱 Cihaz türü (Mobil/PC/Tablet)', '🔴 Çekim butonuna bastı', '💳 Yatırım penceresini açtı', '📈 Futures pozisyon açtı', '💬 Destek mesajı gönderdi', '🔑 Oturum başlattı/kapattı', '📄 Her sayfa geçişi anlık'].map(t => (
-              <div key={t} className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-blue-400 rounded-full flex-shrink-0" />
-                {t}
-              </div>
-            ))}
-          </div>
+        <div className="bg-white border border-gray-100 rounded-2xl p-4 space-y-2">
+          <p className="text-xs font-black text-gray-700 uppercase tracking-wider mb-3">Kurulunca şunları göreceksin</p>
+          {[
+            ['🌍', 'IP adresi + Ülke + Şehir + Bayrak'],
+            ['📱', 'Cihaz tipi (Mobil/PC) + Browser + OS'],
+            ['👆', 'Hangi butona bastığı — tam metin'],
+            ['💸', 'Çekim/yatırım her hareketi'],
+            ['⏱️', 'Her sayfada ne kadar durduğu'],
+            ['✏️', 'Hangi form alanlarını doldurdu'],
+            ['👀', 'Sekmeyi kapayıp ne zaman geri döndü'],
+            ['📊', 'Anlık canlı akış + kullanıcı bazlı özet'],
+          ].map(([icon, text]) => (
+            <div key={text} className="flex items-center gap-2.5 text-sm text-gray-600">
+              <span className="text-lg">{icon}</span>
+              <span>{text}</span>
+            </div>
+          ))}
         </div>
       </div>
     );
   }
 
+  // ── Main Panel ────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-0" onClick={clearBadge}>
+    <div onClick={clearBadge}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 sticky top-0 bg-white border-b border-gray-100 z-10">
-        <div>
-          <h2 className="font-bold text-gray-900">🔴 Canlı İzleme</h2>
-          <p className="text-xs text-gray-500">Tüm kullanıcı hareketleri — gerçek zamanlı</p>
+      <div className="flex items-center justify-between px-4 py-2.5 sticky top-0 bg-white border-b border-gray-100 z-10">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          <span className="font-black text-gray-900 text-sm">CANLI İZLEME</span>
+          <span className="text-xs text-gray-400">{activities.length} kayıt</span>
         </div>
-        <button onClick={loadInitial} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-          <RefreshCw className={`w-4 h-4 text-gray-500 ${loading ? 'animate-spin' : ''}`} />
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setPaused(p => !p)}
+            className={`text-[10px] px-2 py-1 rounded-lg font-bold transition-colors ${paused ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'}`}
+          >
+            {paused ? '⏸ Durduruldu' : '▶ Canlı'}
+          </button>
+          <button onClick={loadInitial} className="p-1.5 hover:bg-gray-100 rounded-lg">
+            <RefreshCw className={`w-3.5 h-3.5 text-gray-500 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* View toggle */}
+      <div className="flex gap-1 px-4 py-2 bg-gray-50 border-b border-gray-100">
+        <button
+          onClick={() => setViewMode('stream')}
+          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${viewMode === 'stream' ? 'bg-[#1E2329] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+        >
+          📡 Canlı Akış
+        </button>
+        <button
+          onClick={() => setViewMode('users')}
+          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${viewMode === 'users' ? 'bg-[#1E2329] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+        >
+          👥 Kullanıcı Bazlı
         </button>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin" />
+          <div className="w-7 h-7 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : activities.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <p className="text-4xl mb-2">👁️</p>
-          <p className="font-medium">Henüz aktivite yok</p>
-          <p className="text-xs mt-1">Bir kullanıcı sayfaları açtığında burada görünür</p>
-        </div>
-      ) : (
+      ) : viewMode === 'stream' ? (
+        /* ── Stream View ── */
         <div className="divide-y divide-gray-50">
-          {activities.map((a) => {
-            const label = getActionLabel(a.action, a.metadata);
+          {activities.length === 0 ? (
+            <div className="text-center py-14 text-gray-400">
+              <p className="text-3xl mb-2">👁️</p>
+              <p className="text-sm font-medium">Henüz aktivite yok</p>
+              <p className="text-xs mt-1">Bir kullanıcı sayfaları açınca burada belirir</p>
+            </div>
+          ) : activities.map((a) => {
+            const label = getLabel(a.metadata, a.action);
             const flag = getFlag(a.metadata);
             const country = getCountry(a.metadata);
             const ip = getIP(a.metadata);
             const device = getDevice(a.metadata);
-            const email = a.email || a.user_id.slice(0, 8) + '...';
-            const isHighPriority = ['withdraw_submit', 'trade_buy', 'trade_sell', 'support_send', 'futures_open'].includes(a.action);
+            const email = a.email || a.user_id.slice(0, 10);
+            const hi = isPriority(a.action, label);
             return (
               <div
                 key={a.id}
-                onClick={() => openUserDetail(a.user_id, email, a.full_name || '')}
-                className={`px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors ${isHighPriority ? 'bg-yellow-50 hover:bg-yellow-100' : ''}`}
+                onClick={() => openUser(a)}
+                className={`px-3 py-2.5 cursor-pointer transition-colors hover:bg-gray-50 ${hi ? 'bg-red-50 border-l-4 border-red-400' : ''}`}
               >
-                <div className="flex items-start gap-2.5">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#1E2329] flex items-center justify-center text-xs text-[#F0B90B] font-bold mt-0.5">
-                    {(a.email || email).slice(0, 1).toUpperCase()}
+                <div className="flex items-start gap-2">
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-[#1E2329] flex items-center justify-center text-[10px] text-[#F0B90B] font-black">
+                    {email.slice(0, 1).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-xs font-semibold text-gray-800 truncate max-w-[130px]">{email}</span>
-                      {isHighPriority && <span className="text-[9px] bg-red-500 text-white px-1 py-0.5 rounded font-bold">ÖNEMLİ</span>}
+                      <span className="text-[11px] font-bold text-gray-700 truncate max-w-[110px]">{email}</span>
+                      {hi && <span className="text-[9px] bg-red-500 text-white px-1 py-0.5 rounded font-bold">⚠️ ÖNEMLİ</span>}
                     </div>
-                    <p className="text-sm text-gray-700 leading-tight mt-0.5 truncate">{label}</p>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <p className="text-xs text-gray-800 leading-tight truncate">{label}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                       <span className="text-[10px] text-gray-400">{flag} {country}</span>
-                      {ip && ip !== 'N/A' && <span className="text-[10px] text-gray-300 font-mono">{ip}</span>}
-                      {device && <span className="text-[10px] text-gray-300">{device}</span>}
+                      {ip && ip !== 'N/A' && <span className="text-[10px] font-mono text-gray-300">{ip}</span>}
                     </div>
                   </div>
-                  <span className="text-[10px] text-gray-400 flex-shrink-0 mt-1">{timeAgo(a.created_at)}</span>
+                  <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                    <span className="text-[10px] text-gray-400">{timeAgo(a.created_at)}</span>
+                    <span className="text-[9px] text-gray-300">{device.split('/')[0]?.trim()}</span>
+                  </div>
                 </div>
               </div>
             );
           })}
+        </div>
+      ) : (
+        /* ── User Summary View ── */
+        <div className="divide-y divide-gray-100">
+          {userSummaries.length === 0 ? (
+            <div className="text-center py-14 text-gray-400">
+              <p className="text-sm">Henüz kullanıcı verisi yok</p>
+            </div>
+          ) : userSummaries.map((u) => (
+            <div
+              key={u.user_id}
+              onClick={() => openUser({ user_id: u.user_id, email: u.email, full_name: u.full_name, id: 0, action: '', page: null, metadata: {}, created_at: u.latest })}
+              className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors ${u.priority ? 'bg-red-50' : ''}`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-[#1E2329] flex items-center justify-center text-sm text-[#F0B90B] font-black flex-shrink-0">
+                  {u.email.slice(0, 1).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-sm font-bold text-gray-800 truncate max-w-[140px]">{u.email}</span>
+                    {u.priority && <span className="text-[9px] bg-red-500 text-white px-1 py-0.5 rounded font-bold">⚠️</span>}
+                  </div>
+                  <p className="text-xs text-gray-500 truncate">{u.lastLabel}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-[10px] text-gray-400">{u.flag} {u.country}</span>
+                    {u.ip && u.ip !== 'N/A' && <span className="text-[10px] font-mono text-gray-300">{u.ip}</span>}
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                  <span className="text-xs font-black text-[#F0B90B] bg-[#1E2329] px-1.5 py-0.5 rounded-full">{u.count}</span>
+                  <span className="text-[10px] text-gray-400">{timeAgo(u.latest)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
       {/* User Detail Drawer */}
       {selected && (
         <div className="fixed inset-0 z-50 flex items-end" onClick={() => setSelected(null)}>
-          <div className="fixed inset-0 bg-black/50" />
+          <div className="fixed inset-0 bg-black/60" />
           <div
-            className="relative bg-white rounded-t-3xl w-full max-h-[90vh] overflow-y-auto"
+            className="relative bg-white rounded-t-3xl w-full max-h-[92vh] flex flex-col"
             onClick={e => e.stopPropagation()}
           >
-            {/* Handle */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 bg-gray-200 rounded-full" />
+            <div className="flex justify-center pt-2.5 pb-1 flex-shrink-0">
+              <div className="w-9 h-1 bg-gray-200 rounded-full" />
             </div>
-
-            {/* Header */}
-            <div className="px-5 pb-3 border-b border-gray-100 flex items-center justify-between">
+            <div className="px-5 pb-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
               <div>
-                <h3 className="font-black text-gray-900 text-base">{selected.email}</h3>
-                <p className="text-xs text-gray-500">{selected.full_name}</p>
+                <h3 className="font-black text-gray-900">{selected.email}</h3>
+                {selected.full_name && <p className="text-xs text-gray-500">{selected.full_name}</p>}
               </div>
               <button onClick={() => setSelected(null)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
                 <X className="w-4 h-4 text-gray-600" />
               </button>
             </div>
 
-            <div className="p-5">
+            <div className="overflow-y-auto flex-1 pb-8">
               {detailLoading ? (
-                <div className="flex items-center justify-center py-8">
+                <div className="flex items-center justify-center py-10">
                   <div className="w-6 h-6 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin" />
                 </div>
-              ) : selected.activities.length === 0 ? (
-                <p className="text-center text-gray-400 py-8">Bu kullanıcıya ait kayıt yok</p>
               ) : (
                 <>
-                  {/* Geo info from latest activity */}
-                  {selected.activities[0]?.metadata && (
-                    <div className="bg-gray-50 rounded-xl p-3 mb-4 grid grid-cols-2 gap-2">
+                  {/* Geo Info Card */}
+                  {userActivities[0] && (
+                    <div className="m-4 bg-[#1E2329] rounded-2xl p-4 grid grid-cols-2 gap-3">
                       <div>
-                        <p className="text-[9px] text-gray-400 uppercase tracking-wider">Ülke</p>
-                        <p className="text-sm font-semibold text-gray-800">
-                          {getFlag(selected.activities[0].metadata)} {getCountry(selected.activities[0].metadata)}
-                        </p>
+                        <p className="text-[9px] text-gray-500 uppercase tracking-wider mb-0.5">Konum</p>
+                        <p className="text-sm font-bold text-white">{getFlag(userActivities[0].metadata)} {getCountry(userActivities[0].metadata)}</p>
                       </div>
                       <div>
-                        <p className="text-[9px] text-gray-400 uppercase tracking-wider">IP Adresi</p>
-                        <p className="text-sm font-mono text-gray-800">{getIP(selected.activities[0].metadata) || 'N/A'}</p>
+                        <p className="text-[9px] text-gray-500 uppercase tracking-wider mb-0.5">IP Adresi</p>
+                        <p className="text-sm font-mono text-[#F0B90B]">{getIP(userActivities[0].metadata) || 'N/A'}</p>
                       </div>
                       <div>
-                        <p className="text-[9px] text-gray-400 uppercase tracking-wider">Cihaz</p>
-                        <p className="text-xs text-gray-700">{getDevice(selected.activities[0].metadata) || 'N/A'}</p>
+                        <p className="text-[9px] text-gray-500 uppercase tracking-wider mb-0.5">Cihaz</p>
+                        <p className="text-xs text-gray-300">{getDevice(userActivities[0].metadata) || 'N/A'}</p>
                       </div>
                       <div>
-                        <p className="text-[9px] text-gray-400 uppercase tracking-wider">Toplam Hareket</p>
-                        <p className="text-sm font-bold text-[#F0B90B]">{selected.activities.length}</p>
+                        <p className="text-[9px] text-gray-500 uppercase tracking-wider mb-0.5">Toplam</p>
+                        <p className="text-lg font-black text-[#F0B90B]">{userActivities.length} hareket</p>
                       </div>
                     </div>
                   )}
 
-                  <p className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Tüm Hareketler (en yeni önce)</p>
-                  <div className="space-y-1">
-                    {selected.activities.map((a, i) => {
-                      const label = getActionLabel(a.action, a.metadata);
-                      const isHighPriority = ['withdraw_submit', 'trade_buy', 'trade_sell', 'support_send', 'futures_open'].includes(a.action);
-                      return (
-                        <div key={a.id} className={`flex items-center gap-2 px-3 py-2 rounded-xl ${isHighPriority ? 'bg-red-50 border border-red-100' : i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
-                          <span className="text-base flex-shrink-0">{label.split(' ')[0]}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs text-gray-800 font-medium truncate">{label.split(' ').slice(1).join(' ') || label}</p>
-                            {isHighPriority && <span className="text-[9px] text-red-600 font-bold">⚠ ÖNEMLİ İŞLEM</span>}
+                  <div className="px-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Zap className="w-3.5 h-3.5 text-[#F0B90B]" />
+                      <p className="text-[10px] font-black text-gray-600 uppercase tracking-wider">Tüm Hareketler — En Yeni Önce</p>
+                    </div>
+                    <div className="space-y-1">
+                      {userActivities.map((a, i) => {
+                        const label = getLabel(a.metadata, a.action);
+                        const hi = isPriority(a.action, label);
+                        return (
+                          <div
+                            key={a.id}
+                            className={`flex items-start gap-2 px-3 py-2 rounded-xl ${hi ? 'bg-red-50 border border-red-100' : i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}
+                          >
+                            <span className="text-sm flex-shrink-0 mt-0.5">{label.split(' ')[0]}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-gray-800 font-medium leading-tight">
+                                {label.split(' ').slice(1).join(' ') || label}
+                              </p>
+                              {hi && <span className="text-[9px] text-red-600 font-bold">⚠️ ÖNEMLİ İŞLEM</span>}
+                            </div>
+                            <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
+                              <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
+                                <Clock className="w-2.5 h-2.5" />{timeAgo(a.created_at)}
+                              </span>
+                            </div>
                           </div>
-                          <span className="text-[10px] text-gray-400 flex-shrink-0">{timeAgo(a.created_at)}</span>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 </>
               )}

@@ -1,39 +1,13 @@
+/**
+ * COMPREHENSIVE ACTIVITY TRACKER
+ * Captures EVERY interaction: clicks, page views, time on page,
+ * modals, form submits, tab changes, visibility — everything.
+ * Batches inserts every 4 seconds for performance.
+ * Auto-deletes records older than 7 days on session init.
+ */
 import { supabase } from './supabase';
 
-export const PAGE_LABELS: Record<string, string> = {
-  home:              '🏠 Ana Sayfa',
-  markets:           '📊 Piyasalar',
-  trade:             '🔵 Trade',
-  futures:           '📈 Futures',
-  mining:            '⛏️ Mining',
-  assets:            '💰 Varlıklar',
-  profile:           '👤 Profil',
-  aibot:             '🤖 AI Bot',
-  'social-profile':  '🌐 Sosyal',
-};
-
-export const ACTION_LABELS: Record<string, string> = {
-  page_view:          '📄 Sayfa Açtı',
-  deposit_open:       '💳 Yatırım Penceresi',
-  withdraw_open:      '💸 Çekim Penceresi',
-  withdraw_submit:    '🔴 Çekim Talebi Gönderdi',
-  trade_buy:          '🟢 Alış Emri Verdi',
-  trade_sell:         '🔴 Satış Emri Verdi',
-  futures_open:       '📈 Futures Pozisyon Açtı',
-  futures_close:      '📉 Futures Pozisyon Kapattı',
-  support_open:       '💬 Destek Penceresi',
-  support_send:       '📨 Destek Mesajı Gönderdi',
-  referral_open:      '👥 Referral Baktı',
-  earn_open:          '🎁 Kazan Baktı',
-  vip_pay_open:       '👑 VIP Ödeme Baktı',
-  p2p_open:           '🔄 P2P Açtı',
-  qr_open:            '📷 QR Kodu Gördü',
-  profile_edit:       '✏️ Profil Düzenledi',
-  mining_start:       '⛏️ Mining Başlattı',
-  session_start:      '🔑 Oturum Başlattı',
-  session_end:        '🔒 Oturumu Kapattı',
-};
-
+// ── Types ────────────────────────────────────────────────────────────────────
 export interface GeoInfo {
   ip: string;
   country: string;
@@ -42,106 +16,311 @@ export interface GeoInfo {
   flag: string;
 }
 
+interface QueuedEvent {
+  user_id: string;
+  action: string;
+  page: string | null;
+  metadata: Record<string, unknown>;
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
 let currentUserId: string | null = null;
-let cleanupDone = false;
+let currentPage: string = '';
 let geoInfo: GeoInfo | null = null;
-let geoFetchPromise: Promise<GeoInfo | null> | null = null;
+let geoFetching = false;
+let initialized = false;
+let pageEnterTime: number = Date.now();
+const eventQueue: QueuedEvent[] = [];
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
-export function getGeoInfo(): GeoInfo | null { return geoInfo; }
-
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function countryFlag(code: string): string {
   if (!code || code.length !== 2) return '🌍';
-  const offset = 0x1F1E6;
-  const A = 0x41;
-  const f = code.toUpperCase();
-  return String.fromCodePoint(offset + f.charCodeAt(0) - A) +
-         String.fromCodePoint(offset + f.charCodeAt(1) - A);
+  const base = 0x1F1E6 - 0x41;
+  return String.fromCodePoint(base + code.toUpperCase().charCodeAt(0)) +
+         String.fromCodePoint(base + code.toUpperCase().charCodeAt(1));
 }
 
-async function fetchGeoData(): Promise<GeoInfo | null> {
-  if (geoInfo) return geoInfo;
-  if (geoFetchPromise) return geoFetchPromise;
-  geoFetchPromise = (async () => {
-    try {
-      const res = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(4000) });
-      const json = await res.json();
-      geoInfo = {
-        ip: json.ip || 'N/A',
-        country: json.country_name || 'Unknown',
-        country_code: json.country_code || '',
-        city: json.city || '',
-        flag: countryFlag(json.country_code || ''),
-      };
-      return geoInfo;
-    } catch {
-      // fallback
-      geoInfo = { ip: 'N/A', country: 'Unknown', country_code: '', city: '', flag: '🌍' };
-      return geoInfo;
-    }
-  })();
-  return geoFetchPromise;
-}
-
-export function setActivityUserId(uid: string | null) {
-  currentUserId = uid;
-  if (uid) {
-    // Fetch geo immediately and cache
-    fetchGeoData().then(geo => {
-      if (!cleanupDone) {
-        cleanupDone = true;
-        // Delete records older than 7 days
-        supabase
-          .from('activity_log')
-          .delete()
-          .lt('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-          .then(() => {}).catch(() => {});
-      }
-      // Log session start
-      trackActivity('session_start', undefined, { device: getDeviceInfo() });
-    });
-  }
-}
-
-function getDeviceInfo() {
+function getDeviceInfo(): string {
   const ua = navigator.userAgent;
-  const device = /mobile/i.test(ua) ? 'Mobil' : /tablet|ipad/i.test(ua) ? 'Tablet' : 'PC';
+  const device = /mobile/i.test(ua) ? '📱 Mobil' : /tablet|ipad/i.test(ua) ? '📟 Tablet' : '🖥️ PC';
   const browser = ua.includes('Chrome') ? 'Chrome' : ua.includes('Firefox') ? 'Firefox' : ua.includes('Safari') ? 'Safari' : 'Diğer';
   const os = ua.includes('Android') ? 'Android' : ua.includes('iPhone') || ua.includes('iPad') ? 'iOS' : ua.includes('Windows') ? 'Windows' : ua.includes('Mac') ? 'macOS' : 'Linux';
   return `${device} / ${browser} / ${os}`;
 }
 
+export function getGeoInfo(): GeoInfo | null { return geoInfo; }
+
+async function fetchGeo(): Promise<void> {
+  if (geoInfo || geoFetching) return;
+  geoFetching = true;
+  try {
+    const r = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(5000) });
+    const j = await r.json();
+    geoInfo = {
+      ip: j.ip || 'N/A',
+      country: j.country_name || 'Bilinmiyor',
+      country_code: j.country_code || '',
+      city: j.city || '',
+      flag: countryFlag(j.country_code || ''),
+    };
+  } catch {
+    geoInfo = { ip: 'N/A', country: 'Bilinmiyor', country_code: '', city: '', flag: '🌍' };
+  }
+  geoFetching = false;
+}
+
+// ── Queue & Flush ─────────────────────────────────────────────────────────────
+function enqueue(action: string, page: string | null, extra: Record<string, unknown> = {}) {
+  if (!currentUserId) return;
+  eventQueue.push({
+    user_id: currentUserId,
+    action,
+    page,
+    metadata: {
+      ip: geoInfo?.ip,
+      country: geoInfo?.country,
+      country_code: geoInfo?.country_code,
+      city: geoInfo?.city,
+      flag: geoInfo?.flag,
+      device: getDeviceInfo(),
+      ...extra,
+    },
+  });
+  if (!flushTimer) {
+    flushTimer = setTimeout(flush, 4000);
+  }
+}
+
+async function flush() {
+  flushTimer = null;
+  if (eventQueue.length === 0 || !currentUserId) return;
+  const batch = eventQueue.splice(0, 100);
+  try {
+    await supabase.from('activity_log').insert(batch);
+  } catch {
+    // silent fail — table may not exist yet
+  }
+}
+
+// ── Element Label Extractor ──────────────────────────────────────────────────
+const IGNORE_TEXTS = new Set(['', '.', ',', '|', '/', '\\', '...']);
+
+function getElementLabel(el: Element | null): string | null {
+  if (!el) return null;
+  // Walk up to find the best interactive ancestor
+  const interactive = (el as HTMLElement).closest('button, a, [role="button"], [role="tab"], [role="menuitem"], label, select') as HTMLElement | null;
+  const target = interactive || (el as HTMLElement);
+  
+  const sources = [
+    target.getAttribute('aria-label'),
+    target.getAttribute('title'),
+    target.getAttribute('data-label'),
+    target.getAttribute('placeholder'),
+    (target.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 60),
+    target.getAttribute('alt'),
+    target.id ? `#${target.id}` : null,
+  ];
+
+  for (const s of sources) {
+    if (s && s.length > 1 && !IGNORE_TEXTS.has(s)) return s;
+  }
+  return null;
+}
+
+function classifyElement(el: HTMLElement): string {
+  const tag = el.tagName.toLowerCase();
+  const role = el.getAttribute('role') || '';
+  if (tag === 'button' || role === 'button') return '🖱️ Butona Bastı';
+  if (tag === 'a') return '🔗 Bağlantıya Tıkladı';
+  if (tag === 'input') {
+    const type = el.getAttribute('type') || 'text';
+    if (type === 'submit') return '📤 Form Gönderdi';
+    return `✏️ Alana Tıkladı (${type})`;
+  }
+  if (tag === 'select') return '📋 Seçim Yaptı';
+  if (role === 'tab') return '📑 Sekme Değiştirdi';
+  return '👆 Tıkladı';
+}
+
+// Page label mapping
+export const PAGE_LABELS: Record<string, string> = {
+  home:            '🏠 Ana Sayfa',
+  markets:         '📊 Piyasalar',
+  trade:           '🔵 Trade',
+  futures:         '📈 Futures',
+  mining:          '⛏️ Mining',
+  assets:          '💰 Varlıklar',
+  profile:         '👤 Profil',
+  aibot:           '🤖 AI Bot',
+  'social-profile':'🌐 Sosyal',
+};
+
+// High-priority keyword detection
+const HIGH_PRIORITY_KEYWORDS = [
+  'çekim', 'withdraw', 'gönder', 'send', 'onayla', 'confirm', 'transfer',
+  'al', 'sat', 'buy', 'sell', 'trade', 'order', 'yatır', 'deposit',
+  'para', 'ödeme', 'payment', 'vip', 'kayıt', 'register', 'giriş', 'login',
+  'futures', 'long', 'short', 'close position', 'pozisyon',
+];
+
+function isHighPriority(label: string): boolean {
+  const lower = label.toLowerCase();
+  return HIGH_PRIORITY_KEYWORDS.some(kw => lower.includes(kw));
+}
+
+// ── Global Click Listener ─────────────────────────────────────────────────────
+function handleGlobalClick(e: MouseEvent) {
+  if (!currentUserId) return;
+  const target = e.target as HTMLElement;
+  if (!target) return;
+
+  // Only track meaningful interactive elements
+  const interactive = target.closest(
+    'button, a[href], [role="button"], [role="tab"], [role="menuitem"], input[type="submit"], select'
+  ) as HTMLElement | null;
+  
+  if (!interactive && target.tagName.toLowerCase() !== 'button') return;
+
+  const el = interactive || target;
+  const label = getElementLabel(el);
+  if (!label) return;
+
+  const classify = classifyElement(el);
+  const priority = isHighPriority(label);
+
+  enqueue('click', currentPage, {
+    label: `${classify}: "${label}"`,
+    element_text: label,
+    priority: priority ? 'high' : 'normal',
+    page_label: PAGE_LABELS[currentPage] || currentPage,
+  });
+}
+
+// ── Global Input Listener ─────────────────────────────────────────────────────
+let lastInputPage = '';
+let inputDebounce: ReturnType<typeof setTimeout> | null = null;
+
+function handleGlobalInput(e: Event) {
+  if (!currentUserId) return;
+  const target = e.target as HTMLInputElement;
+  if (!target) return;
+  
+  const label = target.getAttribute('placeholder') || target.getAttribute('aria-label') || target.name || target.id || 'Alan';
+  const type = target.type || 'text';
+  if (type === 'password') return; // Never track passwords
+
+  if (inputDebounce) clearTimeout(inputDebounce);
+  inputDebounce = setTimeout(() => {
+    if (lastInputPage !== currentPage) {
+      lastInputPage = currentPage;
+      enqueue('form_input', currentPage, {
+        label: `✏️ Form Doldurdu: "${label.slice(0, 40)}"`,
+        field: label.slice(0, 40),
+        field_type: type,
+        page_label: PAGE_LABELS[currentPage] || currentPage,
+      });
+    }
+  }, 1500);
+}
+
+// ── Page Visibility Tracking ───────────────────────────────────────────────────
+let hiddenAt: number | null = null;
+
+function handleVisibilityChange() {
+  if (!currentUserId) return;
+  if (document.hidden) {
+    hiddenAt = Date.now();
+    enqueue('page_blur', currentPage, {
+      label: `👁️ Sekmeyi Kapattı / Geçti`,
+      page_label: PAGE_LABELS[currentPage] || currentPage,
+      time_on_page_sec: Math.round((Date.now() - pageEnterTime) / 1000),
+    });
+    flush(); // flush immediately on hide
+  } else {
+    const away = hiddenAt ? Math.round((Date.now() - hiddenAt) / 1000) : 0;
+    hiddenAt = null;
+    pageEnterTime = Date.now();
+    enqueue('page_focus', currentPage, {
+      label: `👀 Geri Döndü (${away}sn sonra)`,
+      page_label: PAGE_LABELS[currentPage] || currentPage,
+      away_sec: away,
+    });
+  }
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+export function setActivityUserId(uid: string | null) {
+  currentUserId = uid;
+  if (uid && !initialized) {
+    initialized = true;
+    fetchGeo().then(() => {
+      enqueue('session_start', currentPage, {
+        label: '🔑 Oturum Başlattı',
+        device: getDeviceInfo(),
+      });
+    });
+    // 7-day cleanup
+    supabase
+      .from('activity_log')
+      .delete()
+      .lt('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+      .then(() => {}).catch(() => {});
+  } else if (!uid) {
+    initialized = false;
+    flush();
+  }
+}
+
+export function initGlobalTracking() {
+  document.addEventListener('click', handleGlobalClick, true);
+  document.addEventListener('input', handleGlobalInput, true);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('beforeunload', flush);
+}
+
+export function destroyGlobalTracking() {
+  document.removeEventListener('click', handleGlobalClick, true);
+  document.removeEventListener('input', handleGlobalInput, true);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  if (flushTimer) clearTimeout(flushTimer);
+  flush();
+}
+
+export async function trackPageView(page: string) {
+  const prevPage = currentPage;
+  const timeOnPrev = prevPage ? Math.round((Date.now() - pageEnterTime) / 1000) : 0;
+  currentPage = page;
+  pageEnterTime = Date.now();
+
+  if (prevPage && timeOnPrev > 2) {
+    enqueue('page_leave', prevPage, {
+      label: `⬅️ Sayfadan Ayrıldı: ${PAGE_LABELS[prevPage] || prevPage} (${timeOnPrev}sn)`,
+      page_label: PAGE_LABELS[prevPage] || prevPage,
+      time_sec: timeOnPrev,
+    });
+  }
+
+  if (!currentUserId) return;
+  if (!geoInfo) await fetchGeo();
+
+  enqueue('page_view', page, {
+    label: `${PAGE_LABELS[page] || `📄 ${page}`}`,
+    page_label: PAGE_LABELS[page] || page,
+    from_page: prevPage ? (PAGE_LABELS[prevPage] || prevPage) : null,
+  });
+}
+
+// Keep backward compat for explicit tracking calls
 export async function trackActivity(
   action: string,
   page?: string,
   metadata?: Record<string, unknown>
 ) {
   if (!currentUserId) return;
-  const geo = geoInfo || await fetchGeoData();
-  try {
-    await supabase.from('activity_log').insert({
-      user_id: currentUserId,
-      action,
-      page: page || null,
-      metadata: {
-        label: ACTION_LABELS[action] || action,
-        ip: geo?.ip,
-        country: geo?.country,
-        country_code: geo?.country_code,
-        city: geo?.city,
-        flag: geo?.flag,
-        device: getDeviceInfo(),
-        ...(metadata || {}),
-      },
-    });
-  } catch {
-    // silent — table may not exist yet
-  }
-}
-
-export async function trackPageView(page: string) {
-  if (!currentUserId) return;
-  await trackActivity('page_view', page, {
-    label: PAGE_LABELS[page] || `📄 ${page}`,
-    page_label: PAGE_LABELS[page] || page,
+  if (!geoInfo) await fetchGeo();
+  enqueue(action, page || currentPage, {
+    label: metadata?.label as string || action,
+    ...metadata,
   });
 }

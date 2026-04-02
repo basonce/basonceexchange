@@ -1,7 +1,7 @@
 import { useState, useEffect, Component, ReactNode, Suspense, lazy } from 'react';
 import { supabase } from './lib/supabase';
 import { analyticsTracker } from './lib/analytics-tracker';
-import { setActivityUserId, trackPageView as trackActivityPage } from './lib/activity-tracker';
+import { setActivityUserId, trackPageView as trackActivityPage, initGlobalTracking, destroyGlobalTracking } from './lib/activity-tracker';
 import ExchangeModeProvider from './components/ExchangeModeProvider';
 import ExchangeModeBanner from './components/ExchangeModeBanner';
 import BottomNav from './components/BottomNav';
@@ -107,8 +107,10 @@ function App() {
 
   useEffect(() => {
     analyticsTracker.initialize();
+    initGlobalTracking();
     return () => {
       analyticsTracker.cleanup();
+      destroyGlobalTracking();
     };
   }, []);
 
