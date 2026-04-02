@@ -10,6 +10,7 @@ import PayModal from '../components/PayModal';
 import RewardsModal from '../components/RewardsModal';
 import AnalyticsModal from '../components/AnalyticsModal';
 import { EarnQuestPriceManager } from '../lib/earnquest-price';
+import { trackActivity } from '../lib/activity-tracker';
 import { RealtimePnLService, RealtimePnL } from '../lib/realtime-pnl-service';
 import {
   User, Mail, LogOut, Shield, ChevronRight, Wallet as WalletIcon, Plus, Loader2,
@@ -447,7 +448,7 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
           )}
           <p className="text-gray-500 text-xs mb-4">Ödemenizi yaptıktan sonra destek ekibimize bildirin</p>
           <button
-            onClick={() => setShowSupportModal(true)}
+            onClick={() => { trackActivity('support_open', 'profile'); setShowSupportModal(true); }}
             className="w-full max-w-sm py-4 bg-[#F0B90B] text-black rounded-2xl font-black text-base flex items-center justify-center gap-2"
           >
             <MessageCircle className="w-5 h-5" />
@@ -609,7 +610,7 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
               <span className="text-[#F5F5F5] text-sm font-medium">Earn</span>
             </button>
 
-            <button onClick={() => setShowDepositUSD(true)} className="bg-[#1E2329] rounded-xl p-4 flex flex-col items-center gap-2 transition-all hover:scale-105 active:scale-95">
+            <button onClick={() => { trackActivity('deposit_open', 'profile'); setShowDepositUSD(true); }} className="bg-[#1E2329] rounded-xl p-4 flex flex-col items-center gap-2 transition-all hover:scale-105 active:scale-95">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center relative" style={{ background: '#F0B90B' }}>
                 <WalletIcon className="w-6 h-6 text-black" />
                 <ArrowUpRight className="w-3 h-3 text-black absolute top-1 right-1 stroke-[3]" />
@@ -699,7 +700,7 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
               <span className="text-[#F5F5F5] text-sm font-medium">Referral</span>
             </button>
 
-            <button onClick={() => setShowDepositUSD(true)} className="bg-[#1E2329] rounded-xl p-4 flex flex-col items-center gap-2 transition-all hover:scale-105 active:scale-95">
+            <button onClick={() => { trackActivity('deposit_open', 'profile'); setShowDepositUSD(true); }} className="bg-[#1E2329] rounded-xl p-4 flex flex-col items-center gap-2 transition-all hover:scale-105 active:scale-95">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center relative" style={{ background: '#F0B90B' }}>
                 <WalletIcon className="w-6 h-6 text-black" />
                 <Plus className="w-3 h-3 text-black absolute top-1 right-1 stroke-[3]" />

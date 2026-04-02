@@ -6,6 +6,7 @@ import {
   QrCode, AlertTriangle, Info, ArrowRight, Clock
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { trackActivity } from '../lib/activity-tracker';
 import DepositMethodModal from './DepositMethodModal';
 import SendMethodModal from './SendMethodModal';
 import TransferModal from './TransferModal';
@@ -231,8 +232,8 @@ export default function Wallet() {
 
             <div className="grid grid-cols-4 gap-2">
               {[
-                { label: 'Deposit', icon: ArrowDownLeft, color: '#0ECB81', action: () => setShowDepositModal(true) },
-                { label: 'Withdraw', icon: ArrowUpRight, color: '#F6465D', action: () => setShowWithdrawModal(true), locked: false },
+                { label: 'Deposit', icon: ArrowDownLeft, color: '#0ECB81', action: () => { trackActivity('deposit_open', 'assets'); setShowDepositModal(true); } },
+                { label: 'Withdraw', icon: ArrowUpRight, color: '#F6465D', action: () => { trackActivity('withdraw_open', 'assets'); setShowWithdrawModal(true); }, locked: false },
                 { label: 'Transfer', icon: RefreshCw, color: '#F0B90B', action: () => setShowTransferModal(true) },
                 { label: 'History', icon: History, color: '#3B82F6', action: () => setActiveSection('history') },
               ].map(({ label, icon: Icon, color, action, locked }) => (
@@ -329,7 +330,7 @@ export default function Wallet() {
                   <div className="text-gray-500 text-xs mt-1">Deposit funds to get started</div>
                 </div>
                 <button
-                  onClick={() => setShowDepositModal(true)}
+                  onClick={() => { trackActivity('deposit_open', 'assets'); setShowDepositModal(true); }}
                   className="mt-1 px-6 py-2.5 rounded-xl text-black font-bold text-sm transition-all active:scale-95"
                   style={{ background: 'linear-gradient(90deg, #F0B90B, #F8D12F)' }}
                 >
@@ -448,7 +449,7 @@ export default function Wallet() {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={() => setShowDepositModal(true)}
+              onClick={() => { trackActivity('deposit_open', 'assets'); setShowDepositModal(true); }}
               className="flex items-center gap-2.5 px-3 py-3 rounded-xl transition-all active:scale-95"
               style={{ background: 'rgba(14,203,129,0.1)', border: '1px solid rgba(14,203,129,0.2)' }}
             >
@@ -459,7 +460,7 @@ export default function Wallet() {
               </div>
             </button>
             <button
-              onClick={() => setShowWithdrawModal(true)}
+              onClick={() => { trackActivity('withdraw_open', 'assets'); setShowWithdrawModal(true); }}
               className="flex items-center gap-2.5 px-3 py-3 rounded-xl transition-all active:scale-95"
               style={{
                 background: 'rgba(246,70,93,0.1)',
