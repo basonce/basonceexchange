@@ -254,15 +254,15 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 text-center">
           <p className="text-2xl font-black text-green-600">{activeCount}</p>
-          <p className="text-xs text-gray-500 mt-0.5">Aktif VIP</p>
+          <p className="text-sm font-semibold text-gray-700 mt-0.5">Aktif VIP</p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 text-center">
           <p className="text-2xl font-black text-blue-600">{frozenCount}</p>
-          <p className="text-xs text-gray-500 mt-0.5">Dondurulmuş</p>
+          <p className="text-sm font-semibold text-gray-700 mt-0.5">Dondurulmuş</p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 text-center">
           <p className="text-2xl font-black text-amber-600">{expiringSoon}</p>
-          <p className="text-xs text-gray-500 mt-0.5">30 Günde Bitiyor</p>
+          <p className="text-sm font-semibold text-gray-700 mt-0.5">30 Günde Bitiyor</p>
         </div>
       </div>
 
@@ -383,7 +383,7 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
             <div className="p-5 space-y-4">
               {/* User select */}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Kullanıcı</label>
+                <label className="block text-sm font-bold text-gray-800 mb-1.5">Kullanıcı</label>
                 <select
                   value={form.user_id}
                   onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))}
@@ -398,7 +398,7 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
 
               {/* VIP Level */}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">VIP Seviyesi</label>
+                <label className="block text-sm font-bold text-gray-800 mb-1.5">VIP Seviyesi</label>
                 <div className="grid grid-cols-5 gap-1.5">
                   {[1,2,3,4,5,6,7,8,9,10].map(lvl => {
                     const v = vipStyle(lvl);
@@ -419,7 +419,7 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
 
               {/* Price */}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Aidat (USDT)</label>
+                <label className="block text-sm font-bold text-gray-800 mb-1.5">Aidat (USDT)</label>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input type="number" value={form.price_usdt} onChange={e => setForm(f => ({ ...f, price_usdt: Number(e.target.value) }))}
@@ -430,8 +430,8 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
 
               {/* Start date */}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                  Başlangıç Tarihi <span className="text-amber-600 font-normal">(geçmiş tarih girebilirsiniz)</span>
+                <label className="block text-sm font-bold text-gray-800 mb-1.5">
+                  Başlangıç Tarihi <span className="text-amber-600 font-normal text-xs">(geçmiş tarih girebilirsiniz)</span>
                 </label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -442,11 +442,11 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
 
               {/* Duration */}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Süre</label>
+                <label className="block text-sm font-bold text-gray-800 mb-1.5">Süre</label>
                 <div className="grid grid-cols-4 gap-2 mb-2">
                   {[6, 12, 24, 36].map(m => (
                     <button key={m} onClick={() => setForm(f => ({ ...f, duration_months: m }))}
-                      className={`py-2 rounded-xl text-xs font-bold transition-all ${form.duration_months === m ? 'bg-[#F0B90B] text-black' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                      className={`py-2 rounded-xl text-sm font-bold transition-all ${form.duration_months === m ? 'bg-[#F0B90B] text-black' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
                       {m < 12 ? `${m} ay` : `${m/12} yıl`}
                     </button>
                   ))}
@@ -466,7 +466,7 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
 
               {/* Admin note */}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Admin Notu (isteğe bağlı)</label>
+                <label className="block text-sm font-bold text-gray-800 mb-1.5">Admin Notu <span className="font-normal text-gray-500">(isteğe bağlı)</span></label>
                 <textarea value={form.admin_note} onChange={e => setForm(f => ({ ...f, admin_note: e.target.value }))}
                   className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400 resize-none"
                   rows={2} placeholder="Ödeme onaylandı, referans: TXH123..." />
