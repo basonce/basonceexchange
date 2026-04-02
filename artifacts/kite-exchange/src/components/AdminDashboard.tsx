@@ -48,6 +48,7 @@ import IncomingFundsPanel from './IncomingFundsPanel';
 import WithdrawalApprovalPanel from './WithdrawalApprovalPanel';
 import TradfiLogosPanel from './TradfiLogosPanel';
 import RevenuePanel from './RevenuePanel';
+import VisitorsPanel from './VisitorsPanel';
 
 interface UserProfile {
   id: string;
@@ -90,7 +91,7 @@ const cryptoSymbols = [
   'AVAX', 'DOT', 'MATIC', 'LINK', 'UNI', 'LTC', 'ATOM', 'PEPE', 'SHIB', 'WIF', 'BONK'
 ];
 
-type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue';
+type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue' | 'visitors';
 
 // ── Admin Push Notification Setup ──────────────────────────────
 async function registerAdminPush() {
@@ -490,6 +491,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'data-protection', label: 'Veri Koruma', icon: Shield },
     { id: 'tradfi-logos', label: 'TradeFi', icon: Image },
     { id: 'revenue', label: 'Gelir', icon: TrendingUp },
+    { id: 'visitors', label: 'Gelenler', icon: Eye },
   ];
 
   return (
@@ -880,6 +882,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
 
         {activeTab === 'revenue' && (
           <RevenuePanel />
+        )}
+
+        {activeTab === 'visitors' && (
+          <VisitorsPanel />
         )}
 
         {activeTab === 'analytics' && (
