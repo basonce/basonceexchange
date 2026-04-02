@@ -31,10 +31,6 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
   const [balances, setBalances] = useState<any[]>([]);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
-  const [postTab, setPostTab] = useState<'liked' | 'activity'>('liked');
-  const [likedPostData] = useState<any[]>(() => {
-    try { return JSON.parse(localStorage.getItem('basonce_liked_post_data') || '[]'); } catch { return []; }
-  });
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showReferral, setShowReferral] = useState(false);
   const [showEarn, setShowEarn] = useState(false);
@@ -625,81 +621,6 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
               <span className="text-[#F5F5F5] text-sm font-medium">Pay</span>
             </button>
           </div>
-        </div>
-
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h3 className="text-[#F5F5F5] font-semibold text-lg flex items-center gap-2">
-              <Flame className="w-4 h-4 text-[#F0B90B]" /> My Posts
-            </h3>
-          </div>
-          <div className="flex gap-0 mb-3 bg-[#1E2329] rounded-xl p-1">
-            <button
-              onClick={() => setPostTab('liked')}
-              className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${postTab === 'liked' ? 'bg-[#F0B90B] text-black' : 'text-gray-400'}`}
-            >
-              <Heart className="w-3.5 h-3.5" /> Liked ({likedPostData.length})
-            </button>
-            <button
-              onClick={() => setPostTab('activity')}
-              className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${postTab === 'activity' ? 'bg-[#F0B90B] text-black' : 'text-gray-400'}`}
-            >
-              <Share2 className="w-3.5 h-3.5" /> Activity
-            </button>
-          </div>
-
-          {postTab === 'liked' && (
-            likedPostData.length === 0 ? (
-              <div className="bg-[#1E2329] rounded-xl p-8 text-center">
-                <Heart className="w-10 h-10 text-gray-600 mx-auto mb-2" />
-                <p className="text-gray-500 text-sm">No liked posts yet</p>
-                <p className="text-gray-600 text-xs mt-1">Go to the feed and like posts — they'll appear here</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {likedPostData.slice(0, 10).map((p: any) => (
-                  <div key={p.id} className="bg-[#1E2329] rounded-xl p-3.5 border border-[#2B3139]/60">
-                    <div className="flex items-center gap-2.5 mb-2">
-                      <img src={p.avatar_url || `https://randomuser.me/api/portraits/men/${Math.abs(p.id?.charCodeAt(0) || 0) % 80}.jpg`} alt="" className="w-8 h-8 rounded-full object-cover" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                      <div>
-                        <span className="text-white text-[13px] font-semibold">{p.username}</span>
-                        {p.coin_symbol && <span className="text-[#F0B90B] text-[11px] font-bold ml-1.5">${p.coin_symbol}</span>}
-                      </div>
-                      <span className="ml-auto text-gray-500 text-[10px]">{p.created_at ? new Date(p.created_at).toLocaleDateString() : 'Recent'}</span>
-                    </div>
-                    <p className="text-gray-300 text-[13px] leading-relaxed line-clamp-2">{p.content}</p>
-                    <div className="flex items-center gap-4 mt-2.5 text-gray-600 text-[12px]">
-                      <span className="flex items-center gap-1 text-[#F6465D]"><Heart className="w-3 h-3 fill-[#F6465D]" />{(p.likes_count + 1).toLocaleString()}</span>
-                      <span className="flex items-center gap-1"><MessageCircle className="w-3 h-3" />{p.comments_count}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )
-          )}
-
-          {postTab === 'activity' && (
-            <div className="space-y-3">
-              {[
-                { icon: '🎯', text: 'Joined BASONCE Exchange', time: 'Account created', color: '#F0B90B' },
-                { icon: '💰', text: 'First deposit completed', time: 'Assets section', color: '#0ECB81' },
-                { icon: '🔥', text: 'Explored Basonce Alpha', time: 'Alpha section', color: '#F6465D' },
-                { icon: '📊', text: 'Futures trading active', time: 'Futures section', color: '#3861FB' },
-                { icon: '⛏️', text: 'Mining rewards claimed', time: 'Mining section', color: '#8B5CF6' },
-              ].map((item, i) => (
-                <div key={i} className="bg-[#1E2329] rounded-xl p-3.5 flex items-center gap-3 border border-[#2B3139]/60">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg" style={{ background: `${item.color}18` }}>
-                    {item.icon}
-                  </div>
-                  <div>
-                    <p className="text-white text-[13px] font-medium">{item.text}</p>
-                    <p className="text-gray-500 text-[11px]">{item.time}</p>
-                  </div>
-                  <div className="ml-auto w-2 h-2 rounded-full" style={{ background: item.color }} />
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         <div className="space-y-3 mb-6">

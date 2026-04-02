@@ -1634,11 +1634,12 @@ export default function SocialFeed() {
                   });
                 };
                 const handleShare = async () => {
-                  const text = `${post.username}: ${post.content?.slice(0, 100)}... — BASONCE Exchange`;
+                  const text = `${post.username}: ${post.content?.slice(0, 120)}...`;
+                  const url = 'https://basoncecom.replit.app/';
                   if (navigator.share) {
-                    try { await navigator.share({ title: 'BASONCE Exchange', text, url: window.location.href }); } catch {}
+                    try { await navigator.share({ title: 'BASONCE Exchange – 258+ Coins, Stocks & More', text, url }); } catch {}
                   } else {
-                    try { await navigator.clipboard.writeText(text); setShareToast('Copied!'); setTimeout(() => setShareToast(null), 2000); } catch {}
+                    try { await navigator.clipboard.writeText(`${text} — BASONCE Exchange ${url}`); setShareToast('Copied!'); setTimeout(() => setShareToast(null), 2000); } catch {}
                   }
                 };
                 return (
