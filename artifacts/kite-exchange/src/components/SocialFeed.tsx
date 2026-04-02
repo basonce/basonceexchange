@@ -17,6 +17,7 @@ import BasonceNewsCard, { BASONCE_NEWS_POOL, type BasonceNewsItem } from './feed
 import FeedGainersCard, { generateGainersRows } from './feed/FeedGainersCard';
 import FeedTraderProfileCard from './feed/FeedTraderProfileCard';
 import { generateRandomRichPost, generateBinanceSquarePost, generateLuxuryLifestylePost, generateTradFiPost, type GeneratedPost } from '../lib/feed-post-generators';
+import CommentsDrawer from './feed/CommentsDrawer';
 
 function hashStringToInt(str: string): number {
   let hash = 0;
@@ -983,6 +984,8 @@ export default function SocialFeed() {
   const [liveRooms, setLiveRooms] = useState<LiveRoom[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [commentsDrawerPost, setCommentsDrawerPost] = useState<{ id: string; count: number; username: string } | null>(null);
   const newsPoolRef = useRef<LiveNewsItem[]>(generateLiveNews());
   const priceCacheRef = useRef(PriceCache.getInstance());
   const [, setPriceVersion] = useState(0);
@@ -1069,6 +1072,16 @@ export default function SocialFeed() {
       }
     });
     return unsub;
+  }, []);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsLoggedIn(!!session?.user);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session?.user);
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -1594,15 +1607,24 @@ export default function SocialFeed() {
                 return <FeedCoinTags tags={adjustCoinTags(unique, priceCacheRef.current)} />;
               })()}
               <div className="flex items-center gap-4 text-[13px] text-gray-500 mt-3">
-                <button className="flex items-center gap-1.5 hover:text-white transition-colors">
+                <button
+                  onClick={() => setCommentsDrawerPost({ id: post.id, count: post.comments_count, username: post.username })}
+                  className="flex items-center gap-1.5 hover:text-white transition-colors active:scale-95"
+                >
                   <MessageCircle className="w-[15px] h-[15px]" />
                   <span>{post.comments_count}</span>
                 </button>
-                <button className="flex items-center gap-1.5 hover:text-[#0ECB81] transition-colors">
+                <button
+                  onClick={() => { if (!isLoggedIn) setCommentsDrawerPost({ id: post.id, count: post.comments_count, username: post.username }); }}
+                  className="flex items-center gap-1.5 hover:text-[#0ECB81] transition-colors active:scale-95"
+                >
                   <Repeat2 className="w-[15px] h-[15px]" />
                   <span>{repostCount}</span>
                 </button>
-                <button className="flex items-center gap-1.5 hover:text-[#F6465D] transition-colors">
+                <button
+                  onClick={() => { if (!isLoggedIn) setCommentsDrawerPost({ id: post.id, count: post.comments_count, username: post.username }); }}
+                  className="flex items-center gap-1.5 hover:text-[#F6465D] transition-colors active:scale-95"
+                >
                   <Heart className="w-[15px] h-[15px]" />
                   <span>{post.likes_count}</span>
                 </button>
@@ -1640,6 +1662,19 @@ export default function SocialFeed() {
           onRoomChange={setSelectedRoom}
         />
       )}
+
+      <CommentsDrawer
+        isOpen={!!commentsDrawerPost}
+        onClose={() => setCommentsDrawerPost(null)}
+        postId={commentsDrawerPost?.id ?? ''}
+        commentsCount={commentsDrawerPost?.count ?? 0}
+        postUsername={commentsDrawerPost?.username ?? ''}
+        isLoggedIn={isLoggedIn}
+        onLoginRequired={() => {
+          setCommentsDrawerPost(null);
+          window.location.hash = '#register';
+        }}
+      />
 
     </div>
   );
