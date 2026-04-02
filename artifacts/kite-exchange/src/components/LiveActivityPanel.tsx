@@ -124,7 +124,12 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
   const loadInitial = useCallback(async () => {
     setLoading(true);
     const { error } = await supabase.from('activity_log').select('id').limit(1);
-    if (error?.code === '42P01') { setTableReady(false); setLoading(false); return; }
+    if (error) {
+      console.warn('[LiveActivity] Table check error:', error.code, error.message);
+      setTableReady(false);
+      setLoading(false);
+      return;
+    }
     setTableReady(true);
     const { data } = await supabase
       .from('activity_log')

@@ -72,7 +72,10 @@ async function fetchGeo(): Promise<void> {
 
 // ── Queue & Flush ─────────────────────────────────────────────────────────────
 function enqueue(action: string, page: string | null, extra: Record<string, unknown> = {}) {
-  if (!currentUserId) return;
+  if (!currentUserId) {
+    console.log('[ActivityTracker] ⚠️ enqueue skipped — no user ID');
+    return;
+  }
   eventQueue.push({
     user_id: currentUserId,
     action,
@@ -87,6 +90,7 @@ function enqueue(action: string, page: string | null, extra: Record<string, unkn
       ...extra,
     },
   });
+  console.log(`[ActivityTracker] 📥 queued: ${action} (queue=${eventQueue.length})`);
   if (!flushTimer) {
     flushTimer = setTimeout(flush, 4000);
   }
@@ -96,10 +100,11 @@ async function flush() {
   flushTimer = null;
   if (eventQueue.length === 0 || !currentUserId) return;
   const batch = eventQueue.splice(0, 100);
-  try {
-    await supabase.from('activity_log').insert(batch);
-  } catch {
-    // silent fail — table may not exist yet
+  const { error } = await supabase.from('activity_log').insert(batch);
+  if (error) {
+    console.warn('[ActivityTracker] flush error:', error.code, error.message);
+  } else {
+    console.log(`[ActivityTracker] ✅ ${batch.length} event flushed`);
   }
 }
 
@@ -251,6 +256,7 @@ function handleVisibilityChange() {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 export function setActivityUserId(uid: string | null) {
+  console.log('[ActivityTracker] setActivityUserId called:', uid ? uid.slice(0,8) + '...' : 'null');
   currentUserId = uid;
   if (uid && !initialized) {
     initialized = true;
@@ -266,6 +272,8 @@ export function setActivityUserId(uid: string | null) {
       .delete()
       .lt('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
       .then(() => {}).catch(() => {});
+  } else if (uid && initialized) {
+    console.log('[ActivityTracker] already initialized, just updating userId');
   } else if (!uid) {
     initialized = false;
     flush();
@@ -273,6 +281,7 @@ export function setActivityUserId(uid: string | null) {
 }
 
 export function initGlobalTracking() {
+  console.log('[ActivityTracker] initGlobalTracking called');
   document.addEventListener('click', handleGlobalClick, true);
   document.addEventListener('input', handleGlobalInput, true);
   document.addEventListener('visibilitychange', handleVisibilityChange);
