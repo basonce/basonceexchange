@@ -23,16 +23,16 @@ interface VipMembership {
 }
 
 const VIP_COLORS: Record<number, { bg: string; text: string; label: string; emoji: string }> = {
-  1:  { bg: '#CD7F32', text: '#fff', label: 'VIP I',  emoji: '🥉' },
-  2:  { bg: '#A8A9AD', text: '#fff', label: 'VIP II', emoji: '🥈' },
-  3:  { bg: '#FFD700', text: '#000', label: 'VIP III',emoji: '🥇' },
-  4:  { bg: '#50C878', text: '#fff', label: 'VIP IV', emoji: '💚' },
-  5:  { bg: '#E5E4E2', text: '#000', label: 'VIP V',  emoji: '💎' },
-  6:  { bg: '#b9f2ff', text: '#000', label: 'VIP VI', emoji: '🔵' },
-  7:  { bg: '#9B59B6', text: '#fff', label: 'VIP VII',emoji: '💜' },
-  8:  { bg: '#E91E8C', text: '#fff', label: 'VIP VIII',emoji:'💗' },
-  9:  { bg: '#FF4500', text: '#fff', label: 'VIP IX', emoji: '🔥' },
-  10: { bg: 'linear-gradient(135deg,#FFD700,#FF4500)', text: '#fff', label: 'VIP X', emoji: '👑' },
+  1:  { bg: '#CD7F32', text: '#fff', label: 'VIP 1',  emoji: '🥉' },
+  2:  { bg: '#A8A9AD', text: '#fff', label: 'VIP 2',  emoji: '🥈' },
+  3:  { bg: '#FFD700', text: '#000', label: 'VIP 3',  emoji: '🥇' },
+  4:  { bg: '#50C878', text: '#fff', label: 'VIP 4',  emoji: '💚' },
+  5:  { bg: '#E5E4E2', text: '#000', label: 'VIP 5',  emoji: '💎' },
+  6:  { bg: '#b9f2ff', text: '#000', label: 'VIP 6',  emoji: '🔵' },
+  7:  { bg: '#9B59B6', text: '#fff', label: 'VIP 7',  emoji: '💜' },
+  8:  { bg: '#E91E8C', text: '#fff', label: 'VIP 8',  emoji: '💗' },
+  9:  { bg: '#FF4500', text: '#fff', label: 'VIP 9',  emoji: '🔥' },
+  10: { bg: 'linear-gradient(135deg,#FFD700,#FF4500)', text: '#fff', label: 'VIP 10', emoji: '👑' },
 };
 
 function vipStyle(level: number) {
@@ -387,7 +387,7 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
                 <select
                   value={form.user_id}
                   onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))}
-                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400"
+                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-yellow-400"
                 >
                   <option value="">Kullanıcı seçin...</option>
                   {users.map(u => (

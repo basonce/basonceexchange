@@ -40,6 +40,8 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
   const [showPay, setShowPay] = useState(false);
   const [showRewards, setShowRewards] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showVipPayModal, setShowVipPayModal] = useState(false);
+  const [vipPayCopied, setVipPayCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
@@ -394,18 +396,18 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
 
   const memberSince = profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recently';
 
-  // VIP helpers
+  // VIP helpers — all badges use Binance yellow (#F0B90B)
   const VIP_STYLES: Record<number, { bg: string; text: string; label: string; emoji: string }> = {
-    1: { bg: '#CD7F32', text: '#fff', label: 'VIP I', emoji: '🥉' },
-    2: { bg: '#A8A9AD', text: '#fff', label: 'VIP II', emoji: '🥈' },
-    3: { bg: '#FFD700', text: '#000', label: 'VIP III', emoji: '🥇' },
-    4: { bg: '#50C878', text: '#fff', label: 'VIP IV', emoji: '💚' },
-    5: { bg: '#E5E4E2', text: '#000', label: 'VIP V', emoji: '💎' },
-    6: { bg: '#b9f2ff', text: '#000', label: 'VIP VI', emoji: '🔵' },
-    7: { bg: '#9B59B6', text: '#fff', label: 'VIP VII', emoji: '💜' },
-    8: { bg: '#E91E8C', text: '#fff', label: 'VIP VIII', emoji: '💗' },
-    9: { bg: '#FF4500', text: '#fff', label: 'VIP IX', emoji: '🔥' },
-    10: { bg: '#FFD700', text: '#000', label: 'VIP X', emoji: '👑' },
+    1:  { bg: '#F0B90B', text: '#000', label: 'VIP 1',  emoji: '🥉' },
+    2:  { bg: '#F0B90B', text: '#000', label: 'VIP 2',  emoji: '🥈' },
+    3:  { bg: '#F0B90B', text: '#000', label: 'VIP 3',  emoji: '🥇' },
+    4:  { bg: '#F0B90B', text: '#000', label: 'VIP 4',  emoji: '💚' },
+    5:  { bg: '#F0B90B', text: '#000', label: 'VIP 5',  emoji: '💎' },
+    6:  { bg: '#F0B90B', text: '#000', label: 'VIP 6',  emoji: '🔵' },
+    7:  { bg: '#F0B90B', text: '#000', label: 'VIP 7',  emoji: '💜' },
+    8:  { bg: '#F0B90B', text: '#000', label: 'VIP 8',  emoji: '💗' },
+    9:  { bg: '#F0B90B', text: '#000', label: 'VIP 9',  emoji: '🔥' },
+    10: { bg: '#F0B90B', text: '#000', label: 'VIP 10', emoji: '👑' },
   };
   const vipStyle = vipMembership ? (VIP_STYLES[vipMembership.vip_level] || { bg: '#F0B90B', text: '#000', label: `VIP ${vipMembership.vip_level}`, emoji: '⭐' }) : null;
   const vipDaysLeft = vipMembership ? Math.ceil((new Date(vipMembership.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
@@ -555,14 +557,21 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
 
                 <div className="flex items-center gap-2 flex-wrap">
                   {vipMembership && vipStyle ? (
-                    <span className="px-3 py-1 rounded-full text-xs font-black flex items-center gap-1" style={{ background: vipStyle.bg, color: vipStyle.text }}>
+                    <button
+                      onClick={() => setShowVipPayModal(true)}
+                      className="px-3 py-1 rounded-full text-xs font-black flex items-center gap-1 active:scale-95 transition-transform"
+                      style={{ background: vipStyle.bg, color: vipStyle.text }}
+                    >
                       {vipStyle.emoji} {vipStyle.label}
                       {vipMembership.status === 'frozen' && ' ❄️'}
-                    </span>
+                    </button>
                   ) : (
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${ profile?.verification_status === 'verified' ? 'bg-green-500/20 text-green-400' : 'bg-[#F0B90B] text-black' }`}>
+                    <button
+                      onClick={() => setShowVipPayModal(true)}
+                      className={`px-3 py-1 rounded-full text-xs font-bold active:scale-95 transition-transform ${ profile?.verification_status === 'verified' ? 'bg-green-500/20 text-green-400' : 'bg-[#F0B90B] text-black' }`}
+                    >
                       {profile?.verification_status === 'verified' ? 'Verified' : 'Regular'}
-                    </span>
+                    </button>
                   )}
                   {profile?.is_admin && (
                     <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-500/20 text-purple-400">
@@ -824,6 +833,120 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
         isOpen={showAnalytics}
         onClose={() => setShowAnalytics(false)}
       />
+
+      {/* VIP Payment Modal */}
+      {showVipPayModal && (
+        <div className="fixed inset-0 z-[200] bg-black/70 flex items-end justify-center" onClick={() => setShowVipPayModal(false)}>
+          <div
+            className="bg-[#1E2329] w-full max-w-lg rounded-t-3xl pb-10 max-h-[92vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#2B3139]">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">👑</span>
+                <div>
+                  <h3 className="text-white font-black text-base">VIP Üyelik</h3>
+                  <p className="text-gray-400 text-xs">Kripto ile ödeme yapın, admin onaylasın</p>
+                </div>
+              </div>
+              <button onClick={() => setShowVipPayModal(false)} className="w-8 h-8 rounded-full bg-[#2B3139] flex items-center justify-center text-gray-400 hover:text-white">
+                ✕
+              </button>
+            </div>
+
+            <div className="px-5 pt-5 space-y-5">
+
+              {/* Current VIP status if has one */}
+              {vipMembership && vipStyle && (
+                <div className="bg-[#F0B90B]/10 border border-[#F0B90B]/30 rounded-2xl p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-[#F0B90B] font-black text-sm">{vipStyle.emoji} Mevcut Paketiniz: {vipStyle.label}</p>
+                    <p className="text-gray-400 text-xs mt-0.5">
+                      {vipDaysLeft !== null && vipDaysLeft > 0 ? `${vipDaysLeft} gün kaldı` : '⚠️ Süresi doldu — yenileyebilirsiniz'}
+                    </p>
+                  </div>
+                  <span className="text-2xl">{vipStyle.emoji}</span>
+                </div>
+              )}
+
+              {/* How it works */}
+              <div className="space-y-2">
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Nasıl çalışır?</p>
+                {[
+                  { step: '1', text: 'Aşağıdaki cüzdan adresine USDT (TRC20) gönderin' },
+                  { step: '2', text: 'Destek ekibine TX ID ile yazın' },
+                  { step: '3', text: 'Admin ödemenizi onaylar, VIP üyeliğiniz aktif olur' },
+                ].map(s => (
+                  <div key={s.step} className="flex items-start gap-3 bg-[#2B3139] rounded-xl p-3">
+                    <div className="w-6 h-6 rounded-full bg-[#F0B90B] text-black text-xs font-black flex items-center justify-center flex-shrink-0">{s.step}</div>
+                    <p className="text-gray-300 text-sm">{s.text}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Wallet address */}
+              <div className="bg-[#2B3139] rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                  <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">USDT TRC20 Cüzdan Adresi</p>
+                </div>
+                <div className="bg-[#181A20] rounded-xl p-3 flex items-center justify-between gap-2 mb-3">
+                  <p className="text-white text-xs font-mono break-all leading-relaxed">TLxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText('TLxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+                      setVipPayCopied(true);
+                      setTimeout(() => setVipPayCopied(false), 2000);
+                    }}
+                    className="flex-shrink-0 w-8 h-8 rounded-lg bg-[#F0B90B]/20 flex items-center justify-center"
+                  >
+                    {vipPayCopied
+                      ? <CheckCircle className="w-4 h-4 text-green-400" />
+                      : <Copy className="w-4 h-4 text-[#F0B90B]" />
+                    }
+                  </button>
+                </div>
+                {vipPayCopied && <p className="text-green-400 text-xs text-center font-semibold">✅ Adres kopyalandı!</p>}
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="flex-1 h-px bg-[#363D47]"></div>
+                  <p className="text-gray-600 text-xs">Sadece TRC20 ağını kullanın</p>
+                  <div className="flex-1 h-px bg-[#363D47]"></div>
+                </div>
+              </div>
+
+              {/* VIP packages info */}
+              <div>
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">VIP Paketleri</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { level: 'VIP 1–3', duration: '6–12 ay', desc: 'Başlangıç' },
+                    { level: 'VIP 4–6', duration: '12–24 ay', desc: 'Orta Seviye' },
+                    { level: 'VIP 7–9', duration: '24–36 ay', desc: 'Üst Seviye' },
+                    { level: 'VIP 10', duration: '36+ ay', desc: 'Elite / Tam Erişim' },
+                  ].map(p => (
+                    <div key={p.level} className="bg-[#2B3139] rounded-xl p-3">
+                      <p className="text-[#F0B90B] text-xs font-black">{p.level}</p>
+                      <p className="text-white text-xs font-semibold">{p.desc}</p>
+                      <p className="text-gray-500 text-[10px]">{p.duration}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-gray-600 text-xs text-center mt-2">Fiyat bilgisi için destek ekibine yazın</p>
+              </div>
+
+              {/* Contact support */}
+              <button
+                onClick={() => { setShowVipPayModal(false); setShowSupportModal(true); }}
+                className="w-full py-4 bg-[#F0B90B] text-black rounded-2xl font-black text-base active:scale-95 transition-transform flex items-center justify-center gap-2"
+              >
+                💬 Destek Ekibine Yaz
+              </button>
+
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
