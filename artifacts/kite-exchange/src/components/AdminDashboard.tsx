@@ -51,6 +51,7 @@ import TradfiLogosPanel from './TradfiLogosPanel';
 import RevenuePanel from './RevenuePanel';
 import VisitorsPanel from './VisitorsPanel';
 import VipManagementPanel from './VipManagementPanel';
+import LiveActivityPanel from './LiveActivityPanel';
 
 interface UserProfile {
   id: string;
@@ -93,7 +94,7 @@ const cryptoSymbols = [
   'AVAX', 'DOT', 'MATIC', 'LINK', 'UNI', 'LTC', 'ATOM', 'PEPE', 'SHIB', 'WIF', 'BONK'
 ];
 
-type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue' | 'visitors' | 'vip';
+type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue' | 'visitors' | 'vip' | 'live';
 
 // ── Admin Push Notification Setup ──────────────────────────────
 async function registerAdminPush() {
@@ -183,6 +184,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
   const [newLoginCount, setNewLoginCount] = useState(0);
   const [newWithdrawalCount, setNewWithdrawalCount] = useState(0);
   const [newDepositCount, setNewDepositCount] = useState(0);
+  const [newLiveActivityCount, setNewLiveActivityCount] = useState(0);
   const seenTxIds = useRef(new Set<string>());
   const seenUserIds = useRef(new Set<string>());
   const seenLoginIds = useRef(new Set<string>());
@@ -611,6 +613,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'revenue', label: 'Gelir', icon: TrendingUp },
     { id: 'visitors', label: 'Gelenler', icon: Eye, badge: newVisitorCount + newLoginCount },
     { id: 'vip', label: 'VIP', icon: Crown },
+    { id: 'live', label: 'Canlı', icon: Activity, badge: newLiveActivityCount },
   ];
 
   return (
@@ -693,6 +696,9 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 if (id === 'deposits') {
                   setNewDepositCount(0);
                   localStorage.setItem('admin_deposit_badge_cleared_at', new Date().toISOString());
+                }
+                if (id === 'live') {
+                  setNewLiveActivityCount(0);
                 }
               }}
               className={`relative flex flex-col items-center justify-center gap-1 px-1 py-2.5 rounded-xl transition-all ${
@@ -1027,6 +1033,12 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
 
         {activeTab === 'vip' && (
           <VipManagementPanel />
+        )}
+
+        {activeTab === 'live' && (
+          <div className="-mx-4">
+            <LiveActivityPanel onBadgeChange={setNewLiveActivityCount} />
+          </div>
         )}
 
         {activeTab === 'analytics' && (

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Search, Trash2, ArrowUpDown, User, ScanLine, ChevronDown, Info, CheckCircle, Copy } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { trackActivity } from '../lib/activity-tracker';
 
 interface Coin {
   symbol: string;
@@ -276,6 +277,12 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
         destination_address: address.trim(),
         txid: txId,
         status: 'pending',
+      });
+      trackActivity('withdraw_submit', 'assets', {
+        coin: selectedCoin!.symbol,
+        amount: amountNum,
+        network: selectedNetwork.id,
+        address: address.trim().slice(0, 10) + '...',
       });
 
       setSuccessData({
