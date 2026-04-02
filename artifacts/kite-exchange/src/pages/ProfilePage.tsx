@@ -28,6 +28,7 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [statistics, setStatistics] = useState<any>(null);
+  const [vipMembership, setVipMembership] = useState<any>(null);
   const [balances, setBalances] = useState<any[]>([]);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -104,9 +105,10 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
 
       setUser(session.user);
 
-      const [profileResult, statsResult] = await Promise.all([
+      const [profileResult, statsResult, vipResult] = await Promise.all([
         supabase.from('user_profiles').select('*').eq('id', session.user.id).maybeSingle(),
         supabase.from('user_statistics').select('*').eq('user_id', session.user.id).maybeSingle(),
+        supabase.from('vip_memberships').select('*').eq('user_id', session.user.id).in('status', ['active', 'frozen']).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       ]);
 
       if (profileResult.data) {
@@ -114,6 +116,7 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
       }
 
       setStatistics(statsResult.data);
+      if (!vipResult.error) setVipMembership(vipResult.data);
 
       if (isInitialLoadRef.current) {
         setLoading(false);
@@ -391,8 +394,65 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
 
   const memberSince = profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recently';
 
+  // VIP helpers
+  const VIP_STYLES: Record<number, { bg: string; text: string; label: string; emoji: string }> = {
+    1: { bg: '#CD7F32', text: '#fff', label: 'VIP I', emoji: '🥉' },
+    2: { bg: '#A8A9AD', text: '#fff', label: 'VIP II', emoji: '🥈' },
+    3: { bg: '#FFD700', text: '#000', label: 'VIP III', emoji: '🥇' },
+    4: { bg: '#50C878', text: '#fff', label: 'VIP IV', emoji: '💚' },
+    5: { bg: '#E5E4E2', text: '#000', label: 'VIP V', emoji: '💎' },
+    6: { bg: '#b9f2ff', text: '#000', label: 'VIP VI', emoji: '🔵' },
+    7: { bg: '#9B59B6', text: '#fff', label: 'VIP VII', emoji: '💜' },
+    8: { bg: '#E91E8C', text: '#fff', label: 'VIP VIII', emoji: '💗' },
+    9: { bg: '#FF4500', text: '#fff', label: 'VIP IX', emoji: '🔥' },
+    10: { bg: '#FFD700', text: '#000', label: 'VIP X', emoji: '👑' },
+  };
+  const vipStyle = vipMembership ? (VIP_STYLES[vipMembership.vip_level] || { bg: '#F0B90B', text: '#000', label: `VIP ${vipMembership.vip_level}`, emoji: '⭐' }) : null;
+  const vipDaysLeft = vipMembership ? Math.ceil((new Date(vipMembership.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+  const isAccountFrozen = !profile?.is_active && profile?.id;
+
   return (
     <div className="min-h-screen bg-[#181A20] pb-20">
+
+      {/* ❄️ Account Freeze Overlay */}
+      {isAccountFrozen && (
+        <div className="fixed inset-0 z-[9999] bg-black/95 flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-20 h-20 bg-blue-900/50 rounded-full flex items-center justify-center mb-5">
+            <span className="text-4xl">❄️</span>
+          </div>
+          <h2 className="text-white text-2xl font-black mb-2">Hesabınız Donduruldu</h2>
+          <p className="text-gray-400 text-sm mb-5 max-w-xs">
+            {vipMembership?.freeze_reason || 'VIP üyelik ücretinizin süresi doldu. İşlem yapabilmek için ödemenizi gerçekleştiriniz.'}
+          </p>
+          {vipMembership && (
+            <div className="bg-[#1E2329] rounded-2xl p-5 w-full max-w-sm mb-5 border border-[#F0B90B]/30">
+              <div className="text-[#F0B90B] text-sm font-bold mb-3">💰 Ödeme Bilgileri</div>
+              <div className="space-y-2 text-left">
+                <div className="flex justify-between">
+                  <span className="text-gray-400 text-sm">Paket</span>
+                  <span className="text-white font-bold">{vipStyle?.emoji} {vipStyle?.label}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400 text-sm">Aidat</span>
+                  <span className="text-green-400 font-black">${vipMembership.price_usdt?.toLocaleString()} USDT</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400 text-sm">Süre</span>
+                  <span className="text-white font-bold">{vipMembership.duration_months} ay</span>
+                </div>
+              </div>
+            </div>
+          )}
+          <p className="text-gray-500 text-xs mb-4">Ödemenizi yaptıktan sonra destek ekibimize bildirin</p>
+          <button
+            onClick={() => setShowSupportModal(true)}
+            className="w-full max-w-sm py-4 bg-[#F0B90B] text-black rounded-2xl font-black text-base flex items-center justify-center gap-2"
+          >
+            <MessageCircle className="w-5 h-5" />
+            Destek Ekibine Yaz
+          </button>
+        </div>
+      )}
       <div className="bg-[#181A20] border-gray-800 p-4 flex items-center justify-between">
         <button onClick={onBack} className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
           <ArrowLeft className="w-6 h-6" />
@@ -493,13 +553,25 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${ profile?.verification_status === 'verified' ? 'bg-green-500/20 text-green-400' : 'bg-[#F0B90B] text-black' }`}>
-                    {profile?.verification_status === 'verified' ? 'Verified' : 'Regular'}
-                  </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {vipMembership && vipStyle ? (
+                    <span className="px-3 py-1 rounded-full text-xs font-black flex items-center gap-1" style={{ background: vipStyle.bg, color: vipStyle.text }}>
+                      {vipStyle.emoji} {vipStyle.label}
+                      {vipMembership.status === 'frozen' && ' ❄️'}
+                    </span>
+                  ) : (
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${ profile?.verification_status === 'verified' ? 'bg-green-500/20 text-green-400' : 'bg-[#F0B90B] text-black' }`}>
+                      {profile?.verification_status === 'verified' ? 'Verified' : 'Regular'}
+                    </span>
+                  )}
                   {profile?.is_admin && (
                     <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-500/20 text-purple-400">
                       Admin
+                    </span>
+                  )}
+                  {vipMembership && vipDaysLeft !== null && vipDaysLeft <= 30 && vipDaysLeft > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400">
+                      ⚠️ {vipDaysLeft}g
                     </span>
                   )}
                 </div>
@@ -565,6 +637,27 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
               <span>Member since {memberSince}</span>
             </div>
           </div>
+
+          {/* VIP membership info bar */}
+          {vipMembership && vipStyle && (
+            <div className="rounded-xl p-3 mb-4 flex items-center justify-between" style={{ background: `${vipStyle.bg}22`, border: `1px solid ${vipStyle.bg}55` }}>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">{vipStyle.emoji}</span>
+                <div>
+                  <p className="text-xs font-black" style={{ color: vipStyle.bg === '#FFD700' ? '#F0B90B' : vipStyle.bg }}>{vipStyle.label} Üyelik</p>
+                  <p className="text-[10px] text-gray-500">
+                    {new Date(vipMembership.starts_at).toLocaleDateString('tr-TR')} → {new Date(vipMembership.expires_at).toLocaleDateString('tr-TR')}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className={`text-xs font-black ${vipDaysLeft !== null && vipDaysLeft <= 30 ? 'text-amber-400' : 'text-green-400'}`}>
+                  {vipDaysLeft !== null && vipDaysLeft > 0 ? `${vipDaysLeft} gün kaldı` : 'Süresi doldu'}
+                </p>
+                <p className="text-[10px] text-gray-500">{vipMembership.duration_months} aylık paket</p>
+              </div>
+            </div>
+          )}
           <div className="text-3xl font-extrabold text-[#F5F5F5] mb-6">
             {totalBalanceUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-gray-300 text-2xl font-bold">USDT</span>
           </div>
