@@ -228,7 +228,7 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
               navigator.clipboard.writeText(SETUP_SQL);
               setCopied(true);
               setTimeout(() => {
-                window.open('https://supabase.com/dashboard/project/mgfviqdxeupajntpylig/sql/new', '_blank');
+                window.open('https://supabase.com/dashboard/project/jfjjymprvjfltpvmfptj/sql/new', '_blank');
               }, 300);
               setTimeout(() => setCopied(false), 4000);
             }}
