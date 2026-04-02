@@ -181,11 +181,17 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
   const [newTxCount, setNewTxCount] = useState(0);
   const [newVisitorCount, setNewVisitorCount] = useState(0);
   const [newLoginCount, setNewLoginCount] = useState(0);
+  const [newWithdrawalCount, setNewWithdrawalCount] = useState(0);
+  const [newDepositCount, setNewDepositCount] = useState(0);
   const seenTxIds = useRef(new Set<string>());
   const seenUserIds = useRef(new Set<string>());
   const seenLoginIds = useRef(new Set<string>());
+  const seenWithdrawalIds = useRef(new Set<string>());
+  const seenDepositIds = useRef(new Set<string>());
   const seeded = useRef(false);
   const userSeeded = useRef(false);
+  const withdrawalSeeded = useRef(false);
+  const depositSeeded = useRef(false);
 
   const [addBalanceForm, setAddBalanceForm] = useState({
     symbol: 'USDT',
@@ -251,6 +257,41 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         if ((count ?? 0) > 0) setNewLoginCount(count ?? 0);
       });
 
+    // Count new withdrawal requests since admin last checked
+    const lastWdCleared = localStorage.getItem('admin_withdrawal_badge_cleared_at') || (() => {
+      const t = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+      localStorage.setItem('admin_withdrawal_badge_cleared_at', t);
+      return t;
+    })();
+    supabase
+      .from('withdrawal_transactions')
+      .select('id', { count: 'exact', head: false })
+      .gt('created_at', lastWdCleared)
+      .then(({ data, count }) => {
+        (data || []).forEach((r: any) => seenWithdrawalIds.current.add(r.id));
+        withdrawalSeeded.current = true;
+        if ((count ?? 0) > 0) setNewWithdrawalCount(count ?? 0);
+      })
+      .catch(() => { withdrawalSeeded.current = true; });
+
+    // Count new deposit transactions since admin last checked
+    const lastDepCleared = localStorage.getItem('admin_deposit_badge_cleared_at') || (() => {
+      const t = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+      localStorage.setItem('admin_deposit_badge_cleared_at', t);
+      return t;
+    })();
+    supabase
+      .from('transactions')
+      .select('id', { count: 'exact', head: false })
+      .in('type', ['deposit', 'manual_deposit', 'admin_credit'])
+      .gt('created_at', lastDepCleared)
+      .then(({ data, count }) => {
+        (data || []).forEach((r: any) => seenDepositIds.current.add(r.id));
+        depositSeeded.current = true;
+        if ((count ?? 0) > 0) setNewDepositCount(count ?? 0);
+      })
+      .catch(() => { depositSeeded.current = true; });
+
     const channel = supabase
       .channel('admin_dashboard_realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'support_messages' }, () => {
@@ -295,6 +336,23 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         setIncomingAlerts(prev => [alert, ...prev].slice(0, 8));
         setNewTxCount(n => n + 1);
         setTimeout(() => setIncomingAlerts(prev => prev.filter(a => a.id !== rec.id)), 30000);
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'withdrawal_transactions' }, (payload) => {
+        if (!withdrawalSeeded.current) return;
+        const rec = payload.new as any;
+        if (!rec?.id || seenWithdrawalIds.current.has(rec.id)) return;
+        seenWithdrawalIds.current.add(rec.id);
+        setNewWithdrawalCount(n => n + 1);
+        playUrgentAlarm();
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'transactions' }, (payload) => {
+        if (!depositSeeded.current) return;
+        const rec = payload.new as any;
+        if (!rec?.id || seenDepositIds.current.has(rec.id)) return;
+        const depTypes = ['deposit', 'manual_deposit', 'admin_credit'];
+        if (!depTypes.includes(rec?.type)) return;
+        seenDepositIds.current.add(rec.id);
+        setNewDepositCount(n => n + 1);
       })
       .subscribe();
 
@@ -540,8 +598,8 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'command', label: 'Komut', icon: Zap },
     { id: 'agents', label: 'Ajanlar', icon: Users },
     { id: 'position', label: 'Pozisyon', icon: Target },
-    { id: 'deposits', label: 'Yatırım', icon: DollarSign },
-    { id: 'withdrawals', label: 'Çekim', icon: ArrowUpRight },
+    { id: 'deposits', label: 'Yatırım', icon: DollarSign, badge: newDepositCount },
+    { id: 'withdrawals', label: 'Çekim', icon: ArrowUpRight, badge: newWithdrawalCount },
     { id: 'security', label: 'Güvenlik', icon: Shield },
     { id: 'activity', label: 'Aktivite', icon: Activity },
     { id: 'deploy', label: 'Deploy', icon: Server },
@@ -628,6 +686,14 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                   localStorage.setItem('admin_login_badge_cleared_at', now);
                 }
                 if (id === 'incoming-funds') setNewTxCount(0);
+                if (id === 'withdrawals') {
+                  setNewWithdrawalCount(0);
+                  localStorage.setItem('admin_withdrawal_badge_cleared_at', new Date().toISOString());
+                }
+                if (id === 'deposits') {
+                  setNewDepositCount(0);
+                  localStorage.setItem('admin_deposit_badge_cleared_at', new Date().toISOString());
+                }
               }}
               className={`relative flex flex-col items-center justify-center gap-1 px-1 py-2.5 rounded-xl transition-all ${
                 activeTab === id
