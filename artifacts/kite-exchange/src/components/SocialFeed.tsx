@@ -986,6 +986,10 @@ export default function SocialFeed() {
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [commentsDrawerPost, setCommentsDrawerPost] = useState<{ id: string; count: number; username: string } | null>(null);
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('basonce_liked_posts') || '[]')); } catch { return new Set(); }
+  });
+  const [shareToast, setShareToast] = useState<string | null>(null);
   const newsPoolRef = useRef<LiveNewsItem[]>(generateLiveNews());
   const priceCacheRef = useRef(PriceCache.getInstance());
   const [, setPriceVersion] = useState(0);
@@ -1606,36 +1610,67 @@ export default function SocialFeed() {
                 });
                 return <FeedCoinTags tags={adjustCoinTags(unique, priceCacheRef.current)} />;
               })()}
-              <div className="flex items-center gap-4 text-[13px] text-gray-500 mt-3">
-                <button
-                  onClick={() => setCommentsDrawerPost({ id: post.id, count: post.comments_count, username: post.username })}
-                  className="flex items-center gap-1.5 hover:text-white transition-colors active:scale-95"
-                >
-                  <MessageCircle className="w-[15px] h-[15px]" />
-                  <span>{post.comments_count}</span>
-                </button>
-                <button
-                  onClick={() => { if (!isLoggedIn) setCommentsDrawerPost({ id: post.id, count: post.comments_count, username: post.username }); }}
-                  className="flex items-center gap-1.5 hover:text-[#0ECB81] transition-colors active:scale-95"
-                >
-                  <Repeat2 className="w-[15px] h-[15px]" />
-                  <span>{repostCount}</span>
-                </button>
-                <button
-                  onClick={() => { if (!isLoggedIn) setCommentsDrawerPost({ id: post.id, count: post.comments_count, username: post.username }); }}
-                  className="flex items-center gap-1.5 hover:text-[#F6465D] transition-colors active:scale-95"
-                >
-                  <Heart className="w-[15px] h-[15px]" />
-                  <span>{post.likes_count}</span>
-                </button>
-                <button className="flex items-center gap-1.5 hover:text-[#F0B90B] transition-colors">
-                  <BarChart className="w-[15px] h-[15px]" />
-                  <span>{viewCount >= 1000 ? `${(viewCount / 1000).toFixed(1)}K` : viewCount}</span>
-                </button>
-                <button className="ml-auto flex items-center gap-1 hover:text-white transition-colors">
-                  <Share2 className="w-[14px] h-[14px]" />
-                </button>
-              </div>
+              {(() => {
+                const isLiked = likedPosts.has(post.id);
+                const likeCount = isLiked ? post.likes_count + 1 : post.likes_count;
+                const handleLike = () => {
+                  if (!isLoggedIn) { setCommentsDrawerPost({ id: post.id, count: post.comments_count, username: post.username }); return; }
+                  setLikedPosts(prev => {
+                    const next = new Set(prev);
+                    if (next.has(post.id)) next.delete(post.id);
+                    else { next.add(post.id); }
+                    try {
+                      const arr = Array.from(next);
+                      localStorage.setItem('basonce_liked_posts', JSON.stringify(arr.slice(-200)));
+                      // save post info for profile
+                      const saved = JSON.parse(localStorage.getItem('basonce_liked_post_data') || '[]');
+                      const exists = saved.find((p: any) => p.id === post.id);
+                      if (!exists) {
+                        saved.unshift({ id: post.id, username: post.username, avatar_url: post.avatar_url, content: post.content?.slice(0, 120), coin_symbol: post.coin_symbol, likes_count: post.likes_count, comments_count: post.comments_count, created_at: post.created_at });
+                        localStorage.setItem('basonce_liked_post_data', JSON.stringify(saved.slice(0, 50)));
+                      }
+                    } catch {}
+                    return next;
+                  });
+                };
+                const handleShare = async () => {
+                  const text = `${post.username}: ${post.content?.slice(0, 100)}... — BASONCE Exchange`;
+                  if (navigator.share) {
+                    try { await navigator.share({ title: 'BASONCE Exchange', text, url: window.location.href }); } catch {}
+                  } else {
+                    try { await navigator.clipboard.writeText(text); setShareToast('Copied!'); setTimeout(() => setShareToast(null), 2000); } catch {}
+                  }
+                };
+                return (
+                  <div className="flex items-center gap-4 text-[13px] text-gray-500 mt-3">
+                    <button
+                      onClick={() => setCommentsDrawerPost({ id: post.id, count: post.comments_count, username: post.username })}
+                      className="flex items-center gap-1.5 hover:text-white transition-colors active:scale-95"
+                    >
+                      <MessageCircle className="w-[15px] h-[15px]" />
+                      <span>{post.comments_count}</span>
+                    </button>
+                    <button className="flex items-center gap-1.5 hover:text-[#0ECB81] transition-colors active:scale-95">
+                      <Repeat2 className="w-[15px] h-[15px]" />
+                      <span>{repostCount}</span>
+                    </button>
+                    <button
+                      onClick={handleLike}
+                      className={`flex items-center gap-1.5 transition-all active:scale-90 ${isLiked ? 'text-[#F6465D]' : 'hover:text-[#F6465D]'}`}
+                    >
+                      <Heart className={`w-[15px] h-[15px] transition-all ${isLiked ? 'fill-[#F6465D] scale-110' : ''}`} />
+                      <span className={isLiked ? 'text-[#F6465D] font-bold' : ''}>{likeCount >= 1000 ? `${(likeCount / 1000).toFixed(1)}K` : likeCount}</span>
+                    </button>
+                    <button className="flex items-center gap-1.5 hover:text-[#F0B90B] transition-colors">
+                      <BarChart className="w-[15px] h-[15px]" />
+                      <span>{viewCount >= 1000 ? `${(viewCount / 1000).toFixed(1)}K` : viewCount}</span>
+                    </button>
+                    <button onClick={handleShare} className="ml-auto flex items-center gap-1 hover:text-white transition-colors active:scale-95">
+                      <Share2 className="w-[14px] h-[14px]" />
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -1675,6 +1710,13 @@ export default function SocialFeed() {
           window.location.hash = '#register';
         }}
       />
+
+      {shareToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-[#2B3139] text-white text-sm font-semibold px-4 py-2.5 rounded-full shadow-xl border border-[#3B4149] flex items-center gap-2 animate-fade-in">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0ECB81" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          {shareToast}
+        </div>
+      )}
 
     </div>
   );
