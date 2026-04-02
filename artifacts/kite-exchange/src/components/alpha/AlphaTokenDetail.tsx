@@ -94,6 +94,8 @@ export default function AlphaTokenDetail({ token: initialToken, isOpen, onClose 
   const [aiAnalysis] = useState(() => AI_ANALYSES[Math.floor(Math.random() * AI_ANALYSES.length)]);
   const [voteState, setVoteState] = useState<'up' | 'down' | null>(null);
   const [priceHistory, setPriceHistory] = useState<{ timestamp: string; open_price: number; high_price: number; low_price: number; close_price: number; volume: number; price: number; market_cap: number }[]>([]);
+  const [userBalance, setUserBalance] = useState<number>(0);
+  const [balanceLoaded, setBalanceLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const priceManagerRef = useRef(AlphaPriceManager.getInstance());
 
@@ -105,6 +107,28 @@ export default function AlphaTokenDetail({ token: initialToken, isOpen, onClose 
       requestAnimationFrame(() => requestAnimationFrame(() => setEntering(false)));
     }
   }, [isOpen]);
+
+  // Fetch real user balance for the raised token
+  useEffect(() => {
+    if (!isOpen) return;
+    setBalanceLoaded(false);
+    const fetchBalance = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) { setUserBalance(0); setBalanceLoaded(true); return; }
+        const sym = liveToken.raised_token === 'BSC' ? 'BNC' : liveToken.raised_token;
+        const { data } = await supabase
+          .from('user_balances')
+          .select('balance')
+          .eq('user_id', session.user.id)
+          .eq('symbol', sym)
+          .maybeSingle();
+        setUserBalance(data ? parseFloat(data.balance as string) || 0 : 0);
+      } catch { setUserBalance(0); }
+      finally { setBalanceLoaded(true); }
+    };
+    fetchBalance();
+  }, [isOpen, liveToken.raised_token]);
 
   // Subscribe to live price updates
   useEffect(() => {
@@ -480,7 +504,7 @@ export default function AlphaTokenDetail({ token: initialToken, isOpen, onClose 
         </div>
 
         <div className="mt-3 fade-in-up" style={{ animationDelay: '0.2s' }}>
-          <AlphaTradingPanel token={liveToken} onTrade={handleTrade} />
+          <AlphaTradingPanel token={liveToken} onTrade={handleTrade} userBalance={userBalance} balanceLoaded={balanceLoaded} />
         </div>
 
         <div className="bg-[#181A20] rounded-xl p-3.5 border border-[#2B3139]/50 mt-3 fade-in-up" style={{ animationDelay: '0.25s' }}>

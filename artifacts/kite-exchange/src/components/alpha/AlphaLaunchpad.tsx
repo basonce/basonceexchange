@@ -292,12 +292,9 @@ export default function AlphaLaunchpad() {
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-full border-2 border-[#F0B90B]/40 overflow-hidden bg-gradient-to-br from-[#F0B90B] to-[#E8831D] flex items-center justify-center flex-shrink-0">
-                    {kingToken.logo_url ? (
-                      <img src={kingToken.logo_url} alt="" className="w-full h-full object-cover" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                    ) : (
-                      <span className="text-white text-[11px] font-black">{kingToken.symbol.slice(0, 2)}</span>
-                    )}
+                  <div className="w-9 h-9 rounded-full border-2 border-[#F0B90B]/40 overflow-hidden bg-gradient-to-br from-[#F0B90B] to-[#E8831D] flex items-center justify-center flex-shrink-0 relative">
+                    <span className="absolute inset-0 flex items-center justify-center text-white text-[11px] font-black">{kingToken.symbol.slice(0, 2)}</span>
+                    <img src={kingToken.logo_url || `https://s2.coinmarketcap.com/static/img/coins/64x64/${Math.abs(kingToken.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 500 + 1)}.png`} alt="" className="absolute inset-0 w-full h-full object-cover rounded-full" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                   </div>
                   <div>
                     <span className="text-white text-[13px] font-bold">{kingToken.name}</span>
