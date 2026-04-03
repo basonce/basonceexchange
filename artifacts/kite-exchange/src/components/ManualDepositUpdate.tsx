@@ -183,17 +183,19 @@ function DepositModal({ user, onClose, onSuccess }: {
       const currentBalance = balanceData?.balance || 0;
       const newBalance = currentBalance + amountNum;
 
-      // Upsert balance
-      const { error: upsertError } = await supabase
-        .from('user_balances')
-        .upsert({
-          user_id: user.id,
-          symbol: coin,
-          balance: newBalance,
-          locked_balance: 0
-        }, {
-          onConflict: 'user_id,symbol'
-        });
+      // Update or insert balance (no UNIQUE constraint on user_id,symbol so avoid onConflict)
+      let upsertError;
+      if (balanceData) {
+        ({ error: upsertError } = await supabase
+          .from('user_balances')
+          .update({ balance: newBalance })
+          .eq('user_id', user.id)
+          .eq('symbol', coin));
+      } else {
+        ({ error: upsertError } = await supabase
+          .from('user_balances')
+          .insert({ user_id: user.id, symbol: coin, balance: newBalance, locked_balance: 0 }));
+      }
 
       if (upsertError) throw upsertError;
 

@@ -139,7 +139,7 @@ export default function SellToUSDModal({ isOpen, onClose }: SellToUSDModalProps)
 
       await Promise.all([
         supabase.from('user_balances').update({ balance: newCoinBalance }).eq('user_id', userId).eq('symbol', selectedCoin.symbol),
-        supabase.from('user_balances').upsert({ user_id: userId, symbol: 'USDT', balance: newUsdtBalance }, { onConflict: 'user_id,symbol' }),
+        supabase.from('user_balances').update({ balance: newUsdtBalance }).eq('user_id', userId).eq('symbol', 'USDT'),
         supabase.from('transactions').insert({
           user_id: userId,
           type: 'sell',

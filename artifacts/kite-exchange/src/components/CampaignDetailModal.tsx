@@ -201,7 +201,9 @@ export default function CampaignDetailModal({ campaign, onClose }: Props) {
       const current = Number((bal as { balance?: number } | null)?.balance ?? 0);
       await supabase
         .from('user_balances')
-        .upsert({ user_id: user.id, symbol: 'USDT', balance: current + rewardUsdt }, { onConflict: 'user_id,symbol' });
+        .update({ balance: current + rewardUsdt })
+        .eq('user_id', user.id)
+        .eq('symbol', 'USDT');
     }
 
     if (rewardEq > 0) {
@@ -214,7 +216,9 @@ export default function CampaignDetailModal({ campaign, onClose }: Props) {
       const current = Number((bal as { balance?: number } | null)?.balance ?? 0);
       await supabase
         .from('user_balances')
-        .upsert({ user_id: user.id, symbol: 'EQ', balance: current + rewardEq }, { onConflict: 'user_id,symbol' });
+        .update({ balance: current + rewardEq })
+        .eq('user_id', user.id)
+        .eq('symbol', 'EQ');
     }
 
     await supabase

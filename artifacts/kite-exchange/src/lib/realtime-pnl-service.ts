@@ -193,9 +193,9 @@ class RealtimePnLService {
 
     if (existing) {
       const v = parseFloat(existing.total_value_usdt);
-      // Guard: if snapshot is 0 or wildly wrong (e.g. > 10x current) treat it as
-      // if it doesn't exist yet so we don't show a crazy PnL.
-      if (v > 0 && v < currentTotal * 10) return v;
+      // Only skip the snapshot if it was literally 0 (bad data).
+      // Do NOT invalidate it on big drops — that's exactly when we need it (liquidations etc.)
+      if (v > 0) return v;
     }
 
     // Create a fresh snapshot using the current portfolio value.

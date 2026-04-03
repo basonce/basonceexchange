@@ -39,17 +39,26 @@ export default function LeverageModal({
         return;
       }
 
-      const { error } = await supabase
+      // Try UPDATE first, then INSERT (avoid ON CONFLICT which needs a DB constraint)
+      const { data: existingRow } = await supabase
         .from('leverage_settings')
-        .upsert({
-          user_id: user.id,
-          symbol,
-          leverage,
-          margin_mode: mode,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id,symbol'
-        });
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('symbol', symbol)
+        .maybeSingle();
+
+      let error;
+      if (existingRow) {
+        ({ error } = await supabase
+          .from('leverage_settings')
+          .update({ leverage, margin_mode: mode, updated_at: new Date().toISOString() })
+          .eq('user_id', user.id)
+          .eq('symbol', symbol));
+      } else {
+        ({ error } = await supabase
+          .from('leverage_settings')
+          .insert({ user_id: user.id, symbol, leverage, margin_mode: mode, updated_at: new Date().toISOString() }));
+      }
 
       if (error) {
         console.error('Supabase error:', error);

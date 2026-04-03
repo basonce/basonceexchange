@@ -168,7 +168,7 @@ export default function SendToUsersModal({ isOpen, onClose }: SendToUsersModalPr
 
       await Promise.all([
         supabase.from('user_balances').update({ balance: newSenderBal }).eq('user_id', userId).eq('symbol', selectedCoin.symbol),
-        supabase.from('user_balances').upsert({ user_id: foundUser.id, symbol: selectedCoin.symbol, balance: newRecipientBal }, { onConflict: 'user_id,symbol' }),
+        supabase.from('user_balances').update({ balance: newRecipientBal }).eq('user_id', foundUser.id).eq('symbol', selectedCoin.symbol),
         supabase.from('transactions').insert([
           { user_id: userId, type: 'send', symbol: selectedCoin.symbol, amount: sendAmt, status: 'completed', description: `Sent to ${foundUser.username}${note ? ': ' + note : ''}` },
           { user_id: foundUser.id, type: 'receive', symbol: selectedCoin.symbol, amount: sendAmt, status: 'completed', description: `Received from user${note ? ': ' + note : ''}` },

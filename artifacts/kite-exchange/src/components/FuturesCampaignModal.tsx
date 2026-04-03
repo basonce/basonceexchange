@@ -130,12 +130,12 @@ function ClaimableCard({ campaign, onClose }: { campaign: CampaignDetailData; on
     if (rewardUsdt > 0) {
       const { data: bal } = await supabase.from('user_balances').select('balance').eq('user_id', user.id).eq('symbol', 'USDT').maybeSingle();
       const cur = Number((bal as { balance?: number } | null)?.balance ?? 0);
-      await supabase.from('user_balances').upsert({ user_id: user.id, symbol: 'USDT', balance: cur + rewardUsdt }, { onConflict: 'user_id,symbol' });
+      await supabase.from('user_balances').update({ balance: cur + rewardUsdt }).eq('user_id', user.id).eq('symbol', 'USDT');
     }
     if (rewardEq > 0) {
       const { data: bal } = await supabase.from('user_balances').select('balance').eq('user_id', user.id).eq('symbol', 'EQ').maybeSingle();
       const cur = Number((bal as { balance?: number } | null)?.balance ?? 0);
-      await supabase.from('user_balances').upsert({ user_id: user.id, symbol: 'EQ', balance: cur + rewardEq }, { onConflict: 'user_id,symbol' });
+      await supabase.from('user_balances').update({ balance: cur + rewardEq }).eq('user_id', user.id).eq('symbol', 'EQ');
     }
 
     let msg = 'Reward claimed!';
