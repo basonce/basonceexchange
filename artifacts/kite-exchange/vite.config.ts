@@ -2,27 +2,15 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
+
+// PORT is only needed for dev/preview server — defaults to 3000 during build
 const rawPort = process.env.PORT;
+const port = rawPort && !isNaN(Number(rawPort)) && Number(rawPort) > 0
+  ? Number(rawPort)
+  : 3000;
 
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
-const port = Number(rawPort);
-
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
-
-const basePath = process.env.BASE_PATH;
-
-if (!basePath) {
-  throw new Error(
-    "BASE_PATH environment variable is required but was not provided.",
-  );
-}
+// BASE_PATH defaults to '/' (served at root in production)
+const basePath = process.env.BASE_PATH || '/';
 
 export default defineConfig({
   base: basePath,
