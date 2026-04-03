@@ -109,13 +109,29 @@ export default function MarketsPage() {
   }, [markets.length]);
 
   const loadCoins = async () => {
+    // Önce cache'den anında yükle
     try {
+      const raw = localStorage.getItem('basonce_markets_cache_v1');
+      if (raw) {
+        const { ts, data } = JSON.parse(raw);
+        if (Date.now() - ts < 10 * 60 * 1000 && Array.isArray(data) && data.length > 0) {
+          setMarkets(data);
+          setLoading(false);
+        }
+      }
+    } catch {}
+
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
       const { data: coins } = await supabase
         .from('supported_coins')
         .select('symbol, name, logo_url, binance_symbol, is_spot_enabled')
         .eq('is_active', true)
         .eq('is_spot_enabled', true)
-        .order('sort_order');
+        .order('sort_order')
+        .abortSignal(controller.signal);
+      clearTimeout(timer);
 
       if (!coins) { setLoading(false); return; }
 
@@ -217,6 +233,7 @@ export default function MarketsPage() {
 
       setMarkets(initialMarkets);
       setLoading(false);
+      try { localStorage.setItem('basonce_markets_cache_v1', JSON.stringify({ ts: Date.now(), data: initialMarkets })); } catch {}
 
       const cgSymbols = coins
         .filter(c => c.symbol !== 'EQ' && c.symbol !== 'USDT' && !INDEP_MAP[c.symbol] && getCoinGeckoId(c.symbol))
