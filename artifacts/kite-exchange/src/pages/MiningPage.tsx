@@ -2,8 +2,8 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { Pickaxe, ShoppingBag, Radio, Users, UserPlus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { globalMiningStats } from '../lib/global-mining-stats';
+import MineTab from '../components/mining-tabs/MineTab';
 
-const MineTab = lazy(() => import('../components/mining-tabs/MineTab'));
 const ShopTab = lazy(() => import('../components/mining-tabs/ShopTab'));
 const SupportTab = lazy(() => import('../components/mining-tabs/SupportTab'));
 const MiningLiveChatModal = lazy(() => import('../components/MiningLiveChatModal'));

@@ -70,7 +70,7 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
   }, [miners]);
 
   useEffect(() => {
-    console.log('🚀 MineTab: Component mounted! Loading mining data...');
+    
     loadMiningData();
 
     // Subscribe to EQ price updates
@@ -100,7 +100,7 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
           (payload) => {
             const newBalance = payload.new as any;
             if (newBalance.symbol === 'USDT') {
-              console.log('💰 Balance updated:', newBalance.balance);
+              
               setDbUsdtBalance(Number(newBalance.balance || 0));
               setDbEqBalance(Number(newBalance.eq_amount || 0));
             }
@@ -202,47 +202,37 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
     }
   };
 
+  const MINING_CACHE_KEY = 'basonce_mining_cache_v1';
+
   const loadMiningData = async () => {
-    console.log('📊 MineTab: loadMiningData() called');
+    // Önce cache'den anında göster
+    try {
+      const raw = localStorage.getItem(MINING_CACHE_KEY);
+      if (raw) {
+        const { ts, miners: cachedMiners, usdt, eq } = JSON.parse(raw);
+        if (Date.now() - ts < 30 * 1000 && Array.isArray(cachedMiners)) {
+          setMiners(cachedMiners);
+          if (usdt) setDbUsdtBalance(usdt);
+          if (eq) setDbEqBalance(eq);
+        }
+      }
+    } catch {}
+
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.log('❌ MineTab: No user found! Initializing demo mode...');
-      initDemoMode();
-      return;
-    }
-    console.log('👤 MineTab: User ID:', user.id);
+    if (!user) { initDemoMode(); return; }
 
-    const { data: balanceData, error: balanceError } = await supabase
-      .from('user_balances')
-      .select('balance, eq_amount')
-      .eq('user_id', user.id)
-      .eq('symbol', 'USDT')
-      .maybeSingle();
-
-    console.log('💰 MineTab: Balance Data:', balanceData);
-    console.log('❌ MineTab: Balance Error:', balanceError);
+    // Balance ve equipment paralel çalışır
+    const [{ data: balanceData }, { data: equipment }] = await Promise.all([
+      supabase.from('user_balances').select('balance, eq_amount').eq('user_id', user.id).eq('symbol', 'USDT').maybeSingle(),
+      supabase.from('user_active_equipment').select('*').eq('user_id', user.id).eq('is_currently_usable', true),
+    ]);
 
     if (balanceData) {
-      const usdtBalance = Number(balanceData.balance || 0);
-      const eqAmount = Number(balanceData.eq_amount || 0);
-      console.log('✅ MineTab: Setting USDT balance:', usdtBalance);
-      console.log('✅ MineTab: Setting EQ amount:', eqAmount);
-      setDbUsdtBalance(usdtBalance);
-      setDbEqBalance(eqAmount);
-    } else {
-      console.log('⚠️ MineTab: No balance data found, balance will show 0');
+      setDbUsdtBalance(Number(balanceData.balance || 0));
+      setDbEqBalance(Number(balanceData.eq_amount || 0));
     }
 
-    const { data: equipment } = await supabase
-      .from('user_active_equipment')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('is_currently_usable', true);
-
-    console.log('⛏️ MineTab: Found', equipment?.length || 0, 'equipment items');
-
     if (!equipment || equipment.length === 0) {
-      console.log('📦 MineTab: No usable equipment found');
       setMiners([]);
       return;
     }
@@ -251,7 +241,6 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
       const maxSeconds = (eq.mining_duration_hours || 3) * 3600;
       const usedSeconds = eq.used_mining_seconds || 0;
       const hasTimeLimit = eq.has_time_limit !== false;
-
       return {
         id: eq.id,
         name: eq.equipment_name || 'CPU Miner',
@@ -271,12 +260,21 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
         max_uses: 999,
         has_time_limit: hasTimeLimit,
         remaining_mining_seconds: hasTimeLimit ? Math.max(0, maxSeconds - usedSeconds) : 999999,
-        usage_percentage: hasTimeLimit ? (usedSeconds / maxSeconds * 100) : 0
+        usage_percentage: hasTimeLimit ? (usedSeconds / maxSeconds * 100) : 0,
       };
     });
 
-    console.log('✅ MineTab: Setting miners state with', devices.length, 'devices:', devices.map(d => `${d.name} (${d.status}) session: $${d.session_earned_usdt.toFixed(2)}`));
     setMiners(devices);
+
+    // 30 saniye cache
+    try {
+      localStorage.setItem(MINING_CACHE_KEY, JSON.stringify({
+        ts: Date.now(),
+        miners: devices,
+        usdt: balanceData ? Number(balanceData.balance || 0) : undefined,
+        eq: balanceData ? Number(balanceData.eq_amount || 0) : undefined,
+      }));
+    } catch {}
   };
 
   const updateRealtimeEarnings = async () => {
