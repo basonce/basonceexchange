@@ -973,7 +973,18 @@ function buildInitialFeed(posts: SocialPost[], newsPool: LiveNewsItem[], pc?: Pr
 }
 
 export default function SocialFeed() {
-  const [feedItems, setFeedItemsState] = useState<FeedItem[]>([]);
+  const [feedItems, setFeedItemsState] = useState<FeedItem[]>(() => {
+    try {
+      const raw = localStorage.getItem('basonce_feed_cache_v2');
+      if (raw) {
+        const { ts, items } = JSON.parse(raw);
+        if (Date.now() - ts < 5 * 60 * 1000 && Array.isArray(items) && items.length > 0) {
+          return items as FeedItem[];
+        }
+      }
+    } catch {}
+    return [];
+  });
   const setFeedItems = (updater: FeedItem[] | ((prev: FeedItem[]) => FeedItem[])) => {
     setFeedItemsState(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
@@ -983,7 +994,35 @@ export default function SocialFeed() {
   };
   const [liveRooms, setLiveRooms] = useState<LiveRoom[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const FEED_CACHE_KEY = 'basonce_feed_cache_v2';
+  const FEED_CACHE_TTL = 5 * 60 * 1000; // 5 dakika
+
+  const getCachedFeed = (): FeedItem[] | null => {
+    try {
+      const raw = localStorage.getItem(FEED_CACHE_KEY);
+      if (!raw) return null;
+      const { ts, items } = JSON.parse(raw);
+      if (Date.now() - ts < FEED_CACHE_TTL) return items as FeedItem[];
+    } catch {}
+    return null;
+  };
+
+  const saveFeedCache = (items: FeedItem[]) => {
+    try {
+      localStorage.setItem(FEED_CACHE_KEY, JSON.stringify({ ts: Date.now(), items: items.slice(0, 30) }));
+    } catch {}
+  };
+
+  const [loading, setLoading] = useState(() => {
+    try {
+      const raw = localStorage.getItem('basonce_feed_cache_v2');
+      if (raw) {
+        const { ts, items } = JSON.parse(raw);
+        if (Date.now() - ts < 5 * 60 * 1000 && Array.isArray(items) && items.length > 0) return false;
+      }
+    } catch {}
+    return true;
+  });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [commentsDrawerPost, setCommentsDrawerPost] = useState<{ id: string; count: number; username: string } | null>(null);
   const [likedPosts, setLikedPosts] = useState<Set<string>>(() => {
@@ -1089,8 +1128,8 @@ export default function SocialFeed() {
   }, []);
 
   useEffect(() => {
-    // fetchDbImages önce yüklensin ki buildInitialFeed sırasında pool hazır olsun
-    fetchDbImages().then(() => fetchPosts());
+    // Paralel fetch - beklemeden hepsini aynı anda başlat
+    Promise.all([fetchDbImages(), fetchPosts()]);
     fetchLiveRooms();
     fetchRealNews();
 
@@ -1378,7 +1417,7 @@ export default function SocialFeed() {
         .from('social_posts')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(3243);
+        .limit(200);
       if (error) throw error;
       const filtered = (data || []).filter(isValidTradingPost);
       const pc = priceCacheRef.current;
@@ -1402,7 +1441,12 @@ export default function SocialFeed() {
       postCycleIndexRef.current = 0;
       if (!initializedRef.current) {
         initializedRef.current = true;
-        setFeedItems(buildInitialFeed(shuffled.slice(0, 60), newsPoolRef.current, pc, () => pickDbImage()));
+        const builtFeed = buildInitialFeed(shuffled.slice(0, 60), newsPoolRef.current, pc, () => pickDbImage());
+        setFeedItems(builtFeed);
+        // Cache'e kaydet — sonraki açılışta anında yüklensin
+        try {
+          localStorage.setItem('basonce_feed_cache_v2', JSON.stringify({ ts: Date.now(), items: builtFeed.slice(0, 30) }));
+        } catch {}
         shuffled.slice(0, 60).forEach(p => shownPostIdsRef.current.add(p.id));
         postCycleIndexRef.current = 60;
       }

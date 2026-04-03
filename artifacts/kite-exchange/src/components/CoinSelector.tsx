@@ -22,23 +22,42 @@ export default function CoinSelector({ onClose, onSelectCoin }: CoinSelectorProp
   const [searchQuery, setSearchQuery] = useState('');
   const [allCoins, setAllCoins] = useState<Coin[]>([]);
   const [historyCoins, setHistoryCoins] = useState<Coin[]>([]);
-  const [loading, setLoading] = useState(true);
+  const COIN_CACHE_KEY = 'basonce_coins_cache_v1';
+  const [loading, setLoading] = useState(() => {
+    try {
+      const raw = localStorage.getItem(COIN_CACHE_KEY);
+      if (raw) {
+        const { ts, coins } = JSON.parse(raw);
+        if (Date.now() - ts < 10 * 60 * 1000 && Array.isArray(coins) && coins.length > 0) return false;
+      }
+    } catch {}
+    return true;
+  });
   const listRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
+    // Cache'den anında yükle
+    try {
+      const raw = localStorage.getItem(COIN_CACHE_KEY);
+      if (raw) {
+        const { ts, coins } = JSON.parse(raw);
+        if (Date.now() - ts < 10 * 60 * 1000 && Array.isArray(coins) && coins.length > 0) {
+          setAllCoins(coins);
+          setLoading(false);
+        }
+      }
+    } catch {}
     loadCoins();
   }, []);
 
   const loadCoins = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      const { data: coins, error } = await supabase
-        .from('supported_coins')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
+      // Auth ve coins paralel çalışır
+      const [{ data: { user } }, { data: coins, error }] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.from('supported_coins').select('*').eq('is_active', true).order('sort_order', { ascending: true }),
+      ]);
 
       if (error) throw error;
 
@@ -52,6 +71,8 @@ export default function CoinSelector({ onClose, onSelectCoin }: CoinSelectorProp
       const hasEQ = coins?.some(c => c.symbol === 'EQ');
       const finalCoins = hasEQ ? (coins || []) : [eqCoin, ...(coins || [])];
       setAllCoins(finalCoins);
+      // 10 dakika cache
+      try { localStorage.setItem(COIN_CACHE_KEY, JSON.stringify({ ts: Date.now(), coins: finalCoins })); } catch {}
 
       if (user) {
         const { data: history } = await supabase
