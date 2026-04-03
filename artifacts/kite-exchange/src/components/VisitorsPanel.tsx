@@ -2,6 +2,46 @@ import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { RefreshCw, UserCheck, UserPlus, Clock, ChevronRight, X, Activity } from 'lucide-react';
 
+// ── Aktivite Türkçe Etiketler ─────────────────────────────────────────────────
+function formatActivity(a: ActivityEntry): { icon: string; text: string } {
+  const meta = a.metadata as any;
+  const rawLabel = (meta?.label || '') as string;
+  const emoji = rawLabel.split(' ')[0] || '';
+  const textPart = rawLabel.split(' ').slice(1).join(' ');
+  const elemText = meta?.element_text || textPart || '';
+
+  switch (a.action) {
+    case 'click': {
+      const what = elemText || meta?.label || 'Butona tıkladı';
+      return { icon: '👆', text: what };
+    }
+    case 'page_view': {
+      const page = textPart || meta?.page_label || a.page || 'Sayfa';
+      return { icon: emoji || '📄', text: `${page} sayfasına gitti` };
+    }
+    case 'page_leave': {
+      const page = meta?.page_label || a.page || 'Sayfa';
+      return { icon: '↩️', text: `${page} sayfasından ayrıldı` };
+    }
+    case 'session_start':
+      return { icon: '🟢', text: `Oturum başladı` + (meta?.country ? ` · ${meta.flag || ''} ${meta.country}` : '') };
+    case 'form_input': {
+      const field = elemText || 'Alan';
+      return { icon: '✏️', text: `"${field}" alanını doldurdu` };
+    }
+    case 'tab_change':
+      return { icon: '🔀', text: `${elemText || 'Sekme'} sekmesine geçti` };
+    case 'modal_open':
+      return { icon: '🪟', text: `${elemText || 'Modal'} açtı` };
+    case 'modal_close':
+      return { icon: '❌', text: `${elemText || 'Modal'} kapattı` };
+    case 'scroll':
+      return { icon: '📜', text: 'Sayfayı kaydırdı' };
+    default:
+      return { icon: '⚡', text: elemText || meta?.label || a.action };
+  }
+}
+
 interface VisitorEvent {
   id: string;
   type: 'register' | 'login';
@@ -63,6 +103,7 @@ export default function VisitorsPanel() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [liveCount, setLiveCount] = useState(0);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const activityChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   useEffect(() => {
     load();
@@ -98,6 +139,39 @@ export default function VisitorsPanel() {
 
     return () => { if (channelRef.current) supabase.removeChannel(channelRef.current); };
   }, []);
+
+  // Seçili kullanıcının aktivitelerini gerçek zamanlı aktar
+  useEffect(() => {
+    if (activityChannelRef.current) {
+      supabase.removeChannel(activityChannelRef.current);
+      activityChannelRef.current = null;
+    }
+    if (!selected?.id) return;
+
+    activityChannelRef.current = supabase
+      .channel(`activity_live_${selected.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'activity_log',
+        filter: `user_id=eq.${selected.id}`,
+      }, (payload) => {
+        const newEntry = payload.new as ActivityEntry;
+        setSelected(prev => prev ? {
+          ...prev,
+          activityLog: [newEntry, ...prev.activityLog].slice(0, 50),
+          hasActivityLog: true,
+        } : null);
+      })
+      .subscribe();
+
+    return () => {
+      if (activityChannelRef.current) {
+        supabase.removeChannel(activityChannelRef.current);
+        activityChannelRef.current = null;
+      }
+    };
+  }, [selected?.id]);
 
   async function loadLiveCount() {
     try {
@@ -365,40 +439,33 @@ export default function VisitorsPanel() {
                   <div className="flex items-center gap-2 mb-2">
                     <Activity className="w-4 h-4 text-blue-600" />
                     <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Son Hareketler</p>
-                    {!selected.hasActivityLog && (
-                      <span className="text-[10px] text-amber-600 font-semibold bg-amber-50 px-1.5 py-0.5 rounded">
-                        Tablo henüz kurulmadı
-                      </span>
-                    )}
+                    <span className="flex items-center gap-1 text-[10px] text-green-600 font-semibold bg-green-50 px-1.5 py-0.5 rounded">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
+                      Canlı
+                    </span>
                   </div>
                   {selected.hasActivityLog && selected.activityLog.length === 0 ? (
                     <div className="bg-gray-50 rounded-xl p-4 text-center text-gray-400 text-sm">
                       Henüz aktivite kaydı yok
                     </div>
                   ) : selected.hasActivityLog ? (
-                    <div className="bg-gray-50 rounded-xl overflow-hidden divide-y divide-gray-100 max-h-56 overflow-y-auto">
-                      {selected.activityLog.map((a) => (
-                        <div key={a.id} className="flex items-start gap-2 px-3 py-2">
-                          <span className="text-base flex-shrink-0 mt-0.5">
-                            {a.action === 'page_view' ? (
-                              (a.metadata as any)?.label?.split(' ')[0] || '📄'
-                            ) : '⚡'}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-gray-800 font-medium truncate">
-                              {a.action === 'page_view'
-                                ? (a.metadata as any)?.label?.split(' ').slice(1).join(' ') || a.page || 'Sayfa'
-                                : a.action}
-                            </p>
-                            <p className="text-[10px] text-gray-400">{timeAgo(a.created_at)}</p>
+                    <div className="bg-gray-50 rounded-xl overflow-hidden divide-y divide-gray-100 max-h-72 overflow-y-auto">
+                      {selected.activityLog.map((a) => {
+                        const { icon, text } = formatActivity(a);
+                        return (
+                          <div key={a.id} className="flex items-start gap-2 px-3 py-2 hover:bg-gray-100 transition-colors">
+                            <span className="text-base flex-shrink-0 mt-0.5">{icon}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-800 font-medium truncate">{text}</p>
+                              <p className="text-[10px] text-gray-400">{timeAgo(a.created_at)}</p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
-                    <div className="bg-amber-50 rounded-xl p-3 text-sm text-amber-700">
-                      <p className="font-semibold mb-1">Aktivite logu için SQL çalıştır:</p>
-                      <code className="text-xs bg-amber-100 px-2 py-1 rounded block">activity_log_migration.sql</code>
+                    <div className="bg-gray-50 rounded-xl p-4 text-center text-gray-400 text-sm">
+                      Aktivite kaydı bulunamadı
                     </div>
                   )}
                 </div>
