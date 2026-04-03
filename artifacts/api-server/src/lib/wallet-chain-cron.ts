@@ -58,26 +58,8 @@ async function runScan(): Promise<void> {
 }
 
 export function startWalletChainCron(): void {
-  if (cronStarted) return;
-
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    logger.warn('[wallet-cron] SUPABASE_URL veya SUPABASE_ANON_KEY eksik — cron devre dışı');
-    return;
-  }
-
-  cronStarted = true;
-
-  // İlk çalışma 10 saniye sonra (sunucu tam ayağa kalksın)
-  setTimeout(async () => {
-    logger.info('[wallet-cron] İlk BEP20/TRC20 taraması başlıyor…');
-    await runScan();
-
-    // Sonraki taramalar her 2 dakikada bir
-    setInterval(async () => {
-      await runScan();
-    }, SCAN_INTERVAL);
-
-  }, 10_000);
-
-  logger.info(`[wallet-cron] BEP20/TRC20 zincir tarayıcısı başlatıldı (her ${SCAN_INTERVAL / 60000} dakikada bir)`);
+  // DEVRE DIŞI — auto-wallet-scanner edge fn saatlerdir timeout alıyor,
+  // veritabanı bağlantı havuzunu tüketip auth servisini de kilitledi.
+  // Edge fn düzelene kadar bu cron kapalı.
+  logger.warn('[wallet-cron] Cron devre dışı bırakıldı (edge fn timeout sorunu)');
 }
