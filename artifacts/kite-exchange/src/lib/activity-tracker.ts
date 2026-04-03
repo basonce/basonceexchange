@@ -21,6 +21,18 @@ interface QueuedEvent {
   action: string;
   page: string | null;
   metadata: Record<string, unknown>;
+  session_id: string;
+  ip_address?: string;
+  country?: string;
+  city?: string;
+  device_type?: string;
+  browser?: string;
+  os?: string;
+  element_text?: string;
+  element_type?: string;
+  element_id?: string;
+  screen_width?: number;
+  screen_height?: number;
 }
 
 // ── State ────────────────────────────────────────────────────────────────────
@@ -32,6 +44,7 @@ let initialized = false;
 let pageEnterTime: number = Date.now();
 const eventQueue: QueuedEvent[] = [];
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
+let sessionId: string = crypto.randomUUID();
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function countryFlag(code: string): string {
@@ -41,12 +54,28 @@ function countryFlag(code: string): string {
          String.fromCodePoint(base + code.toUpperCase().charCodeAt(1));
 }
 
-function getDeviceInfo(): string {
+interface DeviceInfo {
+  device_type: string;
+  browser: string;
+  os: string;
+  label: string;
+}
+
+function getDeviceInfo(): DeviceInfo {
   const ua = navigator.userAgent;
-  const device = /mobile/i.test(ua) ? '📱 Mobil' : /tablet|ipad/i.test(ua) ? '📟 Tablet' : '🖥️ PC';
-  const browser = ua.includes('Chrome') ? 'Chrome' : ua.includes('Firefox') ? 'Firefox' : ua.includes('Safari') ? 'Safari' : 'Diğer';
-  const os = ua.includes('Android') ? 'Android' : ua.includes('iPhone') || ua.includes('iPad') ? 'iOS' : ua.includes('Windows') ? 'Windows' : ua.includes('Mac') ? 'macOS' : 'Linux';
-  return `${device} / ${browser} / ${os}`;
+  const device_type = /mobile/i.test(ua) ? 'mobile' : /tablet|ipad/i.test(ua) ? 'tablet' : 'desktop';
+  const browser = ua.includes('Chrome') && !ua.includes('Edge') ? 'Chrome' 
+    : ua.includes('Firefox') ? 'Firefox' 
+    : ua.includes('Safari') ? 'Safari' 
+    : ua.includes('Edge') ? 'Edge' 
+    : 'Other';
+  const os = ua.includes('Android') ? 'Android' 
+    : ua.includes('iPhone') || ua.includes('iPad') ? 'iOS' 
+    : ua.includes('Windows') ? 'Windows' 
+    : ua.includes('Mac') ? 'macOS' 
+    : 'Linux';
+  const icons: Record<string, string> = { mobile: '📱', tablet: '📟', desktop: '🖥️' };
+  return { device_type, browser, os, label: `${icons[device_type]} ${device_type} / ${browser} / ${os}` };
 }
 
 export function getGeoInfo(): GeoInfo | null { return geoInfo; }
@@ -59,37 +88,51 @@ async function fetchGeo(): Promise<void> {
     const j = await r.json();
     geoInfo = {
       ip: j.ip || 'N/A',
-      country: j.country_name || 'Bilinmiyor',
+      country: j.country_name || 'Unknown',
       country_code: j.country_code || '',
       city: j.city || '',
       flag: countryFlag(j.country_code || ''),
     };
   } catch {
-    geoInfo = { ip: 'N/A', country: 'Bilinmiyor', country_code: '', city: '', flag: '🌍' };
+    geoInfo = { ip: 'N/A', country: 'Unknown', country_code: '', city: '', flag: '🌍' };
   }
   geoFetching = false;
 }
 
 // ── Queue & Flush ─────────────────────────────────────────────────────────────
 function enqueue(action: string, page: string | null, extra: Record<string, unknown> = {}) {
-  if (!currentUserId) {
-    console.log('[ActivityTracker] ⚠️ enqueue skipped — no user ID');
-    return;
-  }
-  eventQueue.push({
+  if (!currentUserId) return;
+  const device = getDeviceInfo();
+  
+  const event: QueuedEvent = {
     user_id: currentUserId,
     action,
     page,
+    session_id: sessionId,
+    // Dedicated geo columns
+    ip_address: geoInfo?.ip,
+    country: geoInfo ? `${geoInfo.flag} ${geoInfo.country}` : undefined,
+    city: geoInfo?.city || undefined,
+    // Dedicated device columns
+    device_type: device.device_type,
+    browser: device.browser,
+    os: device.os,
+    // Screen info
+    screen_width: window.screen.width,
+    screen_height: window.screen.height,
+    // Element info from extra
+    element_text: extra.element_text as string | undefined,
+    element_type: extra.element_type as string | undefined,
+    element_id: extra.element_id as string | undefined,
+    // Full metadata
     metadata: {
-      ip: geoInfo?.ip,
-      country: geoInfo?.country,
-      country_code: geoInfo?.country_code,
-      city: geoInfo?.city,
-      flag: geoInfo?.flag,
-      device: getDeviceInfo(),
+      geo: geoInfo ? `${geoInfo.flag} ${geoInfo.country}${geoInfo.city ? `, ${geoInfo.city}` : ''}` : null,
+      device: device.label,
       ...extra,
     },
-  });
+  };
+  
+  eventQueue.push(event);
   console.log(`[ActivityTracker] 📥 queued: ${action} (queue=${eventQueue.length})`);
   if (!flushTimer) {
     flushTimer = setTimeout(flush, 4000);
@@ -113,7 +156,6 @@ const IGNORE_TEXTS = new Set(['', '.', ',', '|', '/', '\\', '...']);
 
 function getElementLabel(el: Element | null): string | null {
   if (!el) return null;
-  // Walk up to find the best interactive ancestor
   const interactive = (el as HTMLElement).closest('button, a, [role="button"], [role="tab"], [role="menuitem"], label, select') as HTMLElement | null;
   const target = interactive || (el as HTMLElement);
   
@@ -133,19 +175,19 @@ function getElementLabel(el: Element | null): string | null {
   return null;
 }
 
-function classifyElement(el: HTMLElement): string {
+function classifyElement(el: HTMLElement): { type: string; icon: string } {
   const tag = el.tagName.toLowerCase();
   const role = el.getAttribute('role') || '';
-  if (tag === 'button' || role === 'button') return '🖱️ Butona Bastı';
-  if (tag === 'a') return '🔗 Bağlantıya Tıkladı';
+  if (tag === 'button' || role === 'button') return { type: 'button', icon: '🖱️' };
+  if (tag === 'a') return { type: 'link', icon: '🔗' };
   if (tag === 'input') {
     const type = el.getAttribute('type') || 'text';
-    if (type === 'submit') return '📤 Form Gönderdi';
-    return `✏️ Alana Tıkladı (${type})`;
+    if (type === 'submit') return { type: 'submit', icon: '📤' };
+    return { type: `input_${type}`, icon: '✏️' };
   }
-  if (tag === 'select') return '📋 Seçim Yaptı';
-  if (role === 'tab') return '📑 Sekme Değiştirdi';
-  return '👆 Tıkladı';
+  if (tag === 'select') return { type: 'select', icon: '📋' };
+  if (role === 'tab') return { type: 'tab', icon: '📑' };
+  return { type: 'click', icon: '👆' };
 }
 
 // Page label mapping
@@ -180,7 +222,6 @@ function handleGlobalClick(e: MouseEvent) {
   const target = e.target as HTMLElement;
   if (!target) return;
 
-  // Only track meaningful interactive elements
   const interactive = target.closest(
     'button, a[href], [role="button"], [role="tab"], [role="menuitem"], input[type="submit"], select'
   ) as HTMLElement | null;
@@ -191,14 +232,18 @@ function handleGlobalClick(e: MouseEvent) {
   const label = getElementLabel(el);
   if (!label) return;
 
-  const classify = classifyElement(el);
+  const { type, icon } = classifyElement(el);
   const priority = isHighPriority(label);
 
   enqueue('click', currentPage, {
-    label: `${classify}: "${label}"`,
-    element_text: label,
+    label: `${icon} ${label}`,
+    element_text: label.slice(0, 100),
+    element_type: type,
+    element_id: el.id || undefined,
     priority: priority ? 'high' : 'normal',
     page_label: PAGE_LABELS[currentPage] || currentPage,
+    x_pos: Math.round(e.clientX),
+    y_pos: Math.round(e.clientY),
   });
 }
 
@@ -213,16 +258,16 @@ function handleGlobalInput(e: Event) {
   
   const label = target.getAttribute('placeholder') || target.getAttribute('aria-label') || target.name || target.id || 'Alan';
   const type = target.type || 'text';
-  if (type === 'password') return; // Never track passwords
+  if (type === 'password') return;
 
   if (inputDebounce) clearTimeout(inputDebounce);
   inputDebounce = setTimeout(() => {
     if (lastInputPage !== currentPage) {
       lastInputPage = currentPage;
       enqueue('form_input', currentPage, {
-        label: `✏️ Form Doldurdu: "${label.slice(0, 40)}"`,
-        field: label.slice(0, 40),
-        field_type: type,
+        label: `✏️ ${label.slice(0, 40)}`,
+        element_text: label.slice(0, 40),
+        element_type: `input_${type}`,
         page_label: PAGE_LABELS[currentPage] || currentPage,
       });
     }
@@ -241,7 +286,7 @@ function handleVisibilityChange() {
       page_label: PAGE_LABELS[currentPage] || currentPage,
       time_on_page_sec: Math.round((Date.now() - pageEnterTime) / 1000),
     });
-    flush(); // flush immediately on hide
+    flush();
   } else {
     const away = hiddenAt ? Math.round((Date.now() - hiddenAt) / 1000) : 0;
     hiddenAt = null;
@@ -260,10 +305,12 @@ export function setActivityUserId(uid: string | null) {
   currentUserId = uid;
   if (uid && !initialized) {
     initialized = true;
+    sessionId = crypto.randomUUID();
     fetchGeo().then(() => {
+      const device = getDeviceInfo();
       enqueue('session_start', currentPage, {
         label: '🔑 Oturum Başlattı',
-        device: getDeviceInfo(),
+        device: device.label,
       });
     });
     // 7-day cleanup
@@ -320,7 +367,6 @@ export async function trackPageView(page: string) {
   });
 }
 
-// Keep backward compat for explicit tracking calls
 export async function trackActivity(
   action: string,
   page?: string,

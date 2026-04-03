@@ -84,10 +84,21 @@ Full-featured crypto exchange platform (BASONCE Exchange). Built with React + Vi
 - **AI Bot Page**: AI trading bot
 - **Admin Dashboard**: Full admin panel (admin users only)
 
-### Backend: Supabase
-- URL: https://mgfviqdxeupajntpylig.supabase.co
+### Backend: Supabase (paponce — migrated 2026-04-03)
+- **Project**: paponce (`jfjjymprvjfltpvmfptj.supabase.co`)
+- 129 tables, all data migrated (258 coins, 184 networks, 12,837+ social posts)
 - Uses Supabase Auth, Database, Storage, and Realtime
-- Credentials in `artifacts/kite-exchange/.env`
+- Credentials in `artifacts/kite-exchange/.env` (VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY)
+- Admin Monitor also updated to paponce: `artifacts/admin-monitor/src/lib/supabase.ts`
+- API Server hardcoded to paponce: `artifacts/api-server/src/lib/supabase-config.ts`
+- Coin logo storage still served from old project storage (URLs accessible, not migrated)
+
+### Activity Tracking
+- `activity_log` table: 22 dedicated columns (ip_address, country, city, device_type, browser, os, session_id, element_text, element_type, x/y pos, screen dimensions + metadata JSONB)
+- Realtime enabled on `activity_log` for live admin feed
+- Tracker: `artifacts/kite-exchange/src/lib/activity-tracker.ts`
+- Live admin panel: `artifacts/kite-exchange/src/components/LiveActivityPanel.tsx` + `artifacts/admin-monitor/src/components/LiveActivityPanel.tsx`
+- Admin PIN: `1332`
 
 ### Tech Stack
 - React 18 + TypeScript

@@ -1,7 +1,5 @@
 import { logger } from './logger.js';
-
-const SUPABASE_URL  = process.env.SUPABASE_URL!;
-const SUPABASE_KEY  = process.env.SUPABASE_ANON_KEY!;
+import { SUPABASE_URL, SUPABASE_KEY } from './supabase-config.js';
 const SCAN_INTERVAL = 2 * 60 * 1000; // 2 dakika
 
 let cronStarted = false;

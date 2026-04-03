@@ -11,6 +11,18 @@ interface ActivityRow {
   created_at: string;
   email?: string;
   full_name?: string;
+  // Dedicated columns (new schema)
+  session_id?: string;
+  ip_address?: string;
+  country?: string;
+  city?: string;
+  device_type?: string;
+  browser?: string;
+  os?: string;
+  element_text?: string;
+  element_type?: string;
+  screen_width?: number;
+  screen_height?: number;
 }
 
 interface UserSummary {
@@ -44,15 +56,37 @@ function getLabel(meta: Record<string, unknown>, action: string): string {
   return (meta?.label as string) || action;
 }
 
-function getFlag(meta: Record<string, unknown>): string { return (meta?.flag as string) || '🌍'; }
-function getCountry(meta: Record<string, unknown>): string {
-  const city = meta?.city as string;
-  const country = meta?.country as string;
+function getFlag(row: ActivityRow): string {
+  // Use dedicated country column (has flag emoji) or fall back to metadata
+  const c = row.country || (row.metadata?.country as string) || '';
+  const flagMatch = c.match(/(\p{Emoji})/u);
+  return flagMatch?.[1] || (row.metadata?.flag as string) || '🌍';
+}
+function getCountry(row: ActivityRow): string {
+  // new schema: country column has "🇹🇷 Turkey", city column separate
+  if (row.country) {
+    const countryClean = row.country.replace(/^\p{Emoji}\s*/u, '');
+    if (row.city && row.city !== countryClean) return `${row.city}, ${countryClean}`;
+    return countryClean;
+  }
+  // fall back to metadata
+  const city = row.metadata?.city as string;
+  const country = row.metadata?.country as string;
   if (city && country && city !== country) return `${city}, ${country}`;
   return country || 'Bilinmiyor';
 }
-function getIP(meta: Record<string, unknown>): string { return (meta?.ip as string) || ''; }
-function getDevice(meta: Record<string, unknown>): string { return (meta?.device as string) || ''; }
+function getIP(row: ActivityRow): string {
+  return row.ip_address || (row.metadata?.ip as string) || '';
+}
+function getDevice(row: ActivityRow): string {
+  if (row.device_type && row.browser && row.os) {
+    const icons: Record<string, string> = { mobile: '📱', tablet: '📟', desktop: '🖥️' };
+    return `${icons[row.device_type] || '🖥️'} ${row.device_type} / ${row.browser} / ${row.os}`;
+  }
+  return (row.metadata?.device as string) || '';
+}
+
+const ACTIVITY_SELECT = 'id,user_id,action,page,metadata,created_at,session_id,ip_address,country,city,device_type,browser,os,element_text,element_type,screen_width,screen_height';
 
 const HIGH_PRIORITY_ACTIONS = new Set([
   'withdraw_submit', 'trade_buy', 'trade_sell', 'futures_open', 'futures_close', 'support_send'
@@ -137,7 +171,7 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
     setTableReady(true);
     const { data } = await supabase
       .from('activity_log')
-      .select('id,user_id,action,page,metadata,created_at')
+      .select(ACTIVITY_SELECT)
       .order('created_at', { ascending: false })
       .limit(150);
     if (data) {
@@ -177,7 +211,7 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
     setDetailLoading(true);
     const { data } = await supabase
       .from('activity_log')
-      .select('id,user_id,action,page,metadata,created_at')
+      .select(ACTIVITY_SELECT)
       .eq('user_id', a.user_id)
       .order('created_at', { ascending: false })
       .limit(300);
@@ -197,10 +231,10 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
           count: 0,
           lastAction: a.action,
           lastLabel: getLabel(a.metadata, a.action),
-          flag: getFlag(a.metadata),
-          country: getCountry(a.metadata),
-          ip: getIP(a.metadata),
-          device: getDevice(a.metadata),
+          flag: getFlag(a),
+          country: getCountry(a),
+          ip: getIP(a),
+          device: getDevice(a),
           priority: false,
         };
       }
@@ -347,10 +381,10 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
             </div>
           ) : activities.map((a) => {
             const label = getLabel(a.metadata, a.action);
-            const flag = getFlag(a.metadata);
-            const country = getCountry(a.metadata);
-            const ip = getIP(a.metadata);
-            const device = getDevice(a.metadata);
+            const flag = getFlag(a);
+            const country = getCountry(a);
+            const ip = getIP(a);
+            const device = getDevice(a);
             const email = a.email || a.user_id.slice(0, 10);
             const hi = isPriority(a.action, label);
             return (
@@ -454,15 +488,15 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
                     <div className="m-4 bg-[#1E2329] rounded-2xl p-4 grid grid-cols-2 gap-3">
                       <div>
                         <p className="text-[9px] text-gray-500 uppercase tracking-wider mb-0.5">Konum</p>
-                        <p className="text-sm font-bold text-white">{getFlag(userActivities[0].metadata)} {getCountry(userActivities[0].metadata)}</p>
+                        <p className="text-sm font-bold text-white">{getFlag(userActivities[0])} {getCountry(userActivities[0])}</p>
                       </div>
                       <div>
                         <p className="text-[9px] text-gray-500 uppercase tracking-wider mb-0.5">IP Adresi</p>
-                        <p className="text-sm font-mono text-[#F0B90B]">{getIP(userActivities[0].metadata) || 'N/A'}</p>
+                        <p className="text-sm font-mono text-[#F0B90B]">{getIP(userActivities[0]) || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="text-[9px] text-gray-500 uppercase tracking-wider mb-0.5">Cihaz</p>
-                        <p className="text-xs text-gray-300">{getDevice(userActivities[0].metadata) || 'N/A'}</p>
+                        <p className="text-xs text-gray-300">{getDevice(userActivities[0]) || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="text-[9px] text-gray-500 uppercase tracking-wider mb-0.5">Toplam</p>

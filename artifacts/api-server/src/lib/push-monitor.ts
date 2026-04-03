@@ -1,9 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendPushToAll, type PushPayload } from './push-sender.js';
 import { logger } from './logger.js';
+import { SUPABASE_URL, SUPABASE_KEY } from './supabase-config.js';
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY!;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL!;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD!;
 
