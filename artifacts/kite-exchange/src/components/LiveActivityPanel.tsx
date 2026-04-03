@@ -133,6 +133,7 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
   const seenIds = useRef(new Set<number>());
   const unseenCount = useRef(0);
   const userMap = useRef(new Map<string, { email: string; full_name: string }>());
+  const userActivityChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const enrichRow = useCallback(async (row: ActivityRow): Promise<ActivityRow> => {
     if (!userMap.current.has(row.user_id)) {
@@ -203,6 +204,38 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [tableReady, paused, enrichRow, onBadgeChange]);
+
+  // Seçili kullanıcının yeni aktivitelerini gerçek zamanlı dinle
+  useEffect(() => {
+    if (userActivityChannelRef.current) {
+      supabase.removeChannel(userActivityChannelRef.current);
+      userActivityChannelRef.current = null;
+    }
+    if (!selected?.user_id || tableReady !== true) return;
+
+    userActivityChannelRef.current = supabase
+      .channel(`user_activity_live_${selected.user_id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'activity_log',
+        filter: `user_id=eq.${selected.user_id}`,
+      }, (payload) => {
+        const rec = payload.new as ActivityRow;
+        if (!rec?.id) return;
+        const u = userMap.current.get(rec.user_id);
+        const enriched = u ? { ...rec, email: u.email, full_name: u.full_name } : rec;
+        setUserActivities(prev => [enriched, ...prev]);
+      })
+      .subscribe();
+
+    return () => {
+      if (userActivityChannelRef.current) {
+        supabase.removeChannel(userActivityChannelRef.current);
+        userActivityChannelRef.current = null;
+      }
+    };
+  }, [selected?.user_id, tableReady]);
 
   function clearBadge() { unseenCount.current = 0; onBadgeChange?.(0); }
 
@@ -468,7 +501,13 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
             </div>
             <div className="px-5 pb-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
               <div>
-                <h3 className="font-black text-gray-900">{selected.email}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-black text-gray-900">{selected.email}</h3>
+                  <span className="flex items-center gap-1 text-[10px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
+                    Canlı
+                  </span>
+                </div>
                 {selected.full_name && <p className="text-xs text-gray-500">{selected.full_name}</p>}
               </div>
               <button onClick={() => setSelected(null)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
