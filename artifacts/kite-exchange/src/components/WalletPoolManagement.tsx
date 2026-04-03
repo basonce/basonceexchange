@@ -975,11 +975,25 @@ function CsvImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
     const result: Array<{ address: string; privateKey: string | null; networkHint: string | null; apiKey: string | null }> = [];
 
+    // Auto-detect separator from first data line
+    const detectSeparator = (sample: string): string => {
+      // Count occurrences of common separators
+      const candidates = ['\t', ';', '|', ',', ' '];
+      for (const sep of candidates) {
+        if (sample.includes(sep)) return sep;
+      }
+      return ',';
+    };
+
+    // Find first non-header line for separator detection
+    const firstContent = lines.find(l => !l.toLowerCase().includes('address') && !l.toLowerCase().includes('network')) || lines[0] || '';
+    const sep = detectSeparator(firstContent);
+
     // Detect header row
     let headerMap: Record<string, number> | null = null;
     const firstLine = lines[0]?.toLowerCase() || '';
-    if (firstLine.includes('address') || firstLine.includes('network') || firstLine.includes('api')) {
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    if (firstLine.includes('address') || firstLine.includes('network') || firstLine.includes('api') || firstLine.includes('private') || firstLine.includes('key')) {
+      const headers = lines[0].split(sep).map(h => h.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_'));
       headerMap = {};
       headers.forEach((h, i) => { headerMap![h] = i; });
     }
@@ -987,7 +1001,7 @@ function CsvImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
     const dataLines = headerMap ? lines.slice(1) : lines;
 
     for (const line of dataLines) {
-      const parts = line.split(',').map(p => p.trim());
+      const parts = line.split(sep).map(p => p.trim());
 
       if (headerMap) {
         const addrIdx = headerMap['address'] ?? headerMap['wallet_address'] ?? headerMap['addr'] ?? -1;
@@ -1034,8 +1048,19 @@ function CsvImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
         }
       } else if (parts.length === 2) {
         const p0 = parts[0];
+        const p1 = parts[1] || null;
+        // Helper: detect if a string looks like a private key
+        const looksLikePK = (s: string | null): boolean => {
+          if (!s) return false;
+          // BEP20 private key: 0x + 64 hex chars (66 total)
+          if (/^0x[0-9a-fA-F]{64}$/.test(s)) return true;
+          // TRC20/raw private key: 64 hex chars
+          if (/^[0-9a-fA-F]{64}$/.test(s)) return true;
+          return false;
+        };
         if (p0.startsWith('0x') || p0.startsWith('T')) {
-          result.push({ networkHint: null, address: p0, privateKey: null, apiKey: parts[1] || null });
+          // address, (private_key OR api_key)
+          result.push({ networkHint: null, address: p0, privateKey: looksLikePK(p1) ? p1 : null, apiKey: looksLikePK(p1) ? null : p1 });
         } else if (p0.toUpperCase() === 'BEP20' || p0.toUpperCase() === 'TRC20') {
           result.push({ networkHint: p0.toUpperCase(), address: parts[1], privateKey: null, apiKey: null });
         } else {
