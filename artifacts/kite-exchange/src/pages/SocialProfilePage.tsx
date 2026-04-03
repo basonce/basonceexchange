@@ -9,6 +9,8 @@ interface SocialProfilePageProps {
 interface UserProfile {
   id: string;
   username: string | null;
+  full_name: string | null;
+  email?: string | null;
   avatar_url: string | null;
   bio: string | null;
   following_count?: number;
@@ -91,7 +93,7 @@ export default function SocialProfilePage({ onBack }: SocialProfilePageProps) {
         .eq('id', session.user.id)
         .maybeSingle();
 
-      setProfile(prof ?? { id: session.user.id, username: session.user.email?.split('@')[0] ?? 'User', avatar_url: null, bio: null });
+      setProfile(prof ?? { id: session.user.id, username: null, full_name: session.user.email?.split('@')[0] ?? null, avatar_url: null, bio: null });
       setLoading(false);
 
       const { data: postsData } = await supabase
@@ -115,7 +117,7 @@ export default function SocialProfilePage({ onBack }: SocialProfilePageProps) {
     return true;
   });
 
-  const displayName = profile?.username || 'User';
+  const displayName = profile?.username || profile?.full_name || profile?.email?.split('@')[0] || 'User';
   const avatarLetter = displayName[0]?.toUpperCase() ?? 'U';
 
   const stats = [
