@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, TrendingUp, Wallet, ArrowRight, Sparkles, Gift, AlertTriangle, Clock, DollarSign, Lock } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import { checkWithdrawalPermission } from '../lib/withdrawal-permission';
 
 interface SmartWithdrawalModalProps {
@@ -26,7 +26,7 @@ export default function SmartWithdrawalModal({ isOpen, onClose, eqBalance, eqPri
   }, [isOpen]);
 
   const checkPermission = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return;
 
     const permission = await checkWithdrawalPermission(user.id);
@@ -45,7 +45,7 @@ export default function SmartWithdrawalModal({ isOpen, onClose, eqBalance, eqPri
   const walletTotal = usdtValue - walletFee;
 
   const isFirstTransfer = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return false;
 
     const { data } = await supabase
@@ -71,7 +71,7 @@ export default function SmartWithdrawalModal({ isOpen, onClose, eqBalance, eqPri
     setIsProcessing(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) throw new Error('Not authenticated');
 
       const firstTransfer = await isFirstTransfer();
@@ -138,7 +138,7 @@ export default function SmartWithdrawalModal({ isOpen, onClose, eqBalance, eqPri
     setIsProcessing(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) throw new Error('Not authenticated');
 
       const { data: balanceData } = await supabase

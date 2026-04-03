@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight, Clock, Gift, Trophy, TrendingUp, Users, Star, CheckCircle, Info, Zap, Coins, Check, Loader2, AlertCircle, Lock, CheckCircle2 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import type { CampaignDetailData } from './CampaignDetailModal';
 
 interface FuturesCampaignModalProps {
@@ -57,7 +57,7 @@ function ClaimableCard({ campaign, onClose }: { campaign: CampaignDetailData; on
     setClaimState('idle');
     setClaimMsg('');
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) { setClaimState('not_logged_in'); return; }
       if (campaign.claim_type === 'leaderboard') { setClaimState('leaderboard'); return; }
       const { data } = await supabase
@@ -72,7 +72,7 @@ function ClaimableCard({ campaign, onClose }: { campaign: CampaignDetailData; on
 
   const handleClaim = async () => {
     setClaimState('checking');
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) { setClaimState('not_logged_in'); return; }
 
     const { data: existing } = await supabase

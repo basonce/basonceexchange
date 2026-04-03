@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, ThumbsUp, ThumbsDown, X, Flame, Clock, DollarSign } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface Token {
   id: string;
@@ -80,7 +80,7 @@ export default function AlphaVotingPanel({ isOpen, onClose }: AlphaVotingPanelPr
 
   const loadUserVotes = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
 
       const { data } = await supabase
@@ -102,7 +102,7 @@ export default function AlphaVotingPanel({ isOpen, onClose }: AlphaVotingPanelPr
 
   const handleVote = async (tokenId: string, direction: 'bullish' | 'bearish') => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) {
         alert('Please sign in to vote');
         return;

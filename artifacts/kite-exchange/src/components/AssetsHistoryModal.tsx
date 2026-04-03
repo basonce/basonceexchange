@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Download, ChevronRight, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, TrendingUp, Gift, Cpu } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface HistoryItem {
   id: string;
@@ -112,7 +112,7 @@ export default function AssetsHistoryModal({ onClose }: AssetsHistoryModalProps)
 
   const fetchAll = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) { setLoading(false); return; }
 
       const [withdrawalsRes, depositsRes, txRes] = await Promise.all([

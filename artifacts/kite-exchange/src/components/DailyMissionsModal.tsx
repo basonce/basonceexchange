@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, CheckCircle, Circle, Trophy, Sparkles } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface Mission {
   id: string;
@@ -47,7 +47,7 @@ export default function DailyMissionsModal({ isOpen, onClose }: DailyMissionsMod
   };
 
   const loadProgress = async (missionIds: string[]) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return;
 
     const today = new Date().toISOString().split('T')[0];

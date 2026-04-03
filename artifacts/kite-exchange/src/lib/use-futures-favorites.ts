@@ -37,7 +37,7 @@ export function useFuturesFavorites() {
     setFavorites(ls.symbols);
     setTradFiFavorites(ls.tradfi);
 
-    supabase.auth.getUser().then(({ data }) => {
+    getCurrentUser().then((_u) => { const data = { user: _u };
       const uid = data.user?.id ?? null;
       setUserId(uid);
       if (uid && !syncedRef.current) {

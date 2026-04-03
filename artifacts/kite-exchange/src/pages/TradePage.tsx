@@ -10,7 +10,7 @@ import { BNCPriceManager } from '../lib/bnc-price';
 import { fetchBinanceTicker, fetchBinanceDepth } from '../lib/binance';
 import { fetchCoinGeckoPrices } from '../lib/coingecko-price';
 import { PriceCache } from '../lib/price-cache';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import { TradingService } from '../lib/trading-service';
 import QuickTradeModal from '../components/QuickTradeModal';
 import SpotOpenOrders from '../components/SpotOpenOrders';
@@ -478,7 +478,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
 
   const fetchOpenOrders = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) {
         console.log('No user found for fetching orders');
         return;
@@ -507,7 +507,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
 
   const fetchOrderHistory = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
 
       const { data, error } = await supabase
@@ -552,7 +552,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
 
   const cancelAllOrders = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
 
       const { error } = await supabase
@@ -616,7 +616,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
 
     try {
       if (orderType === 'limit') {
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        const currentUser = await getCurrentUser();
         if (!currentUser) {
           setTradeError('Please login to trade');
           return;
@@ -663,7 +663,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
         );
 
         if (result.success) {
-          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          const currentUser = await getCurrentUser();
           if (currentUser) {
             const total = quantity * tradePrice;
             await supabase

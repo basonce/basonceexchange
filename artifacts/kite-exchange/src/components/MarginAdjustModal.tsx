@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Plus, Minus } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import { canAddMargin, canReduceMargin, getMaintenanceMarginRate } from '../lib/futures-calculator';
 
 interface MarginAdjustModalProps {
@@ -56,7 +56,7 @@ export default function MarginAdjustModal({
 
         if (positionError) throw positionError;
 
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await getCurrentUser();
         if (!user) return;
 
         const { error: balanceError } = await supabase
@@ -93,7 +93,7 @@ export default function MarginAdjustModal({
 
         if (positionError) throw positionError;
 
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await getCurrentUser();
         if (!user) return;
 
         const { data: currentBalance } = await supabase

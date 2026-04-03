@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { Pickaxe, ShoppingBag, Radio, Users, UserPlus } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import { globalMiningStats } from '../lib/global-mining-stats';
 import MineTab from '../components/mining-tabs/MineTab';
 
@@ -41,7 +41,7 @@ export default function MiningPage() {
   };
 
   const initializeUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return;
 
     const { data: existingEquipment } = await supabase

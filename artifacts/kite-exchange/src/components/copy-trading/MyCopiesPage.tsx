@@ -944,7 +944,7 @@ export default function MyCopiesPage({ onClose, onBrowseTraders }: Props) {
         setUser(session.user);
         fetchData(session.user.id);
       } else {
-        const { data } = await supabase.auth.getUser();
+        const _authData = { user: await getCurrentUser() }; const data = _authData;
         if (data.user) {
           setUser(data.user);
           fetchData(data.user.id);

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { X, Clock, Users, Trophy, CheckCircle2, Flame, Coins, TrendingUp, Shield, Zap, Star, BarChart3, Loader2, Check, AlertCircle, Lock } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 export interface CampaignDetailData {
   id: string;
@@ -113,7 +113,7 @@ export default function CampaignDetailModal({ campaign, onClose }: Props) {
   }, [campaign?.id]);
 
   const checkClaimStatus = useCallback(async (c: CampaignDetailData) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) { setClaimState('not_logged_in'); return; }
 
     if (c.claim_type === 'leaderboard') { setClaimState('leaderboard'); return; }
@@ -133,7 +133,7 @@ export default function CampaignDetailModal({ campaign, onClose }: Props) {
     if (!campaign) return;
     setClaimState('checking');
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) { setClaimState('not_logged_in'); return; }
 
     if (campaign.claim_type === 'leaderboard') { setClaimState('leaderboard'); return; }

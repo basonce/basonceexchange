@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, Clock, Trophy, Zap, Gift } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface Prize {
   id: string;
@@ -45,7 +45,7 @@ export default function RewardWheelModal({ isOpen, onClose }: RewardWheelModalPr
   }, [isOpen]);
 
   const loadSpinBalance = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return;
 
     const { data, error } = await supabase
@@ -97,7 +97,7 @@ export default function RewardWheelModal({ isOpen, onClose }: RewardWheelModalPr
   };
 
   const applyPrize = async (prize: any) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return;
 
     if (prize.type === 'eq_tokens') {
@@ -114,7 +114,7 @@ export default function RewardWheelModal({ isOpen, onClose }: RewardWheelModalPr
   };
 
   const handleClaimDailySpin = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return;
 
     const lastClaim = localStorage.getItem('lastDailySpinClaim');

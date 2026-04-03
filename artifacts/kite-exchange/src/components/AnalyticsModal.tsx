@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, TrendingUp, TrendingDown, Activity, DollarSign, Target, Award, BarChart3, Calendar } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -64,7 +64,7 @@ export default function AnalyticsModal({ isOpen, onClose }: AnalyticsModalProps)
 
   const fetchAnalytics = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
 
       let daysAgo = 30;

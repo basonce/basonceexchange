@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Eye, EyeOff, ArrowRightLeft } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface AssetsOverviewProps {
   isOpen: boolean;
@@ -23,7 +23,7 @@ export default function AssetsOverview({ isOpen, onClose, onTransfer }: AssetsOv
 
   const fetchBalances = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
 
       const { data: balances } = await supabase

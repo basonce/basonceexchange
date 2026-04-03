@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronRight, MessageCircle, Cpu, Zap, DollarSign, HelpCircle, Shield, Clock, ArrowLeft, Send, Check, Lock } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabase, getCurrentUser } from '../../lib/supabase';
 import { detectUserCountry } from '../../lib/geolocation';
 import { assignBestAgent, type Agent } from '../../lib/agent-assignment';
 import {
@@ -143,7 +143,7 @@ export default function SupportTab() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
       const { data: profile } = await supabase
         .from('user_profiles')

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Copy, Share2, Check, QrCode, ChevronRight } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface ReferralModalProps {
   isOpen: boolean;
@@ -30,7 +30,7 @@ export default function ReferralModal({ isOpen, onClose }: ReferralModalProps) {
   const loadData = async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
 
       const { data: statsData } = await supabase.rpc('get_referral_stats', { p_user_id: user.id });

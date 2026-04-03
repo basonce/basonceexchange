@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, ChevronRight, ArrowDownUp, Info } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface TransferModalProps {
   isOpen: boolean;
@@ -23,7 +23,7 @@ export default function TransferModal({ isOpen, onClose }: TransferModalProps) {
 
   const fetchBalances = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) {
         console.log('No user logged in');
         return;
@@ -76,7 +76,7 @@ export default function TransferModal({ isOpen, onClose }: TransferModalProps) {
         return;
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) {
         alert('Please log in');
         return;

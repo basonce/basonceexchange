@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import { formatPrice } from '../lib/format-utils';
 
 interface TPSLModalProps {
@@ -35,7 +35,7 @@ export default function TPSLModal({
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
 
       if (takeProfit) {

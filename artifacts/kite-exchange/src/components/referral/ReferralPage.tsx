@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Users, BarChart3, Clock, Info } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabase, getCurrentUser } from '../../lib/supabase';
 import ReferralStats from './ReferralStats';
 import ReferralShareCard from './ReferralShareCard';
 import ReferralFriendsList from './ReferralFriendsList';
@@ -57,7 +57,7 @@ export default function ReferralPage() {
   const loadStats = async () => {
     setLoadingStats(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
       setUserId(user.id);
 

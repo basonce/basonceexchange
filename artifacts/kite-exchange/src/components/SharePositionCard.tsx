@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { X, Download, Copy, Check, Share2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import html2canvas from 'html2canvas';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface SharePositionCardProps {
   isOpen: boolean;
@@ -36,7 +36,7 @@ export default function SharePositionCard({
   useEffect(() => {
     if (!isOpen) return;
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
       const { data } = await supabase
         .from('user_profiles')

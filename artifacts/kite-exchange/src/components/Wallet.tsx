@@ -5,7 +5,7 @@ import {
   TrendingUp, Copy, Check, ExternalLink, Bell, Zap,
   QrCode, AlertTriangle, Info, ArrowRight, Clock
 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import { trackActivity } from '../lib/activity-tracker';
 import DepositMethodModal from './DepositMethodModal';
 import SendMethodModal from './SendMethodModal';
@@ -76,7 +76,7 @@ export default function Wallet() {
     let balanceChannel: any;
     let txChannel: any;
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    getCurrentUser().then((user) => {
       if (!user) return;
       balanceChannel = supabase
         .channel('wallet_balances')
@@ -121,7 +121,7 @@ export default function Wallet() {
 
   const fetchBalances = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) { setLoading(false); return; }
 
       const { data } = await supabase.from('user_balances').select('*').eq('user_id', user.id);
@@ -156,7 +156,7 @@ export default function Wallet() {
 
   const fetchTransactions = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
       const { data } = await supabase
         .from('transactions').select('*').eq('user_id', user.id)

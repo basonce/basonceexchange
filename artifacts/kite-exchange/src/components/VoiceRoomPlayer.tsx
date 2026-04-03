@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Volume2, VolumeX, Play, Pause, SkipForward, Radio, Mic, Lock, Crown } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface VoiceMessage {
   id: string;
@@ -52,7 +52,7 @@ export default function VoiceRoomPlayer() {
   }, []);
 
   const loadUserLevel = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
 
     if (user) {
       const { data: profile } = await supabase

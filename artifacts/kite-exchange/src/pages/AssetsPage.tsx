@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import { Eye, EyeOff, Search, ScanLine, ChevronDown, X, Camera, History } from 'lucide-react';
 import AssetsHistoryModal from '../components/AssetsHistoryModal';
 import DepositModal from '../components/DepositModal';
@@ -44,10 +44,29 @@ const SUPPORTED_COINS = [
 type CurrencyType = 'USDT' | 'BTC' | 'ETH' | 'BNB';
 
 export default function AssetsPage() {
-  const [balances, setBalances] = useState<Balance[]>([]);
+  const [balances, setBalances] = useState<Balance[]>(() => {
+    try {
+      const raw = localStorage.getItem('basonce_assets_cache_v1');
+      if (raw) {
+        const { ts, balances: cached } = JSON.parse(raw);
+        if (Date.now() - ts < 60 * 1000 && Array.isArray(cached)) return cached;
+      }
+    } catch {}
+    return [];
+  });
   const [hideBalance, setHideBalance] = useState(false);
   const [activeTab, setActiveTab] = useState<'crypto' | 'account' | 'history' | 'positions' | 'trades'>('crypto');
-  const [loading, setLoading] = useState(true);
+  const ASSETS_CACHE_KEY = 'basonce_assets_cache_v1';
+  const [loading, setLoading] = useState(() => {
+    try {
+      const raw = localStorage.getItem('basonce_assets_cache_v1');
+      if (raw) {
+        const { ts } = JSON.parse(raw);
+        if (Date.now() - ts < 60 * 1000) return false;
+      }
+    } catch {}
+    return true;
+  });
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyType>('USDT');
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
@@ -121,7 +140,7 @@ export default function AssetsPage() {
 
   const fetchBalances = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) {
         const emptyBalances = SUPPORTED_COINS.map(coin => ({
           symbol: coin.symbol,
@@ -136,7 +155,7 @@ export default function AssetsPage() {
 
       const { data, error } = await supabase
         .from('user_balances')
-        .select('*')
+        .select('symbol, balance, locked_balance')
         .eq('user_id', user.id);
 
       if (error) throw error;
@@ -177,6 +196,10 @@ export default function AssetsPage() {
 
       setBalances(quickBalances);
       setLoading(false);
+      // 1 dakika cache — sonraki açılışta anında gelir
+      try {
+        localStorage.setItem('basonce_assets_cache_v1', JSON.stringify({ ts: Date.now(), balances: quickBalances }));
+      } catch {}
 
       const coinsNeedingFresh = SUPPORTED_COINS.filter(
         c => c.symbol !== 'USDT' && c.symbol !== 'EQ' && c.symbol !== 'EQL'

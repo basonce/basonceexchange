@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Copy, Check, AlertCircle, Globe, ArrowRight } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import { CRYPTO_NETWORKS, generateDepositAddress, generateQRCodeUrl, Network } from '../lib/crypto-utils';
 import P2PModal from './P2PModal';
 
@@ -36,7 +36,7 @@ export default function DepositModal({ isOpen, onClose, coinSymbol, coinName }: 
 
   const loadOrCreateDepositAddress = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user || !selectedNetwork) return;
 
       const { data: existingAddress } = await supabase
@@ -83,7 +83,7 @@ export default function DepositModal({ isOpen, onClose, coinSymbol, coinName }: 
 
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user || !selectedNetwork) return;
 
       await supabase.from('deposit_transactions').insert({

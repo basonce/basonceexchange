@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { TrendingUp, X, Users, Shield, AlertTriangle, Check, Loader2, Activity, Zap, Copy } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import MyCopiesPage from './copy-trading/MyCopiesPage';
 
 interface TopTrader {
@@ -248,7 +248,7 @@ function TraderProfileModal({ trader, liveStats, onClose }: TraderProfileModalPr
 
   useEffect(() => {
     const getUser = async () => {
-      const { data } = await supabase.auth.getUser();
+      const _authData = { user: await getCurrentUser() }; const data = _authData;
       if (data.user) {
         setUser(data.user);
         const { data: bal } = await supabase
@@ -720,7 +720,7 @@ function CarouselWithStats() {
 
   useEffect(() => {
     const fetchActiveCopies = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
       const { data } = await supabase
         .from('user_copy_trades')
@@ -801,7 +801,7 @@ function CarouselWithStats() {
           onClose={() => {
             setSelectedTrader(null);
             setSelectedLiveStats(null);
-            supabase.auth.getUser().then(({ data }) => {
+            getCurrentUser().then((_u) => { const data = { user: _u };
               if (!data.user) return;
               supabase
                 .from('user_copy_trades')

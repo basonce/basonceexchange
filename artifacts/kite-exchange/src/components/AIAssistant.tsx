@@ -527,7 +527,7 @@ export default function AIAssistant() {
           : cleanResponse;
 
         const { data: cmdData } = await supabase.from('assistant_natural_commands').insert({
-          user_id: (await supabase.auth.getUser()).data.user?.id,
+          user_id: (await getCurrentUser())?.id,
           raw_command: messageText,
           interpreted_intent: messageText.slice(0, 100),
           actions_taken: parsedActions.map(a => a.type),

@@ -69,7 +69,7 @@ export default function GlobalAIToggle() {
   const handleToggle = async () => {
     setToggling(true);
     try {
-      const { data: adminData } = await supabase.auth.getUser();
+      const adminData = { user: await getCurrentUser() };
       const { data: profile } = await supabase
         .from('user_profiles')
         .select('email')

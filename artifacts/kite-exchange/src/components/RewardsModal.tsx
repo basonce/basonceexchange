@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Gift, Trophy, Target, Star, CheckCircle, Lock, ChevronRight, TrendingUp } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface RewardsModalProps {
   isOpen: boolean;
@@ -32,7 +32,7 @@ export default function RewardsModal({ isOpen, onClose }: RewardsModalProps) {
 
   const fetchUserStats = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (user) {
         const { data: profile } = await supabase
           .from('user_profiles')

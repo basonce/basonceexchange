@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Zap, Clock, Download, Lock, Sparkles, Lightbulb } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabase, getCurrentUser } from '../../lib/supabase';
 import { EarnQuestPriceManager } from '../../lib/earnquest-price';
 import AnimatedCounter from '../AnimatedCounter';
 import MiningMachineCard from '../MiningMachineCard';
@@ -84,7 +84,7 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
     // Subscribe to balance changes
     let channel: any = null;
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    getCurrentUser().then((user) => {
       if (!user) return;
 
       channel = supabase
@@ -174,7 +174,7 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
 
   // ✅ SAVE SESSION DATA TO DATABASE (No balance change, just save session progress)
   const saveSessionToDatabase = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) {
       // Demo mode - save to localStorage
       if (isDemoMode && miners.length > 0) {
@@ -218,7 +218,7 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
       }
     } catch {}
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) { initDemoMode(); return; }
 
     // Balance ve equipment paralel çalışır
@@ -319,7 +319,7 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
           if (m.has_time_limit && newDuration >= maxDuration) {
             // Save to database (only for real users)
             (async () => {
-              const { data: { user } } = await supabase.auth.getUser();
+              const user = await getCurrentUser();
               if (user) {
                 await supabase
                   .from('user_mining_equipment')
@@ -373,7 +373,7 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
       return;
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return;
 
     const confirmed = confirm(

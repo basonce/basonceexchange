@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Bell, ChevronRight } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import WithdrawalProcessingDetail from './WithdrawalProcessingDetail';
 
 interface WithdrawalTransaction {
@@ -24,7 +24,7 @@ export default function WithdrawalProcessingBanner() {
     fetchActiveWithdrawals();
 
     const setupRealtime = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
 
       const channel = supabase
@@ -50,7 +50,7 @@ export default function WithdrawalProcessingBanner() {
   }, []);
 
   const fetchActiveWithdrawals = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return;
 
     const { data } = await supabase

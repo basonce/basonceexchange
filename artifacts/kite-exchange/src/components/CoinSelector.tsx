@@ -54,8 +54,8 @@ export default function CoinSelector({ onClose, onSelectCoin }: CoinSelectorProp
   const loadCoins = async () => {
     try {
       // Auth ve coins paralel çalışır
-      const [{ data: { user } }, { data: coins, error }] = await Promise.all([
-        supabase.auth.getUser(),
+      const [user, { data: coins, error }] = await Promise.all([
+        getCurrentUser(),
         supabase.from('supported_coins').select('*').eq('is_active', true).order('sort_order', { ascending: true }),
       ]);
 

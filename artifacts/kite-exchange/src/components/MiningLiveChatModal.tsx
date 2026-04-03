@@ -5,7 +5,7 @@ import {
   Award, Flame, Crown, Zap, CheckCircle2, Clock, Trophy, Users,
   ChevronRight, Sparkles, Wifi
 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import { globalMiningStats } from '../lib/global-mining-stats';
 
 interface Message {
@@ -565,7 +565,7 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
     const now = Date.now();
     if (now - lastMessageTime < 5000) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) { alert('Please sign in to chat'); return; }
 
     setIsSending(true);

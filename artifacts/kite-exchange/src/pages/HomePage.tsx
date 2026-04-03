@@ -12,7 +12,7 @@ import MenuDrawer from '../components/MenuDrawer';
 import FuturesCampaignModal from '../components/FuturesCampaignModal';
 import LaunchpoolModal from '../components/LaunchpoolModal';
 import CampaignDetailModal, { type CampaignDetailData } from '../components/CampaignDetailModal';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 const SocialFeed = lazy(() => import('../components/SocialFeed'));
 const BasonceAlpha = lazy(() => import('../components/BasonceAlpha'));
@@ -172,7 +172,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
       const { data: profile } = await supabase
         .from('user_profiles')

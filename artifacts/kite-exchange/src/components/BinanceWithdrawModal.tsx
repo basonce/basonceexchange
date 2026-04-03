@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Search, Trash2, ArrowUpDown, User, ScanLine, ChevronDown, Info, CheckCircle, Copy } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import { trackActivity } from '../lib/activity-tracker';
 
 interface Coin {
@@ -170,7 +170,7 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
   const loadCoins = async () => {
     setLoadingCoins(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
 
       const [{ data: supportedCoins }, { data: balances }] = await Promise.all([
@@ -254,7 +254,7 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
 
     setSubmitting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) throw new Error('Not authenticated');
 
       const newBalance = (selectedCoin!.balance) - amountNum;

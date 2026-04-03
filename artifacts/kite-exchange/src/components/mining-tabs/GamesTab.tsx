@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, Clock, Trophy, Zap, Coins, AlertCircle } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabase, getCurrentUser } from '../../lib/supabase';
 
 const formatNumber = (num: number): string => {
   return new Intl.NumberFormat('en-US', {
@@ -154,7 +154,7 @@ export default function GamesTab() {
   };
 
   const loadEqBalance = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return;
 
     const { data } = await supabase
@@ -190,7 +190,7 @@ export default function GamesTab() {
       const profit = payout - bet;
 
       // Update balance
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) throw new Error('Not authenticated');
 
       const newBalance = eqBalance - bet + payout;
@@ -246,7 +246,7 @@ export default function GamesTab() {
       const profit = payout - bet;
 
       // Update balance
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) throw new Error('Not authenticated');
 
       const newBalance = eqBalance - bet + payout;
@@ -302,7 +302,7 @@ export default function GamesTab() {
       const profit = payout - bet;
 
       // Update balance
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) throw new Error('Not authenticated');
 
       const newBalance = eqBalance - bet + payout;
@@ -374,7 +374,7 @@ export default function GamesTab() {
       if (hitMine) {
         // Lost - hit a mine
         const bet = parseFloat(betAmount);
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await getCurrentUser();
         if (!user) throw new Error('Not authenticated');
 
         const newBalance = eqBalance - bet;
@@ -421,7 +421,7 @@ export default function GamesTab() {
 
     try {
       const bet = parseFloat(betAmount);
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) throw new Error('Not authenticated');
 
       const safeRevealed = minesRevealed.length;

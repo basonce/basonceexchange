@@ -12,7 +12,7 @@ export interface AdminLogParams {
 
 export async function logAdminAction(params: AdminLogParams): Promise<string | null> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
 
     if (!user) {
       console.error('Cannot log admin action: No authenticated user');
@@ -52,7 +52,7 @@ export async function logBalanceChange(
   notes?: string
 ): Promise<string | null> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
 
     if (!user) return null;
 

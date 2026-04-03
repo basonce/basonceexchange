@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, ArrowLeft, Search, CheckCircle, Send, User, AlertCircle, RefreshCw, ChevronDown } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import { PriceCache } from '../lib/price-cache';
 import { EarnQuestPriceManager } from '../lib/earnquest-price';
 
@@ -67,7 +67,7 @@ export default function SendToUsersModal({ isOpen, onClose }: SendToUsersModalPr
   }, [isOpen]);
 
   const loadUserAndCoins = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return;
     setUserId(user.id);
 

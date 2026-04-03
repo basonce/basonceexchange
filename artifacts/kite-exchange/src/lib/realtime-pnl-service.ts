@@ -107,7 +107,7 @@ class RealtimePnLService {
     futuresWallet: number;
     futuresUnrealizedPnL: number;
   }> {
-    const user = (await supabase.auth.getUser()).data.user;
+    const user = await getCurrentUser();
     if (!user) return { total: 0, spotBalances: [], futuresWallet: 0, futuresUnrealizedPnL: 0 };
 
     // ── 1. Spot balances (balance column only – NOT futures_balance) ──
@@ -179,7 +179,7 @@ class RealtimePnLService {
   // ─── SNAPSHOT (start-of-day baseline) ─────────────────────────────────────
 
   private async getOrCreateTodaySnapshot(currentTotal: number): Promise<number> {
-    const user = (await supabase.auth.getUser()).data.user;
+    const user = await getCurrentUser();
     if (!user) return currentTotal;
 
     const today = new Date().toISOString().split('T')[0];

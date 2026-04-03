@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, ChevronRight, TrendingUp, Clock, Coins, CheckCircle, AlertCircle, Loader } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface StakingProgram {
   id: number;
@@ -51,7 +51,7 @@ export default function StakingModal({ isOpen, onClose, program }: StakingModalP
 
   async function fetchBalance() {
     setFetchingBalance(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) { setFetchingBalance(false); return; }
 
     const { data } = await supabase
@@ -90,7 +90,7 @@ export default function StakingModal({ isOpen, onClose, program }: StakingModalP
     setErrorMsg('');
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) throw new Error('Not authenticated');
 
       const stakeAmount = parseFloat(amount);

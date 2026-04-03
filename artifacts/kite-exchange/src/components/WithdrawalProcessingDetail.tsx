@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Copy, CheckCircle, AlertCircle, MessageCircle, Shield, Clock, Headphones, ExternalLink } from 'lucide-react';
 import SupportModal from './SupportModal';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface WithdrawalTransaction {
   id: string;
@@ -41,7 +41,7 @@ export default function WithdrawalProcessingDetail({ withdrawal, onClose, onView
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
       const { data: profile } = await supabase
         .from('user_profiles')

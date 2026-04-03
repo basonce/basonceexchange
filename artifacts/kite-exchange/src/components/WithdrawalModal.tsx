@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, AlertCircle, Check } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import { CRYPTO_NETWORKS, validateAddress, Network } from '../lib/crypto-utils';
 
 interface WithdrawalModalProps {
@@ -70,7 +70,7 @@ export default function WithdrawalModal({
 
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
 
       const { data: profile } = await supabase

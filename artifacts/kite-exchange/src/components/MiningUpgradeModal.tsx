@@ -1,6 +1,6 @@
 import { X, TrendingUp, Zap, ShoppingBag } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface MiningUpgradeModalProps {
   isOpen: boolean;
@@ -32,7 +32,7 @@ export default function MiningUpgradeModal({ isOpen, onClose, onShopClick, total
   }, [isOpen]);
 
   const loadRecommendation = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return;
 
     const { data: balance } = await supabase

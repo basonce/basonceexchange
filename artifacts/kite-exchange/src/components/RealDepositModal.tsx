@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Copy, Check, AlertCircle, ArrowLeftRight, X } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
 import CoinSelector from './CoinSelector';
 import NetworkSelector from './NetworkSelector';
@@ -148,7 +148,7 @@ export function RealDepositModal({ onClose, currency: initialCurrency, network: 
       setLoading(true);
       setError('');
       setDepositAddress('');
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) { setError('Please login first'); return; }
 
       const { data: wallets, error: walletsError } = await supabase
@@ -218,7 +218,7 @@ export function RealDepositModal({ onClose, currency: initialCurrency, network: 
   const updateCoinHistory = async () => {
     if (!selectedCoin) return;
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
       const { data: existing } = await supabase
         .from('user_coin_history')

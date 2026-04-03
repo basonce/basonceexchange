@@ -1,7 +1,7 @@
 import { CheckCircle, Lock, TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getUserTierInfo } from '../lib/withdrawal-permission';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface TierEquipment {
   tier: number;
@@ -20,7 +20,7 @@ export function WithdrawalProgressIndicator() {
   }, []);
 
   const loadUserSession = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (user) {
       loadTierInfo(user.id);
     }

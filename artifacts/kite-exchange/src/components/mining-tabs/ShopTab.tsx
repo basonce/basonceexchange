@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Star, TrendingUp, Zap, Clock, Users, ShoppingCart, AlertCircle, Check, X, Timer, Sparkles, Trophy, Target, Crown, Flame, ArrowRight, Shield } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabase, getCurrentUser } from '../../lib/supabase';
 import { globalMiningStats } from '../../lib/global-mining-stats';
 
 interface MiningEquipment {
@@ -108,7 +108,7 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
 
     // ✅ Subscribe to realtime balance changes
     let channel: any = null;
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    getCurrentUser().then((user) => {
       if (!user) return;
 
       channel = supabase
@@ -295,7 +295,7 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
   };
 
   const loadData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return;
 
     const { data: balanceData } = await supabase
@@ -354,7 +354,7 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
     setLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) {
         setLoading(false);
         return;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Users, Gift, Copy, Check, TrendingUp, DollarSign, Award } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface ReferralStats {
   total_referrals: number;
@@ -38,7 +38,7 @@ export default function ReferralSystem() {
 
   const loadReferralData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
 
       const { data: profileData } = await supabase

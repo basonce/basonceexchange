@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, TrendingUp, TrendingDown } from 'lucide-react';
 import { TradingService } from '../lib/trading-service';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface QuickTradeModalProps {
   symbol: string;
@@ -26,7 +26,7 @@ export default function QuickTradeModal({ symbol, currentPrice, onClose, default
 
   const loadBalances = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
 
       const { data: balances } = await supabase

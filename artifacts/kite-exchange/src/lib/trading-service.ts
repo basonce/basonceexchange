@@ -46,7 +46,7 @@ export class TradingService {
     quantity: number
   ): Promise<TradeResult> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) {
         return { success: false, error: 'Please login to trade' };
       }
@@ -95,7 +95,7 @@ export class TradingService {
 
   static async getDailyPNL(): Promise<{ pnl: number; percentage: number }> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return { pnl: 0, percentage: 0 };
 
       const { data: balanceData, error: balanceError } = await supabase
@@ -176,7 +176,7 @@ export class TradingService {
 
   static async getLastKnownPrice(symbol: string): Promise<number> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return 0;
 
       const { data: position } = await supabase
@@ -212,7 +212,7 @@ export class TradingService {
 
   static async getUserPositions(): Promise<Position[]> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return [];
 
       const { data, error } = await supabase
@@ -238,7 +238,7 @@ export class TradingService {
 
   static async getTradeHistory(limit: number = 50): Promise<Trade[]> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return [];
 
       const { data, error } = await supabase
@@ -266,7 +266,7 @@ export class TradingService {
 
   static async getOrderHistory(limit: number = 50) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return [];
 
       const { data, error } = await supabase
@@ -304,7 +304,7 @@ export class TradingService {
 
   static async getTotalPNL(): Promise<{ realized: number; unrealized: number; total: number }> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return { realized: 0, unrealized: 0, total: 0 };
 
       const { data: trades } = await supabase

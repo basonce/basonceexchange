@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, AlertCircle, ExternalLink, Shield, Lock, TrendingUp } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import { blockchainProvider } from '../lib/blockchain-provider';
 import { WITHDRAWAL_FEES, BLOCKCHAIN_NETWORKS, isMainnet, getNetworkDisplayInfo, type NetworkKey } from '../lib/blockchain-config';
 import { checkWithdrawalPermission } from '../lib/withdrawal-permission';
@@ -39,7 +39,7 @@ export function RealWithdrawModal({
   }, []);
 
   const checkPermission = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return;
 
     const permission = await checkWithdrawalPermission(user.id);

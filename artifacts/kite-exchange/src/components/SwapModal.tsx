@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, ArrowDownUp, Lock } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import { checkWithdrawalPermission } from '../lib/withdrawal-permission';
 
 interface SwapModalProps {
@@ -29,7 +29,7 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
   }, [isOpen]);
 
   const checkPermission = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return;
 
     const permission = await checkWithdrawalPermission(user.id);
@@ -54,7 +54,7 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
   }, [fromAmount, fromCurrency, exchangeRate]);
 
   const loadBalances = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return;
 
     const { data: balances } = await supabase
@@ -98,7 +98,7 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
     setIsSwapping(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
 
       const { data: currentBalance } = await supabase

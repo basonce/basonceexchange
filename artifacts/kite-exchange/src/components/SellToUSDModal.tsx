@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, ArrowLeft, ChevronDown, CheckCircle, TrendingDown, Info, RefreshCw } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import { PriceCache } from '../lib/price-cache';
 import { EarnQuestPriceManager } from '../lib/earnquest-price';
 
@@ -52,7 +52,7 @@ export default function SellToUSDModal({ isOpen, onClose }: SellToUSDModalProps)
   const loadCoins = async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) { setLoading(false); return; }
       setUserId(user.id);
 

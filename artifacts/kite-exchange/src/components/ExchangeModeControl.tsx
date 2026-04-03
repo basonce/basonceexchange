@@ -76,7 +76,7 @@ export default function ExchangeModeControl({ compact = false }: ExchangeModeCon
           mode: 'frozen',
           frozen_at: new Date().toISOString(),
           frozen_prices: snapshot,
-          activated_by: (await supabase.auth.getUser()).data.user?.id,
+          activated_by: (await getCurrentUser())?.id,
           updated_at: new Date().toISOString(),
         })
         .eq('id', 1);
@@ -98,7 +98,7 @@ export default function ExchangeModeControl({ compact = false }: ExchangeModeCon
           mode: 'live',
           frozen_at: null,
           frozen_prices: {},
-          activated_by: (await supabase.auth.getUser()).data.user?.id,
+          activated_by: (await getCurrentUser())?.id,
           updated_at: new Date().toISOString(),
         })
         .eq('id', 1);

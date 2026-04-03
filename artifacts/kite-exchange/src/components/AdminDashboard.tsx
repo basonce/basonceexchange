@@ -29,7 +29,7 @@ import {
   Image,
   Crown,
 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import GlobalAIToggle from './GlobalAIToggle';
 import SupportTicketsPanel from './SupportTicketsPanel';
 import WalletPoolManagement from './WalletPoolManagement';
@@ -448,7 +448,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
 
     try {
       const amount = parseFloat(addBalanceForm.amount);
-      const { data: adminData } = await supabase.auth.getUser();
+      const adminData = { user: await getCurrentUser() };
 
       const { data: existingBalance } = await supabase
         .from('user_balances')
@@ -518,7 +518,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
 
     try {
       const amount = parseFloat(sendCoinForm.amount);
-      const { data: adminData } = await supabase.auth.getUser();
+      const adminData = { user: await getCurrentUser() };
 
       const { data: existingBalance } = await supabase
         .from('user_balances')
@@ -1324,7 +1324,7 @@ function PositionControlPanel() {
   const handleForceLiquidate = async () => {
     if (!selectedPosition) return;
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
       const { data: profile } = await supabase.from('user_profiles').select('email').eq('id', user.id).single();
       const { data, error } = await supabase.rpc('force_liquidate_position', {
@@ -1343,7 +1343,7 @@ function PositionControlPanel() {
 
   const handleApplyOverride = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
       const { data: profile } = await supabase.from('user_profiles').select('email').eq('id', user.id).single();
       const { error } = await supabase.rpc('apply_price_override', {
@@ -1366,7 +1366,7 @@ function PositionControlPanel() {
 
   const handleRemoveOverride = async (coinSymbol: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
       const { data: profile } = await supabase.from('user_profiles').select('email').eq('id', user.id).single();
       const { error } = await supabase.rpc('remove_price_override', {

@@ -168,7 +168,7 @@ export function DeploymentCenter() {
 
     setBackupInProgress(true);
     try {
-      const { data: userData } = await supabase.auth.getUser();
+      const userData = { user: await getCurrentUser() };
       const { data: profile } = await supabase
         .from('user_profiles')
         .select('email')

@@ -689,7 +689,7 @@ export function ActiveCopyPositions({ onStopCopy }: { onStopCopy: (id: string) =
 
   useEffect(() => {
     const init = async () => {
-      const { data } = await supabase.auth.getUser();
+      const _authData = { user: await getCurrentUser() }; const data = _authData;
       if (data.user) {
         setUser(data.user);
         const { data: copyData } = await supabase

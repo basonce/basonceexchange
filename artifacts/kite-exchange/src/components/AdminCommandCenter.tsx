@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, Users, DollarSign, AlertTriangle, Shield, Zap, RefreshCw, Eye, Award, Wallet, Activity } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import ExchangeModeControl from './ExchangeModeControl';
 
 const formatLargeNumber = (num: number): string => {
@@ -149,7 +149,7 @@ export default function AdminCommandCenter() {
   const handleBulkApprove = async () => {
     setApproving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
 
       const { data, error } = await supabase.rpc('admin_bulk_approve_withdrawals', {
