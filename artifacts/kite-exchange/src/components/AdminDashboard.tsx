@@ -28,6 +28,7 @@ import {
   Eye,
   Image,
   Crown,
+  Lock,
 } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import GlobalAIToggle from './GlobalAIToggle';
@@ -52,6 +53,7 @@ import RevenuePanel from './RevenuePanel';
 import VisitorsPanel from './VisitorsPanel';
 import VipManagementPanel from './VipManagementPanel';
 import LiveActivityPanel from './LiveActivityPanel';
+import UserRestrictionsPanel from './UserRestrictionsPanel';
 
 interface UserProfile {
   id: string;
@@ -94,7 +96,7 @@ const cryptoSymbols = [
   'AVAX', 'DOT', 'MATIC', 'LINK', 'UNI', 'LTC', 'ATOM', 'PEPE', 'SHIB', 'WIF', 'BONK'
 ];
 
-type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue' | 'visitors' | 'vip' | 'live';
+type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue' | 'visitors' | 'vip' | 'live' | 'restrictions';
 
 // ── Admin Push Notification Setup ──────────────────────────────
 async function registerAdminPush() {
@@ -614,6 +616,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'visitors', label: 'Gelenler', icon: Eye, badge: newVisitorCount + newLoginCount },
     { id: 'vip', label: 'VIP', icon: Crown },
     { id: 'live', label: 'Canlı', icon: Activity, badge: newLiveActivityCount },
+    { id: 'restrictions', label: 'Kısıtla', icon: Lock },
   ];
 
   return (
@@ -1038,6 +1041,12 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         {activeTab === 'live' && (
           <div className="-mx-4">
             <LiveActivityPanel onBadgeChange={setNewLiveActivityCount} />
+          </div>
+        )}
+
+        {activeTab === 'restrictions' && (
+          <div className="-mx-4">
+            <UserRestrictionsPanel />
           </div>
         )}
 
