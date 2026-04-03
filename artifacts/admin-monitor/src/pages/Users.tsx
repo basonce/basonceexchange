@@ -4,7 +4,34 @@ import { fetchUsers, fetchUserBalances, addBalance, sendCoins, toggleUserActive,
 import type { UserRestrictions } from '../lib/admin-api';
 
 const SYMBOLS = ['USDT','BTC','ETH','BNB','SOL','XRP','ADA','DOGE','AVAX','LINK','EQ','BNC'];
-const TRADEABLE_PAIRS = ['OIL/BTC','XAU/BTC','XAG/BTC','ETH/BTC','BNB/BTC','SOL/BTC','XRP/BTC','ADA/BTC','DOGE/BTC'];
+
+const PAIR_GROUPS: { label: string; color: string; pairs: string[] }[] = [
+  {
+    label: '🥇 Değerli Metaller',
+    color: '#F0B90B',
+    pairs: ['XAU/USDT','XAG/USDT','XPT/USDT','XPD/USDT','COPPER/USDT'],
+  },
+  {
+    label: '🛢️ Emtia',
+    color: '#F97316',
+    pairs: ['WTI/USDT','BRENT/USDT','NATGAS/USDT','COFFEE/USDT','COCOA/USDT','SUGAR/USDT','WHEAT/USDT','CORN/USDT','SOYBEAN/USDT'],
+  },
+  {
+    label: '📈 Endeksler',
+    color: '#3B82F6',
+    pairs: ['SPX/USDT','NDX/USDT','DJI/USDT','DAX/USDT','FTSE/USDT','NKY/USDT'],
+  },
+  {
+    label: '💹 Hisseler',
+    color: '#2ECC71',
+    pairs: ['TSLA/USDT','AAPL/USDT','NVDA/USDT','MSFT/USDT','AMZN/USDT','GOOGL/USDT','META/USDT','AMD/USDT','COIN/USDT','MSTR/USDT'],
+  },
+  {
+    label: '₿ Kripto',
+    color: '#F0B90B',
+    pairs: ['BTC/USDT','ETH/USDT','BNB/USDT','SOL/USDT','XRP/USDT','ADA/USDT','DOGE/USDT','AVAX/USDT','LINK/USDT'],
+  },
+];
 
 interface User { id: string; email: string; full_name: string; is_admin?: boolean; is_active?: boolean; created_at?: string; }
 interface Balance { id: string; user_id: string; symbol: string; balance: number; locked_balance: number; }
@@ -363,26 +390,34 @@ export default function Users() {
                       </p>
 
                       {restrictionForm.pair_lock_enabled && (
-                        <div className="mt-3">
-                          <p className="text-xs font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.5)', letterSpacing: '0.06em' }}>İZİN VERİLEN PARİTELER</p>
-                          <div className="flex flex-wrap gap-2">
-                            {TRADEABLE_PAIRS.map(pair => (
-                              <button
-                                key={pair}
-                                onClick={() => togglePair(pair)}
-                                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                                style={{
-                                  background: restrictionForm.allowed_pairs.includes(pair) ? 'rgba(255,71,87,0.2)' : 'rgba(255,255,255,0.06)',
-                                  border: restrictionForm.allowed_pairs.includes(pair) ? '1px solid rgba(255,71,87,0.5)' : '1px solid rgba(255,255,255,0.1)',
-                                  color: restrictionForm.allowed_pairs.includes(pair) ? '#FF4757' : 'rgba(255,255,255,0.5)',
-                                }}
-                              >
-                                {pair}
-                              </button>
-                            ))}
-                          </div>
+                        <div className="mt-3 space-y-3">
+                          <p className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)', letterSpacing: '0.06em' }}>İZİN VERİLEN PARİTELER</p>
+                          {PAIR_GROUPS.map(group => (
+                            <div key={group.label}>
+                              <p className="text-[10px] font-bold mb-1.5" style={{ color: group.color, letterSpacing: '0.05em' }}>{group.label}</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {group.pairs.map(pair => {
+                                  const selected = restrictionForm.allowed_pairs.includes(pair);
+                                  return (
+                                    <button
+                                      key={pair}
+                                      onClick={() => togglePair(pair)}
+                                      className="px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all"
+                                      style={{
+                                        background: selected ? `${group.color}25` : 'rgba(255,255,255,0.05)',
+                                        border: selected ? `1px solid ${group.color}60` : '1px solid rgba(255,255,255,0.08)',
+                                        color: selected ? group.color : 'rgba(255,255,255,0.4)',
+                                      }}
+                                    >
+                                      {pair}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
                           {restrictionForm.allowed_pairs.length === 0 && (
-                            <p className="text-xs mt-2" style={{ color: 'rgba(255,165,0,0.8)' }}>⚠️ En az bir parite seçin</p>
+                            <p className="text-xs" style={{ color: 'rgba(255,165,0,0.8)' }}>⚠️ En az bir parite seçin</p>
                           )}
                         </div>
                       )}
