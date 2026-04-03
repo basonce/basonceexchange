@@ -1,4 +1,6 @@
 import { supabase, getCurrentUser } from './supabase';
+import { isTradFiSymbol } from './tradfi-data';
+import { getCachedTradFiPrice } from './tradfi-price-service';
 
 export interface TradeResult {
   success: boolean;
@@ -157,6 +159,10 @@ export class TradingService {
   }
 
   static async getCurrentPrice(symbol: string): Promise<number> {
+    if (isTradFiSymbol(symbol)) {
+      const tradfi = getCachedTradFiPrice(symbol);
+      return tradfi?.price || 0;
+    }
     try {
       const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}USDT`);
       if (!response.ok) {
@@ -169,7 +175,6 @@ export class TradingService {
       }
       return await this.getLastKnownPrice(symbol);
     } catch (error) {
-      console.error(`Error fetching price for ${symbol}:`, error);
       return await this.getLastKnownPrice(symbol);
     }
   }

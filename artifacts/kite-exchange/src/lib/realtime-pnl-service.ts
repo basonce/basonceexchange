@@ -1,6 +1,8 @@
 import { supabase, getCurrentUser } from './supabase';
 import { TradingService } from './trading-service';
 import { EarnQuestPriceManager } from './earnquest-price';
+import { isTradFiSymbol } from './tradfi-data';
+import { getCachedTradFiPrice, startTradFiPriceUpdater } from './tradfi-price-service';
 
 export interface RealtimePnL {
   currentTotalValue: number;
@@ -47,6 +49,7 @@ class RealtimePnLService {
   private eqPriceManager = EarnQuestPriceManager.getInstance();
 
   private constructor() {
+    startTradFiPriceUpdater();
     this.recalculate();
     this.intervalId = window.setInterval(() => this.recalculate(), 15_000);
     this.eqPriceManager.subscribe(() => this.recalculate());
@@ -89,6 +92,10 @@ class RealtimePnLService {
   private async getPrice(symbol: string): Promise<number> {
     if (symbol === 'USDT') return 1;
     if (symbol === 'EQ' || symbol === 'EQL') return this.eqPriceManager.getPrice();
+    if (isTradFiSymbol(symbol)) {
+      const tradfi = getCachedTradFiPrice(symbol);
+      return tradfi?.price || 0;
+    }
     try {
       return await Promise.race([
         TradingService.getCurrentPrice(symbol),
