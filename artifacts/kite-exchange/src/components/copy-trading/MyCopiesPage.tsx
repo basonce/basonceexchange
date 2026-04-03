@@ -867,6 +867,12 @@ export default function MyCopiesPage({ onClose, onBrowseTraders }: Props) {
   const [portfolioPrices, setPortfolioPrices] = useState<Record<string, number>>({});
   const [allPositions, setAllPositions] = useState<CopyPosition[]>([]);
   const allPositionsRef = useRef<CopyPosition[]>([]);
+  // Portfolio simülasyon ticker'ı (gerçek pozisyon yokken)
+  const [simTick, setSimTick] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => setSimTick(t => t + 1), 2500);
+    return () => clearInterval(iv);
+  }, []);
 
   const fetchData = useCallback(async (uid: string, silent = false) => {
     if (!silent) setLoading(true);
@@ -999,17 +1005,25 @@ export default function MyCopiesPage({ onClose, onBrowseTraders }: Props) {
     setTimeout(() => setRefreshing(false), 800);
   };
 
-  // Portfolio totals from real position PNL
+  // Portfolio totals — gerçek pozisyon varsa gerçek fiyat, yoksa simülasyon
   const totalInvested = activeCopies.reduce((s, c) => s + c.investment_amount, 0);
-  const totalLivePnl = allPositions.reduce((sum, pos) => {
+  const realPositionPnl = allPositions.reduce((sum, pos) => {
     const price = portfolioPrices[pos.coin_symbol];
-    if (!price || price <= 0) return sum; // skip until we have a live price
+    if (!price || price <= 0) return sum;
     const { pnl } = calcPositionPnl(pos, price);
     return sum + pnl;
   }, 0);
-  const hasPrices = allPositions.length === 0 || allPositions.some(p => (portfolioPrices[p.coin_symbol] ?? 0) > 0);
-  const totalValue = hasPrices ? totalInvested + totalLivePnl : totalInvested;
-  const totalRoi = totalInvested > 0 && hasPrices ? (totalLivePnl / totalInvested) * 100 : 0;
+  const hasRealPositions = allPositions.length > 0;
+  const totalLivePnl = hasRealPositions
+    ? realPositionPnl
+    : activeCopies.reduce((sum, c) => {
+        const roiTarget = Math.min((c.copy_traders.roi_30d ?? 80) / 20, 15);
+        return sum + calcSimPnl(c.investment_amount, roiTarget, c.created_at, c.id);
+      }, 0);
+  // simTick kullanarak re-render tetiklenir
+  void simTick;
+  const totalValue = totalInvested + totalLivePnl;
+  const totalRoi = totalInvested > 0 ? (totalLivePnl / totalInvested) * 100 : 0;
   const isPnlPositive = totalLivePnl >= 0;
   const historyTotalPnl = history.reduce((s, h) => s + h.final_pnl, 0);
   const historyWins = history.filter(h => h.final_pnl > 0).length;
