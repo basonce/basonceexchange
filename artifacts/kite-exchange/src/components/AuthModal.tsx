@@ -46,11 +46,21 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
     }
 
     setLoading(true);
+    let cancelled = false;
 
+    // After 12 s show a soft warning but keep trying (don't cancel)
+    const slowTimer = setTimeout(() => {
+      if (!cancelled) setError('Bağlantı yavaş, lütfen bekleyin…');
+    }, 12000);
+
+    // Hard cancel only after 60 s
     const timeout = setTimeout(() => {
-      setLoading(false);
-      setError('Connection timed out. Please check your internet and try again.');
-    }, 15000);
+      if (!cancelled) {
+        cancelled = true;
+        setLoading(false);
+        setError('Bağlantı sağlanamadı. İnternet bağlantınızı kontrol edin.');
+      }
+    }, 60000);
 
     try {
       if (mode === 'register') {
@@ -151,6 +161,8 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
         setError(err.message || 'An error occurred');
       }
     } finally {
+      cancelled = true;
+      clearTimeout(slowTimer);
       clearTimeout(timeout);
       setLoading(false);
     }
