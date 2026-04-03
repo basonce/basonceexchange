@@ -509,6 +509,35 @@ function StopConfirmSheet({
   );
 }
 
+// Deterministik seed (her trade için farklı ama tutarlı salınım)
+function seededSin(seed: number, t: number, freq: number, phase = 0) {
+  return Math.sin(t * freq + seed * 2.3 + phase);
+}
+
+function calcSimPnl(investment: number, roiTarget: number, createdAt: string, tradeId: string): number {
+  const seed = tradeId.charCodeAt(0) * 0.137 + tradeId.charCodeAt(2) * 0.073;
+  const ageMs = Date.now() - new Date(createdAt).getTime();
+  const ageSec = ageMs / 1000;
+
+  // Trend: 0 → hedef %  (sigmoid benzeri yaklaşım, 45 dk'da %75'e ulaşır)
+  const halflife = 45 * 60; // 45 dakika
+  const trend = roiTarget * (1 - Math.exp(-ageSec / halflife));
+
+  // Gerçekçi çoklu-frekans gürültü
+  const t = ageSec;
+  const noise =
+    seededSin(seed, t, 0.005, 0) * 2.5 +      // yavaş dalga
+    seededSin(seed, t, 0.018, 1.2) * 1.2 +     // orta dalga
+    seededSin(seed, t, 0.06,  2.7) * 0.5 +     // hızlı dalga
+    seededSin(seed, t, 0.14,  0.4) * 0.25;     // mikro titreşim
+
+  // Başlangıçta küçük düşüş efekti (ilk 90 sn)
+  const dip = ageSec < 90 ? -roiTarget * 0.15 * Math.exp(-ageSec / 25) : 0;
+
+  const finalPct = Math.max(-2, trend + noise * 0.6 + dip);
+  return (finalPct / 100) * investment;
+}
+
 // ActiveCopyCard uses real-time position PNL (leverage-based) summed across all positions
 function ActiveCopyCard({
   copy,
@@ -523,6 +552,7 @@ function ActiveCopyCard({
   const [positions, setPositions] = useState<CopyPosition[]>([]);
   const [loadingPos, setLoadingPos] = useState(false);
   const [showStopSheet, setShowStopSheet] = useState(false);
+  const [simPnl, setSimPnl] = useState(0);
 
   // Live prices keyed by coin symbol
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
@@ -550,6 +580,18 @@ function ActiveCopyCard({
   useEffect(() => {
     loadPositions();
   }, []);
+
+  // PnL simülasyonu — gerçek pozisyon yokken çalışır
+  useEffect(() => {
+    if (positions.length > 0) return;
+    const roiTarget = Math.min((trader.roi_30d ?? 80) / 20, 15); // max %15 hedef
+    const tick = () => {
+      setSimPnl(calcSimPnl(copy.investment_amount, roiTarget, copy.created_at, copy.id));
+    };
+    tick();
+    const iv = setInterval(tick, 2500);
+    return () => clearInterval(iv);
+  }, [positions.length, copy.investment_amount, copy.created_at, copy.id, trader.roi_30d]);
 
   // Poll prices for all open positions
   useEffect(() => {
@@ -584,9 +626,11 @@ function ActiveCopyCard({
   }, 0);
 
   const hasPosPrice = positions.length === 0 || positions.some(p => (livePrices[p.coin_symbol] ?? 0) > 0);
-  const liveValue = hasPosPrice ? copy.investment_amount + totalPositionPnl : copy.investment_amount;
-  const liveRoi = copy.investment_amount > 0 && hasPosPrice ? (totalPositionPnl / copy.investment_amount) * 100 : 0;
-  const isPositive = totalPositionPnl >= 0;
+  // Gerçek pozisyon varsa gerçek PnL, yoksa simülasyon
+  const effectivePnl = positions.length > 0 ? totalPositionPnl : simPnl;
+  const liveValue = copy.investment_amount + effectivePnl;
+  const liveRoi = copy.investment_amount > 0 ? (effectivePnl / copy.investment_amount) * 100 : 0;
+  const isPositive = effectivePnl >= 0;
   const pnlColor = isPositive ? 'text-[#0ECB81]' : 'text-[#F6465D]';
 
   const handleExpand = () => {
@@ -637,7 +681,7 @@ function ActiveCopyCard({
                   {isPositive ? '+' : ''}{liveRoi.toFixed(3)}%
                 </div>
                 <div className={`text-[12px] font-semibold ${pnlColor}`}>
-                  {isPositive ? '+' : ''}${Math.abs(totalPositionPnl).toFixed(2)}
+                  {isPositive ? '+' : ''}${Math.abs(effectivePnl).toFixed(2)}
                 </div>
               </div>
               {expanded ? (
@@ -749,12 +793,12 @@ function ActiveCopyCard({
         <StopConfirmSheet
           copy={copy}
           liveValue={liveValue}
-          livePnl={totalPositionPnl}
+          livePnl={effectivePnl}
           liveRoi={liveRoi}
           onCancel={() => setShowStopSheet(false)}
           onConfirm={() => {
             setShowStopSheet(false);
-            onStop(copy.id, totalPositionPnl, liveRoi, liveValue);
+            onStop(copy.id, effectivePnl, liveRoi, liveValue);
           }}
           stopping={stopping}
         />
