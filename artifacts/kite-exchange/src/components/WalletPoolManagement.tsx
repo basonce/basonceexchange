@@ -1101,7 +1101,7 @@ function CsvImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
       let skipCount = 0;
       let errorCount = 0;
 
-      const wallets: Array<{ address: string; network: string; encrypted_private_key: string; is_assigned: boolean; api_key: string | null }> = [];
+      const wallets: Array<{ address: string; network: string; privateKey: string | null; apiKey: string | null }> = [];
 
       for (const row of parsed) {
         const addr = row.address.trim();
@@ -1123,9 +1123,8 @@ function CsvImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
         wallets.push({
           address: addr,
           network,
-          encrypted_private_key: row.privateKey || 'admin-added-no-key',
-          is_assigned: false,
-          api_key: row.apiKey || null,
+          privateKey: row.privateKey || null,
+          apiKey: row.apiKey || null,
         });
       }
 
