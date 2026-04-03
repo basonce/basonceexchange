@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { ArrowLeft, Search } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import StableCoinLogo from './CoinLogo';
 
 interface Coin {

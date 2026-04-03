@@ -6,7 +6,7 @@ import {
   AlertTriangle, CheckCircle, ArrowDownToLine, Wallet,
   TrendingDown as TrendDown, Flame
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabase, getCurrentUser } from '../../lib/supabase';
 import { EarnQuestPriceManager } from '../../lib/earnquest-price';
 import { BNCPriceManager } from '../../lib/bnc-price';
 

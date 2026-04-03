@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Snowflake, Zap, Power, RefreshCw, ChevronDown, ChevronUp, Activity } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import { PriceCache } from '../lib/price-cache';
 
 interface ModeConfig {

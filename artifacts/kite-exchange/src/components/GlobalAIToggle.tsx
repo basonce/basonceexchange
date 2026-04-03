@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Bot, Moon, Sun, MessageSquare, Clock, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface AISettings {
   enabled: boolean;

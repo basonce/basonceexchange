@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Database, GitBranch, Activity, Server, FileCode, AlertCircle, CheckCircle, RefreshCw, Clock, HardDrive, Zap, Archive, Download, Shield, Terminal, Play, Eye, X } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface Migration {
   version: string;

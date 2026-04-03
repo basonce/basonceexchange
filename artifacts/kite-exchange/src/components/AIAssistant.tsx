@@ -7,7 +7,7 @@ import {
   Image, Upload, X, CheckCircle2, Database, Code2,
   Eye, Copy, Play, Key, Lock
 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import {
   fetchFullPlatformContext, buildSystemPrompt, logAction, createAlert,
   analyzeScreenshotWithVision, parseVisionResponse, runSQLMigration,

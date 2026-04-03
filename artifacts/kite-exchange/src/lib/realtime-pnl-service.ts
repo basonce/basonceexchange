@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, getCurrentUser } from './supabase';
 import { TradingService } from './trading-service';
 import { EarnQuestPriceManager } from './earnquest-price';
 

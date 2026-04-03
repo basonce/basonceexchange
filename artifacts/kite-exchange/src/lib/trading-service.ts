@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, getCurrentUser } from './supabase';
 
 export interface TradeResult {
   success: boolean;

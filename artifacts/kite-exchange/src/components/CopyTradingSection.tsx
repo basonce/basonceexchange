@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ChevronRight, Users, X, ArrowLeft, Shield, AlertTriangle, Check, Loader2, StopCircle, ChevronDown, Copy } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import MyCopiesPage from './copy-trading/MyCopiesPage';
 
 interface CopyTrader {

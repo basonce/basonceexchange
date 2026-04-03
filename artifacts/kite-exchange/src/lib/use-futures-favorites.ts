@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from './supabase';
+import { supabase, getCurrentUser } from './supabase';
 
 const LS_KEY = 'futures_favorites_v2';
 const LS_TRADFI_KEY = 'tradfi_favorites_v2';
