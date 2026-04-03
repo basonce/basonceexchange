@@ -65,9 +65,12 @@ function isPriority(action: string, label: string): boolean {
   return HIGH_PRIORITY_KEYWORDS.some(k => l.includes(k));
 }
 
-const SETUP_SQL = `CREATE TABLE IF NOT EXISTS activity_log (
+const SETUP_SQL = `-- Tüm tabloları oluşturmak için paponce_migration.sql dosyasını indir ve çalıştır.
+-- Veya sadece activity_log için bu SQL'i çalıştır:
+
+CREATE TABLE IF NOT EXISTS activity_log (
   id bigserial PRIMARY KEY,
-  user_id uuid NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL,
   action text NOT NULL,
   page text,
   metadata jsonb DEFAULT '{}',
@@ -80,7 +83,8 @@ CREATE INDEX IF NOT EXISTS activity_log_created_idx
 ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS activity_log_allow_all ON activity_log;
 CREATE POLICY activity_log_allow_all ON activity_log
-  FOR ALL USING (true) WITH CHECK (true);`;
+  FOR ALL USING (true) WITH CHECK (true);
+ALTER PUBLICATION supabase_realtime ADD TABLE activity_log;`;
 
 export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (n: number) => void }) {
   const [activities, setActivities] = useState<ActivityRow[]>([]);
@@ -218,44 +222,54 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
       <div className="p-4 space-y-4">
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
           <p className="font-black text-gray-900 text-lg mb-1">Son 1 Adım Kaldı</p>
-          <p className="text-sm text-gray-500 mb-5">
-            Alttaki butona bas → Supabase açılır → <strong>Ctrl+V</strong> yap → <strong>Ctrl+Enter</strong> bas. Bitti.
+          <p className="text-sm text-gray-500 mb-4">
+            Paponce SQL Editor'da aşağıdaki adımı uygula:
           </p>
 
-          {/* SINGLE BIG BUTTON */}
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(SETUP_SQL);
-              setCopied(true);
-              setTimeout(() => {
-                window.open('https://supabase.com/dashboard/project/jfjjymprvjfltpvmfptj/sql/new', '_blank');
-              }, 300);
-              setTimeout(() => setCopied(false), 4000);
-            }}
-            className={`w-full py-4 rounded-2xl font-black text-base transition-all mb-3 flex items-center justify-center gap-2 ${
-              copied
-                ? 'bg-green-500 text-white'
-                : 'bg-[#F0B90B] hover:bg-yellow-400 text-black'
-            }`}
-          >
-            {copied ? (
-              <><Check className="w-5 h-5" /> SQL Kopyalandı! → Ctrl+V yapıp Ctrl+Enter bas</>
-            ) : (
-              <>⚡ SQL'i Kopyala ve Supabase'i Aç</>
-            )}
-          </button>
+          {/* Step 1: Download full migration */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-3">
+            <p className="text-xs font-bold text-blue-800 mb-2">Adım 1 — Tam Şemayı İndir (127 tablo)</p>
+            <a
+              href="/paponce_migration.sql"
+              download="paponce_migration.sql"
+              className="block w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-center font-bold rounded-xl text-sm transition-colors mb-2"
+            >
+              ⬇️ paponce_migration.sql İndir
+            </a>
+            <a
+              href="https://supabase.com/dashboard/project/jfjjymprvjfltpvmfptj/sql/new"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-center font-medium rounded-xl text-sm transition-colors"
+            >
+              → Paponce SQL Editor Aç
+            </a>
+            <p className="text-[10px] text-blue-600 mt-2 text-center">İndir → SQL Editor'ı aç → dosyayı aç/yapıştır → Ctrl+Enter</p>
+          </div>
+
+          {/* Step 2: Just activity_log */}
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-3">
+            <p className="text-xs font-bold text-gray-700 mb-2">veya Sadece Canlı Takip İçin (Hızlı)</p>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(SETUP_SQL);
+                setCopied(true);
+                setTimeout(() => {
+                  window.open('https://supabase.com/dashboard/project/jfjjymprvjfltpvmfptj/sql/new', '_blank');
+                }, 300);
+                setTimeout(() => setCopied(false), 4000);
+              }}
+              className={`w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
+                copied ? 'bg-green-500 text-white' : 'bg-[#F0B90B] hover:bg-yellow-400 text-black'
+              }`}
+            >
+              {copied ? <><Check className="w-4 h-4" /> Kopyalandı! Ctrl+V → Ctrl+Enter</> : <>⚡ Activity Log SQL Kopyala + Aç</>}
+            </button>
+          </div>
 
           <button onClick={loadInitial} className="w-full py-3 bg-[#1E2329] text-gray-300 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors">
             <RefreshCw className="w-4 h-4" /> Çalıştırdım, kontrol et
           </button>
-
-          {/* Collapsible SQL for reference */}
-          <details className="mt-3">
-            <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">SQL'i göster</summary>
-            <div className="bg-gray-900 rounded-xl p-3 mt-2">
-              <pre className="text-green-400 text-[9px] leading-relaxed overflow-x-auto whitespace-pre-wrap select-all">{SETUP_SQL}</pre>
-            </div>
-          </details>
         </div>
         <div className="bg-white border border-gray-100 rounded-2xl p-4 space-y-2">
           <p className="text-xs font-black text-gray-700 uppercase tracking-wider mb-3">Kurulunca şunları göreceksin</p>
