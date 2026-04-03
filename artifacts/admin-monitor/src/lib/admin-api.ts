@@ -337,9 +337,37 @@ export async function fetchOnlineUsers() {
 export async function fetchSupportTickets() {
   const { data: tickets } = await supabase
     .from('support_tickets')
-    .select('*, user_profiles(email, full_name)')
+    .select('*')
     .order('created_at', { ascending: false }).limit(60);
   if (!tickets || tickets.length === 0) return [];
+
+  // Enrich with user profile data separately (no FK join needed)
+  const customerIds = [...new Set(tickets.map((t: any) => t.customer_id).filter(Boolean))];
+  const profileMap: Record<string, any> = {};
+  if (customerIds.length > 0) {
+    const numericIds = customerIds.map(id => parseInt(id as string, 10)).filter(n => !isNaN(n));
+    if (numericIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('user_profiles')
+        .select('id, email, full_name, user_id')
+        .in('user_id', numericIds);
+      (profiles || []).forEach((p: any) => { profileMap[String(p.user_id)] = p; });
+    }
+    // UUID-based lookups
+    const uuidIds = customerIds.filter(id => isNaN(parseInt(id as string, 10)));
+    if (uuidIds.length > 0) {
+      const { data: profiles2 } = await supabase
+        .from('user_profiles')
+        .select('id, email, full_name, user_id')
+        .in('id', uuidIds);
+      (profiles2 || []).forEach((p: any) => { profileMap[p.id] = p; });
+    }
+  }
+
+  tickets.forEach((t: any) => {
+    const p = profileMap[t.customer_id];
+    t.user_profiles = p ? { email: p.email, full_name: p.full_name } : { email: t.email, full_name: t.email };
+  });
 
   const ticketIds = tickets.map((t: any) => t.id);
   const { data: allMsgs } = await supabase
