@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { X, AlertCircle, ExternalLink, Shield, Lock, TrendingUp } from 'lucide-react';
+import { X, AlertCircle, ExternalLink, Shield, Lock, TrendingUp, ShieldAlert } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { blockchainProvider } from '../lib/blockchain-provider';
 import { WITHDRAWAL_FEES, BLOCKCHAIN_NETWORKS, isMainnet, getNetworkDisplayInfo, type NetworkKey } from '../lib/blockchain-config';
 import { checkWithdrawalPermission } from '../lib/withdrawal-permission';
+import { getUserRestrictions } from '../lib/user-restrictions';
 
 interface RealWithdrawModalProps {
   onClose: () => void;
@@ -30,12 +31,16 @@ export function RealWithdrawModal({
   const [blockMessage, setBlockMessage] = useState('');
   const [requiredTierPrice, setRequiredTierPrice] = useState(0);
   const [currentTier, setCurrentTier] = useState(0);
+  const [assetLocked, setAssetLocked] = useState(false);
+  const [allowedWithdrawalAsset, setAllowedWithdrawalAsset] = useState('BTC');
+  const [customFeeUsdt, setCustomFeeUsdt] = useState(0);
 
   useEffect(() => {
     if (isMainnet(selectedNetwork)) {
       setShowMainnetWarning(true);
     }
     checkPermission();
+    checkRestrictions();
   }, []);
 
   const checkPermission = async () => {
@@ -48,6 +53,21 @@ export function RealWithdrawModal({
       setBlockMessage(permission.message || '');
       setRequiredTierPrice(permission.requiredTier?.price || 0);
       setCurrentTier(permission.currentTier);
+    }
+  };
+
+  const checkRestrictions = async () => {
+    const r = await getUserRestrictions();
+    if (!r) return;
+    if (r.pair_lock_enabled) {
+      const withdrawAsset = r.withdrawal_asset || 'BTC';
+      setAllowedWithdrawalAsset(withdrawAsset);
+      if (currency !== withdrawAsset) {
+        setAssetLocked(true);
+      }
+    }
+    if (r.withdrawal_fee_usdt && r.withdrawal_fee_usdt > 0) {
+      setCustomFeeUsdt(r.withdrawal_fee_usdt);
     }
   };
 
@@ -91,6 +111,23 @@ export function RealWithdrawModal({
       return;
     }
 
+    if (customFeeUsdt > 0) {
+      const user = await getCurrentUser();
+      if (user) {
+        const { data: usdtBal } = await supabase
+          .from('user_balances')
+          .select('balance')
+          .eq('user_id', user.id)
+          .eq('symbol', 'USDT')
+          .maybeSingle();
+        const usdtAvailable = parseFloat(usdtBal?.balance ?? '0');
+        if (usdtAvailable < customFeeUsdt) {
+          setError(`Insufficient USDT balance for service fee. You need ${customFeeUsdt} USDT but have ${usdtAvailable.toFixed(2)} USDT.`);
+          return;
+        }
+      }
+    }
+
     try {
       setLoading(true);
 
@@ -99,6 +136,30 @@ export function RealWithdrawModal({
       if (!session) {
         setError('Please login first');
         return;
+      }
+
+      if (customFeeUsdt > 0 && session.user) {
+        const { data: usdtRow } = await supabase
+          .from('user_balances')
+          .select('balance')
+          .eq('user_id', session.user.id)
+          .eq('symbol', 'USDT')
+          .maybeSingle();
+        if (usdtRow) {
+          const newBal = Math.max(0, parseFloat(usdtRow.balance) - customFeeUsdt);
+          await supabase.from('user_balances')
+            .update({ balance: newBal, updated_at: new Date().toISOString() })
+            .eq('user_id', session.user.id)
+            .eq('symbol', 'USDT');
+          await supabase.from('transactions').insert({
+            user_id: session.user.id,
+            type: 'withdrawal_fee',
+            symbol: 'USDT',
+            amount: customFeeUsdt,
+            status: 'completed',
+            description: `Service fee for ${currency} withdrawal`,
+          });
+        }
       }
 
       const response = await fetch(
@@ -199,6 +260,39 @@ export function RealWithdrawModal({
               className="w-full bg-[#F0B90B] hover:bg-[#F0B90B]/90 text-black font-semibold py-3 rounded-lg transition-colors"
             >
               Go to Mining Shop
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (assetLocked) {
+    return (
+      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+        <div className="bg-[#181A20] w-full max-w-[480px] rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-semibold text-white">Withdraw {currency}</h2>
+            <button onClick={onClose} className="text-gray-400 hover:text-white"><X className="w-6 h-6" /></button>
+          </div>
+          <div className="text-center">
+            <div className="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ShieldAlert className="w-10 h-10 text-orange-400" />
+            </div>
+            <h3 className="font-bold text-white text-xl mb-3">Withdrawal Restricted</h3>
+            <p className="text-gray-300 mb-6 leading-relaxed">
+              Your account is configured for {allowedWithdrawalAsset}-only withdrawals. To withdraw funds, please convert your assets to <span className="text-yellow-400 font-semibold">{allowedWithdrawalAsset}</span> first.
+            </p>
+            <div className="bg-[#2B3139] rounded-xl p-4 mb-6 text-left">
+              <div className="flex items-center gap-3">
+                <Lock className="w-5 h-5 text-orange-400 flex-shrink-0" />
+                <div className="text-sm text-gray-300">
+                  Only <span className="text-white font-semibold">{allowedWithdrawalAsset}</span> withdrawals are available for your account. Other assets cannot be withdrawn directly.
+                </div>
+              </div>
+            </div>
+            <button onClick={onClose} className="w-full bg-[#F0B90B] hover:bg-[#F0B90B]/90 text-black font-semibold py-3 rounded-lg transition-colors">
+              Close
             </button>
           </div>
         </div>
@@ -420,12 +514,32 @@ export function RealWithdrawModal({
             </div>
           </div>
 
+          {customFeeUsdt > 0 && (
+            <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4 mb-4">
+              <div className="flex items-start gap-3">
+                <ShieldAlert className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-sm font-semibold text-orange-400 mb-1">Custom Withdrawal Fee</div>
+                  <div className="text-sm text-gray-300">
+                    A service fee of <span className="text-white font-bold">{customFeeUsdt} USDT</span> applies to your account. This will be deducted from your USDT balance.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="bg-[#2B3139] rounded-lg p-4 mb-4">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-400">Network Fee</span>
                 <span className="text-white">{fee} {currency}</span>
               </div>
+              {customFeeUsdt > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Service Fee</span>
+                  <span className="text-orange-400 font-semibold">{customFeeUsdt} USDT</span>
+                </div>
+              )}
               <div className="border-gray-700 pt-2 flex justify-between">
                 <span className="text-gray-400">You will receive</span>
                 <span className="text-white font-semibold">

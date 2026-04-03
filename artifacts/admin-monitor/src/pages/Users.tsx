@@ -1,18 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, Send, UserX, UserCheck, RefreshCw, ChevronRight, X, Check } from 'lucide-react';
-import { fetchUsers, fetchUserBalances, addBalance, sendCoins, toggleUserActive, searchUsersByEmail } from '../lib/admin-api';
-import GlassCard from '../components/ui/GlassCard';
+import { Search, Plus, Send, UserX, UserCheck, RefreshCw, ChevronRight, X, Lock, ShieldAlert } from 'lucide-react';
+import { fetchUsers, fetchUserBalances, addBalance, sendCoins, toggleUserActive, searchUsersByEmail, fetchUserRestrictions, saveUserRestrictions } from '../lib/admin-api';
+import type { UserRestrictions } from '../lib/admin-api';
 
 const SYMBOLS = ['USDT','BTC','ETH','BNB','SOL','XRP','ADA','DOGE','AVAX','LINK','EQ','BNC'];
+const TRADEABLE_PAIRS = ['OIL/BTC','XAU/BTC','XAG/BTC','ETH/BTC','BNB/BTC','SOL/BTC','XRP/BTC','ADA/BTC','DOGE/BTC'];
 
 interface User { id: string; email: string; full_name: string; is_admin?: boolean; is_active?: boolean; created_at?: string; }
 interface Balance { id: string; user_id: string; symbol: string; balance: number; locked_balance: number; }
+
+type DetailTab = 'balances' | 'restrictions';
 
 export default function Users() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<User | null>(null);
+  const [detailTab, setDetailTab] = useState<DetailTab>('balances');
   const [balances, setBalances] = useState<Balance[]>([]);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [modal, setModal] = useState<'add' | 'send' | null>(null);
@@ -22,6 +26,18 @@ export default function Users() {
   const [sendTarget, setSendTarget] = useState<User | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
+
+  const [restrictions, setRestrictions] = useState<UserRestrictions | null>(null);
+  const [restrictionsLoading, setRestrictionsLoading] = useState(false);
+  const [restrictionForm, setRestrictionForm] = useState<UserRestrictions>({
+    user_id: '',
+    pair_lock_enabled: false,
+    allowed_pairs: [],
+    withdrawal_asset: 'BTC',
+    withdrawal_fee_usdt: 0,
+  });
+  const [restrictionSaving, setRestrictionSaving] = useState(false);
+  const [restrictionError, setRestrictionError] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -33,9 +49,31 @@ export default function Users() {
 
   async function selectUser(u: User) {
     setSelected(u);
+    setDetailTab('balances');
     setBalanceLoading(true);
     setBalances(await fetchUserBalances(u.id));
     setBalanceLoading(false);
+    loadRestrictions(u.id);
+  }
+
+  async function loadRestrictions(userId: string) {
+    setRestrictionsLoading(true);
+    setRestrictionError('');
+    const r = await fetchUserRestrictions(userId);
+    if (r) {
+      setRestrictions(r);
+      setRestrictionForm({ ...r });
+    } else {
+      setRestrictions(null);
+      setRestrictionForm({
+        user_id: userId,
+        pair_lock_enabled: false,
+        allowed_pairs: [],
+        withdrawal_asset: 'BTC',
+        withdrawal_fee_usdt: 0,
+      });
+    }
+    setRestrictionsLoading(false);
   }
 
   async function handleAddBalance() {
@@ -71,6 +109,35 @@ export default function Users() {
     setUsers(users.map(x => x.id === u.id ? { ...x, is_active: !x.is_active } : x));
   }
 
+  async function handleSaveRestrictions() {
+    if (!selected) return;
+    setRestrictionSaving(true);
+    setRestrictionError('');
+    const payload = { ...restrictionForm, user_id: selected.id };
+    const result = await saveUserRestrictions(payload);
+    if (result.ok) {
+      showToast('✅ Kısıtlamalar kaydedildi');
+      setRestrictions(payload);
+    } else {
+      const errMsg = result.error || 'Bilinmeyen hata';
+      if (errMsg.includes('relation') && errMsg.includes('does not exist')) {
+        setRestrictionError('Tablo bulunamadı. Supabase SQL Editor\'da migration SQL\'ini çalıştırmayı unutmayın.');
+      } else {
+        setRestrictionError(errMsg);
+      }
+    }
+    setRestrictionSaving(false);
+  }
+
+  function togglePair(pair: string) {
+    setRestrictionForm(f => {
+      const pairs = f.allowed_pairs.includes(pair)
+        ? f.allowed_pairs.filter(p => p !== pair)
+        : [...f.allowed_pairs, pair];
+      return { ...f, allowed_pairs: pairs };
+    });
+  }
+
   async function searchSend(email: string) {
     setSendForm(f => ({ ...f, toEmail: email }));
     if (email.length >= 3) setSendResults(await searchUsersByEmail(email));
@@ -95,7 +162,6 @@ export default function Users() {
 
   return (
     <div className="flex flex-col pb-28">
-      {/* Toast */}
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[200] px-5 py-3 rounded-2xl text-sm font-medium text-white slide-down"
           style={{ background: 'rgba(20,20,20,0.95)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)' }}>
@@ -104,7 +170,6 @@ export default function Users() {
       )}
 
       <div className="p-4 pt-6 flex flex-col gap-4">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold tracking-widest mb-1" style={{ color: '#3D7FFF', letterSpacing: '0.08em' }}>KULLANICI YÖNETİMİ</p>
@@ -115,7 +180,6 @@ export default function Users() {
           </button>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-2">
           {[
             { label: 'Toplam', val: totalUsers, color: '#ffffff' },
@@ -129,7 +193,6 @@ export default function Users() {
           ))}
         </div>
 
-        {/* Quick send */}
         <button
           onClick={() => { setModal('send'); setSendTarget(null); setSendForm({ toEmail: '', symbol: 'USDT', amount: '', notes: '' }); }}
           className="rounded-2xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform"
@@ -144,7 +207,6 @@ export default function Users() {
           </div>
         </button>
 
-        {/* Search */}
         <div className="relative">
           <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2" color="rgba(255,255,255,0.3)" />
           <input
@@ -156,7 +218,6 @@ export default function Users() {
           />
         </div>
 
-        {/* User list */}
         <div className="flex flex-col gap-2">
           {loading ? Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="skeleton rounded-2xl h-16" />
@@ -192,12 +253,12 @@ export default function Users() {
         <div className="fixed inset-0 z-[100]" onClick={() => setSelected(null)}>
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
           <div
-            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] rounded-t-3xl p-5 pb-8 slide-up"
-            style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.08)' }}
+            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] rounded-t-3xl p-5 pb-8 slide-up overflow-y-auto"
+            style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.08)', maxHeight: '90vh' }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Handle */}
             <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: 'rgba(255,255,255,0.15)' }} />
+
             {/* User info */}
             <div className="flex items-center gap-3 mb-5">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold" style={{ background: 'rgba(61,127,255,0.2)', color: '#3D7FFF' }}>
@@ -224,32 +285,168 @@ export default function Users() {
               <ActionBtn icon={selected.is_active ? <UserX size={16} /> : <UserCheck size={16} />} label={selected.is_active ? 'Devre Dışı' : 'Aktif Et'} color={selected.is_active ? '#FF4757' : '#00DC82'} onClick={() => handleToggleActive(selected)} />
             </div>
 
-            {/* Balances */}
-            <p className="text-xs font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.35)', letterSpacing: '0.08em' }}>BAKIYELER</p>
-            {balanceLoading ? (
-              <div className="skeleton rounded-xl h-12" />
-            ) : balances.length === 0 ? (
-              <p className="text-center py-4 text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>Bakiye bulunamadı</p>
-            ) : (
-              <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
-                {balances.map(b => (
-                  <div key={b.id} className="flex items-center justify-between px-3 py-2.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)' }}>
-                    <span className="text-sm font-semibold text-white">{b.symbol}</span>
-                    <div className="text-right">
-                      <p className="text-sm font-bold" style={{ color: '#F0B90B' }}>{parseFloat(String(b.balance)).toFixed(4)}</p>
-                      {parseFloat(String(b.locked_balance)) > 0 && (
-                        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>🔒 {parseFloat(String(b.locked_balance)).toFixed(4)}</p>
-                      )}
-                    </div>
+            {/* Tabs */}
+            <div className="flex gap-2 mb-4">
+              {(['balances', 'restrictions'] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setDetailTab(tab)}
+                  className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all"
+                  style={{
+                    background: detailTab === tab ? 'rgba(61,127,255,0.2)' : 'rgba(255,255,255,0.05)',
+                    color: detailTab === tab ? '#3D7FFF' : 'rgba(255,255,255,0.4)',
+                    border: detailTab === tab ? '1px solid rgba(61,127,255,0.3)' : '1px solid rgba(255,255,255,0.07)',
+                  }}
+                >
+                  {tab === 'balances' ? 'Bakiyeler' : 'Kısıtlamalar'}
+                </button>
+              ))}
+            </div>
+
+            {detailTab === 'balances' && (
+              <>
+                {balanceLoading ? (
+                  <div className="skeleton rounded-xl h-12" />
+                ) : balances.length === 0 ? (
+                  <p className="text-center py-4 text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>Bakiye bulunamadı</p>
+                ) : (
+                  <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+                    {balances.map(b => (
+                      <div key={b.id} className="flex items-center justify-between px-3 py-2.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                        <span className="text-sm font-semibold text-white">{b.symbol}</span>
+                        <div className="text-right">
+                          <p className="text-sm font-bold" style={{ color: '#F0B90B' }}>{parseFloat(String(b.balance)).toFixed(4)}</p>
+                          {parseFloat(String(b.locked_balance)) > 0 && (
+                            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>🔒 {parseFloat(String(b.locked_balance)).toFixed(4)}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                )}
+                <p className="text-xs text-center mt-4" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                  Kayıt: {selected.created_at ? new Date(selected.created_at).toLocaleString('tr-TR') : '—'}
+                </p>
+              </>
             )}
 
-            {/* Registration date */}
-            <p className="text-xs text-center mt-4" style={{ color: 'rgba(255,255,255,0.2)' }}>
-              Kayıt: {selected.created_at ? new Date(selected.created_at).toLocaleString('tr-TR') : '—'}
-            </p>
+            {detailTab === 'restrictions' && (
+              <div className="flex flex-col gap-4">
+                {restrictionsLoading ? (
+                  <div className="skeleton rounded-xl h-32" />
+                ) : (
+                  <>
+                    {restrictionError && (
+                      <div className="rounded-xl p-3 text-xs" style={{ background: 'rgba(255,71,87,0.1)', border: '1px solid rgba(255,71,87,0.25)', color: '#FF4757' }}>
+                        ⚠️ {restrictionError}
+                      </div>
+                    )}
+
+                    {/* Pair Lock Toggle */}
+                    <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Lock size={15} color="#FF4757" />
+                          <span className="text-sm font-semibold text-white">İşlem Kilidi</span>
+                        </div>
+                        <button
+                          onClick={() => setRestrictionForm(f => ({ ...f, pair_lock_enabled: !f.pair_lock_enabled }))}
+                          className="w-11 h-6 rounded-full relative transition-colors"
+                          style={{ background: restrictionForm.pair_lock_enabled ? '#FF4757' : 'rgba(255,255,255,0.12)' }}
+                        >
+                          <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
+                            style={{ left: restrictionForm.pair_lock_enabled ? '22px' : '2px' }} />
+                        </button>
+                      </div>
+                      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                        Etkinleştirildiğinde kullanıcı yalnızca seçilen pariteler üzerinden işlem yapabilir. USDT satışı engellenir.
+                      </p>
+
+                      {restrictionForm.pair_lock_enabled && (
+                        <div className="mt-3">
+                          <p className="text-xs font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.5)', letterSpacing: '0.06em' }}>İZİN VERİLEN PARİTELER</p>
+                          <div className="flex flex-wrap gap-2">
+                            {TRADEABLE_PAIRS.map(pair => (
+                              <button
+                                key={pair}
+                                onClick={() => togglePair(pair)}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                                style={{
+                                  background: restrictionForm.allowed_pairs.includes(pair) ? 'rgba(255,71,87,0.2)' : 'rgba(255,255,255,0.06)',
+                                  border: restrictionForm.allowed_pairs.includes(pair) ? '1px solid rgba(255,71,87,0.5)' : '1px solid rgba(255,255,255,0.1)',
+                                  color: restrictionForm.allowed_pairs.includes(pair) ? '#FF4757' : 'rgba(255,255,255,0.5)',
+                                }}
+                              >
+                                {pair}
+                              </button>
+                            ))}
+                          </div>
+                          {restrictionForm.allowed_pairs.length === 0 && (
+                            <p className="text-xs mt-2" style={{ color: 'rgba(255,165,0,0.8)' }}>⚠️ En az bir parite seçin</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Withdrawal Settings */}
+                    <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <ShieldAlert size={15} color="#F0B90B" />
+                        <span className="text-sm font-semibold text-white">Çekim Ayarları</span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs mb-1 block" style={{ color: 'rgba(255,255,255,0.4)' }}>Çekim Varlığı (Kilitli kullanıcılar için)</label>
+                          <select
+                            value={restrictionForm.withdrawal_asset}
+                            onChange={e => setRestrictionForm(f => ({ ...f, withdrawal_asset: e.target.value }))}
+                            className="w-full rounded-xl px-3 py-2.5 text-sm text-white outline-none"
+                            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
+                          >
+                            {['BTC','ETH','BNB','USDT'].map(s => <option key={s} value={s} className="bg-gray-900">{s}</option>)}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-xs mb-1 block" style={{ color: 'rgba(255,255,255,0.4)' }}>Özel USDT Çekim Ücreti</label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={restrictionForm.withdrawal_fee_usdt}
+                              onChange={e => setRestrictionForm(f => ({ ...f, withdrawal_fee_usdt: parseFloat(e.target.value) || 0 }))}
+                              className="w-full rounded-xl px-3 py-2.5 pr-16 text-sm text-white outline-none"
+                              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>USDT</span>
+                          </div>
+                          <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                            0 = varsayılan ücret geçerli. Pozitif değer kullanıcı bu ücreti ödemeden çekim yapamaz.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {restrictions && (
+                      <div className="rounded-xl px-3 py-2 text-xs" style={{ background: 'rgba(0,220,130,0.08)', border: '1px solid rgba(0,220,130,0.2)', color: 'rgba(0,220,130,0.8)' }}>
+                        ✓ Kısıtlamalar aktif — Kilit: {restrictions.pair_lock_enabled ? 'Açık' : 'Kapalı'} · Ücret: {restrictions.withdrawal_fee_usdt} USDT
+                      </div>
+                    )}
+
+                    <button
+                      onClick={handleSaveRestrictions}
+                      disabled={restrictionSaving}
+                      className="w-full py-3.5 rounded-2xl text-sm font-bold transition-opacity"
+                      style={{ background: '#F0B90B', color: '#000', opacity: restrictionSaving ? 0.6 : 1 }}
+                    >
+                      {restrictionSaving ? 'Kaydediliyor…' : 'Kısıtlamaları Kaydet'}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

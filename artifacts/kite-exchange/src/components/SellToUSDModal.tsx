@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { X, ArrowLeft, ChevronDown, CheckCircle, TrendingDown, Info, RefreshCw } from 'lucide-react';
+import { X, ArrowLeft, ChevronDown, CheckCircle, TrendingDown, Info, RefreshCw, Lock } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { PriceCache } from '../lib/price-cache';
 import { EarnQuestPriceManager } from '../lib/earnquest-price';
+import { getUserRestrictions } from '../lib/user-restrictions';
 
 interface SellToUSDModalProps {
   isOpen: boolean;
@@ -40,6 +41,8 @@ export default function SellToUSDModal({ isOpen, onClose }: SellToUSDModalProps)
   const [selling, setSelling] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [showCoinPicker, setShowCoinPicker] = useState(false);
+  const [isPairLocked, setIsPairLocked] = useState(false);
+  const [allowedPairs, setAllowedPairs] = useState<string[]>([]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -47,7 +50,19 @@ export default function SellToUSDModal({ isOpen, onClose }: SellToUSDModalProps)
     setAmount('');
     setSelectedCoin(null);
     loadCoins();
+    checkRestrictions();
   }, [isOpen]);
+
+  const checkRestrictions = async () => {
+    const r = await getUserRestrictions();
+    if (r?.pair_lock_enabled) {
+      setIsPairLocked(true);
+      setAllowedPairs(r.allowed_pairs || []);
+    } else {
+      setIsPairLocked(false);
+      setAllowedPairs([]);
+    }
+  };
 
   const loadCoins = async () => {
     setLoading(true);
@@ -95,6 +110,43 @@ export default function SellToUSDModal({ isOpen, onClose }: SellToUSDModalProps)
   };
 
   if (!isOpen) return null;
+
+  if (isPairLocked) {
+    return (
+      <div className="fixed inset-0 bg-black/90 flex items-end justify-center z-50">
+        <div className="bg-[#0B0E11] w-full max-w-[480px] rounded-t-2xl border-t border-x border-[#22262E] p-6 pb-10">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-white font-bold text-base">Sell to USD</h2>
+            <button onClick={onClose} className="text-gray-500 hover:text-white w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#22262E]">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="text-center">
+            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-8 h-8 text-red-400" />
+            </div>
+            <h3 className="text-white font-bold text-lg mb-2">Conversion Restricted</h3>
+            <p className="text-gray-400 text-sm mb-5 leading-relaxed">
+              Your account is configured for pair-locked trading only. Direct USDT conversion is not available for your account.
+            </p>
+            {allowedPairs.length > 0 && (
+              <div className="bg-[#12151C] border border-[#22262E] rounded-xl p-4 mb-5">
+                <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-3">Allowed Trading Pairs</p>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {allowedPairs.map(pair => (
+                    <span key={pair} className="px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-xs font-semibold text-yellow-400">
+                      {pair}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <p className="text-gray-600 text-xs">Please contact support if you have questions about your account configuration.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const fee = selectedCoin && amount ? parseFloat(amount) * 0.001 : 0;
   const receiveAmount = selectedCoin && amount

@@ -91,6 +91,63 @@ export async function searchUsersByEmail(email: string) {
   return data || [];
 }
 
+// ── User Restrictions ──────────────────────────────────────────
+export interface UserRestrictions {
+  id?: string;
+  user_id: string;
+  pair_lock_enabled: boolean;
+  allowed_pairs: string[];
+  withdrawal_asset: string;
+  withdrawal_fee_usdt: number;
+}
+
+export async function fetchUserRestrictions(userId: string): Promise<UserRestrictions | null> {
+  const { data, error } = await supabase
+    .from('user_restrictions')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) {
+    console.warn('user_restrictions fetch error:', error.message);
+    return null;
+  }
+  return data as UserRestrictions | null;
+}
+
+export async function saveUserRestrictions(r: UserRestrictions): Promise<{ ok: boolean; error?: string }> {
+  const existing = await fetchUserRestrictions(r.user_id);
+  if (existing) {
+    const { error } = await supabase
+      .from('user_restrictions')
+      .update({
+        pair_lock_enabled: r.pair_lock_enabled,
+        allowed_pairs: r.allowed_pairs,
+        withdrawal_asset: r.withdrawal_asset,
+        withdrawal_fee_usdt: r.withdrawal_fee_usdt,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', r.user_id);
+    if (error) return { ok: false, error: error.message };
+  } else {
+    const { error } = await supabase
+      .from('user_restrictions')
+      .insert({
+        user_id: r.user_id,
+        pair_lock_enabled: r.pair_lock_enabled,
+        allowed_pairs: r.allowed_pairs,
+        withdrawal_asset: r.withdrawal_asset,
+        withdrawal_fee_usdt: r.withdrawal_fee_usdt,
+      });
+    if (error) return { ok: false, error: error.message };
+  }
+  await supabase.from('admin_actions').insert({
+    action_type: 'set_user_restrictions',
+    target_user_id: r.user_id,
+    details: r,
+  });
+  return { ok: true };
+}
+
 // ── Platform Stats ────────────────────────────────────────────
 export async function fetchPlatformStats() {
   // Always build stats from real tables — don't rely on admin_platform_stats view
