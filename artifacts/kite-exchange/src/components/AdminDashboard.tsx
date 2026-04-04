@@ -427,7 +427,7 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                           placeholder={sendCoin[user.id] ? `${sendCoin[user.id]} miktarı...` : 'Önce coin seç'}
                           value={sendAmt[user.id] || ''}
                           onChange={e => setSendAmt(prev => ({ ...prev, [user.id]: e.target.value }))}
-                          className="flex-1 px-3 py-2.5 border-2 border-gray-300 rounded-xl text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                          className="flex-1 px-3 py-2.5 border-2 border-gray-800 rounded-xl text-sm font-black text-center bg-gray-900 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
                         />
                         <button
                           onClick={() => doSend(user.id)}
