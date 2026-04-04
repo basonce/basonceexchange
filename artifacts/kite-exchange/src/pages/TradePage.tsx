@@ -24,6 +24,8 @@ import TradingDataTab from '../components/TradingDataTab';
 import { getEQVolume } from '../lib/eq-volume-service';
 import { getCachedTradFiPrice, startTradFiPriceUpdater } from '../lib/tradfi-price-service';
 import MetalIcon, { isMetalSymbol } from '../components/MetalIcon';
+import { getUserRestrictions } from '../lib/user-restrictions';
+import type { UserRestrictions } from '../lib/user-restrictions';
 
 // ─── Metal × BTC/ETH cross pairs (Spot) ──────────────────────────────────────
 interface MetalCrossPair {
@@ -182,6 +184,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
   const [btcBalance, setBtcBalance] = useState(0);
   const [ethBalance, setEthBalance] = useState(0);
   const [selectorMarketTab, setSelectorMarketTab] = useState<'crypto' | 'metals'>('crypto');
+  const [userRestrictions, setUserRestrictions] = useState<UserRestrictions | null>(null);
   const priceManager = useRef(EarnQuestPriceManager.getInstance());
   const orderBookScrollRef = useRef<HTMLDivElement>(null);
   const orderBookPriceRef = useRef<HTMLDivElement>(null);
@@ -324,6 +327,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         loadBalances(session.user.id);
+        getUserRestrictions().then(r => setUserRestrictions(r));
       }
     });
 
@@ -331,6 +335,9 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         loadBalances(session.user.id);
+        getUserRestrictions().then(r => setUserRestrictions(r));
+      } else {
+        setUserRestrictions(null);
       }
     });
 
@@ -641,6 +648,18 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
   const handleTrade = async () => {
     setTradeError('');
     setTradeSuccess('');
+
+    // ── Pair Lock check ───────────────────────────────────────────
+    if (userRestrictions?.pair_lock_enabled) {
+      const metalInfo = getMetalCross(selectedSymbol);
+      const pairKey = metalInfo
+        ? `${metalInfo.base}/${metalInfo.quote}`
+        : `${selectedSymbol}/USDT`;
+      if (!userRestrictions.allowed_pairs.includes(pairKey)) {
+        setTradeError(`Bu parite kilitli. Yalnızca şu paritelerle işlem yapabilirsiniz: ${userRestrictions.allowed_pairs.join(', ')}`);
+        return;
+      }
+    }
 
     const amountValue = parseFloat(amount);
     if (!amountValue || amountValue <= 0) {
@@ -1390,25 +1409,54 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                 </div>
               </div>
 
+              {/* Pair Lock Banner */}
+              {(() => {
+                if (!userRestrictions?.pair_lock_enabled) return null;
+                const metalInfo = getMetalCross(selectedSymbol);
+                const pairKey = metalInfo ? `${metalInfo.base}/${metalInfo.quote}` : `${selectedSymbol}/USDT`;
+                const isAllowed = userRestrictions.allowed_pairs.includes(pairKey);
+                if (isAllowed) return null;
+                return (
+                  <div className="mb-3 rounded-lg px-3 py-2.5 flex items-start gap-2" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)' }}>
+                    <span className="text-red-400 mt-0.5 flex-shrink-0">🔒</span>
+                    <div>
+                      <p className="text-[12px] font-bold text-red-400">Parite Kilitli</p>
+                      <p className="text-[11px] text-red-400/70 mt-0.5">
+                        {userRestrictions.allowed_pairs.length > 0
+                          ? `İzin verilen: ${userRestrictions.allowed_pairs.join(' · ')}`
+                          : 'Hiçbir parite ile işlem yapma izniniz yok'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {tradeError && (
-                <div className="mb-3 bg-[#F6465D]/10 border border-[#F6465D]/50 rounded px-3 py-2 text-[#F6465D]">
+                <div className="mb-3 bg-[#F6465D]/10 border border-[#F6465D]/50 rounded px-3 py-2 text-[#F6465D] text-[12px]">
                   {tradeError}
                 </div>
               )}
 
               {tradeSuccess && (
-                <div className="mb-3 bg-[#0ECB81]/10 border border-[#0ECB81]/50 rounded px-3 py-2 text-[#0ECB81]">
+                <div className="mb-3 bg-[#0ECB81]/10 border border-[#0ECB81]/50 rounded px-3 py-2 text-[#0ECB81] text-[12px]">
                   {tradeSuccess}
                 </div>
               )}
 
-              <button
-                onClick={handleTrade}
-                disabled={loading || !amount || parseFloat(amount) <= 0}
-                className={`w-full py-3 rounded text-[14px] font-bold transition-all ${ tradeSide === 'buy' ? 'bg-[#0ECB81] hover:bg-[#0ECB81]/90 text-white' : 'bg-[#F6465D] hover:bg-[#F6465D]/90 text-white' } disabled:opacity-50`}
-              >
-                {loading ? 'Processing...' : `${tradeSide === 'buy' ? 'Buy' : 'Sell'} ${selectedSymbol}`}
-              </button>
+              {(() => {
+                const metalInfo = getMetalCross(selectedSymbol);
+                const pairKey = metalInfo ? `${metalInfo.base}/${metalInfo.quote}` : `${selectedSymbol}/USDT`;
+                const isPairBlocked = userRestrictions?.pair_lock_enabled && !userRestrictions.allowed_pairs.includes(pairKey);
+                return (
+                  <button
+                    onClick={handleTrade}
+                    disabled={loading || !amount || parseFloat(amount) <= 0 || !!isPairBlocked}
+                    className={`w-full py-3 rounded text-[14px] font-bold transition-all ${ tradeSide === 'buy' ? 'bg-[#0ECB81] hover:bg-[#0ECB81]/90 text-white' : 'bg-[#F6465D] hover:bg-[#F6465D]/90 text-white' } disabled:opacity-50`}
+                  >
+                    {loading ? 'Processing...' : isPairBlocked ? '🔒 Kilitli Parite' : `${tradeSide === 'buy' ? 'Buy' : 'Sell'} ${selectedSymbol}`}
+                  </button>
+                );
+              })()}
             </div>
           </div>
 
