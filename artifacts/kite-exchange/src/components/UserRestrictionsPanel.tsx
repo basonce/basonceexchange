@@ -184,14 +184,43 @@ export default function UserRestrictionsPanel() {
               </div>
 
               {form.pair_lock_enabled ? (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold" style={{ background: 'rgba(239,68,68,0.15)', color: '#F87171' }}>
-                  <Lock className="w-3.5 h-3.5" />
-                  Kilitli — sadece seçilen pariteler aktif
+                <div className="rounded-xl p-3 space-y-2" style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                  <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: '#F87171' }}>
+                    <Lock className="w-3.5 h-3.5 flex-shrink-0" />
+                    Kilitli — sadece seçilen pariteler aktif
+                  </div>
+                  {form.allowed_pairs.length > 0 ? (
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {form.allowed_pairs.map(p => (
+                        <span key={p} className="px-2 py-0.5 rounded-md text-[10px] font-bold" style={{ background: 'rgba(239,68,68,0.18)', color: '#FCA5A5', border: '1px solid rgba(239,68,68,0.3)' }}>
+                          {p}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11px]" style={{ color: 'rgba(252,165,165,0.6)' }}>Henüz parite seçilmedi</p>
+                  )}
                 </div>
               ) : (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold" style={{ background: 'rgba(34,197,94,0.1)', color: '#4ADE80' }}>
-                  <Unlock className="w-3.5 h-3.5" />
-                  Serbest — tüm pariteler açık
+                <div className="rounded-xl p-3 space-y-2" style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)' }}>
+                  <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: '#4ADE80' }}>
+                    <Unlock className="w-3.5 h-3.5 flex-shrink-0" />
+                    Serbest — tüm pariteler açık
+                  </div>
+                  {form.allowed_pairs.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px]" style={{ color: 'rgba(74,222,128,0.55)' }}>
+                        Kilit açıldığında kısıtlanacak pariteler ({form.allowed_pairs.length}):
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {form.allowed_pairs.map(p => (
+                          <span key={p} className="px-2 py-0.5 rounded-md text-[10px] font-bold" style={{ background: 'rgba(34,197,94,0.1)', color: 'rgba(74,222,128,0.7)', border: '1px solid rgba(34,197,94,0.2)' }}>
+                            {p}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
