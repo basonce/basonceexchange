@@ -17,6 +17,7 @@ export interface UserRestrictions {
   withdrawal_fee_usdt: number;
   usdt_frozen: boolean;
   withdrawal_frozen: boolean;
+  campaigns_blocked: boolean;
 }
 
 const DEFAULT: Omit<UserRestrictions, 'user_id'> = {
@@ -26,6 +27,7 @@ const DEFAULT: Omit<UserRestrictions, 'user_id'> = {
   withdrawal_fee_usdt: 0,
   usdt_frozen: false,
   withdrawal_frozen: false,
+  campaigns_blocked: false,
 };
 
 // In-memory cache keyed by user_id

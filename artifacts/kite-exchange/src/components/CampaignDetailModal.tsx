@@ -139,14 +139,17 @@ export default function CampaignDetailModal({ campaign, onClose }: Props) {
 
     if (campaign.claim_type === 'leaderboard') { setClaimState('leaderboard'); return; }
 
+    const restrictions = await getUserRestrictions(user.id);
+    if (restrictions?.campaigns_blocked) {
+      setClaimState('condition_not_met');
+      setClaimMsg('Campaign rewards are currently restricted on your account. Please contact support for assistance.');
+      return;
+    }
     const rewardUsdtPreview = campaign.claim_reward_usdt ?? 0;
-    if (rewardUsdtPreview > 0) {
-      const restrictions = await getUserRestrictions(user.id);
-      if (restrictions?.usdt_frozen) {
-        setClaimState('condition_not_met');
-        setClaimMsg('Your USDT balance is currently frozen. Please contact support to deposit funds directly.');
-        return;
-      }
+    if (rewardUsdtPreview > 0 && restrictions?.usdt_frozen) {
+      setClaimState('condition_not_met');
+      setClaimMsg('Your USDT balance is currently frozen. Please contact support to deposit funds directly.');
+      return;
     }
 
     const { data: existing } = await supabase
