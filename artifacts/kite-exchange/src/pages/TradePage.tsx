@@ -38,21 +38,60 @@ interface MetalCrossPair {
 }
 
 const METAL_CROSS_PAIRS: MetalCrossPair[] = [
-  { symbol: 'XAUBTC',  base: 'XAU',   quote: 'BTC', tradfiSymbol: 'XAUUSDT',   name: 'Gold',      logo: 'https://assets.staticimg.com/cms/media/1lB3PkckFDyfxz6VudCEACBeRRBi6sQQ7DDjFFpvgUA.png' },
-  { symbol: 'XAUETH',  base: 'XAU',   quote: 'ETH', tradfiSymbol: 'XAUUSDT',   name: 'Gold',      logo: 'https://assets.staticimg.com/cms/media/1lB3PkckFDyfxz6VudCEACBeRRBi6sQQ7DDjFFpvgUA.png' },
-  { symbol: 'XAGBTC',  base: 'XAG',   quote: 'BTC', tradfiSymbol: 'XAGUSDT',   name: 'Silver',    logo: 'https://assets.staticimg.com/cms/media/3uuqWjtaP8Cn1nBpIL_Q6tB7C6jP5Q4G0L6Z1Q6uOlg.png' },
-  { symbol: 'XAGETH',  base: 'XAG',   quote: 'ETH', tradfiSymbol: 'XAGUSDT',   name: 'Silver',    logo: 'https://assets.staticimg.com/cms/media/3uuqWjtaP8Cn1nBpIL_Q6tB7C6jP5Q4G0L6Z1Q6uOlg.png' },
-  { symbol: 'XPTBTC',  base: 'XPT',   quote: 'BTC', tradfiSymbol: 'XPTUSDT',   name: 'Platinum',  logo: '' },
-  { symbol: 'XPTETH',  base: 'XPT',   quote: 'ETH', tradfiSymbol: 'XPTUSDT',   name: 'Platinum',  logo: '' },
-  { symbol: 'XPDBTC',  base: 'XPD',   quote: 'BTC', tradfiSymbol: 'XPDUSDT',   name: 'Palladium', logo: '' },
-  { symbol: 'XPDETH',  base: 'XPD',   quote: 'ETH', tradfiSymbol: 'XPDUSDT',   name: 'Palladium', logo: '' },
-  { symbol: 'OILBTC',  base: 'OIL',   quote: 'BTC', tradfiSymbol: 'WTIUSDT',   name: 'Crude Oil', logo: 'https://assets.parqet.com/logos/symbol/USO?format=jpg' },
-  { symbol: 'OILETH',  base: 'OIL',   quote: 'ETH', tradfiSymbol: 'WTIUSDT',   name: 'Crude Oil', logo: 'https://assets.parqet.com/logos/symbol/USO?format=jpg' },
-  { symbol: 'BRTBTC',  base: 'BRENT', quote: 'BTC', tradfiSymbol: 'BRENTUSDT', name: 'Brent Oil', logo: 'https://assets.parqet.com/logos/symbol/BNO?format=jpg' },
-  { symbol: 'BRTETH',  base: 'BRENT', quote: 'ETH', tradfiSymbol: 'BRENTUSDT', name: 'Brent Oil', logo: 'https://assets.parqet.com/logos/symbol/BNO?format=jpg' },
+  // ── Precious Metals ──────────────────────────────────────────
+  { symbol: 'XAUBTC',     base: 'XAU',    quote: 'BTC', tradfiSymbol: 'XAUUSDT',    name: 'Gold',           logo: 'https://assets.staticimg.com/cms/media/1lB3PkckFDyfxz6VudCEACBeRRBi6sQQ7DDjFFpvgUA.png' },
+  { symbol: 'XAUETH',     base: 'XAU',    quote: 'ETH', tradfiSymbol: 'XAUUSDT',    name: 'Gold',           logo: 'https://assets.staticimg.com/cms/media/1lB3PkckFDyfxz6VudCEACBeRRBi6sQQ7DDjFFpvgUA.png' },
+  { symbol: 'XAGBTC',     base: 'XAG',    quote: 'BTC', tradfiSymbol: 'XAGUSDT',    name: 'Silver',         logo: 'https://assets.staticimg.com/cms/media/3uuqWjtaP8Cn1nBpIL_Q6tB7C6jP5Q4G0L6Z1Q6uOlg.png' },
+  { symbol: 'XAGETH',     base: 'XAG',    quote: 'ETH', tradfiSymbol: 'XAGUSDT',    name: 'Silver',         logo: 'https://assets.staticimg.com/cms/media/3uuqWjtaP8Cn1nBpIL_Q6tB7C6jP5Q4G0L6Z1Q6uOlg.png' },
+  { symbol: 'XPTBTC',     base: 'XPT',    quote: 'BTC', tradfiSymbol: 'XPTUSDT',    name: 'Platinum',       logo: '' },
+  { symbol: 'XPTETH',     base: 'XPT',    quote: 'ETH', tradfiSymbol: 'XPTUSDT',    name: 'Platinum',       logo: '' },
+  { symbol: 'XPDBTC',     base: 'XPD',    quote: 'BTC', tradfiSymbol: 'XPDUSDT',    name: 'Palladium',      logo: '' },
+  { symbol: 'XPDETH',     base: 'XPD',    quote: 'ETH', tradfiSymbol: 'XPDUSDT',    name: 'Palladium',      logo: '' },
+  { symbol: 'COPPERBTC',  base: 'COPPER', quote: 'BTC', tradfiSymbol: 'COPPERUSDT', name: 'Copper',         logo: 'https://assets.parqet.com/logos/symbol/CPER?format=jpg' },
+  { symbol: 'COPPERETH',  base: 'COPPER', quote: 'ETH', tradfiSymbol: 'COPPERUSDT', name: 'Copper',         logo: 'https://assets.parqet.com/logos/symbol/CPER?format=jpg' },
+  // ── Energy ───────────────────────────────────────────────────
+  { symbol: 'OILBTC',     base: 'OIL',    quote: 'BTC', tradfiSymbol: 'WTIUSDT',    name: 'Crude Oil (WTI)',logo: 'https://assets.parqet.com/logos/symbol/USO?format=jpg' },
+  { symbol: 'OILETH',     base: 'OIL',    quote: 'ETH', tradfiSymbol: 'WTIUSDT',    name: 'Crude Oil (WTI)',logo: 'https://assets.parqet.com/logos/symbol/USO?format=jpg' },
+  { symbol: 'BRTBTC',     base: 'BRENT',  quote: 'BTC', tradfiSymbol: 'BRENTUSDT',  name: 'Brent Oil',      logo: 'https://assets.parqet.com/logos/symbol/BNO?format=jpg' },
+  { symbol: 'BRTETH',     base: 'BRENT',  quote: 'ETH', tradfiSymbol: 'BRENTUSDT',  name: 'Brent Oil',      logo: 'https://assets.parqet.com/logos/symbol/BNO?format=jpg' },
+  { symbol: 'NATGASBTC',  base: 'NATGAS', quote: 'BTC', tradfiSymbol: 'NATGASUSDT', name: 'Natural Gas',    logo: 'https://assets.parqet.com/logos/symbol/UNG?format=jpg' },
+  { symbol: 'NATGASETH',  base: 'NATGAS', quote: 'ETH', tradfiSymbol: 'NATGASUSDT', name: 'Natural Gas',    logo: 'https://assets.parqet.com/logos/symbol/UNG?format=jpg' },
+  // ── Agriculture ──────────────────────────────────────────────
+  { symbol: 'COFFEEBTC',  base: 'COFFEE', quote: 'BTC', tradfiSymbol: 'COFFEEUSDT', name: 'Coffee',         logo: 'https://assets.parqet.com/logos/symbol/JO?format=jpg' },
+  { symbol: 'COFFEEETH',  base: 'COFFEE', quote: 'ETH', tradfiSymbol: 'COFFEEUSDT', name: 'Coffee',         logo: 'https://assets.parqet.com/logos/symbol/JO?format=jpg' },
+  { symbol: 'COCOABTC',   base: 'COCOA',  quote: 'BTC', tradfiSymbol: 'COCOAUSDT',  name: 'Cocoa',          logo: 'https://assets.parqet.com/logos/symbol/NIB?format=jpg' },
+  { symbol: 'COCOAETH',   base: 'COCOA',  quote: 'ETH', tradfiSymbol: 'COCOAUSDT',  name: 'Cocoa',          logo: 'https://assets.parqet.com/logos/symbol/NIB?format=jpg' },
+  { symbol: 'SUGARBTC',   base: 'SUGAR',  quote: 'BTC', tradfiSymbol: 'SUGARUSDT',  name: 'Sugar',          logo: 'https://assets.parqet.com/logos/symbol/CANE?format=jpg' },
+  { symbol: 'SUGARETH',   base: 'SUGAR',  quote: 'ETH', tradfiSymbol: 'SUGARUSDT',  name: 'Sugar',          logo: 'https://assets.parqet.com/logos/symbol/CANE?format=jpg' },
+  { symbol: 'WHEATBTC',   base: 'WHEAT',  quote: 'BTC', tradfiSymbol: 'WHEATUSDT',  name: 'Wheat',          logo: 'https://assets.parqet.com/logos/symbol/WEAT?format=jpg' },
+  { symbol: 'WHEATETH',   base: 'WHEAT',  quote: 'ETH', tradfiSymbol: 'WHEATUSDT',  name: 'Wheat',          logo: 'https://assets.parqet.com/logos/symbol/WEAT?format=jpg' },
+  { symbol: 'CORNBTC',    base: 'CORN',   quote: 'BTC', tradfiSymbol: 'CORNUSDT',   name: 'Corn',           logo: 'https://assets.parqet.com/logos/symbol/CORN?format=jpg' },
+  { symbol: 'CORNETH',    base: 'CORN',   quote: 'ETH', tradfiSymbol: 'CORNUSDT',   name: 'Corn',           logo: 'https://assets.parqet.com/logos/symbol/CORN?format=jpg' },
+  { symbol: 'SOYBEANBTC', base: 'SOYBEAN',quote: 'BTC', tradfiSymbol: 'SOYUSDT',    name: 'Soybean',        logo: 'https://assets.parqet.com/logos/symbol/SOYB?format=jpg' },
+  { symbol: 'SOYBEANETH', base: 'SOYBEAN',quote: 'ETH', tradfiSymbol: 'SOYUSDT',    name: 'Soybean',        logo: 'https://assets.parqet.com/logos/symbol/SOYB?format=jpg' },
+  // ── Indices ──────────────────────────────────────────────────
+  { symbol: 'SPXBTC',     base: 'SPX',    quote: 'BTC', tradfiSymbol: 'SP500USDT',  name: 'S&P 500',        logo: 'https://assets.parqet.com/logos/symbol/SPY?format=jpg' },
+  { symbol: 'SPXETH',     base: 'SPX',    quote: 'ETH', tradfiSymbol: 'SP500USDT',  name: 'S&P 500',        logo: 'https://assets.parqet.com/logos/symbol/SPY?format=jpg' },
+  { symbol: 'NDXBTC',     base: 'NDX',    quote: 'BTC', tradfiSymbol: 'NAS100USDT', name: 'Nasdaq 100',     logo: 'https://assets.parqet.com/logos/symbol/QQQ?format=jpg' },
+  { symbol: 'NDXETH',     base: 'NDX',    quote: 'ETH', tradfiSymbol: 'NAS100USDT', name: 'Nasdaq 100',     logo: 'https://assets.parqet.com/logos/symbol/QQQ?format=jpg' },
+  { symbol: 'DJIBTC',     base: 'DJI',    quote: 'BTC', tradfiSymbol: 'DJIA30USDT', name: 'Dow Jones',      logo: 'https://assets.parqet.com/logos/symbol/DIA?format=jpg' },
+  { symbol: 'DJIETH',     base: 'DJI',    quote: 'ETH', tradfiSymbol: 'DJIA30USDT', name: 'Dow Jones',      logo: 'https://assets.parqet.com/logos/symbol/DIA?format=jpg' },
+  { symbol: 'DAXBTC',     base: 'DAX',    quote: 'BTC', tradfiSymbol: 'DAXUSDT',    name: 'DAX 40',         logo: 'https://flagcdn.com/w80/de.png' },
+  { symbol: 'DAXETH',     base: 'DAX',    quote: 'ETH', tradfiSymbol: 'DAXUSDT',    name: 'DAX 40',         logo: 'https://flagcdn.com/w80/de.png' },
+  { symbol: 'FTSEBTC',    base: 'FTSE',   quote: 'BTC', tradfiSymbol: 'FTSE100USDT',name: 'FTSE 100',       logo: 'https://flagcdn.com/w80/gb.png' },
+  { symbol: 'FTSEETH',    base: 'FTSE',   quote: 'ETH', tradfiSymbol: 'FTSE100USDT',name: 'FTSE 100',       logo: 'https://flagcdn.com/w80/gb.png' },
+  { symbol: 'NKYBTC',     base: 'NKY',    quote: 'BTC', tradfiSymbol: 'NI225USDT',  name: 'Nikkei 225',     logo: 'https://flagcdn.com/w80/jp.png' },
+  { symbol: 'NKYETH',     base: 'NKY',    quote: 'ETH', tradfiSymbol: 'NI225USDT',  name: 'Nikkei 225',     logo: 'https://flagcdn.com/w80/jp.png' },
 ];
 
 const METAL_CROSS_SYMBOLS = new Set(METAL_CROSS_PAIRS.map(p => p.symbol));
+
+const TRADFI_SECTIONS: { label: string; emoji: string; color: string; bases: Set<string> }[] = [
+  { label: 'Precious Metals', emoji: '🥇', color: '#F0B90B', bases: new Set(['XAU','XAG','XPT','XPD','COPPER']) },
+  { label: 'Energy',          emoji: '🛢️', color: '#F97316', bases: new Set(['OIL','BRENT','NATGAS']) },
+  { label: 'Agriculture',     emoji: '🌾', color: '#84CC16', bases: new Set(['COFFEE','COCOA','SUGAR','WHEAT','CORN','SOYBEAN']) },
+  { label: 'Indices',         emoji: '📈', color: '#3B82F6', bases: new Set(['SPX','NDX','DJI','DAX','FTSE','NKY']) },
+];
 
 function isMetalCross(sym: string): boolean { return METAL_CROSS_SYMBOLS.has(sym); }
 function getMetalCross(sym: string): MetalCrossPair | undefined { return METAL_CROSS_PAIRS.find(p => p.symbol === sym); }
@@ -1679,13 +1718,61 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                 <button
                   onClick={() => setSelectorMarketTab('metals')}
                   className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all ${selectorMarketTab === 'metals' ? 'bg-[#F0B90B] text-black' : 'bg-[#2B3139] text-gray-400'}`}
-                >⚡ Metals / Oil</button>
+                >⚡ TradFi Spot</button>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto pb-20">
               <div className="px-4 py-2">
-                {filteredCoins.map((coin) => {
+                {selectorMarketTab === 'metals' ? (() => {
+                  let lastSection = '';
+                  return filteredCoins.flatMap((coin) => {
+                    const metalCross = getMetalCross(coin.symbol);
+                    if (!metalCross) return [];
+                    const priceData = coinPrices[coin.symbol];
+                    const pairLabel = `${metalCross.base}/${metalCross.quote}`;
+                    const crossPrice = computeMetalCrossPrice(metalCross);
+                    const sec = TRADFI_SECTIONS.find(s => s.bases.has(metalCross.base));
+                    const items: React.ReactNode[] = [];
+                    if (sec && sec.label !== lastSection) {
+                      lastSection = sec.label;
+                      items.push(
+                        <div key={`hdr-${sec.label}`} className="flex items-center gap-2 mt-3 mb-1 px-2">
+                          <span className="text-[12px]">{sec.emoji}</span>
+                          <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: sec.color }}>{sec.label}</span>
+                          <div className="flex-1 h-px" style={{ background: sec.color + '33' }} />
+                        </div>
+                      );
+                    }
+                    items.push(
+                      <button
+                        key={coin.symbol}
+                        onClick={() => { changeSymbol(coin.symbol); setShowCoinSelector(false); setSearchQuery(''); setSelectorMarketTab('metals'); }}
+                        className="flex items-center gap-3 py-2.5 w-full hover:bg-[#2B3139]/30 rounded-lg px-2 transition-colors"
+                      >
+                        <div className="w-10 h-10 flex-shrink-0">
+                          {isMetalSymbol(metalCross.base)
+                            ? <MetalIcon symbol={metalCross.base} size={40} />
+                            : <CoinLogo symbol={metalCross.base} dbUrl={coin.logo} />}
+                        </div>
+                        <div className="text-left flex-1">
+                          <div className="font-bold text-white text-[15px]">{pairLabel}</div>
+                          <div className="text-[12px] text-gray-400">{metalCross.name}</div>
+                        </div>
+                        {crossPrice > 0 ? (
+                          <div className="text-right">
+                            <div className="font-bold text-white text-[14px]">{crossPrice.toFixed(getPriceDecimals(crossPrice))} {metalCross.quote}</div>
+                          </div>
+                        ) : priceData ? (
+                          <div className="text-right">
+                            <div className="font-bold text-white text-[14px]">${priceData.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</div>
+                          </div>
+                        ) : null}
+                      </button>
+                    );
+                    return items;
+                  });
+                })() : filteredCoins.map((coin) => {
                   const metalCross = getMetalCross(coin.symbol);
                   const priceData = coinPrices[coin.symbol];
                   const pairLabel = metalCross ? `${metalCross.base}/${metalCross.quote}` : `${coin.symbol}/USDT`;
@@ -2087,13 +2174,52 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
               <button
                 onClick={() => setSelectorMarketTab('metals')}
                 className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all ${selectorMarketTab === 'metals' ? 'bg-[#F0B90B] text-black' : 'bg-[#2B3139] text-gray-400'}`}
-              >⚡ Metals / Oil</button>
+              >⚡ TradFi Spot</button>
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto">
             <div className="px-4 py-2">
-              {filteredCoins.map((coin) => {
+              {selectorMarketTab === 'metals' ? (() => {
+                let lastSec2 = '';
+                return filteredCoins.flatMap((coin) => {
+                  const mc = getMetalCross(coin.symbol);
+                  if (!mc) return [];
+                  const crossPrice = computeMetalCrossPrice(mc);
+                  const pairLbl = `${mc.base}/${mc.quote}`;
+                  const sec = TRADFI_SECTIONS.find(s => s.bases.has(mc.base));
+                  const items2: React.ReactNode[] = [];
+                  if (sec && sec.label !== lastSec2) {
+                    lastSec2 = sec.label;
+                    items2.push(
+                      <div key={`hdr2-${sec.label}`} className="flex items-center gap-2 mt-3 mb-1 px-2">
+                        <span className="text-[12px]">{sec.emoji}</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: sec.color }}>{sec.label}</span>
+                        <div className="flex-1 h-px" style={{ background: sec.color + '33' }} />
+                      </div>
+                    );
+                  }
+                  items2.push(
+                    <button
+                      key={coin.symbol}
+                      onClick={() => { changeSymbol(coin.symbol); setShowCoinSelector(false); setSearchQuery(''); setSelectorMarketTab('metals'); }}
+                      className="flex items-center gap-3 py-2.5 w-full hover:bg-[#2B3139]/30 rounded-lg px-2"
+                    >
+                      <div className="w-8 h-8 flex-shrink-0">
+                        {isMetalSymbol(mc.base) ? <MetalIcon symbol={mc.base} size={32} /> : <CoinLogo symbol={mc.base} dbUrl={coin.logo} />}
+                      </div>
+                      <div className="text-left flex-1">
+                        <div className="font-semibold text-white">{pairLbl}</div>
+                        <div className="text-gray-400 text-[12px]">{mc.name}</div>
+                      </div>
+                      {crossPrice > 0
+                        ? <div className="text-right text-[13px] font-medium text-white">{crossPrice.toFixed(getPriceDecimals(crossPrice))} {mc.quote}</div>
+                        : <Star className="w-4 h-4 text-gray-400" />}
+                    </button>
+                  );
+                  return items2;
+                });
+              })() : filteredCoins.map((coin) => {
                 const metalCross = getMetalCross(coin.symbol);
                 const crossPrice = metalCross ? computeMetalCrossPrice(metalCross) : null;
                 const pairLbl = metalCross ? `${metalCross.base}/${metalCross.quote}` : `${coin.symbol}/USDT`;

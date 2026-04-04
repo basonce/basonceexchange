@@ -22,34 +22,64 @@ const WITHDRAWAL_ASSETS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'TR
 
 const PAIR_GROUPS: { label: string; emoji: string; color: string; pairs: string[] }[] = [
   {
+    label: 'Kripto',
+    emoji: '₿',
+    color: '#A855F7',
+    pairs: ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'XRP/USDT', 'ADA/USDT', 'DOGE/USDT', 'AVAX/USDT', 'LINK/USDT', 'ETH/BTC', 'BNB/BTC', 'SOL/BTC', 'XRP/BTC', 'ADA/BTC'],
+  },
+  {
     label: 'Değerli Metaller',
     emoji: '🥇',
     color: '#F0B90B',
-    pairs: ['XAU/BTC', 'XAG/BTC', 'XPT/BTC', 'XAU/USDT', 'XAG/USDT', 'XPT/USDT', 'XPD/USDT', 'COPPER/USDT'],
+    pairs: [
+      'XAU/BTC', 'XAU/ETH', 'XAU/USDT',
+      'XAG/BTC', 'XAG/ETH', 'XAG/USDT',
+      'XPT/BTC', 'XPT/ETH', 'XPT/USDT',
+      'XPD/BTC', 'XPD/ETH', 'XPD/USDT',
+      'COPPER/BTC', 'COPPER/ETH', 'COPPER/USDT',
+    ],
   },
   {
-    label: 'Emtia',
+    label: 'Enerji',
     emoji: '🛢️',
     color: '#F97316',
-    pairs: ['WTI/USDT', 'BRENT/USDT', 'NATGAS/USDT', 'COFFEE/USDT', 'COCOA/USDT', 'SUGAR/USDT', 'WHEAT/USDT', 'CORN/USDT', 'SOYBEAN/USDT'],
+    pairs: [
+      'OIL/BTC',   'OIL/ETH',   'WTI/USDT',
+      'BRENT/BTC', 'BRENT/ETH', 'BRENT/USDT',
+      'NATGAS/BTC','NATGAS/ETH','NATGAS/USDT',
+    ],
+  },
+  {
+    label: 'Tarım / Emtia',
+    emoji: '🌾',
+    color: '#84CC16',
+    pairs: [
+      'COFFEE/BTC',  'COFFEE/ETH',  'COFFEE/USDT',
+      'COCOA/BTC',   'COCOA/ETH',   'COCOA/USDT',
+      'SUGAR/BTC',   'SUGAR/ETH',   'SUGAR/USDT',
+      'WHEAT/BTC',   'WHEAT/ETH',   'WHEAT/USDT',
+      'CORN/BTC',    'CORN/ETH',    'CORN/USDT',
+      'SOYBEAN/BTC', 'SOYBEAN/ETH', 'SOYBEAN/USDT',
+    ],
   },
   {
     label: 'Endeksler',
     emoji: '📈',
     color: '#3B82F6',
-    pairs: ['SPX/USDT', 'NDX/USDT', 'DJI/USDT', 'DAX/USDT', 'FTSE/USDT', 'NKY/USDT'],
+    pairs: [
+      'SPX/BTC',  'SPX/ETH',  'SPX/USDT',
+      'NDX/BTC',  'NDX/ETH',  'NDX/USDT',
+      'DJI/BTC',  'DJI/ETH',  'DJI/USDT',
+      'DAX/BTC',  'DAX/ETH',  'DAX/USDT',
+      'FTSE/BTC', 'FTSE/ETH', 'FTSE/USDT',
+      'NKY/BTC',  'NKY/ETH',  'NKY/USDT',
+    ],
   },
   {
     label: 'Hisseler',
     emoji: '💹',
     color: '#2ECC71',
     pairs: ['TSLA/USDT', 'AAPL/USDT', 'NVDA/USDT', 'MSFT/USDT', 'AMZN/USDT', 'GOOGL/USDT', 'META/USDT', 'AMD/USDT', 'COIN/USDT', 'MSTR/USDT'],
-  },
-  {
-    label: 'Kripto',
-    emoji: '₿',
-    color: '#A855F7',
-    pairs: ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'XRP/USDT', 'ADA/USDT', 'DOGE/USDT', 'AVAX/USDT', 'LINK/USDT', 'ETH/BTC', 'BNB/BTC', 'SOL/BTC', 'XRP/BTC', 'ADA/BTC'],
   },
 ];
 
