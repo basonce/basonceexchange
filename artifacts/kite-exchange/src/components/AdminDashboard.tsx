@@ -102,7 +102,6 @@ type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wa
 
 // ── BTC-only pair list ───────────────────────────────────────
 const BTC_ONLY_PAIRS = [
-  'BTC/USDT',
   'ETH/BTC', 'BNB/BTC', 'SOL/BTC', 'XRP/BTC', 'ADA/BTC', 'DOGE/BTC', 'AVAX/BTC', 'LINK/BTC',
   'XAU/BTC', 'XAG/BTC', 'XPT/BTC', 'XPD/BTC', 'COPPER/BTC',
   'OIL/BTC', 'BRENT/BTC', 'NATGAS/BTC',

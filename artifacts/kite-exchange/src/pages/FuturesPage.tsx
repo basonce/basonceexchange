@@ -33,6 +33,8 @@ import {
 } from '../lib/futures-calculator';
 import { getProxiedLogoUrl } from '../lib/logo-utils';
 import { isTradFiSymbol, getTradFiAsset } from '../lib/tradfi-data';
+import { getUserRestrictions } from '../lib/user-restrictions';
+import type { UserRestrictions } from '../lib/user-restrictions';
 import { getCachedTradFiPrice, startTradFiPriceUpdater, subscribeTradFiPrice } from '../lib/tradfi-price-service';
 
 // Per-symbol volume cycling config — unique range & step for every TradFi asset
@@ -283,6 +285,7 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   const [userId, setUserId] = useState<string | null>(null);
+  const [userRestrictions, setUserRestrictions] = useState<UserRestrictions | null>(null);
   const [usdtBalance, setUsdtBalance] = useState(0);
   const [positions, setPositions] = useState<Position[]>([]);
   const [openOrders, setOpenOrders] = useState<Order[]>([]);
@@ -524,6 +527,7 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
           loadPositions(session.user.id),
           loadOpenOrders(session.user.id),
         ]);
+        getUserRestrictions().then(r => { if (r) setUserRestrictions(r); });
       }
     };
     initUser();
@@ -989,6 +993,20 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
     if (!userId || !amount) {
       alert('Please enter amount');
       return;
+    }
+
+    // ── Restriction checks ─────────────────────────────────────
+    if (userRestrictions?.usdt_frozen) {
+      alert('USDT trading is frozen on this account. Contact support.');
+      return;
+    }
+    if (userRestrictions?.pair_lock_enabled) {
+      const base = selectedSymbol.replace(/USDT$/i, '');
+      const pairKey = `${base}/USDT`;
+      if (!userRestrictions.allowed_pairs.includes(pairKey)) {
+        alert(`This pair is locked. You can only trade: ${userRestrictions.allowed_pairs.join(', ')}`);
+        return;
+      }
     }
 
     try {

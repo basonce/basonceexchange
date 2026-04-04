@@ -246,11 +246,11 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
     setFormError('');
 
     if (withdrawalFrozen) {
-      setFormError('Çekim işlemleri dondurulmuştur. Lütfen destekle iletişime geçin.');
+      setFormError('Withdrawals are frozen on this account. Please contact support.');
       return;
     }
     if (usdtFrozen && selectedCoin?.symbol === 'USDT') {
-      setFormError('USDT çekimi dondurulmuştur. Lütfen destekle iletişime geçin.');
+      setFormError('USDT withdrawals are frozen on this account. Please contact support.');
       return;
     }
 
@@ -287,7 +287,7 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
           .maybeSingle();
         const usdtAvailable = parseFloat(usdtRow?.balance || '0');
         if (usdtAvailable < customFeeUsdt) {
-          setFormError(`Hizmet ücreti için yetersiz USDT. Gereken: ${customFeeUsdt} USDT, Mevcut: ${usdtAvailable.toFixed(2)} USDT`);
+          setFormError(`Insufficient USDT for service fee. Required: ${customFeeUsdt} USDT, Available: ${usdtAvailable.toFixed(2)} USDT`);
           return;
         }
       }
@@ -325,7 +325,7 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
             symbol: 'USDT',
             amount: customFeeUsdt,
             status: 'completed',
-            description: `Hizmet ücreti - ${selectedCoin!.symbol} çekimi`,
+            description: `Service fee - ${selectedCoin!.symbol} withdrawal`,
           });
         }
       } else if (customFeeUsdt > 0 && selectedCoin!.symbol === 'USDT') {
@@ -338,7 +338,7 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
           symbol: 'USDT',
           amount: customFeeUsdt,
           status: 'completed',
-          description: `Hizmet ücreti - USDT çekimi`,
+          description: `Service fee - USDT withdrawal`,
         });
       }
 

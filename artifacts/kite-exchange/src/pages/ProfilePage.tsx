@@ -431,36 +431,36 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
           <div className="w-20 h-20 bg-blue-900/50 rounded-full flex items-center justify-center mb-5">
             <span className="text-4xl">❄️</span>
           </div>
-          <h2 className="text-white text-2xl font-black mb-2">Hesabınız Donduruldu</h2>
+          <h2 className="text-white text-2xl font-black mb-2">Your Account is Frozen</h2>
           <p className="text-gray-400 text-sm mb-5 max-w-xs">
-            {vipMembership?.freeze_reason || 'VIP üyelik ücretinizin süresi doldu. İşlem yapabilmek için ödemenizi gerçekleştiriniz.'}
+            {vipMembership?.freeze_reason || 'Your VIP membership fee is overdue. Please complete your payment to resume trading.'}
           </p>
           {vipMembership && (
             <div className="bg-[#1E2329] rounded-2xl p-5 w-full max-w-sm mb-5 border border-[#F0B90B]/30">
-              <div className="text-[#F0B90B] text-sm font-bold mb-3">💰 Ödeme Bilgileri</div>
+              <div className="text-[#F0B90B] text-sm font-bold mb-3">💰 Payment Details</div>
               <div className="space-y-2 text-left">
                 <div className="flex justify-between">
-                  <span className="text-gray-400 text-sm">Paket</span>
+                  <span className="text-gray-400 text-sm">Package</span>
                   <span className="text-white font-bold">{vipStyle?.emoji} {vipStyle?.label}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400 text-sm">Aidat</span>
+                  <span className="text-gray-400 text-sm">Fee</span>
                   <span className="text-green-400 font-black">${vipMembership.price_usdt?.toLocaleString()} USDT</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400 text-sm">Süre</span>
-                  <span className="text-white font-bold">{vipMembership.duration_months} ay</span>
+                  <span className="text-gray-400 text-sm">Duration</span>
+                  <span className="text-white font-bold">{vipMembership.duration_months} months</span>
                 </div>
               </div>
             </div>
           )}
-          <p className="text-gray-500 text-xs mb-4">Ödemenizi yaptıktan sonra destek ekibimize bildirin</p>
+          <p className="text-gray-500 text-xs mb-4">After payment, please notify our support team</p>
           <button
             onClick={() => { trackActivity('support_open', 'profile'); setShowSupportModal(true); }}
             className="w-full max-w-sm py-4 bg-[#F0B90B] text-black rounded-2xl font-black text-base flex items-center justify-center gap-2"
           >
             <MessageCircle className="w-5 h-5" />
-            Destek Ekibine Yaz
+            Contact Support
           </button>
         </div>
       )}
@@ -662,17 +662,17 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
               <div className="flex items-center gap-2">
                 <span className="text-lg">{vipStyle.emoji}</span>
                 <div>
-                  <p className="text-xs font-black" style={{ color: vipStyle.bg === '#FFD700' ? '#F0B90B' : vipStyle.bg }}>{vipStyle.label} Üyelik</p>
+                  <p className="text-xs font-black" style={{ color: vipStyle.bg === '#FFD700' ? '#F0B90B' : vipStyle.bg }}>{vipStyle.label} Membership</p>
                   <p className="text-[10px] text-gray-500">
-                    {new Date(vipMembership.starts_at).toLocaleDateString('tr-TR')} → {new Date(vipMembership.expires_at).toLocaleDateString('tr-TR')}
+                    {new Date(vipMembership.starts_at).toLocaleDateString('en-US')} → {new Date(vipMembership.expires_at).toLocaleDateString('en-US')}
                   </p>
                 </div>
               </div>
               <div className="text-right">
                 <p className={`text-xs font-black ${vipDaysLeft !== null && vipDaysLeft <= 30 ? 'text-amber-400' : 'text-green-400'}`}>
-                  {vipDaysLeft !== null && vipDaysLeft > 0 ? `${vipDaysLeft} gün kaldı` : 'Süresi doldu'}
+                  {vipDaysLeft !== null && vipDaysLeft > 0 ? `${vipDaysLeft} days left` : 'Expired'}
                 </p>
-                <p className="text-[10px] text-gray-500">{vipMembership.duration_months} aylık paket</p>
+                <p className="text-[10px] text-gray-500">{vipMembership.duration_months}-month package</p>
               </div>
             </div>
           )}
@@ -855,8 +855,8 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
               <div className="flex items-center gap-2">
                 <span className="text-2xl">👑</span>
                 <div>
-                  <h3 className="text-white font-black text-base">VIP Üyelik</h3>
-                  <p className="text-gray-400 text-xs">Kripto ile ödeme yapın, admin onaylasın</p>
+                  <h3 className="text-white font-black text-base">VIP Membership</h3>
+                  <p className="text-gray-400 text-xs">Pay with crypto, admin confirms</p>
                 </div>
               </div>
               <button onClick={() => setShowVipPayModal(false)} className="w-8 h-8 rounded-full bg-[#2B3139] flex items-center justify-center text-gray-400 hover:text-white">
@@ -870,9 +870,9 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
               {vipMembership && vipStyle && (
                 <div className="bg-[#F0B90B]/10 border border-[#F0B90B]/30 rounded-2xl p-4 flex items-center justify-between">
                   <div>
-                    <p className="text-[#F0B90B] font-black text-sm">{vipStyle.emoji} Mevcut Paketiniz: {vipStyle.label}</p>
+                    <p className="text-[#F0B90B] font-black text-sm">{vipStyle.emoji} Current Package: {vipStyle.label}</p>
                     <p className="text-gray-400 text-xs mt-0.5">
-                      {vipDaysLeft !== null && vipDaysLeft > 0 ? `${vipDaysLeft} gün kaldı` : '⚠️ Süresi doldu — yenileyebilirsiniz'}
+                      {vipDaysLeft !== null && vipDaysLeft > 0 ? `${vipDaysLeft} days left` : '⚠️ Expired — you can renew'}
                     </p>
                   </div>
                   <span className="text-2xl">{vipStyle.emoji}</span>
@@ -881,11 +881,11 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
 
               {/* How it works */}
               <div className="space-y-2">
-                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Nasıl çalışır?</p>
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">How it works</p>
                 {[
-                  { step: '1', text: 'Aşağıdaki cüzdan adresine USDT (TRC20) gönderin' },
-                  { step: '2', text: 'Destek ekibine TX ID ile yazın' },
-                  { step: '3', text: 'Admin ödemenizi onaylar, VIP üyeliğiniz aktif olur' },
+                  { step: '1', text: 'Send USDT (TRC20) to the wallet address below' },
+                  { step: '2', text: 'Contact support with your TX ID' },
+                  { step: '3', text: 'Admin confirms your payment and activates VIP membership' },
                 ].map(s => (
                   <div key={s.step} className="flex items-start gap-3 bg-[#2B3139] rounded-xl p-3">
                     <div className="w-6 h-6 rounded-full bg-[#F0B90B] text-black text-xs font-black flex items-center justify-center flex-shrink-0">{s.step}</div>
@@ -898,7 +898,7 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
               <div className="bg-[#2B3139] rounded-2xl p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-                  <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">USDT TRC20 Cüzdan Adresi</p>
+                  <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">USDT TRC20 Wallet Address</p>
                 </div>
                 <div className="bg-[#181A20] rounded-xl p-3 flex items-center justify-between gap-2 mb-3">
                   <p className="text-white text-xs font-mono break-all leading-relaxed">TLxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</p>
@@ -916,23 +916,23 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
                     }
                   </button>
                 </div>
-                {vipPayCopied && <p className="text-green-400 text-xs text-center font-semibold">✅ Adres kopyalandı!</p>}
+                {vipPayCopied && <p className="text-green-400 text-xs text-center font-semibold">✅ Address copied!</p>}
                 <div className="flex items-center gap-2 mt-2">
                   <div className="flex-1 h-px bg-[#363D47]"></div>
-                  <p className="text-gray-600 text-xs">Sadece TRC20 ağını kullanın</p>
+                  <p className="text-gray-600 text-xs">TRC20 network only</p>
                   <div className="flex-1 h-px bg-[#363D47]"></div>
                 </div>
               </div>
 
               {/* VIP packages info */}
               <div>
-                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">VIP Paketleri</p>
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">VIP Packages</p>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { level: 'VIP 1–3', duration: '6–12 ay', desc: 'Başlangıç' },
-                    { level: 'VIP 4–6', duration: '12–24 ay', desc: 'Orta Seviye' },
-                    { level: 'VIP 7–9', duration: '24–36 ay', desc: 'Üst Seviye' },
-                    { level: 'VIP 10', duration: '36+ ay', desc: 'Elite / Tam Erişim' },
+                    { level: 'VIP 1–3', duration: '6–12 months', desc: 'Starter' },
+                    { level: 'VIP 4–6', duration: '12–24 months', desc: 'Mid Level' },
+                    { level: 'VIP 7–9', duration: '24–36 months', desc: 'Advanced' },
+                    { level: 'VIP 10', duration: '36+ months', desc: 'Elite / Full Access' },
                   ].map(p => (
                     <div key={p.level} className="bg-[#2B3139] rounded-xl p-3">
                       <p className="text-[#F0B90B] text-xs font-black">{p.level}</p>
@@ -941,7 +941,7 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
                     </div>
                   ))}
                 </div>
-                <p className="text-gray-600 text-xs text-center mt-2">Fiyat bilgisi için destek ekibine yazın</p>
+                <p className="text-gray-600 text-xs text-center mt-2">Contact support for pricing information</p>
               </div>
 
               {/* Contact support */}
