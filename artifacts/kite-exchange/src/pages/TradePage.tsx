@@ -563,7 +563,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
     } else if (sliderValue === 0) {
       setAmount('');
     }
-  }, [sliderValue, tradeSide, usdtBalance, coinBalance, isManualAmountChange, unitPreference, currentPrice]);
+  }, [sliderValue, tradeSide, usdtBalance, btcBalance, ethBalance, coinBalance, isManualAmountChange, unitPreference, currentPrice]);
 
   const loadBalances = async (userId: string) => {
     const { data: balances } = await supabase
@@ -1348,7 +1348,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                     onClick={() => setShowUnitPreference(true)}
                     className="flex items-center gap-1 text-white hover:text-[#0ECB81] transition-colors bg-[#2B3139] px-2 py-1 rounded"
                   >
-                    {unitPreference === 'asset' ? selectedSymbol : 'USDT'}
+                    {unitPreference === 'asset' ? baseSymbol : (activeMetal ? quoteSymbol : 'USDT')}
                     <ChevronDown className="w-3 h-3" />
                   </button>
                 </div>
@@ -1422,9 +1422,11 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-[#5E6673]">Avbl <ChevronDown className="w-2.5 h-2.5 inline" /></span>
                   <span className="text-white flex items-center gap-1">
-                    {unitPreference === 'usdt'
-                      ? `${usdtBalance.toFixed(2)} USDT`
-                      : `${(tradeSide === 'buy' ? usdtBalance / currentPrice : coinBalance).toFixed(8)} ${selectedSymbol}`
+                    {activeMetal
+                      ? `${quoteBalance.toFixed(8)} ${quoteSymbol}`
+                      : unitPreference === 'usdt'
+                        ? `${usdtBalance.toFixed(2)} USDT`
+                        : `${(tradeSide === 'buy' ? usdtBalance / currentPrice : coinBalance).toFixed(8)} ${baseSymbol}`
                     }
                     <span className="bg-[#F0B90B] w-3.5 h-3.5 rounded-full flex items-center justify-center text-[10px] font-bold">+</span>
                   </span>
@@ -1432,18 +1434,24 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                 <div className="flex items-center justify-between">
                   <span className="text-[#5E6673]">{tradeSide === 'buy' ? 'Max Buy' : 'Max Sell'}</span>
                   <span className="text-white">
-                    {unitPreference === 'usdt'
-                      ? `${(tradeSide === 'buy' ? usdtBalance : coinBalance * currentPrice).toFixed(2)} USDT`
-                      : `${(tradeSide === 'buy' ? usdtBalance / currentPrice : coinBalance).toFixed(8)} ${selectedSymbol}`
+                    {activeMetal
+                      ? tradeSide === 'buy'
+                        ? `${currentPrice > 0 ? (quoteBalance / currentPrice).toFixed(8) : '0'} ${baseSymbol}`
+                        : `${coinBalance.toFixed(8)} ${baseSymbol}`
+                      : unitPreference === 'usdt'
+                        ? `${(tradeSide === 'buy' ? usdtBalance : coinBalance * currentPrice).toFixed(2)} USDT`
+                        : `${(tradeSide === 'buy' ? usdtBalance / currentPrice : coinBalance).toFixed(8)} ${baseSymbol}`
                     }
                   </span>
                 </div>
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-[#5E6673]">Est. Fee</span>
                   <span className="text-white">
-                    {unitPreference === 'usdt'
-                      ? `${((parseFloat(amount) || 0) * 0.001).toFixed(2)} USDT`
-                      : `${(((parseFloat(amount) || 0) / (unitPreference === 'usdt' ? currentPrice : 1)) * 0.001).toFixed(8)} ${selectedSymbol}`
+                    {activeMetal
+                      ? `${(((parseFloat(amount) || 0)) * 0.001).toFixed(8)} ${baseSymbol}`
+                      : unitPreference === 'usdt'
+                        ? `${((parseFloat(amount) || 0) * 0.001).toFixed(2)} USDT`
+                        : `${(((parseFloat(amount) || 0) / (unitPreference === 'usdt' ? currentPrice : 1)) * 0.001).toFixed(8)} ${baseSymbol}`
                     }
                   </span>
                 </div>

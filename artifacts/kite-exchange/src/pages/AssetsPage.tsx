@@ -10,15 +10,27 @@ import SendMethodModal from '../components/SendMethodModal';
 import TransferModal from '../components/TransferModal';
 import { WalletConnect } from '../components/WalletConnect';
 import CoinLogo from '../components/CoinLogo';
+import MetalIcon, { isMetalSymbol } from '../components/MetalIcon';
+import TradFiIcon, { isTradFiIcon } from '../components/TradFiIcon';
+import { getCachedTradFiPrice } from '../lib/tradfi-price-service';
 import { BlockchainTransactionHistory } from '../components/BlockchainTransactionHistory';
+
 import PositionsPanel from '../components/PositionsPanel';
 import TradingHistory from '../components/TradingHistory';
 import { TradingService } from '../lib/trading-service';
 import { RealtimePnLService, RealtimePnL } from '../lib/realtime-pnl-service';
+
 import PnLDropdown from '../components/PnLDropdown';
 import { EarnQuestPriceManager } from '../lib/earnquest-price';
 import { PriceCache } from '../lib/price-cache';
 import WithdrawalProcessingBanner from '../components/WithdrawalProcessingBanner';
+
+const TRADFI_NAMES: Record<string, string> = {
+  XAU: 'Gold', XAG: 'Silver', XPT: 'Platinum', XPD: 'Palladium', COPPER: 'Copper',
+  OIL: 'WTI Crude Oil', BRENT: 'Brent Crude', NATGAS: 'Natural Gas',
+  COFFEE: 'Coffee', COCOA: 'Cocoa', SUGAR: 'Sugar', WHEAT: 'Wheat', CORN: 'Corn', SOYBEAN: 'Soybean',
+  SPX: 'S&P 500', NDX: 'Nasdaq 100', DJI: 'Dow Jones', DAX: 'DAX 40', FTSE: 'FTSE 100', NKY: 'Nikkei 225',
+};
 
 interface Balance {
   symbol: string;
@@ -194,11 +206,27 @@ export default function AssetsPage() {
         };
       });
 
-      setBalances(quickBalances);
+      const supportedSet = new Set(SUPPORTED_COINS.map(c => c.symbol));
+      const tradfiBalances: typeof quickBalances = [];
+      userBalanceMap.forEach(({ balance, locked }, sym) => {
+        if (supportedSet.has(sym)) return;
+        if (balance <= 0) return;
+        const cached = getCachedTradFiPrice(sym + 'USDT');
+        tradfiBalances.push({
+          symbol: sym,
+          balance,
+          locked_balance: locked,
+          price: cached?.price || 0,
+          priceChange24h: cached?.change24h || 0,
+        });
+      });
+      const allBalances = [...quickBalances, ...tradfiBalances];
+
+      setBalances(allBalances);
       setLoading(false);
       // 1 dakika cache — sonraki açılışta anında gelir
       try {
-        localStorage.setItem('basonce_assets_cache_v1', JSON.stringify({ ts: Date.now(), balances: quickBalances }));
+        localStorage.setItem('basonce_assets_cache_v1', JSON.stringify({ ts: Date.now(), balances: allBalances }));
       } catch {}
 
       const coinsNeedingFresh = SUPPORTED_COINS.filter(
@@ -521,7 +549,11 @@ export default function AssetsPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 flex-shrink-0">
-                        <CoinLogo symbol={coin.symbol} dbUrl={coinInfo?.logo} />
+                        {isMetalSymbol(coin.symbol)
+                          ? <MetalIcon symbol={coin.symbol} size={40} />
+                          : isTradFiIcon(coin.symbol)
+                          ? <TradFiIcon symbol={coin.symbol} size={40} />
+                          : <CoinLogo symbol={coin.symbol} dbUrl={coinInfo?.logo} />}
                       </div>
                       <div>
                         <div className="text-white font-semibold">{coin.symbol}</div>
