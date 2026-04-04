@@ -24,6 +24,7 @@ import TradingDataTab from '../components/TradingDataTab';
 import { getEQVolume } from '../lib/eq-volume-service';
 import { getCachedTradFiPrice, startTradFiPriceUpdater } from '../lib/tradfi-price-service';
 import MetalIcon, { isMetalSymbol } from '../components/MetalIcon';
+import TradFiIcon, { isTradFiIcon } from '../components/TradFiIcon';
 import { getUserRestrictions } from '../lib/user-restrictions';
 import type { UserRestrictions } from '../lib/user-restrictions';
 
@@ -1753,6 +1754,8 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                         <div className="w-10 h-10 flex-shrink-0">
                           {isMetalSymbol(metalCross.base)
                             ? <MetalIcon symbol={metalCross.base} size={40} />
+                            : isTradFiIcon(metalCross.base)
+                            ? <TradFiIcon symbol={metalCross.base} size={40} />
                             : <CoinLogo symbol={metalCross.base} dbUrl={coin.logo} />}
                         </div>
                         <div className="text-left flex-1">
@@ -1791,6 +1794,8 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                       <div className="w-10 h-10 flex-shrink-0">
                         {metalCross && isMetalSymbol(metalCross.base)
                           ? <MetalIcon symbol={metalCross.base} size={40} />
+                          : metalCross && isTradFiIcon(metalCross.base)
+                          ? <TradFiIcon symbol={metalCross.base} size={40} />
                           : <CoinLogo symbol={metalCross?.base || coin.symbol} dbUrl={coin.logo} />}
                       </div>
                       <div className="text-left flex-1">
@@ -1837,7 +1842,12 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
               className="flex items-center gap-1"
             >
               <div className="w-6 h-6 flex-shrink-0">
-                <CoinLogo symbol={selectedSymbol} dbUrl={allCoins.find(c => c.symbol === selectedSymbol)?.logo} />
+                {(() => {
+                  const mc = getMetalCross(selectedSymbol);
+                  if (mc && isMetalSymbol(mc.base)) return <MetalIcon symbol={mc.base} size={24} />;
+                  if (mc && isTradFiIcon(mc.base)) return <TradFiIcon symbol={mc.base} size={24} />;
+                  return <CoinLogo symbol={selectedSymbol} dbUrl={allCoins.find(c => c.symbol === selectedSymbol)?.logo} />;
+                })()}
               </div>
               <span className="font-bold text-lg">{pairLabel}</span>
               <ChevronDown className="w-4 h-4 text-gray-400" />
@@ -2206,7 +2216,11 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                       className="flex items-center gap-3 py-2.5 w-full hover:bg-[#2B3139]/30 rounded-lg px-2"
                     >
                       <div className="w-8 h-8 flex-shrink-0">
-                        {isMetalSymbol(mc.base) ? <MetalIcon symbol={mc.base} size={32} /> : <CoinLogo symbol={mc.base} dbUrl={coin.logo} />}
+                        {isMetalSymbol(mc.base)
+                        ? <MetalIcon symbol={mc.base} size={32} />
+                        : isTradFiIcon(mc.base)
+                        ? <TradFiIcon symbol={mc.base} size={32} />
+                        : <CoinLogo symbol={mc.base} dbUrl={coin.logo} />}
                       </div>
                       <div className="text-left flex-1">
                         <div className="font-semibold text-white">{pairLbl}</div>
@@ -2237,6 +2251,8 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                     <div className="w-8 h-8 flex-shrink-0">
                       {metalCross && isMetalSymbol(metalCross.base)
                         ? <MetalIcon symbol={metalCross.base} size={32} />
+                        : metalCross && isTradFiIcon(metalCross.base)
+                        ? <TradFiIcon symbol={metalCross.base} size={32} />
                         : <CoinLogo symbol={metalCross?.base || coin.symbol} dbUrl={coin.logo} />}
                     </div>
                     <div className="text-left flex-1">

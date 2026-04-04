@@ -10,6 +10,7 @@ import { EarnQuestPriceManager } from '../lib/earnquest-price';
 import { TRADFI_ASSETS, CATEGORY_STYLES, TEXT_LOGO_ASSETS, type TradFiAsset } from '../lib/tradfi-data';
 import { subscribeAllTradFiPrices, getAllTradFiPrices } from '../lib/tradfi-price-service';
 import MetalIcon, { isMetalSymbol } from './MetalIcon';
+import TradFiIcon, { isTradFiIcon } from './TradFiIcon';
 
 const STOCK_LOGO = (ticker: string) => `https://assets.parqet.com/logos/symbol/${ticker}?format=jpg`;
 
@@ -26,6 +27,9 @@ function TradFiLogo({ asset, size }: { asset: TradFiAsset; size: number }) {
 
   if (isMetalSymbol(metalKey)) {
     return <MetalIcon symbol={metalKey} size={size} />;
+  }
+  if (isTradFiIcon(metalKey)) {
+    return <TradFiIcon symbol={metalKey} size={size} />;
   }
 
   const textDef = TEXT_LOGO_ASSETS[asset.displayName];

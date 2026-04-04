@@ -3,6 +3,7 @@ import { TRADFI_ASSETS, CATEGORY_STYLES, TEXT_LOGO_ASSETS } from '../lib/tradfi-
 import { getAllTradFiPrices, subscribeAllTradFiPrices, startTradFiPriceUpdater } from '../lib/tradfi-price-service';
 import { supabase } from '../lib/supabase';
 import MetalIcon, { isMetalSymbol } from './MetalIcon';
+import TradFiIcon, { isTradFiIcon } from './TradFiIcon';
 
 const DB_KEY_MAP: Record<string, string> = {
   WTI: 'USOIL',
@@ -33,6 +34,9 @@ function AssetLogo({ displayName, logoUrl, bgColor }: { displayName: string; log
 
   if (isMetalSymbol(displayName)) {
     return <MetalIcon symbol={displayName} size={36} />;
+  }
+  if (isTradFiIcon(displayName)) {
+    return <TradFiIcon symbol={displayName} size={36} />;
   }
 
   if (logoUrl && !imgError) {

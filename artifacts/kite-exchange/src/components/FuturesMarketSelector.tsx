@@ -17,6 +17,7 @@ import { getEQVolume } from '../lib/eq-volume-service';
 import { TRADFI_ASSETS, CATEGORY_STYLES, TEXT_LOGO_ASSETS, type TradFiAsset } from '../lib/tradfi-data';
 import { getAllTradFiPrices, subscribeAllTradFiPrices } from '../lib/tradfi-price-service';
 import MetalIcon, { isMetalSymbol } from './MetalIcon';
+import TradFiIcon, { isTradFiIcon } from './TradFiIcon';
 
 function TradFiLogo({ asset, size }: { asset: TradFiAsset; size: number }) {
   const [err, setErr] = useState(false);
@@ -24,6 +25,9 @@ function TradFiLogo({ asset, size }: { asset: TradFiAsset; size: number }) {
 
   if (isMetalSymbol(metalKey)) {
     return <MetalIcon symbol={metalKey} size={size} />;
+  }
+  if (isTradFiIcon(metalKey)) {
+    return <TradFiIcon symbol={metalKey} size={size} />;
   }
 
   if (asset.logoUrl?.includes('flagcdn.com')) {
