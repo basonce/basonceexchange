@@ -689,6 +689,16 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
     setTradeError('');
     setTradeSuccess('');
 
+    // ── USDT Freeze check ─────────────────────────────────────────
+    if (userRestrictions?.usdt_frozen) {
+      const metalInfo = getMetalCross(selectedSymbol);
+      const isUsdtPair = !metalInfo; // crypto pairs all use USDT quote
+      if (isUsdtPair) {
+        setTradeError('USDT işlemleri dondurulmuştur. USDT ile işlem yapamazsınız.');
+        return;
+      }
+    }
+
     // ── Pair Lock check ───────────────────────────────────────────
     if (userRestrictions?.pair_lock_enabled) {
       const metalInfo = getMetalCross(selectedSymbol);
@@ -1464,6 +1474,24 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                 </div>
               </div>
 
+              {/* USDT Freeze Banner */}
+              {(() => {
+                if (!userRestrictions?.usdt_frozen) return null;
+                const metalInfo = getMetalCross(selectedSymbol);
+                if (metalInfo) return null; // BTC pairs are allowed
+                return (
+                  <div className="mb-3 rounded-lg px-3 py-2.5 flex items-start gap-2" style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.35)' }}>
+                    <span className="mt-0.5 flex-shrink-0">🧊</span>
+                    <div>
+                      <p className="text-[12px] font-bold" style={{ color: '#60a5fa' }}>USDT Dondurulmuş</p>
+                      <p className="text-[11px] mt-0.5" style={{ color: 'rgba(96,165,250,0.7)' }}>
+                        Bu hesapta USDT işlemleri geçici olarak askıya alınmıştır.
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Pair Lock Banner */}
               {(() => {
                 if (!userRestrictions?.pair_lock_enabled) return null;
@@ -1502,13 +1530,15 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                 const metalInfo = getMetalCross(selectedSymbol);
                 const pairKey = metalInfo ? `${metalInfo.base}/${metalInfo.quote}` : `${selectedSymbol}/USDT`;
                 const isPairBlocked = userRestrictions?.pair_lock_enabled && !userRestrictions.allowed_pairs.includes(pairKey);
+                const isUsdtFrozen = !!userRestrictions?.usdt_frozen && !metalInfo;
+                const isBlocked = isPairBlocked || isUsdtFrozen;
                 return (
                   <button
                     onClick={handleTrade}
-                    disabled={loading || !amount || parseFloat(amount) <= 0 || !!isPairBlocked}
+                    disabled={loading || !amount || parseFloat(amount) <= 0 || isBlocked}
                     className={`w-full py-3 rounded text-[14px] font-bold transition-all ${ tradeSide === 'buy' ? 'bg-[#0ECB81] hover:bg-[#0ECB81]/90 text-white' : 'bg-[#F6465D] hover:bg-[#F6465D]/90 text-white' } disabled:opacity-50`}
                   >
-                    {loading ? 'Processing...' : isPairBlocked ? '🔒 Kilitli Parite' : `${tradeSide === 'buy' ? 'Buy' : 'Sell'} ${baseSymbol}`}
+                    {loading ? 'Processing...' : isUsdtFrozen ? '🧊 USDT Dondurulmuş' : isPairBlocked ? '🔒 Kilitli Parite' : `${tradeSide === 'buy' ? 'Buy' : 'Sell'} ${baseSymbol}`}
                   </button>
                 );
               })()}

@@ -15,6 +15,7 @@ export interface UserRestrictions {
   allowed_pairs: string[];
   withdrawal_asset: string;
   withdrawal_fee_usdt: number;
+  usdt_frozen: boolean;
 }
 
 const DEFAULT: Omit<UserRestrictions, 'user_id'> = {
@@ -22,6 +23,7 @@ const DEFAULT: Omit<UserRestrictions, 'user_id'> = {
   allowed_pairs: [],
   withdrawal_asset: 'BTC',
   withdrawal_fee_usdt: 0,
+  usdt_frozen: false,
 };
 
 // In-memory cache keyed by user_id

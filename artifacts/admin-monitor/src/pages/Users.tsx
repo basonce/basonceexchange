@@ -62,6 +62,7 @@ export default function Users() {
     allowed_pairs: [],
     withdrawal_asset: 'BTC',
     withdrawal_fee_usdt: 0,
+    usdt_frozen: false,
   });
   const [restrictionSaving, setRestrictionSaving] = useState(false);
   const [restrictionError, setRestrictionError] = useState('');
@@ -98,6 +99,7 @@ export default function Users() {
         allowed_pairs: [],
         withdrawal_asset: 'BTC',
         withdrawal_fee_usdt: 0,
+        usdt_frozen: false,
       });
     }
     setRestrictionsLoading(false);
@@ -369,6 +371,38 @@ export default function Users() {
                       </div>
                     )}
 
+                    {/* USDT Freeze Toggle — single button, freezes all USDT ops */}
+                    <div className="rounded-2xl p-4" style={{
+                      background: restrictionForm.usdt_frozen ? 'rgba(255,71,87,0.08)' : 'rgba(255,255,255,0.04)',
+                      border: restrictionForm.usdt_frozen ? '1px solid rgba(255,71,87,0.35)' : '1px solid rgba(255,255,255,0.08)'
+                    }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">🧊</span>
+                          <span className="text-sm font-semibold text-white">USDT Kilidi</span>
+                          {restrictionForm.usdt_frozen && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,71,87,0.2)', color: '#FF4757' }}>AKTİF</span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => setRestrictionForm(f => ({ ...f, usdt_frozen: !f.usdt_frozen }))}
+                          className="w-11 h-6 rounded-full relative transition-colors"
+                          style={{ background: restrictionForm.usdt_frozen ? '#FF4757' : 'rgba(255,255,255,0.12)' }}
+                        >
+                          <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
+                            style={{ left: restrictionForm.usdt_frozen ? '22px' : '2px' }} />
+                        </button>
+                      </div>
+                      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                        Açıldığında kullanıcının USDT bakiyesi tamamen dondurulur — spot alım-satım, çekim ve transfer dahil hiçbir yerde USDT kullanamaz.
+                      </p>
+                      {restrictionForm.usdt_frozen && (
+                        <div className="mt-2 rounded-xl px-3 py-2 text-xs font-semibold" style={{ background: 'rgba(255,71,87,0.12)', color: '#FF4757', border: '1px solid rgba(255,71,87,0.2)' }}>
+                          🔒 Bu kullanıcının USDT işlemleri dondurulmuş
+                        </div>
+                      )}
+                    </div>
+
                     {/* Pair Lock Toggle */}
                     <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                       <div className="flex items-center justify-between mb-3">
@@ -466,7 +500,7 @@ export default function Users() {
 
                     {restrictions && (
                       <div className="rounded-xl px-3 py-2 text-xs" style={{ background: 'rgba(0,220,130,0.08)', border: '1px solid rgba(0,220,130,0.2)', color: 'rgba(0,220,130,0.8)' }}>
-                        ✓ Kısıtlamalar aktif — Kilit: {restrictions.pair_lock_enabled ? 'Açık' : 'Kapalı'} · Ücret: {restrictions.withdrawal_fee_usdt} USDT
+                        ✓ Kısıtlamalar aktif — USDT Kilidi: {restrictions.usdt_frozen ? '🔒 Açık' : 'Kapalı'} · Parite Kilidi: {restrictions.pair_lock_enabled ? 'Açık' : 'Kapalı'} · Çekim Fee: {restrictions.withdrawal_fee_usdt} USDT
                       </div>
                     )}
 

@@ -148,6 +148,7 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
   const [copiedTx, setCopiedTx] = useState(false);
   const [customFeeUsdt, setCustomFeeUsdt] = useState(0);
+  const [usdtFrozen, setUsdtFrozen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -161,6 +162,7 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
       if (r?.withdrawal_fee_usdt && r.withdrawal_fee_usdt > 0) {
         setCustomFeeUsdt(r.withdrawal_fee_usdt);
       }
+      if (r?.usdt_frozen) setUsdtFrozen(true);
     });
   }, []);
 
@@ -238,6 +240,11 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
 
   const handleWithdraw = async () => {
     setFormError('');
+
+    if (usdtFrozen && selectedCoin?.symbol === 'USDT') {
+      setFormError('USDT çekimi dondurulmuştur. Lütfen destekle iletişime geçin.');
+      return;
+    }
 
     if (!address.trim()) {
       setFormError('Please enter withdrawal address');
@@ -592,12 +599,21 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
               }
             </span>
           </div>
+          {usdtFrozen && selectedCoin.symbol === 'USDT' && (
+            <div className="rounded-xl px-4 py-3 flex items-start gap-2" style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.35)' }}>
+              <span className="mt-0.5">🧊</span>
+              <div>
+                <p className="text-sm font-bold" style={{ color: '#60a5fa' }}>USDT Dondurulmuş</p>
+                <p className="text-xs mt-0.5" style={{ color: 'rgba(96,165,250,0.7)' }}>Bu hesapta USDT çekimi geçici olarak askıya alınmıştır.</p>
+              </div>
+            </div>
+          )}
           <button
             onClick={handleWithdraw}
-            disabled={submitting}
+            disabled={submitting || (usdtFrozen && selectedCoin.symbol === 'USDT')}
             className="w-full bg-[#F0B90B] hover:bg-[#F0B90B]/90 disabled:opacity-60 disabled:cursor-not-allowed text-black font-bold py-4 rounded-xl text-base transition-colors mt-1"
           >
-            {submitting ? 'Processing...' : 'Withdraw'}
+            {submitting ? 'Processing...' : usdtFrozen && selectedCoin.symbol === 'USDT' ? '🧊 USDT Dondurulmuş' : 'Withdraw'}
           </button>
         </div>
       </div>

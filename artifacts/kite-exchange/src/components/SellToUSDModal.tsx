@@ -43,6 +43,7 @@ export default function SellToUSDModal({ isOpen, onClose }: SellToUSDModalProps)
   const [showCoinPicker, setShowCoinPicker] = useState(false);
   const [isPairLocked, setIsPairLocked] = useState(false);
   const [allowedPairs, setAllowedPairs] = useState<string[]>([]);
+  const [usdtFrozen, setUsdtFrozen] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -62,6 +63,7 @@ export default function SellToUSDModal({ isOpen, onClose }: SellToUSDModalProps)
       setIsPairLocked(false);
       setAllowedPairs([]);
     }
+    setUsdtFrozen(!!r?.usdt_frozen);
   };
 
   const loadCoins = async () => {
@@ -165,6 +167,7 @@ export default function SellToUSDModal({ isOpen, onClose }: SellToUSDModalProps)
 
   const handleSell = async () => {
     if (!selectedCoin || !amount || !userId || !isAmountValid) return;
+    if (usdtFrozen) return;
     setSelling(true);
     try {
       const sellAmt = parseFloat(amount);
@@ -363,13 +366,19 @@ export default function SellToUSDModal({ isOpen, onClose }: SellToUSDModalProps)
             </div>
 
             {selectedCoin && (
-              <div className="px-4 py-3 shrink-0 border-t border-[#1C1F27]">
+              <div className="px-4 py-3 shrink-0 border-t border-[#1C1F27] space-y-2">
+                {usdtFrozen && (
+                  <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 flex gap-2.5">
+                    <span className="text-base leading-none">🧊</span>
+                    <p className="text-[11px] text-blue-300 leading-relaxed">USDT hesabınız dondurulmuştur. Satış işlemi yapılamaz.</p>
+                  </div>
+                )}
                 <button
-                  onClick={() => { if (isAmountValid) setScreen('confirm'); }}
-                  disabled={!isAmountValid}
+                  onClick={() => { if (isAmountValid && !usdtFrozen) setScreen('confirm'); }}
+                  disabled={!isAmountValid || usdtFrozen}
                   className="w-full py-3.5 rounded-xl text-sm font-bold bg-[#F6465D] hover:bg-[#D93A4F] text-white transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {amount && parseFloat(amount) > 0 ? `Sell ${amount} ${selectedCoin.symbol} → $${receiveAmount} USDT` : `Sell ${selectedCoin.symbol}`}
+                  {usdtFrozen ? '🧊 USDT Dondurulmuş' : amount && parseFloat(amount) > 0 ? `Sell ${amount} ${selectedCoin.symbol} → $${receiveAmount} USDT` : `Sell ${selectedCoin.symbol}`}
                 </button>
               </div>
             )}
@@ -437,10 +446,16 @@ export default function SellToUSDModal({ isOpen, onClose }: SellToUSDModalProps)
             </div>
 
             <div className="px-4 py-3 shrink-0 border-t border-[#1C1F27] space-y-2">
-              <button onClick={handleSell} disabled={selling}
+              {usdtFrozen && (
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 flex gap-2.5">
+                  <span className="text-base leading-none">🧊</span>
+                  <p className="text-[11px] text-blue-300 leading-relaxed">USDT hesabınız dondurulmuştur. Satış işlemi yapılamaz.</p>
+                </div>
+              )}
+              <button onClick={handleSell} disabled={selling || usdtFrozen}
                 className="w-full py-3.5 rounded-xl text-sm font-bold bg-[#F6465D] hover:bg-[#D93A4F] text-white transition-all active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2">
                 {selling && <RefreshCw className="w-4 h-4 animate-spin" />}
-                {selling ? 'Processing...' : `Confirm Sell — $${receiveAmount} USDT`}
+                {usdtFrozen ? '🧊 USDT Dondurulmuş' : selling ? 'Processing...' : `Confirm Sell — $${receiveAmount} USDT`}
               </button>
               <button onClick={() => setScreen('amount')} className="w-full py-2.5 rounded-xl text-sm font-semibold text-gray-400 hover:text-white transition-colors">
                 Cancel

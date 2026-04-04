@@ -3,6 +3,7 @@ import { X, ArrowLeft, Search, CheckCircle, Send, User, AlertCircle, RefreshCw, 
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { PriceCache } from '../lib/price-cache';
 import { EarnQuestPriceManager } from '../lib/earnquest-price';
+import { getUserRestrictions } from '../lib/user-restrictions';
 
 interface SendToUsersModalProps {
   isOpen: boolean;
@@ -53,6 +54,7 @@ export default function SendToUsersModal({ isOpen, onClose }: SendToUsersModalPr
   const [note, setNote] = useState('');
   const [sending, setSending] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [usdtFrozen, setUsdtFrozen] = useState(false);
   const [showCoinPicker, setShowCoinPicker] = useState(false);
 
   useEffect(() => {
@@ -70,6 +72,7 @@ export default function SendToUsersModal({ isOpen, onClose }: SendToUsersModalPr
     const user = await getCurrentUser();
     if (!user) return;
     setUserId(user.id);
+    getUserRestrictions().then(r => { if (r?.usdt_frozen) setUsdtFrozen(true); });
 
     const { data: balances } = await supabase
       .from('user_balances')
@@ -155,6 +158,7 @@ export default function SendToUsersModal({ isOpen, onClose }: SendToUsersModalPr
     if (!foundUser || !selectedCoin || !amount || !userId) return;
     const sendAmt = parseFloat(amount);
     if (sendAmt <= 0 || sendAmt > selectedCoin.balance) return;
+    if (usdtFrozen && selectedCoin.symbol === 'USDT') return;
 
     setSending(true);
     try {
