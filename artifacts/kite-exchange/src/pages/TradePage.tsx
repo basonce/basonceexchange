@@ -772,21 +772,28 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
       if (metalCrossInfo) {
         const currentUser = await getCurrentUser();
         if (!currentUser) { setTradeError('Please login to trade'); return; }
-        const total = quantity * tradePrice;
+        const FEE_RATE = 0.001;
+        const fee = quantity * FEE_RATE;
         if (tradeSide === 'buy') {
+          // BUY: spend quote (BTC/ETH), receive base (BRENT) after fee
+          const total = quantity * tradePrice;
           await supabase.from('user_balances').update({ balance: (quoteBalLocal - total).toFixed(8) }).eq('user_id', currentUser.id).eq('symbol', quoteSymLocal);
           const { data: baseBal } = await supabase.from('user_balances').select('balance').eq('user_id', currentUser.id).eq('symbol', baseSymLocal).maybeSingle();
-          const newBase = parseFloat(baseBal?.balance || '0') + quantity;
+          const netBase = quantity - fee; // user gets quantity minus 0.1% fee
+          const newBase = parseFloat(baseBal?.balance || '0') + netBase;
           if (baseBal) {
             await supabase.from('user_balances').update({ balance: newBase.toFixed(8) }).eq('user_id', currentUser.id).eq('symbol', baseSymLocal);
           } else {
             await supabase.from('user_balances').insert({ user_id: currentUser.id, symbol: baseSymLocal, balance: newBase.toFixed(8) });
           }
         } else {
+          // SELL: give full quantity of base, receive quote after 0.1% fee
+          const netQuantity = quantity - fee; // effective quantity after fee
+          const received = netQuantity * tradePrice;
           const newBase = coinBalance - quantity;
           await supabase.from('user_balances').update({ balance: newBase.toFixed(8) }).eq('user_id', currentUser.id).eq('symbol', baseSymLocal);
           const { data: quoteBal } = await supabase.from('user_balances').select('balance').eq('user_id', currentUser.id).eq('symbol', quoteSymLocal).maybeSingle();
-          const newQuote = parseFloat(quoteBal?.balance || '0') + total;
+          const newQuote = parseFloat(quoteBal?.balance || '0') + received;
           if (quoteBal) {
             await supabase.from('user_balances').update({ balance: newQuote.toFixed(8) }).eq('user_id', currentUser.id).eq('symbol', quoteSymLocal);
           } else {
