@@ -206,12 +206,23 @@ export default function AssetsPage() {
         };
       });
 
+      // Some base symbols don't match tradfi symbol directly (OIL→WTIUSDT, SOYBEAN→SOYUSDT, etc.)
+      const BASE_TO_TRADFI: Record<string, string> = {
+        OIL:     'WTIUSDT',
+        SOYBEAN: 'SOYUSDT',
+        SPX:     'SP500USDT',
+        NDX:     'NAS100USDT',
+        DJI:     'DJIA30USDT',
+        FTSE:    'FTSE100USDT',
+        NKY:     'NI225USDT',
+      };
       const supportedSet = new Set(SUPPORTED_COINS.map(c => c.symbol));
       const tradfiBalances: typeof quickBalances = [];
       userBalanceMap.forEach(({ balance, locked }, sym) => {
         if (supportedSet.has(sym)) return;
         if (balance <= 0) return;
-        const cached = getCachedTradFiPrice(sym + 'USDT');
+        const lookupSym = BASE_TO_TRADFI[sym] || (sym + 'USDT');
+        const cached = getCachedTradFiPrice(lookupSym);
         tradfiBalances.push({
           symbol: sym,
           balance,

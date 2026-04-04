@@ -1376,12 +1376,12 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                 </div>
                 {unitPreference === 'usdt' && amount && parseFloat(amount) > 0 && currentPrice > 0 && (
                   <div className="mt-1.5 text-[#0ECB81]">
-                    ≈ {(parseFloat(amount) / currentPrice).toFixed(8)} {selectedSymbol}
+                    ≈ {(parseFloat(amount) / currentPrice).toFixed(8)} {baseSymbol}
                   </div>
                 )}
                 {unitPreference === 'asset' && amount && parseFloat(amount) > 0 && currentPrice > 0 && (
                   <div className="mt-1.5 text-[#0ECB81]">
-                    ≈ {(parseFloat(amount) * currentPrice).toFixed(2)} USDT
+                    ≈ {(parseFloat(amount) * currentPrice).toFixed(quoteSymbol === 'USDT' ? 2 : 8)} {quoteSymbol}
                   </div>
                 )}
               </div>
