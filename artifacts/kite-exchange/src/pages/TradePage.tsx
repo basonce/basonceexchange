@@ -1238,9 +1238,16 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
     const isMetal = METAL_CROSS_SYMBOLS.has(coin.symbol);
     if (selectorMarketTab === 'metals' && !isMetal) return false;
     if (selectorMarketTab === 'crypto' && isMetal) return false;
+    const q = searchQuery.toLowerCase();
+    if (!q) return true;
+    const mc = getMetalCross(coin.symbol);
+    const pairLabel = mc ? `${mc.base}/${mc.quote}`.toLowerCase() : null;
+    const baseName = mc ? mc.base.toLowerCase() : null;
     return (
-      coin.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      coin.name.toLowerCase().includes(searchQuery.toLowerCase())
+      coin.symbol.toLowerCase().includes(q) ||
+      coin.name.toLowerCase().includes(q) ||
+      (pairLabel !== null && pairLabel.includes(q)) ||
+      (baseName !== null && baseName.includes(q))
     );
   });
 
@@ -1501,7 +1508,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                     disabled={loading || !amount || parseFloat(amount) <= 0 || !!isPairBlocked}
                     className={`w-full py-3 rounded text-[14px] font-bold transition-all ${ tradeSide === 'buy' ? 'bg-[#0ECB81] hover:bg-[#0ECB81]/90 text-white' : 'bg-[#F6465D] hover:bg-[#F6465D]/90 text-white' } disabled:opacity-50`}
                   >
-                    {loading ? 'Processing...' : isPairBlocked ? '🔒 Kilitli Parite' : `${tradeSide === 'buy' ? 'Buy' : 'Sell'} ${selectedSymbol}`}
+                    {loading ? 'Processing...' : isPairBlocked ? '🔒 Kilitli Parite' : `${tradeSide === 'buy' ? 'Buy' : 'Sell'} ${baseSymbol}`}
                   </button>
                 );
               })()}
