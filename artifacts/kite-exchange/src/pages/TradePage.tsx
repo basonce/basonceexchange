@@ -2031,30 +2031,54 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                 className="bg-transparent flex-1 outline-none placeholder-[#848E9C] text-[14px]"
               />
             </div>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => setSelectorMarketTab('crypto')}
+                className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all ${selectorMarketTab === 'crypto' ? 'bg-[#F0B90B] text-black' : 'bg-[#2B3139] text-gray-400'}`}
+              >Crypto</button>
+              <button
+                onClick={() => setSelectorMarketTab('metals')}
+                className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all ${selectorMarketTab === 'metals' ? 'bg-[#F0B90B] text-black' : 'bg-[#2B3139] text-gray-400'}`}
+              >⚡ Metals / Oil</button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto">
             <div className="px-4 py-2">
-              {filteredCoins.map((coin) => (
-                <button
-                  key={coin.symbol}
-                  onClick={() => {
-                    changeSymbol(coin.symbol);
-                    setShowCoinSelector(false);
-                    setSearchQuery('');
-                  }}
-                  className="flex items-center gap-3 py-3 w-full hover:bg-[#2B3139]/30 rounded-lg px-2"
-                >
-                  <div className="w-8 h-8 flex-shrink-0">
-                    <CoinLogo symbol={coin.symbol} dbUrl={coin.logo} />
-                  </div>
-                  <div className="text-left flex-1">
-                    <div className="font-semibold text-white">{coin.symbol}/USDT</div>
-                    <div className="text-gray-400">{coin.name}</div>
-                  </div>
-                  <Star className="w-4 h-4 text-gray-400" />
-                </button>
-              ))}
+              {filteredCoins.map((coin) => {
+                const metalCross = getMetalCross(coin.symbol);
+                const crossPrice = metalCross ? computeMetalCrossPrice(metalCross) : null;
+                const pairLbl = metalCross ? `${metalCross.base}/${metalCross.quote}` : `${coin.symbol}/USDT`;
+                return (
+                  <button
+                    key={coin.symbol}
+                    onClick={() => {
+                      changeSymbol(coin.symbol);
+                      setShowCoinSelector(false);
+                      setSearchQuery('');
+                      setSelectorMarketTab(metalCross ? 'metals' : 'crypto');
+                    }}
+                    className="flex items-center gap-3 py-3 w-full hover:bg-[#2B3139]/30 rounded-lg px-2"
+                  >
+                    <div className="w-8 h-8 flex-shrink-0">
+                      {metalCross && isMetalSymbol(metalCross.base)
+                        ? <MetalIcon symbol={metalCross.base} size={32} />
+                        : <CoinLogo symbol={metalCross?.base || coin.symbol} dbUrl={coin.logo} />}
+                    </div>
+                    <div className="text-left flex-1">
+                      <div className="font-semibold text-white">{pairLbl}</div>
+                      <div className="text-gray-400 text-[12px]">{coin.name}</div>
+                    </div>
+                    {metalCross && crossPrice && crossPrice > 0 ? (
+                      <div className="text-right text-[13px] font-medium text-white">
+                        {crossPrice.toFixed(getPriceDecimals(crossPrice))} {metalCross.quote}
+                      </div>
+                    ) : (
+                      <Star className="w-4 h-4 text-gray-400" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
