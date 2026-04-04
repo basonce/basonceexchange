@@ -12,7 +12,7 @@ import { WalletConnect } from '../components/WalletConnect';
 import CoinLogo from '../components/CoinLogo';
 import MetalIcon, { isMetalSymbol } from '../components/MetalIcon';
 import TradFiIcon, { isTradFiIcon } from '../components/TradFiIcon';
-import { getCachedTradFiPrice } from '../lib/tradfi-price-service';
+import { getCachedTradFiPrice, subscribeAllTradFiPrices } from '../lib/tradfi-price-service';
 import { BlockchainTransactionHistory } from '../components/BlockchainTransactionHistory';
 
 import PositionsPanel from '../components/PositionsPanel';
@@ -33,6 +33,16 @@ const TRADFI_NAMES: Record<string, string> = {
 };
 
 const STOCK_INDICES = new Set(['SPX', 'NDX', 'DJI', 'DAX', 'FTSE', 'NKY']);
+
+const BASE_TO_TRADFI: Record<string, string> = {
+  OIL:     'WTIUSDT',
+  SOYBEAN: 'SOYUSDT',
+  SPX:     'SP500USDT',
+  NDX:     'NAS100USDT',
+  DJI:     'DJIA30USDT',
+  FTSE:    'FTSE100USDT',
+  NKY:     'NI225USDT',
+};
 
 const TRADFI_PAIR: Record<string, string> = {
   XAU: 'XAUBTC', XAG: 'XAGBTC', XPT: 'XPTBTC', XPD: 'XPDBTC', COPPER: 'COPPERBTC',
@@ -138,19 +148,39 @@ export default function AssetsPage() {
     fetchBalances();
 
     const pnlService = RealtimePnLService.getInstance();
-    const unsubscribe = pnlService.subscribe((pnl) => {
+    const unsubPnL = pnlService.subscribe((pnl) => {
       setRealtimePnL(pnl);
     });
 
     const priceCache = PriceCache.getInstance();
-    const updateGbpRate = () => {
+    const eqMgr = EarnQuestPriceManager.getInstance();
+
+    const updateLivePrices = () => {
       const gbpUsd = priceCache.get('GBPUSDT');
-      if (gbpUsd && gbpUsd.price > 0) {
-        setGbpRate(gbpUsd.price);
-      }
+      if (gbpUsd && gbpUsd.price > 0) setGbpRate(gbpUsd.price);
+
+      setBalances(prev => prev.map(b => {
+        if (b.symbol === 'USDT') return b;
+        if (b.symbol === 'EQ' || b.symbol === 'EQL') {
+          const p = eqMgr.getPrice();
+          return p > 0 ? { ...b, price: p, priceChange24h: eqMgr.getChange() } : b;
+        }
+        const cryptoCached = priceCache.get(`${b.symbol}USDT`);
+        if (cryptoCached && cryptoCached.price > 0) {
+          return { ...b, price: cryptoCached.price, priceChange24h: cryptoCached.change24h };
+        }
+        const tradfiKey = BASE_TO_TRADFI[b.symbol] || (b.symbol + 'USDT');
+        const tradfiCached = getCachedTradFiPrice(tradfiKey);
+        if (tradfiCached && tradfiCached.price > 0) {
+          return { ...b, price: tradfiCached.price, priceChange24h: tradfiCached.change24h || 0 };
+        }
+        return b;
+      }));
     };
-    updateGbpRate();
-    const unsubPrice = priceCache.subscribe(updateGbpRate);
+
+    const unsubCrypto = priceCache.subscribe(updateLivePrices);
+    const unsubTradFi = subscribeAllTradFiPrices(updateLivePrices);
+    const unsubEq = eqMgr.subscribe(updateLivePrices);
 
     const channel = supabase
       .channel('balance_changes')
@@ -161,8 +191,10 @@ export default function AssetsPage() {
       .subscribe();
 
     return () => {
-      unsubscribe();
-      unsubPrice();
+      unsubPnL();
+      unsubCrypto();
+      unsubTradFi();
+      unsubEq();
       channel.unsubscribe();
     };
   }, []);
@@ -224,15 +256,6 @@ export default function AssetsPage() {
       });
 
       // Some base symbols don't match tradfi symbol directly (OIL→WTIUSDT, SOYBEAN→SOYUSDT, etc.)
-      const BASE_TO_TRADFI: Record<string, string> = {
-        OIL:     'WTIUSDT',
-        SOYBEAN: 'SOYUSDT',
-        SPX:     'SP500USDT',
-        NDX:     'NAS100USDT',
-        DJI:     'DJIA30USDT',
-        FTSE:    'FTSE100USDT',
-        NKY:     'NI225USDT',
-      };
       const supportedSet = new Set(SUPPORTED_COINS.map(c => c.symbol));
       const tradfiBalances: typeof quickBalances = [];
       userBalanceMap.forEach(({ balance, locked }, sym) => {
