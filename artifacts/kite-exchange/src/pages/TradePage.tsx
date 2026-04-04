@@ -22,6 +22,47 @@ import { formatPrice as sharedFormatPrice, formatAmount as sharedFormatAmount, f
 import CoinInfoTab from '../components/CoinInfoTab';
 import TradingDataTab from '../components/TradingDataTab';
 import { getEQVolume } from '../lib/eq-volume-service';
+import { getCachedTradFiPrice, startTradFiPriceUpdater } from '../lib/tradfi-price-service';
+import MetalIcon, { isMetalSymbol } from '../components/MetalIcon';
+
+// ─── Metal × BTC/ETH cross pairs (Spot) ──────────────────────────────────────
+interface MetalCrossPair {
+  symbol: string;
+  base: string;
+  quote: 'BTC' | 'ETH';
+  tradfiSymbol: string;
+  name: string;
+  logo: string;
+}
+
+const METAL_CROSS_PAIRS: MetalCrossPair[] = [
+  { symbol: 'XAUBTC',  base: 'XAU',   quote: 'BTC', tradfiSymbol: 'XAUUSDT',   name: 'Gold',      logo: 'https://assets.staticimg.com/cms/media/1lB3PkckFDyfxz6VudCEACBeRRBi6sQQ7DDjFFpvgUA.png' },
+  { symbol: 'XAUETH',  base: 'XAU',   quote: 'ETH', tradfiSymbol: 'XAUUSDT',   name: 'Gold',      logo: 'https://assets.staticimg.com/cms/media/1lB3PkckFDyfxz6VudCEACBeRRBi6sQQ7DDjFFpvgUA.png' },
+  { symbol: 'XAGBTC',  base: 'XAG',   quote: 'BTC', tradfiSymbol: 'XAGUSDT',   name: 'Silver',    logo: 'https://assets.staticimg.com/cms/media/3uuqWjtaP8Cn1nBpIL_Q6tB7C6jP5Q4G0L6Z1Q6uOlg.png' },
+  { symbol: 'XAGETH',  base: 'XAG',   quote: 'ETH', tradfiSymbol: 'XAGUSDT',   name: 'Silver',    logo: 'https://assets.staticimg.com/cms/media/3uuqWjtaP8Cn1nBpIL_Q6tB7C6jP5Q4G0L6Z1Q6uOlg.png' },
+  { symbol: 'XPTBTC',  base: 'XPT',   quote: 'BTC', tradfiSymbol: 'XPTUSDT',   name: 'Platinum',  logo: '' },
+  { symbol: 'XPTETH',  base: 'XPT',   quote: 'ETH', tradfiSymbol: 'XPTUSDT',   name: 'Platinum',  logo: '' },
+  { symbol: 'XPDBTC',  base: 'XPD',   quote: 'BTC', tradfiSymbol: 'XPDUSDT',   name: 'Palladium', logo: '' },
+  { symbol: 'XPDETH',  base: 'XPD',   quote: 'ETH', tradfiSymbol: 'XPDUSDT',   name: 'Palladium', logo: '' },
+  { symbol: 'OILBTC',  base: 'OIL',   quote: 'BTC', tradfiSymbol: 'WTIUSDT',   name: 'Crude Oil', logo: 'https://assets.parqet.com/logos/symbol/USO?format=jpg' },
+  { symbol: 'OILETH',  base: 'OIL',   quote: 'ETH', tradfiSymbol: 'WTIUSDT',   name: 'Crude Oil', logo: 'https://assets.parqet.com/logos/symbol/USO?format=jpg' },
+  { symbol: 'BRTBTC',  base: 'BRENT', quote: 'BTC', tradfiSymbol: 'BRENTUSDT', name: 'Brent Oil', logo: 'https://assets.parqet.com/logos/symbol/BNO?format=jpg' },
+  { symbol: 'BRTETH',  base: 'BRENT', quote: 'ETH', tradfiSymbol: 'BRENTUSDT', name: 'Brent Oil', logo: 'https://assets.parqet.com/logos/symbol/BNO?format=jpg' },
+];
+
+const METAL_CROSS_SYMBOLS = new Set(METAL_CROSS_PAIRS.map(p => p.symbol));
+
+function isMetalCross(sym: string): boolean { return METAL_CROSS_SYMBOLS.has(sym); }
+function getMetalCross(sym: string): MetalCrossPair | undefined { return METAL_CROSS_PAIRS.find(p => p.symbol === sym); }
+
+function computeMetalCrossPrice(pair: MetalCrossPair): number {
+  const metalData = getCachedTradFiPrice(pair.tradfiSymbol);
+  const metalUsd = metalData?.price || 0;
+  const pc = PriceCache.getInstance();
+  const quoteData = pc.get(`${pair.quote}USDT`);
+  const quoteUsd = quoteData?.price || (pair.quote === 'BTC' ? 95000 : 1800);
+  return metalUsd > 0 && quoteUsd > 0 ? metalUsd / quoteUsd : 0;
+}
 
 interface OrderBookItem {
   price: number;
@@ -138,6 +179,9 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
   const [user, setUser] = useState<any>(null);
   const [usdtBalance, setUsdtBalance] = useState(0);
   const [coinBalance, setCoinBalance] = useState(0);
+  const [btcBalance, setBtcBalance] = useState(0);
+  const [ethBalance, setEthBalance] = useState(0);
+  const [selectorMarketTab, setSelectorMarketTab] = useState<'crypto' | 'metals'>('crypto');
   const priceManager = useRef(EarnQuestPriceManager.getInstance());
   const orderBookScrollRef = useRef<HTMLDivElement>(null);
   const orderBookPriceRef = useRef<HTMLDivElement>(null);
@@ -244,7 +288,13 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
 
         const bncCoin = { symbol: 'BNC', name: 'Basonce', logo: '/bnc-logo.png', binance_symbol: null };
         const eqCoin = { symbol: 'EQ', name: 'EarnQuest', logo: '/earnquest-logo-icon-2.png', binance_symbol: null };
-        setAllCoins([bncCoin, eqCoin, ...mapped]);
+        const metalCoins = METAL_CROSS_PAIRS.map(p => ({
+          symbol: p.symbol,
+          name: `${p.name} / ${p.quote}`,
+          logo: p.logo,
+          binance_symbol: null,
+        }));
+        setAllCoins([bncCoin, eqCoin, ...mapped, ...metalCoins]);
       }
     };
 
@@ -254,6 +304,8 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
     if (!pc.isReady()) {
       pc.init();
     }
+
+    const stopTradFi = startTradFiPriceUpdater();
 
     localStorage.removeItem('selectedCoinSymbol');
 
@@ -439,18 +491,23 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
     }
 
     if (sliderValue > 0) {
-      if (tradeSide === 'buy' && currentPrice > 0 && usdtBalance > 0) {
-        const usdtToSpend = (usdtBalance * sliderValue) / 100;
+      const metalInfo = getMetalCross(activeSymbolRef.current);
+      const effectiveQuoteBal = metalInfo
+        ? (metalInfo.quote === 'BTC' ? btcBalance : ethBalance)
+        : usdtBalance;
+
+      if (tradeSide === 'buy' && currentPrice > 0 && effectiveQuoteBal > 0) {
+        const quoteToSpend = (effectiveQuoteBal * sliderValue) / 100;
         if (unitPreference === 'usdt') {
-          setAmount(usdtToSpend.toFixed(2));
+          setAmount(quoteToSpend.toFixed(metalInfo ? 8 : 2));
         } else {
-          const calculatedAmount = usdtToSpend / currentPrice;
+          const calculatedAmount = quoteToSpend / currentPrice;
           setAmount(calculatedAmount.toFixed(8));
         }
       } else if (tradeSide === 'sell' && coinBalance > 0) {
         if (unitPreference === 'usdt') {
-          const usdtValue = (coinBalance * sliderValue * currentPrice) / 100;
-          setAmount(usdtValue.toFixed(2));
+          const quoteValue = (coinBalance * sliderValue * currentPrice) / 100;
+          setAmount(quoteValue.toFixed(metalInfo ? 8 : 2));
         } else {
           const calculatedAmount = (coinBalance * sliderValue) / 100;
           setAmount(calculatedAmount.toFixed(8));
@@ -469,9 +526,15 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
 
     if (balances) {
       const usdt = balances.find(b => b.symbol === 'USDT');
-      const coin = balances.find(b => b.symbol === selectedSymbol);
+      const btc  = balances.find(b => b.symbol === 'BTC');
+      const eth  = balances.find(b => b.symbol === 'ETH');
+      const metalPairInfo = getMetalCross(selectedSymbol);
+      const coinSym = metalPairInfo ? metalPairInfo.base : selectedSymbol;
+      const coin = balances.find(b => b.symbol === coinSym);
 
       setUsdtBalance(parseFloat(usdt?.balance || '0'));
+      setBtcBalance(parseFloat(btc?.balance || '0'));
+      setEthBalance(parseFloat(eth?.balance || '0'));
       setCoinBalance(parseFloat(coin?.balance || '0'));
     }
   };
@@ -602,20 +665,53 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
       quantity = amountValue;
     }
 
-    if (tradeSide === 'buy' && (quantity * tradePrice) > usdtBalance) {
-      setTradeError('Insufficient USDT balance');
+    const metalCrossInfo = getMetalCross(selectedSymbol);
+    const quoteSymLocal = metalCrossInfo?.quote || 'USDT';
+    const quoteBalLocal = metalCrossInfo ? (metalCrossInfo.quote === 'BTC' ? btcBalance : ethBalance) : usdtBalance;
+    const baseSymLocal  = metalCrossInfo?.base || selectedSymbol;
+
+    if (tradeSide === 'buy' && (quantity * tradePrice) > quoteBalLocal) {
+      setTradeError(`Insufficient ${quoteSymLocal} balance`);
       return;
     }
 
     if (tradeSide === 'sell' && quantity > coinBalance) {
-      setTradeError(`Insufficient ${selectedSymbol} balance`);
+      setTradeError(`Insufficient ${baseSymLocal} balance`);
       return;
     }
 
     setLoading(true);
 
     try {
-      if (orderType === 'limit') {
+      if (metalCrossInfo) {
+        const currentUser = await getCurrentUser();
+        if (!currentUser) { setTradeError('Please login to trade'); return; }
+        const total = quantity * tradePrice;
+        if (tradeSide === 'buy') {
+          await supabase.from('user_balances').update({ balance: (quoteBalLocal - total).toFixed(8) }).eq('user_id', currentUser.id).eq('symbol', quoteSymLocal);
+          const { data: baseBal } = await supabase.from('user_balances').select('balance').eq('user_id', currentUser.id).eq('symbol', baseSymLocal).maybeSingle();
+          const newBase = parseFloat(baseBal?.balance || '0') + quantity;
+          if (baseBal) {
+            await supabase.from('user_balances').update({ balance: newBase.toFixed(8) }).eq('user_id', currentUser.id).eq('symbol', baseSymLocal);
+          } else {
+            await supabase.from('user_balances').insert({ user_id: currentUser.id, symbol: baseSymLocal, balance: newBase.toFixed(8) });
+          }
+        } else {
+          const newBase = coinBalance - quantity;
+          await supabase.from('user_balances').update({ balance: newBase.toFixed(8) }).eq('user_id', currentUser.id).eq('symbol', baseSymLocal);
+          const { data: quoteBal } = await supabase.from('user_balances').select('balance').eq('user_id', currentUser.id).eq('symbol', quoteSymLocal).maybeSingle();
+          const newQuote = parseFloat(quoteBal?.balance || '0') + total;
+          if (quoteBal) {
+            await supabase.from('user_balances').update({ balance: newQuote.toFixed(8) }).eq('user_id', currentUser.id).eq('symbol', quoteSymLocal);
+          } else {
+            await supabase.from('user_balances').insert({ user_id: currentUser.id, symbol: quoteSymLocal, balance: newQuote.toFixed(8) });
+          }
+        }
+        setTradeSuccess(`${tradeSide === 'buy' ? 'Bought' : 'Sold'} ${quantity.toFixed(6)} ${baseSymLocal} successfully!`);
+        setAmount(''); setSliderValue(0);
+        if (user) await loadBalances(user.id);
+        setTimeout(() => setTradeSuccess(''), 3000);
+      } else if (orderType === 'limit') {
         const currentUser = await getCurrentUser();
         if (!currentUser) {
           setTradeError('Please login to trade');
@@ -713,8 +809,25 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
     setBidOrders([]);
     setAskOrders([]);
     setRecentTrades([]);
+    const metalCrossPair = getMetalCross(targetSymbol);
     const indepMgr = getIndepManager(targetSymbol);
-    if (indepMgr) {
+    if (metalCrossPair) {
+      const p = computeMetalCrossPrice(metalCrossPair);
+      const metalData = getCachedTradFiPrice(metalCrossPair.tradfiSymbol);
+      const change = metalData?.change24h || 0;
+      if (p > 0) {
+        setCurrentPrice(p);
+        setChange24h(change);
+        setHigh24h(p * 1.015);
+        setLow24h(p * 0.985);
+        const vol = (metalCrossPair.tradfiSymbol.includes('XAU') ? 139_770_000 : 28_000_000);
+        setVolume24h(vol);
+        setVolumeBase(vol / p);
+        setPrice(p.toFixed(getPriceDecimals(p)));
+        generateOrderBook(p);
+        generateInitialTrades(p);
+      }
+    } else if (indepMgr) {
       const p = indepMgr.getPrice();
       const change = indepMgr.getChange();
       setCurrentPrice(p);
@@ -816,8 +929,18 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
 
   const updatePrice = async () => {
     const target = activeSymbolRef.current;
+    const metalCross = getMetalCross(target);
     const indepMgr = getIndepManager(target);
-    if (indepMgr) {
+    if (metalCross) {
+      const p = computeMetalCrossPrice(metalCross);
+      if (p > 0) {
+        currentPriceRef.current = p;
+        setCurrentPrice(p);
+        const metalData = getCachedTradFiPrice(metalCross.tradfiSymbol);
+        setChange24h(metalData?.change24h || 0);
+        if (!isManualPriceChange) setPrice(p.toFixed(getPriceDecimals(p)));
+      }
+    } else if (indepMgr) {
       const p = indepMgr.getPrice();
       const c = indepMgr.getChange();
       currentPriceRef.current = p;
@@ -1052,10 +1175,21 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
   const bidPercentage = totalOB > 0 ? (bidTotal / totalOB) * 100 : 50;
   const askPercentage = 100 - bidPercentage;
 
-  const filteredCoins = allCoins.filter(coin =>
-    coin.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    coin.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCoins = allCoins.filter(coin => {
+    const isMetal = METAL_CROSS_SYMBOLS.has(coin.symbol);
+    if (selectorMarketTab === 'metals' && !isMetal) return false;
+    if (selectorMarketTab === 'crypto' && isMetal) return false;
+    return (
+      coin.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      coin.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
+
+  const activeMetal = getMetalCross(selectedSymbol);
+  const quoteSymbol = activeMetal?.quote || 'USDT';
+  const baseSymbol  = activeMetal?.base  || selectedSymbol;
+  const quoteBalance = activeMetal ? (activeMetal.quote === 'BTC' ? btcBalance : ethBalance) : usdtBalance;
+  const pairLabel = activeMetal ? `${activeMetal.base}/${activeMetal.quote}` : `${selectedSymbol}/USDT`;
 
   if (activeTab === 'trade') {
     return (
@@ -1087,7 +1221,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
             {selectedSymbol === 'EQ' && (
               <img src="/earnquest-logo-icon-2.png" alt="EQ" className="w-6 h-6 rounded-full" />
             )}
-            <span className="font-bold text-lg">{selectedSymbol}/USDT</span>
+            <span className="font-bold text-lg">{pairLabel}</span>
             <ChevronDown className="w-4 h-4 text-gray-400" />
           </button>
           <div className="flex items-center gap-2">
@@ -1167,12 +1301,12 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                     setIsManualAmountChange(true);
                     setSliderValue(0);
                   }}
-                  placeholder={unitPreference === 'asset' ? `Enter ${selectedSymbol} amount` : 'Enter USDT amount'}
+                  placeholder={unitPreference === 'asset' ? `Enter ${baseSymbol} amount` : `Enter ${quoteSymbol} amount`}
                   className="w-full bg-[#2B3139] rounded px-3 py-2.5 text-[13px] outline-none placeholder-[#5E6673]"
                 />
                 <div className="flex items-center justify-between mt-1.5 text-[11px]">
-                  <span className="text-white">{usdtBalance.toFixed(2)} USDT</span>
-                  <span className="text-white">{coinBalance.toFixed(8)} {selectedSymbol}</span>
+                  <span className="text-white">{quoteBalance.toFixed(quoteSymbol === 'USDT' ? 2 : 8)} {quoteSymbol}</span>
+                  <span className="text-white">{coinBalance.toFixed(8)} {baseSymbol}</span>
                 </div>
                 {unitPreference === 'usdt' && amount && parseFloat(amount) > 0 && currentPrice > 0 && (
                   <div className="mt-1.5 text-[#0ECB81]">
@@ -1280,7 +1414,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
 
           <div className="bg-[#181A20] border-l border-[#2B3139]">
             <div className="flex items-center justify-between px-2 py-1 border-b border-[#2B3139]">
-              <span className="text-[#848E9C] text-[10px]">Price(USDT)</span>
+              <span className="text-[#848E9C] text-[10px]">Price({quoteSymbol})</span>
               <span className="text-[#848E9C] text-[10px] text-right">Amount({selectedSymbol})</span>
             </div>
 
@@ -1489,12 +1623,25 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                   className="bg-transparent flex-1 outline-none placeholder-[#848E9C] text-[14px]"
                 />
               </div>
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={() => setSelectorMarketTab('crypto')}
+                  className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all ${selectorMarketTab === 'crypto' ? 'bg-[#F0B90B] text-black' : 'bg-[#2B3139] text-gray-400'}`}
+                >Crypto</button>
+                <button
+                  onClick={() => setSelectorMarketTab('metals')}
+                  className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all ${selectorMarketTab === 'metals' ? 'bg-[#F0B90B] text-black' : 'bg-[#2B3139] text-gray-400'}`}
+                >⚡ Metals / Oil</button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto pb-20">
               <div className="px-4 py-2">
                 {filteredCoins.map((coin) => {
+                  const metalCross = getMetalCross(coin.symbol);
                   const priceData = coinPrices[coin.symbol];
+                  const pairLabel = metalCross ? `${metalCross.base}/${metalCross.quote}` : `${coin.symbol}/USDT`;
+                  const crossPrice = metalCross ? computeMetalCrossPrice(metalCross) : null;
                   return (
                     <button
                       key={coin.symbol}
@@ -1502,17 +1649,26 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                         changeSymbol(coin.symbol);
                         setShowCoinSelector(false);
                         setSearchQuery('');
+                        setSelectorMarketTab(metalCross ? 'metals' : 'crypto');
                       }}
                       className="flex items-center gap-3 py-3 w-full hover:bg-[#2B3139]/30 rounded-lg px-2 transition-colors"
                     >
                       <div className="w-10 h-10 flex-shrink-0">
-                        <CoinLogo symbol={coin.symbol} dbUrl={coin.logo} />
+                        {metalCross && isMetalSymbol(metalCross.base)
+                          ? <MetalIcon symbol={metalCross.base} size={40} />
+                          : <CoinLogo symbol={metalCross?.base || coin.symbol} dbUrl={coin.logo} />}
                       </div>
                       <div className="text-left flex-1">
-                        <div className="font-bold text-white text-[15px]">{coin.symbol}/USDT</div>
+                        <div className="font-bold text-white text-[15px]">{pairLabel}</div>
                         <div className="text-[12px] text-gray-400">{coin.name}</div>
                       </div>
-                      {priceData && (
+                      {metalCross && crossPrice && crossPrice > 0 ? (
+                        <div className="text-right">
+                          <div className="font-bold text-white text-[14px]">
+                            {crossPrice.toFixed(getPriceDecimals(crossPrice))} {metalCross.quote}
+                          </div>
+                        </div>
+                      ) : priceData ? (
                         <div className="text-right">
                           <div className="font-bold text-white text-[14px]">
                             ${priceData.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
@@ -1521,7 +1677,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                             {priceData.change >= 0 ? '+' : ''}{priceData.change.toFixed(2)}%
                           </div>
                         </div>
-                      )}
+                      ) : null}
                     </button>
                   );
                 })}
@@ -1548,7 +1704,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
               <div className="w-6 h-6 flex-shrink-0">
                 <CoinLogo symbol={selectedSymbol} dbUrl={allCoins.find(c => c.symbol === selectedSymbol)?.logo} />
               </div>
-              <span className="font-bold text-lg">{selectedSymbol}/USDT</span>
+              <span className="font-bold text-lg">{pairLabel}</span>
               <ChevronDown className="w-4 h-4 text-gray-400" />
             </button>
           </div>

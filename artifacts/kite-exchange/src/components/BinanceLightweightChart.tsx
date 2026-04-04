@@ -10,6 +10,26 @@ import { SZNPPriceManager } from '../lib/sznp-price';
 import { PunchPriceManager } from '../lib/punch-price';
 import { useExchangeMode } from '../lib/exchange-mode';
 import { Maximize2, Snowflake } from 'lucide-react';
+import { getCachedTradFiPrice } from '../lib/tradfi-price-service';
+import { PriceCache } from '../lib/price-cache';
+
+const METAL_CROSS_TRADFI: Record<string, string> = {
+  XAUBTC: 'XAUUSDT', XAUETH: 'XAUUSDT',
+  XAGBTC: 'XAGUSDT', XAGETH: 'XAGUSDT',
+  XPTBTC: 'XPTUSDT', XPTETH: 'XPTUSDT',
+  XPDBTC: 'XPDUSDT', XPDETH: 'XPDUSDT',
+  OILBTC: 'WTIUSDT', OILETH: 'WTIUSDT',
+  BRTBTC: 'BRENTUSDT', BRTETH: 'BRENTUSDT',
+};
+
+const METAL_CROSS_QUOTE_COIN: Record<string, string> = {
+  XAUBTC: 'BTC', XAUETH: 'ETH',
+  XAGBTC: 'BTC', XAGETH: 'ETH',
+  XPTBTC: 'BTC', XPTETH: 'ETH',
+  XPDBTC: 'BTC', XPDETH: 'ETH',
+  OILBTC: 'BTC', OILETH: 'ETH',
+  BRTBTC: 'BTC', BRTETH: 'ETH',
+};
 
 const CHART_INDEP_PRICES: Record<string, () => number> = {
   BNC:     () => BNCPriceManager.getInstance().getPrice()     || 0.85,
@@ -20,6 +40,19 @@ const CHART_INDEP_PRICES: Record<string, () => number> = {
   SZNP:    () => SZNPPriceManager.getInstance().getPrice()    || 4.90,
   PUNCH:   () => PunchPriceManager.getInstance().getPrice()   || 3.68,
 };
+
+Object.keys(METAL_CROSS_TRADFI).forEach(sym => {
+  CHART_INDEP_PRICES[sym] = () => {
+    const tradfiSym = METAL_CROSS_TRADFI[sym];
+    const quoteCoin = METAL_CROSS_QUOTE_COIN[sym];
+    const metalData = getCachedTradFiPrice(tradfiSym);
+    const metalPrice = metalData?.price || 0;
+    const pc = PriceCache.getInstance();
+    const quoteData = pc.get(`${quoteCoin}USDT`);
+    const quotePrice = quoteData?.price || (quoteCoin === 'BTC' ? 95000 : 1800);
+    return metalPrice > 0 && quotePrice > 0 ? metalPrice / quotePrice : 0;
+  };
+});
 
 interface Props {
   symbol: string;
