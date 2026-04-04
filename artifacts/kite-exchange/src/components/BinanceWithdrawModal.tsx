@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Search, Trash2, ArrowUpDown, User, ScanLine, ChevronDown, Info, CheckCircle, Copy, MessageCircle } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { trackActivity } from '../lib/activity-tracker';
-import { getUserRestrictions } from '../lib/user-restrictions';
+import { getUserRestrictions, clearRestrictionsCache } from '../lib/user-restrictions';
 import SupportModal from './SupportModal';
 
 interface Coin {
@@ -149,6 +149,7 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
   const [copiedTx, setCopiedTx] = useState(false);
   const [customFeeUsdt, setCustomFeeUsdt] = useState(0);
+  const [restrictionsLoaded, setRestrictionsLoaded] = useState(false);
   const [usdtFrozen, setUsdtFrozen] = useState(false);
   const [withdrawalFrozen, setWithdrawalFrozen] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
@@ -161,13 +162,14 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
 
   useEffect(() => {
     loadCoins();
+    // Always bypass in-memory cache so admin fee changes are reflected immediately
+    clearRestrictionsCache();
     getUserRestrictions().then(r => {
-      if (r?.withdrawal_fee_usdt && r.withdrawal_fee_usdt > 0) {
-        setCustomFeeUsdt(r.withdrawal_fee_usdt);
-      }
+      setCustomFeeUsdt(r?.withdrawal_fee_usdt ?? 0);
       if (r?.usdt_frozen) setUsdtFrozen(true);
       if (r?.withdrawal_frozen) setWithdrawalFrozen(true);
-    });
+      setRestrictionsLoaded(true);
+    }).catch(() => setRestrictionsLoaded(true));
   }, []);
 
   useEffect(() => {
@@ -600,11 +602,19 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-sm">Network fee</span>
-            <span className={`text-sm ${customFeeUsdt > 0 ? 'text-orange-400 font-semibold' : 'text-gray-400'}`}>
-              {customFeeUsdt > 0
-                ? `${amountNum > 0 ? customFeeUsdt : '0.00'} USDT`
-                : `${amountNum > 0 ? fee : '0.00'} ${selectedCoin.symbol}`
+            <span className="text-gray-500 text-sm">
+              {!restrictionsLoaded
+                ? 'Fee'
+                : customFeeUsdt > 0
+                  ? 'Service Fee'
+                  : 'Network fee'}
+            </span>
+            <span className={`text-sm ${!restrictionsLoaded ? 'text-gray-500' : customFeeUsdt > 0 ? 'text-orange-400 font-semibold' : 'text-gray-400'}`}>
+              {!restrictionsLoaded
+                ? '...'
+                : customFeeUsdt > 0
+                  ? `${customFeeUsdt.toLocaleString()} USDT`
+                  : `${amountNum > 0 ? fee : '0.00'} ${selectedCoin.symbol}`
               }
             </span>
           </div>
@@ -644,6 +654,12 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
                 <MessageCircle className="w-4 h-4" />
                 Contact Support
               </button>
+            </div>
+          )}
+          {restrictionsLoaded && customFeeUsdt > 0 && !withdrawalFrozen && (
+            <div className="rounded-xl px-4 py-2.5 flex items-center justify-between" style={{ background: 'rgba(240,185,11,0.10)', border: '1px solid rgba(240,185,11,0.3)' }}>
+              <span className="text-xs font-semibold" style={{ color: 'rgba(240,185,11,0.85)' }}>💰 Service fee will be deducted from your USDT balance</span>
+              <span className="text-xs font-black" style={{ color: '#F0B90B' }}>{customFeeUsdt.toLocaleString()} USDT</span>
             </div>
           )}
           <button
