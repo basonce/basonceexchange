@@ -11,6 +11,9 @@ import RewardsModal from '../components/RewardsModal';
 import AnalyticsModal from '../components/AnalyticsModal';
 import { EarnQuestPriceManager } from '../lib/earnquest-price';
 import { trackActivity } from '../lib/activity-tracker';
+import { isMetalSymbol } from '../components/MetalIcon';
+import { isTradFiIcon } from '../components/TradFiIcon';
+import { getCachedTradFiPrice } from '../lib/tradfi-price-service';
 import { RealtimePnLService, RealtimePnL } from '../lib/realtime-pnl-service';
 import {
   User, Mail, LogOut, Shield, ChevronRight, Wallet as WalletIcon, Plus, Loader2,
@@ -155,6 +158,11 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
           if (balance.symbol === 'EQ' || balance.symbol === 'EQL') {
             const price = priceManagerRef.current?.getPrice() || 0;
             return { ...balance, price };
+          }
+
+          if (isMetalSymbol(balance.symbol) || isTradFiIcon(balance.symbol)) {
+            const cached = getCachedTradFiPrice(balance.symbol + 'USDT');
+            return { ...balance, price: cached?.price || 0 };
           }
 
           try {

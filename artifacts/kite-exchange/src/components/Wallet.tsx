@@ -12,6 +12,22 @@ import SendMethodModal from './SendMethodModal';
 import TransferModal from './TransferModal';
 import { RealtimePnLService, RealtimePnL } from '../lib/realtime-pnl-service';
 import CoinLogo from './CoinLogo';
+import MetalIcon, { isMetalSymbol } from './MetalIcon';
+import TradFiIcon, { isTradFiIcon } from './TradFiIcon';
+import { getAllTradFiPrices, subscribeAllTradFiPrices } from '../lib/tradfi-price-service';
+
+const TRADFI_NAMES: Record<string, string> = {
+  XAU: 'Gold', XAG: 'Silver', XPT: 'Platinum', XPD: 'Palladium', COPPER: 'Copper',
+  OIL: 'WTI Crude Oil', BRENT: 'Brent Crude', NATGAS: 'Natural Gas',
+  COFFEE: 'Coffee', COCOA: 'Cocoa', SUGAR: 'Sugar', WHEAT: 'Wheat', CORN: 'Corn', SOYBEAN: 'Soybean',
+  SPX: 'S&P 500', NDX: 'Nasdaq 100', DJI: 'Dow Jones', DAX: 'DAX 40', FTSE: 'FTSE 100', NKY: 'Nikkei 225',
+};
+
+function AssetLogo({ symbol, logoUrl, size = 36 }: { symbol: string; logoUrl?: string | null; size?: number }) {
+  if (isMetalSymbol(symbol)) return <MetalIcon symbol={symbol} size={size} />;
+  if (isTradFiIcon(symbol)) return <TradFiIcon symbol={symbol} size={size} />;
+  return <CoinLogo symbol={symbol} dbUrl={logoUrl} />;
+}
 
 interface Balance {
   symbol: string;
@@ -73,6 +89,19 @@ export default function Wallet() {
     fetchBalances();
     fetchTransactions();
 
+    const unsubTradFi = subscribeAllTradFiPrices(() => {
+      setPriceMap(prev => {
+        const tfPrices = getAllTradFiPrices();
+        const updates: Record<string, number> = {};
+        tfPrices.forEach((entry, key) => {
+          if (key.endsWith('USDT') && entry.price) {
+            updates[key.replace('USDT', '')] = entry.price;
+          }
+        });
+        return { ...prev, ...updates };
+      });
+    });
+
     let balanceChannel: any;
     let txChannel: any;
 
@@ -90,6 +119,7 @@ export default function Wallet() {
 
     return () => {
       unsub();
+      unsubTradFi();
       if (balanceChannel) balanceChannel.unsubscribe();
       if (txChannel) txChannel.unsubscribe();
       if (priceIntervalRef.current) clearInterval(priceIntervalRef.current);
@@ -98,23 +128,36 @@ export default function Wallet() {
 
   const fetchPrices = async (symbols: string[]) => {
     try {
-      const nonUsdt = symbols.filter(s => s !== 'USDT' && s !== 'EQ');
-      if (nonUsdt.length === 0) return;
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/binance-proxy?endpoint=ticker24hr`,
-        { headers: { 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` } }
-      );
-      if (!resp.ok) return;
-      const data = await resp.json();
-      if (!Array.isArray(data)) return;
+      const tradfiSyms = symbols.filter(s => isMetalSymbol(s) || isTradFiIcon(s));
+      const cryptoSyms = symbols.filter(s => s !== 'USDT' && s !== 'EQ' && !isMetalSymbol(s) && !isTradFiIcon(s));
+
       const map: Record<string, number> = { USDT: 1 };
-      for (const t of data) {
-        if (!t.symbol?.endsWith('USDT')) continue;
-        const sym = t.symbol.replace('USDT', '');
-        if (nonUsdt.includes(sym)) {
-          map[sym] = parseFloat(t.lastPrice) || 0;
+
+      if (cryptoSyms.length > 0) {
+        const resp = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/binance-proxy?endpoint=ticker24hr`,
+          { headers: { 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` } }
+        );
+        if (resp.ok) {
+          const data = await resp.json();
+          if (Array.isArray(data)) {
+            for (const t of data) {
+              if (!t.symbol?.endsWith('USDT')) continue;
+              const sym = t.symbol.replace('USDT', '');
+              if (cryptoSyms.includes(sym)) map[sym] = parseFloat(t.lastPrice) || 0;
+            }
+          }
         }
       }
+
+      if (tradfiSyms.length > 0) {
+        const tfPrices = getAllTradFiPrices();
+        for (const sym of tradfiSyms) {
+          const entry = tfPrices.get(sym + 'USDT');
+          if (entry?.price) map[sym] = entry.price;
+        }
+      }
+
       setPriceMap(prev => ({ ...prev, ...map }));
     } catch { }
   };
@@ -134,7 +177,7 @@ export default function Wallet() {
         const coin = coinsMap.get(b.symbol);
         return {
           symbol: b.symbol,
-          name: coin?.name || b.symbol,
+          name: TRADFI_NAMES[b.symbol] || coin?.name || b.symbol,
           logo_url: coin?.logo_url || null,
           balance: parseFloat(b.balance) || 0,
           locked_balance: parseFloat(b.locked_balance) || 0,
@@ -355,7 +398,7 @@ export default function Wallet() {
                     >
                       <div className="flex items-center gap-2.5 flex-1 min-w-0">
                         <div className="w-9 h-9 flex-shrink-0">
-                          <CoinLogo symbol={b.symbol} dbUrl={b.logo_url} />
+                          <AssetLogo symbol={b.symbol} logoUrl={b.logo_url} size={36} />
                         </div>
                         <div className="min-w-0">
                           <div className="text-white text-xs font-bold">{b.symbol}</div>
