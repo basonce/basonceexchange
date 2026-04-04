@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { Eye, EyeOff, Search, ScanLine, ChevronDown, X, Camera, History } from 'lucide-react';
 import AssetsHistoryModal from '../components/AssetsHistoryModal';
@@ -31,6 +31,23 @@ const TRADFI_NAMES: Record<string, string> = {
   COFFEE: 'Coffee', COCOA: 'Cocoa', SUGAR: 'Sugar', WHEAT: 'Wheat', CORN: 'Corn', SOYBEAN: 'Soybean',
   SPX: 'S&P 500', NDX: 'Nasdaq 100', DJI: 'Dow Jones', DAX: 'DAX 40', FTSE: 'FTSE 100', NKY: 'Nikkei 225',
 };
+
+const STOCK_INDICES = new Set(['SPX', 'NDX', 'DJI', 'DAX', 'FTSE', 'NKY']);
+
+const TRADFI_PAIR: Record<string, string> = {
+  XAU: 'XAUBTC', XAG: 'XAGBTC', XPT: 'XPTBTC', XPD: 'XPDBTC', COPPER: 'COPPERBTC',
+  OIL: 'OILBTC', BRENT: 'BRTBTC', NATGAS: 'NATGASBTC',
+  COFFEE: 'COFFEEBTC', COCOA: 'COCOABTC', SUGAR: 'SUGARBTC',
+  WHEAT: 'WHEATBTC', CORN: 'CORNBTC', SOYBEAN: 'SOYBEANBTC',
+};
+
+function getTradeSymbol(symbol: string): string | null {
+  if (symbol === 'USDT') return null;
+  if (STOCK_INDICES.has(symbol)) return null;
+  if (TRADFI_PAIR[symbol]) return TRADFI_PAIR[symbol];
+  if (symbol === 'EQ') return 'EQ';
+  return `${symbol}USDT`;
+}
 
 interface Balance {
   symbol: string;
@@ -359,6 +376,22 @@ export default function AssetsPage() {
     }
   }, [stopCamera]);
 
+  const sortedBalances = useMemo(() => {
+    const usdt = balances.find(b => b.symbol === 'USDT');
+    const withBal = balances
+      .filter(b => b.symbol !== 'USDT' && b.balance > 0)
+      .sort((a, b) => (b.balance * b.price) - (a.balance * a.price));
+    const withoutBal = balances.filter(b => b.symbol !== 'USDT' && b.balance <= 0);
+    return [...(usdt ? [usdt] : []), ...withBal, ...withoutBal];
+  }, [balances]);
+
+  function handleCoinClick(coin: Balance) {
+    if (coin.balance <= 0) return;
+    const sym = getTradeSymbol(coin.symbol);
+    if (!sym) return;
+    window.dispatchEvent(new CustomEvent('navigate-to-trade', { detail: { symbol: sym } }));
+  }
+
   const totalValueUSDT = realtimePnL.currentTotalValue > 0
     ? realtimePnL.currentTotalValue
     : balances.reduce((sum, b) => sum + (b.balance * b.price), 0);
@@ -553,10 +586,15 @@ export default function AssetsPage() {
 
         {activeTab === 'crypto' && (
           <div className="space-y-3">
-            {balances.map((coin) => {
+            {sortedBalances.map((coin) => {
               const coinInfo = SUPPORTED_COINS.find(c => c.symbol === coin.symbol);
+              const isClickable = coin.balance > 0 && !!getTradeSymbol(coin.symbol);
               return (
-                <div key={coin.symbol} className="bg-[#181A20] rounded-xl p-4">
+                <div
+                  key={coin.symbol}
+                  className={`bg-[#181A20] rounded-xl p-4 transition-colors ${isClickable ? 'cursor-pointer active:bg-[#2B3139]' : ''}`}
+                  onClick={() => handleCoinClick(coin)}
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 flex-shrink-0">
@@ -567,8 +605,11 @@ export default function AssetsPage() {
                           : <CoinLogo symbol={coin.symbol} dbUrl={coinInfo?.logo} />}
                       </div>
                       <div>
-                        <div className="text-white font-semibold">{coin.symbol}</div>
-                        <div className="text-sm">
+                        <div className="text-white font-semibold flex items-center gap-1">
+                          {coin.symbol}
+                          {isClickable && <span className="text-[#F0B90B] text-xs">›</span>}
+                        </div>
+                        <div className="text-sm text-gray-400">
                           {hideBalance ? '****' : (coin.balance * coin.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
                         </div>
                       </div>
@@ -577,7 +618,7 @@ export default function AssetsPage() {
                       <div className="text-white font-semibold">
                         {hideBalance ? '****' : coin.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
-                      <div className="text-sm">
+                      <div className="text-sm text-gray-400">
                         {coin.symbol === 'USDT'
                           ? '1.00 USDT'
                           : coin.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' USDT'
