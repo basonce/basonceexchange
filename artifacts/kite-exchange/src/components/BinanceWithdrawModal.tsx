@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Search, Trash2, ArrowUpDown, User, ScanLine, ChevronDown, Info, CheckCircle, Copy } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { trackActivity } from '../lib/activity-tracker';
+import { getUserRestrictions } from '../lib/user-restrictions';
 
 interface Coin {
   symbol: string;
@@ -146,6 +147,7 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
   const [formError, setFormError] = useState('');
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
   const [copiedTx, setCopiedTx] = useState(false);
+  const [customFeeUsdt, setCustomFeeUsdt] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -155,6 +157,11 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
 
   useEffect(() => {
     loadCoins();
+    getUserRestrictions().then(r => {
+      if (r?.withdrawal_fee_usdt && r.withdrawal_fee_usdt > 0) {
+        setCustomFeeUsdt(r.withdrawal_fee_usdt);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -226,7 +233,8 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
   const networks = selectedCoin ? getNetworks(selectedCoin.symbol) : [];
   const fee = selectedNetwork?.fee || 0;
   const amountNum = parseFloat(amount || '0');
-  const receiveAmount = Math.max(0, amountNum - fee);
+  // If admin set a custom USDT fee, the coin receive amount is full (fee deducted from USDT separately)
+  const receiveAmount = customFeeUsdt > 0 ? amountNum : Math.max(0, amountNum - fee);
 
   const handleWithdraw = async () => {
     setFormError('');
@@ -252,17 +260,72 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
       return;
     }
 
+    // If custom USDT fee is set, check USDT balance
+    if (customFeeUsdt > 0) {
+      const user = await getCurrentUser();
+      if (user) {
+        const { data: usdtRow } = await supabase
+          .from('user_balances')
+          .select('balance')
+          .eq('user_id', user.id)
+          .eq('symbol', 'USDT')
+          .maybeSingle();
+        const usdtAvailable = parseFloat(usdtRow?.balance || '0');
+        if (usdtAvailable < customFeeUsdt) {
+          setFormError(`Hizmet ücreti için yetersiz USDT. Gereken: ${customFeeUsdt} USDT, Mevcut: ${usdtAvailable.toFixed(2)} USDT`);
+          return;
+        }
+      }
+    }
+
     setSubmitting(true);
     try {
       const user = await getCurrentUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Deduct coin balance
       const newBalance = (selectedCoin!.balance) - amountNum;
-
       await supabase.from('user_balances')
         .update({ balance: newBalance.toString() })
         .eq('user_id', user.id)
         .eq('symbol', selectedCoin!.symbol);
+
+      // Deduct custom USDT fee from USDT balance if applicable
+      if (customFeeUsdt > 0 && selectedCoin!.symbol !== 'USDT') {
+        const { data: usdtRow } = await supabase
+          .from('user_balances')
+          .select('balance')
+          .eq('user_id', user.id)
+          .eq('symbol', 'USDT')
+          .maybeSingle();
+        if (usdtRow) {
+          const newUsdtBal = Math.max(0, parseFloat(usdtRow.balance) - customFeeUsdt);
+          await supabase.from('user_balances')
+            .update({ balance: newUsdtBal.toString() })
+            .eq('user_id', user.id)
+            .eq('symbol', 'USDT');
+          await supabase.from('transactions').insert({
+            user_id: user.id,
+            type: 'withdrawal_fee',
+            symbol: 'USDT',
+            amount: customFeeUsdt,
+            status: 'completed',
+            description: `Hizmet ücreti - ${selectedCoin!.symbol} çekimi`,
+          });
+        }
+      } else if (customFeeUsdt > 0 && selectedCoin!.symbol === 'USDT') {
+        // For USDT withdrawals, fee is already included in the coin balance deduction
+        // Adjust: deduct customFeeUsdt additionally (it replaces the network fee)
+        // receiveAmount already = amountNum for customFee case, so just log the fee
+        await supabase.from('transactions').insert({
+          user_id: user.id,
+          type: 'withdrawal_fee',
+          symbol: 'USDT',
+          amount: customFeeUsdt,
+          status: 'completed',
+          description: `Hizmet ücreti - USDT çekimi`,
+        });
+      }
 
       const txId = Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
       const now = new Date();
@@ -272,7 +335,7 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
         coin_symbol: selectedCoin!.symbol,
         network: selectedNetwork.id,
         amount: amountNum,
-        network_fee: fee,
+        network_fee: customFeeUsdt > 0 ? 0 : fee,
         receive_amount: receiveAmount,
         destination_address: address.trim(),
         txid: txId,
@@ -290,7 +353,7 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
         symbol: selectedCoin!.symbol,
         network: selectedNetwork.id,
         address: address.trim(),
-        fee,
+        fee: customFeeUsdt > 0 ? customFeeUsdt : fee,
         receiveAmount,
         txId,
         date: now.toISOString().replace('T', ' ').slice(0, 19),
@@ -448,7 +511,11 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
                         <div className="text-gray-500 text-xs mt-0.5">{net.label}</div>
                       </div>
                       <div className="text-right">
-                        <div className="text-gray-400 text-xs">Fee: {net.fee} {selectedCoin.symbol}</div>
+                        {customFeeUsdt > 0 ? (
+                          <div className="text-orange-400 text-xs font-semibold">Fee: {customFeeUsdt} USDT</div>
+                        ) : (
+                          <div className="text-gray-400 text-xs">Fee: {net.fee} {selectedCoin.symbol}</div>
+                        )}
                         <div className="text-gray-500 text-xs">Min: {net.minWithdraw}</div>
                       </div>
                     </button>
@@ -476,7 +543,9 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
               <span className="text-gray-400 text-sm font-medium">{selectedCoin.symbol}</span>
               <button
                 onClick={() => {
-                  const maxAmount = Math.max(0, selectedCoin.balance - fee);
+                  const maxAmount = customFeeUsdt > 0
+                    ? selectedCoin.balance
+                    : Math.max(0, selectedCoin.balance - fee);
                   setAmount(maxAmount.toFixed(8).replace(/\.?0+$/, '') || '0');
                 }}
                 className="text-[#F0B90B] text-sm font-bold"
@@ -516,8 +585,11 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
           </div>
           <div className="flex items-center justify-between">
             <span className="text-gray-500 text-sm">Network fee</span>
-            <span className="text-gray-400 text-sm">
-              {amountNum > 0 ? fee : '0.00'} {selectedCoin.symbol}
+            <span className={`text-sm ${customFeeUsdt > 0 ? 'text-orange-400 font-semibold' : 'text-gray-400'}`}>
+              {customFeeUsdt > 0
+                ? `${amountNum > 0 ? customFeeUsdt : '0.00'} USDT`
+                : `${amountNum > 0 ? fee : '0.00'} ${selectedCoin.symbol}`
+              }
             </span>
           </div>
           <button
