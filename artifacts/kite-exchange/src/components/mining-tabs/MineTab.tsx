@@ -378,8 +378,8 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
     if (!user) return;
 
     const restrictions = await getUserRestrictions(user.id);
-    if (restrictions?.usdt_frozen) {
-      alert('Your USDT balance is currently frozen. You cannot collect mining earnings. Please contact support to deposit funds directly.');
+    if (restrictions?.mining_blocked || restrictions?.usdt_frozen) {
+      alert('Mining earnings collection is currently restricted on your account. Please contact support for assistance.');
       return;
     }
 

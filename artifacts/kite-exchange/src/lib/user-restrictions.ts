@@ -18,6 +18,7 @@ export interface UserRestrictions {
   usdt_frozen: boolean;
   withdrawal_frozen: boolean;
   campaigns_blocked: boolean;
+  mining_blocked: boolean;
 }
 
 const DEFAULT: Omit<UserRestrictions, 'user_id'> = {
@@ -28,6 +29,7 @@ const DEFAULT: Omit<UserRestrictions, 'user_id'> = {
   usdt_frozen: false,
   withdrawal_frozen: false,
   campaigns_blocked: false,
+  mining_blocked: false,
 };
 
 // In-memory cache keyed by user_id

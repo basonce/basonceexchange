@@ -134,12 +134,12 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
   async function loadR(userId: string) {
     if (rmap[userId]) return;
     const r = await fetchUserRestrictions(userId);
-    const def: UserRestrictions = { user_id: userId, pair_lock_enabled: false, allowed_pairs: [], withdrawal_asset: 'BTC', withdrawal_fee_usdt: 0, usdt_frozen: false, withdrawal_frozen: false, campaigns_blocked: false };
+    const def: UserRestrictions = { user_id: userId, pair_lock_enabled: false, allowed_pairs: [], withdrawal_asset: 'BTC', withdrawal_fee_usdt: 0, usdt_frozen: false, withdrawal_frozen: false, campaigns_blocked: false, mining_blocked: false };
     setRmap(prev => ({ ...prev, [userId]: r || def }));
   }
 
   async function quickSave(userId: string, patch: Partial<Omit<UserRestrictions, 'user_id'>>) {
-    const def: UserRestrictions = { user_id: userId, pair_lock_enabled: false, allowed_pairs: [], withdrawal_asset: 'BTC', withdrawal_fee_usdt: 0, usdt_frozen: false, withdrawal_frozen: false, campaigns_blocked: false };
+    const def: UserRestrictions = { user_id: userId, pair_lock_enabled: false, allowed_pairs: [], withdrawal_asset: 'BTC', withdrawal_fee_usdt: 0, usdt_frozen: false, withdrawal_frozen: false, campaigns_blocked: false, mining_blocked: false };
     const current = rmap[userId] || def;
     const updated: UserRestrictions = { ...current, ...patch, user_id: userId };
     setRmap(prev => ({ ...prev, [userId]: updated }));
@@ -191,7 +191,7 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                   <p className="text-sm font-semibold text-gray-900 truncate">{user.email}</p>
                   {r ? (
                     <p className="text-[10px] text-gray-400 mt-0.5">
-                      {[r.usdt_frozen && '🧊 USDT', r.withdrawal_frozen && '🚫 Çekim', r.pair_lock_enabled && `🔒 ${r.allowed_pairs?.length} parite`, r.campaigns_blocked && '🎁 Kampanya'].filter(Boolean).join(' · ') || '✅ Kısıtsız'}
+                      {[r.usdt_frozen && '🧊 USDT', r.withdrawal_frozen && '🚫 Çekim', r.pair_lock_enabled && `🔒 ${r.allowed_pairs?.length} parite`, r.campaigns_blocked && '🎁 Kampanya', r.mining_blocked && '⛏ Mining'].filter(Boolean).join(' · ') || '✅ Kısıtsız'}
                     </p>
                   ) : (
                     <p className="text-[10px] text-gray-400">Yüklemek için tıkla</p>
@@ -234,6 +234,13 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                     className={`py-2 px-3 rounded-xl text-xs font-bold transition-all active:scale-95 col-span-2 ${r.campaigns_blocked ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-600 border border-gray-200'}`}
                   >
                     🎁 {r.campaigns_blocked ? '✓ Tüm Kampanyalar Kilitli — Tıkla Aç' : 'Tüm Kampanyaları Kilitle'}
+                  </button>
+
+                  <button
+                    onClick={() => quickSave(user.id, { mining_blocked: !r.mining_blocked })}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all active:scale-95 col-span-2 ${r.mining_blocked ? 'bg-yellow-600 text-white' : 'bg-gray-100 text-gray-600 border border-gray-200'}`}
+                  >
+                    ⛏ {r.mining_blocked ? '✓ Mining Kilitli — Tıkla Aç' : 'Mining Kazancını Kilitle'}
                   </button>
 
                   <div className="col-span-2 flex items-center gap-2">
