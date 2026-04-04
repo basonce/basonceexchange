@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Lock, Unlock, Save, CheckCircle, AlertTriangle, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Lock, Unlock, Save, CheckCircle, AlertTriangle, X, ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchUserRestrictions, saveUserRestrictions } from '../lib/user-restrictions';
 import type { UserRestrictions } from '../lib/user-restrictions';
@@ -56,7 +56,7 @@ const PAIR_GROUPS: { label: string; emoji: string; color: string; pairs: string[
 export default function UserRestrictionsPanel() {
   const [search, setSearch] = useState('');
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
-  const [results, setResults] = useState<UserProfile[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
   const [selected, setSelected] = useState<UserProfile | null>(null);
   const [form, setForm] = useState<Omit<UserRestrictions, 'user_id'>>(DEFAULT);
   const [loading, setLoading] = useState(false);
@@ -65,24 +65,27 @@ export default function UserRestrictionsPanel() {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
+    setLoadingUsers(true);
     supabase
       .from('user_profiles')
       .select('id, email, full_name, is_active')
       .eq('is_admin', false)
       .order('email')
-      .then(({ data }) => setAllUsers(data || []));
+      .then(({ data }) => {
+        setAllUsers(data || []);
+        setLoadingUsers(false);
+      });
   }, []);
 
-  useEffect(() => {
-    if (!search.trim()) { setResults([]); return; }
-    const q = search.toLowerCase();
-    setResults(allUsers.filter(u => u.email.toLowerCase().includes(q) || (u.full_name || '').toLowerCase().includes(q)).slice(0, 8));
-  }, [search, allUsers]);
+  const filteredUsers = search.trim()
+    ? allUsers.filter(u =>
+        u.email.toLowerCase().includes(search.toLowerCase()) ||
+        (u.full_name || '').toLowerCase().includes(search.toLowerCase())
+      )
+    : allUsers;
 
   async function selectUser(u: UserProfile) {
     setSelected(u);
-    setSearch('');
-    setResults([]);
     setLoading(true);
     try {
       const data = await fetchUserRestrictions(u.id);
@@ -130,93 +133,45 @@ export default function UserRestrictionsPanel() {
     setTimeout(() => setToast(null), 3000);
   }
 
-  return (
-    <div className="min-h-screen bg-[#0D1117] text-white pb-20">
-      {toast && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 text-sm font-semibold transition-all ${toast.ok ? 'bg-green-500/20 border border-green-500/40 text-green-300' : 'bg-red-500/20 border border-red-500/40 text-red-300'}`}>
-          {toast.ok ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-          {toast.msg}
-        </div>
-      )}
-
-      <div className="p-4 space-y-4">
-        <div className="flex items-center gap-3 pb-1">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' }}>
-            <Lock className="w-5 h-5 text-red-400" />
+  // ── Detail view (user selected) ──────────────────────────────
+  if (selected) {
+    return (
+      <div className="min-h-screen bg-[#0D1117] text-white pb-24">
+        {toast && (
+          <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 text-sm font-semibold transition-all ${toast.ok ? 'bg-green-500/20 border border-green-500/40 text-green-300' : 'bg-red-500/20 border border-red-500/40 text-red-300'}`}>
+            {toast.ok ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+            {toast.msg}
           </div>
-          <div>
-            <h2 className="text-base font-bold text-white">Kullanıcı Kısıtlamaları</h2>
-            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>İşlem ve çekim kısıtlarını yönet</p>
+        )}
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 pt-4 pb-3 sticky top-0 z-10" style={{ background: '#0D1117', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <button onClick={() => { setSelected(null); setForm({ ...DEFAULT }); }} className="p-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            <ArrowLeft className="w-4 h-4 text-white" />
+          </button>
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-black flex-shrink-0" style={{ background: '#F0B90B' }}>
+            {selected.email[0].toUpperCase()}
           </div>
-        </div>
-
-        {/* User Search */}
-        <div className="rounded-2xl p-4 space-y-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <p className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)', letterSpacing: '0.06em' }}>KULLANICI SEÇ</p>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'rgba(255,255,255,0.3)' }} />
-            <input
-              type="text"
-              placeholder="E-posta ara..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-white placeholder:text-gray-600 focus:outline-none"
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
-            />
-            {search && (
-              <button onClick={() => { setSearch(''); setResults([]); }} className="absolute right-3 top-1/2 -translate-y-1/2">
-                <X className="w-3.5 h-3.5" style={{ color: 'rgba(255,255,255,0.3)' }} />
-              </button>
-            )}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-white truncate">{selected.email}</p>
+            {selected.full_name && <p className="text-[10px] truncate" style={{ color: 'rgba(255,255,255,0.4)' }}>{selected.full_name}</p>}
           </div>
-
-          {results.length > 0 && (
-            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
-              {results.map((u, i) => (
-                <button
-                  key={u.id}
-                  onClick={() => selectUser(u)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 text-left transition-all"
-                  style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent', borderBottom: i < results.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}
-                >
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-black" style={{ background: '#F0B90B' }}>
-                    {u.email[0].toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white truncate">{u.email}</p>
-                    {u.full_name && <p className="text-[10px] truncate" style={{ color: 'rgba(255,255,255,0.4)' }}>{u.full_name}</p>}
-                  </div>
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${u.is_active ? 'bg-green-400' : 'bg-red-400'}`} />
-                </button>
-              ))}
-            </div>
-          )}
-
-          {selected && (
-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(240,185,11,0.1)', border: '1px solid rgba(240,185,11,0.25)' }}>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-black" style={{ background: '#F0B90B' }}>
-                {selected.email[0].toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">{selected.email}</p>
-                <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>Seçili kullanıcı</p>
-              </div>
-              <button onClick={() => { setSelected(null); setForm({ ...DEFAULT }); }}>
-                <X className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.4)' }} />
-              </button>
-            </div>
-          )}
+          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${selected.is_active ? 'bg-green-400' : 'bg-red-400'}`} />
         </div>
 
-        {selected && !loading && (
-          <>
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="w-6 h-6 border-2 border-yellow-500/30 border-t-yellow-500 rounded-full animate-spin" />
+          </div>
+        ) : (
+          <div className="p-4 space-y-4">
             {/* Pair Lock */}
             <div className="rounded-2xl p-4 space-y-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-white">Parite Kilidi</p>
                   <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                    Açılırsa kullanıcı yalnızca seçilen paritelerle işlem yapabilir
+                    Açılırsa yalnızca seçilen paritelerle işlem yapılabilir
                   </p>
                 </div>
                 <button
@@ -324,9 +279,6 @@ export default function UserRestrictionsPanel() {
                     </button>
                   ))}
                 </div>
-                <p className="text-[10px] mt-2" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                  Kullanıcı yalnızca bu varlıkla çekim yapabilir
-                </p>
               </div>
 
               <div>
@@ -347,7 +299,7 @@ export default function UserRestrictionsPanel() {
                 {form.withdrawal_fee_usdt > 0 && (
                   <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-xl text-xs" style={{ background: 'rgba(239,68,68,0.1)', color: '#F87171' }}>
                     <AlertTriangle className="w-3.5 h-3.5" />
-                    Çekim başına {form.withdrawal_fee_usdt} USDT bakiyeden kesilir
+                    Çekim başına {form.withdrawal_fee_usdt} USDT kesilir
                   </div>
                 )}
               </div>
@@ -357,36 +309,97 @@ export default function UserRestrictionsPanel() {
               onClick={save}
               disabled={saving || (form.pair_lock_enabled && form.allowed_pairs.length === 0)}
               className="w-full py-4 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-              style={{
-                background: 'linear-gradient(135deg, #EF4444, #DC2626)',
-                boxShadow: '0 4px 24px rgba(239,68,68,0.3)',
-              }}
+              style={{ background: 'linear-gradient(135deg, #EF4444, #DC2626)', boxShadow: '0 4px 24px rgba(239,68,68,0.3)' }}
             >
-              {saving ? (
-                <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
+              {saving ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
               {saving ? 'Kaydediliyor…' : 'Kısıtlamaları Kaydet'}
             </button>
-          </>
-        )}
-
-        {selected && loading && (
-          <div className="flex items-center justify-center py-12">
-            <div className="w-6 h-6 border-2 border-yellow-500/30 border-t-yellow-500 rounded-full animate-spin" />
           </div>
         )}
+      </div>
+    );
+  }
 
-        {!selected && (
+  // ── User list view ────────────────────────────────────────────
+  return (
+    <div className="min-h-screen bg-[#0D1117] text-white flex flex-col">
+      {/* Header */}
+      <div className="px-4 pt-4 pb-3 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' }}>
+            <Lock className="w-4 h-4 text-red-400" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-white">Kullanıcı Kısıtlamaları</h2>
+            <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }}>Kısıtlamak istediğin kullanıcıyı seç</p>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'rgba(255,255,255,0.3)' }} />
+          <input
+            type="text"
+            placeholder="İsim veya e-posta filtrele…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-9 pr-9 py-2.5 rounded-xl text-sm text-white placeholder:text-gray-600 focus:outline-none"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2">
+              <X className="w-3.5 h-3.5" style={{ color: 'rgba(255,255,255,0.3)' }} />
+            </button>
+          )}
+        </div>
+
+        {!loadingUsers && (
+          <p className="text-[10px] mt-2" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            {filteredUsers.length} kullanıcı
+          </p>
+        )}
+      </div>
+
+      {/* User list */}
+      <div className="flex-1 overflow-y-auto">
+        {loadingUsers ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="w-6 h-6 border-2 border-yellow-500/30 border-t-yellow-500 rounded-full animate-spin" />
+          </div>
+        ) : filteredUsers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-16 h-16 rounded-3xl flex items-center justify-center mb-4" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
-              <Lock className="w-8 h-8 text-red-400" />
-            </div>
-            <p className="text-sm font-semibold text-white mb-1">Kullanıcı Seçilmedi</p>
-            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
-              Kısıtlama uygulamak için yukarıdan<br />bir kullanıcı ara ve seç
-            </p>
+            <Search className="w-8 h-8 mb-3" style={{ color: 'rgba(255,255,255,0.2)' }} />
+            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>Kullanıcı bulunamadı</p>
+          </div>
+        ) : (
+          <div>
+            {filteredUsers.map((u, i) => (
+              <button
+                key={u.id}
+                onClick={() => selectUser(u)}
+                className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-all active:opacity-70"
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+              >
+                {/* Avatar */}
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-black flex-shrink-0" style={{ background: '#F0B90B' }}>
+                  {u.email[0].toUpperCase()}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">{u.email}</p>
+                  {u.full_name && (
+                    <p className="text-[11px] truncate" style={{ color: 'rgba(255,255,255,0.4)' }}>{u.full_name}</p>
+                  )}
+                </div>
+
+                {/* Status */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className={`w-2 h-2 rounded-full ${u.is_active ? 'bg-green-400' : 'bg-red-400'}`} />
+                  <ChevronDown className="w-4 h-4 rotate-[-90deg]" style={{ color: 'rgba(255,255,255,0.25)' }} />
+                </div>
+              </button>
+            ))}
           </div>
         )}
       </div>
