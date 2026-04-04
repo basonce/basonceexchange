@@ -387,9 +387,20 @@ export default function AssetsPage() {
 
   function handleCoinClick(coin: Balance) {
     if (coin.balance <= 0) return;
-    const sym = getTradeSymbol(coin.symbol);
-    if (!sym) return;
-    window.dispatchEvent(new CustomEvent('navigate-to-trade', { detail: { symbol: sym } }));
+    if (coin.symbol === 'USDT') return;
+    if (STOCK_INDICES.has(coin.symbol)) return;
+    const isTradFi = !!TRADFI_PAIR[coin.symbol];
+    localStorage.setItem('pendingTradeSelector', JSON.stringify({
+      tab: isTradFi ? 'metals' : 'crypto',
+      filter: coin.symbol,
+    }));
+    window.dispatchEvent(new CustomEvent('navigate-to-trade', {
+      detail: {
+        openSelector: true,
+        selectorTab: isTradFi ? 'metals' : 'crypto',
+        selectorFilter: coin.symbol,
+      }
+    }));
   }
 
   const totalValueUSDT = realtimePnL.currentTotalValue > 0
@@ -588,7 +599,7 @@ export default function AssetsPage() {
           <div className="space-y-3">
             {sortedBalances.map((coin) => {
               const coinInfo = SUPPORTED_COINS.find(c => c.symbol === coin.symbol);
-              const isClickable = coin.balance > 0 && !!getTradeSymbol(coin.symbol);
+              const isClickable = coin.balance > 0 && coin.symbol !== 'USDT' && !STOCK_INDICES.has(coin.symbol);
               return (
                 <div
                   key={coin.symbol}

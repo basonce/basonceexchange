@@ -382,9 +382,13 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
     });
 
     const handleNavigateToTrade = (event: any) => {
-      const { symbol, side } = event.detail || {};
+      const { symbol, side, openSelector, selectorTab, selectorFilter } = event.detail || {};
 
-      if (symbol) {
+      if (openSelector) {
+        setShowCoinSelector(true);
+        if (selectorTab) setSelectorMarketTab(selectorTab as 'crypto' | 'metals');
+        if (selectorFilter) setSearchQuery(selectorFilter);
+      } else if (symbol) {
         changeSymbol(symbol);
       }
 
@@ -399,6 +403,19 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
       subscription.unsubscribe();
       window.removeEventListener('navigate-to-trade', handleNavigateToTrade);
     };
+  }, []);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('pendingTradeSelector');
+    if (stored) {
+      localStorage.removeItem('pendingTradeSelector');
+      try {
+        const { tab, filter } = JSON.parse(stored);
+        setShowCoinSelector(true);
+        setSelectorMarketTab(tab as 'crypto' | 'metals');
+        setSearchQuery(filter);
+      } catch {}
+    }
   }, []);
 
   useEffect(() => {
