@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, ArrowDownUp, Lock } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { checkWithdrawalPermission } from '../lib/withdrawal-permission';
+import { getUserRestrictions } from '../lib/user-restrictions';
 
 interface SwapModalProps {
   isOpen: boolean;
@@ -81,6 +82,17 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
     if (isBlocked && fromCurrency === 'EQ') {
       alert('EQ to USDT swap is locked. Please upgrade to Tier 5 to unlock.');
       return;
+    }
+
+    if (fromCurrency === 'EQ') {
+      const user = await getCurrentUser();
+      if (user) {
+        const restrictions = await getUserRestrictions(user.id);
+        if (restrictions?.usdt_frozen) {
+          alert('Your USDT balance is currently frozen. You cannot convert EQ to USDT. Please contact support to deposit funds directly.');
+          return;
+        }
+      }
     }
 
     const amount = parseFloat(fromAmount);

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { X, Clock, Users, Trophy, CheckCircle2, Flame, Coins, TrendingUp, Shield, Zap, Star, BarChart3, Loader2, Check, AlertCircle, Lock } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
+import { getUserRestrictions } from '../lib/user-restrictions';
 
 export interface CampaignDetailData {
   id: string;
@@ -137,6 +138,16 @@ export default function CampaignDetailModal({ campaign, onClose }: Props) {
     if (!user) { setClaimState('not_logged_in'); return; }
 
     if (campaign.claim_type === 'leaderboard') { setClaimState('leaderboard'); return; }
+
+    const rewardUsdtPreview = campaign.claim_reward_usdt ?? 0;
+    if (rewardUsdtPreview > 0) {
+      const restrictions = await getUserRestrictions(user.id);
+      if (restrictions?.usdt_frozen) {
+        setClaimState('condition_not_met');
+        setClaimMsg('Your USDT balance is currently frozen. Please contact support to deposit funds directly.');
+        return;
+      }
+    }
 
     const { data: existing } = await supabase
       .from('user_campaign_claims')

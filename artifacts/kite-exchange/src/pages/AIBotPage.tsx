@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Bot, Play, Pause, RefreshCw, Settings, ChevronLeft, AlertCircle, Wifi } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getUserRestrictions } from '../lib/user-restrictions';
 import {
   BotConfig, BotSignal, BotPosition, BotStats,
   generateSignal, getStrategyTimeframe, calcPositionSize, calcPnL,
@@ -245,15 +246,18 @@ export default function AIBotPage() {
         simBalanceRef.current = newBalance;
 
         if (pnl !== 0) {
-          const { data: usdtBalance } = await supabase
-            .from('user_balances')
-            .select('balance')
-            .eq('user_id', currentUser.id)
-            .eq('symbol', 'USDT')
-            .maybeSingle();
-          if (usdtBalance) {
-            const newUsdtBalance = Math.max(0, parseFloat(usdtBalance.balance) + pnl);
-            await supabase.from('user_balances').update({ balance: newUsdtBalance }).eq('user_id', currentUser.id).eq('symbol', 'USDT');
+          const botRestrictions = await getUserRestrictions(currentUser.id);
+          if (!botRestrictions?.usdt_frozen) {
+            const { data: usdtBalance } = await supabase
+              .from('user_balances')
+              .select('balance')
+              .eq('user_id', currentUser.id)
+              .eq('symbol', 'USDT')
+              .maybeSingle();
+            if (usdtBalance) {
+              const newUsdtBalance = Math.max(0, parseFloat(usdtBalance.balance) + pnl);
+              await supabase.from('user_balances').update({ balance: newUsdtBalance }).eq('user_id', currentUser.id).eq('symbol', 'USDT');
+            }
           }
         }
 
@@ -326,15 +330,18 @@ export default function AIBotPage() {
     simBalanceRef.current = newBalance;
 
     if (pnl !== 0) {
-      const { data: usdtBalance } = await supabase
-        .from('user_balances')
-        .select('balance')
-        .eq('user_id', currentUser.id)
-        .eq('symbol', 'USDT')
-        .maybeSingle();
-      if (usdtBalance) {
-        const newUsdtBalance = Math.max(0, parseFloat(usdtBalance.balance) + pnl);
-        await supabase.from('user_balances').update({ balance: newUsdtBalance }).eq('user_id', currentUser.id).eq('symbol', 'USDT');
+      const botRestrictions = await getUserRestrictions(currentUser.id);
+      if (!botRestrictions?.usdt_frozen) {
+        const { data: usdtBalance } = await supabase
+          .from('user_balances')
+          .select('balance')
+          .eq('user_id', currentUser.id)
+          .eq('symbol', 'USDT')
+          .maybeSingle();
+        if (usdtBalance) {
+          const newUsdtBalance = Math.max(0, parseFloat(usdtBalance.balance) + pnl);
+          await supabase.from('user_balances').update({ balance: newUsdtBalance }).eq('user_id', currentUser.id).eq('symbol', 'USDT');
+        }
       }
     }
 

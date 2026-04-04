@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Zap, Clock, Download, Lock, Sparkles, Lightbulb } from 'lucide-react';
 import { supabase, getCurrentUser } from '../../lib/supabase';
+import { getUserRestrictions } from '../../lib/user-restrictions';
 import { EarnQuestPriceManager } from '../../lib/earnquest-price';
 import AnimatedCounter from '../AnimatedCounter';
 import MiningMachineCard from '../MiningMachineCard';
@@ -375,6 +376,12 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
 
     const user = await getCurrentUser();
     if (!user) return;
+
+    const restrictions = await getUserRestrictions(user.id);
+    if (restrictions?.usdt_frozen) {
+      alert('Your USDT balance is currently frozen. You cannot collect mining earnings. Please contact support to deposit funds directly.');
+      return;
+    }
 
     const confirmed = confirm(
       `Collect Mining Earnings?\n\n` +
