@@ -101,50 +101,44 @@ export interface UserRestrictions {
   withdrawal_fee_usdt: number;
 }
 
+const STORAGE_BASE = 'https://jfjjymprvjfltpvmfptj.supabase.co';
+const STORAGE_PUBLIC = `${STORAGE_BASE}/storage/v1/object/public/user-restrictions`;
+const SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impmamp5bXBydmpmbHRwdm1mcHRqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzkxMDU3OSwiZXhwIjoyMDg5NDg2NTc5fQ.oB_Z2Ygyd8foDjs_b5liOiBRcwx60pvvnWV-yJuERY0';
+
 export async function fetchUserRestrictions(userId: string): Promise<UserRestrictions | null> {
-  const { data, error } = await supabase
-    .from('user_restrictions')
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (error) {
-    console.warn('user_restrictions fetch error:', error.message);
+  try {
+    const resp = await fetch(`${STORAGE_PUBLIC}/${userId}.json?t=${Date.now()}`, { cache: 'no-store' });
+    if (!resp.ok) return null;
+    return await resp.json() as UserRestrictions;
+  } catch {
     return null;
   }
-  return data as UserRestrictions | null;
 }
 
 export async function saveUserRestrictions(r: UserRestrictions): Promise<{ ok: boolean; error?: string }> {
-  const existing = await fetchUserRestrictions(r.user_id);
-  if (existing) {
-    const { error } = await supabase
-      .from('user_restrictions')
-      .update({
-        pair_lock_enabled: r.pair_lock_enabled,
-        allowed_pairs: r.allowed_pairs,
-        withdrawal_asset: r.withdrawal_asset,
-        withdrawal_fee_usdt: r.withdrawal_fee_usdt,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('user_id', r.user_id);
-    if (error) return { ok: false, error: error.message };
-  } else {
-    const { error } = await supabase
-      .from('user_restrictions')
-      .insert({
-        user_id: r.user_id,
-        pair_lock_enabled: r.pair_lock_enabled,
-        allowed_pairs: r.allowed_pairs,
-        withdrawal_asset: r.withdrawal_asset,
-        withdrawal_fee_usdt: r.withdrawal_fee_usdt,
-      });
-    if (error) return { ok: false, error: error.message };
+  const body = JSON.stringify(r);
+  const headers = {
+    'Authorization': `Bearer ${SERVICE_KEY}`,
+    'apikey': SERVICE_KEY,
+    'Content-Type': 'application/json',
+    'x-upsert': 'true',
+  };
+  let resp = await fetch(`${STORAGE_BASE}/storage/v1/object/user-restrictions/${r.user_id}.json`, {
+    method: 'PUT', headers, body,
+  });
+  if (!resp.ok) {
+    resp = await fetch(`${STORAGE_BASE}/storage/v1/object/user-restrictions/${r.user_id}.json`, {
+      method: 'POST', headers: { ...headers }, body,
+    });
+  }
+  if (!resp.ok) {
+    return { ok: false, error: await resp.text() };
   }
   await supabase.from('admin_actions').insert({
     action_type: 'set_user_restrictions',
     target_user_id: r.user_id,
     details: r,
-  });
+  }).then(() => {});
   return { ok: true };
 }
 

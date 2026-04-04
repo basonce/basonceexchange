@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Search, Lock, Unlock, Save, CheckCircle, AlertTriangle, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { fetchUserRestrictions, saveUserRestrictions } from '../lib/user-restrictions';
+import type { UserRestrictions } from '../lib/user-restrictions';
 
 interface UserProfile {
   id: string;
@@ -9,14 +11,7 @@ interface UserProfile {
   is_active?: boolean;
 }
 
-interface Restrictions {
-  pair_lock_enabled: boolean;
-  allowed_pairs: string[];
-  withdrawal_asset: string;
-  withdrawal_fee_usdt: number;
-}
-
-const DEFAULT: Restrictions = {
+const DEFAULT: Omit<UserRestrictions, 'user_id'> = {
   pair_lock_enabled: false,
   allowed_pairs: [],
   withdrawal_asset: 'BTC',
@@ -63,7 +58,7 @@ export default function UserRestrictionsPanel() {
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [results, setResults] = useState<UserProfile[]>([]);
   const [selected, setSelected] = useState<UserProfile | null>(null);
-  const [form, setForm] = useState<Restrictions>(DEFAULT);
+  const [form, setForm] = useState<Omit<UserRestrictions, 'user_id'>>(DEFAULT);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -90,19 +85,15 @@ export default function UserRestrictionsPanel() {
     setResults([]);
     setLoading(true);
     try {
-      const { data } = await supabase
-        .from('user_restrictions')
-        .select('*')
-        .eq('user_id', u.id)
-        .maybeSingle();
+      const data = await fetchUserRestrictions(u.id);
       setForm(data ? {
-        pair_lock_enabled: data.pair_lock_enabled ?? false,
-        allowed_pairs: data.allowed_pairs ?? [],
-        withdrawal_asset: data.withdrawal_asset ?? 'BTC',
-        withdrawal_fee_usdt: data.withdrawal_fee_usdt ?? 0,
-      } : DEFAULT);
+        pair_lock_enabled: data.pair_lock_enabled,
+        allowed_pairs: data.allowed_pairs,
+        withdrawal_asset: data.withdrawal_asset,
+        withdrawal_fee_usdt: data.withdrawal_fee_usdt,
+      } : { ...DEFAULT });
     } catch {
-      setForm(DEFAULT);
+      setForm({ ...DEFAULT });
     } finally {
       setLoading(false);
     }
@@ -125,27 +116,7 @@ export default function UserRestrictionsPanel() {
     if (!selected) return;
     setSaving(true);
     try {
-      const payload = {
-        user_id: selected.id,
-        pair_lock_enabled: form.pair_lock_enabled,
-        allowed_pairs: form.allowed_pairs,
-        withdrawal_asset: form.withdrawal_asset,
-        withdrawal_fee_usdt: form.withdrawal_fee_usdt,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { data: existing } = await supabase
-        .from('user_restrictions')
-        .select('id')
-        .eq('user_id', selected.id)
-        .maybeSingle();
-
-      if (existing) {
-        await supabase.from('user_restrictions').update(payload).eq('user_id', selected.id);
-      } else {
-        await supabase.from('user_restrictions').insert({ ...payload, created_at: new Date().toISOString() });
-      }
-
+      await saveUserRestrictions({ user_id: selected.id, ...form });
       showToast('Kısıtlamalar kaydedildi ✓', true);
     } catch (e: any) {
       showToast('Hata: ' + (e?.message || 'Bilinmiyor'), false);
@@ -161,7 +132,6 @@ export default function UserRestrictionsPanel() {
 
   return (
     <div className="min-h-screen bg-[#0D1117] text-white pb-20">
-      {/* Toast */}
       {toast && (
         <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 text-sm font-semibold transition-all ${toast.ok ? 'bg-green-500/20 border border-green-500/40 text-green-300' : 'bg-red-500/20 border border-red-500/40 text-red-300'}`}>
           {toast.ok ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
@@ -170,7 +140,6 @@ export default function UserRestrictionsPanel() {
       )}
 
       <div className="p-4 space-y-4">
-        {/* Header */}
         <div className="flex items-center gap-3 pb-1">
           <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' }}>
             <Lock className="w-5 h-5 text-red-400" />
@@ -184,8 +153,6 @@ export default function UserRestrictionsPanel() {
         {/* User Search */}
         <div className="rounded-2xl p-4 space-y-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
           <p className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)', letterSpacing: '0.06em' }}>KULLANICI SEÇ</p>
-
-          {/* Search input */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'rgba(255,255,255,0.3)' }} />
             <input
@@ -203,7 +170,6 @@ export default function UserRestrictionsPanel() {
             )}
           </div>
 
-          {/* Dropdown results */}
           {results.length > 0 && (
             <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
               {results.map((u, i) => (
@@ -226,7 +192,6 @@ export default function UserRestrictionsPanel() {
             </div>
           )}
 
-          {/* Selected user chip */}
           {selected && (
             <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(240,185,11,0.1)', border: '1px solid rgba(240,185,11,0.25)' }}>
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-black" style={{ background: '#F0B90B' }}>
@@ -236,14 +201,13 @@ export default function UserRestrictionsPanel() {
                 <p className="text-sm font-semibold text-white truncate">{selected.email}</p>
                 <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>Seçili kullanıcı</p>
               </div>
-              <button onClick={() => { setSelected(null); setForm(DEFAULT); }}>
+              <button onClick={() => { setSelected(null); setForm({ ...DEFAULT }); }}>
                 <X className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.4)' }} />
               </button>
             </div>
           )}
         </div>
 
-        {/* Restriction Controls — only shown when a user is selected */}
         {selected && !loading && (
           <>
             {/* Pair Lock */}
@@ -260,14 +224,10 @@ export default function UserRestrictionsPanel() {
                   className="relative w-12 h-6 rounded-full transition-all flex-shrink-0"
                   style={{ background: form.pair_lock_enabled ? '#EF4444' : 'rgba(255,255,255,0.12)' }}
                 >
-                  <span
-                    className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all"
-                    style={{ left: form.pair_lock_enabled ? '26px' : '2px' }}
-                  />
+                  <span className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all" style={{ left: form.pair_lock_enabled ? '26px' : '2px' }} />
                 </button>
               </div>
 
-              {/* Status badge */}
               {form.pair_lock_enabled ? (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold" style={{ background: 'rgba(239,68,68,0.15)', color: '#F87171' }}>
                   <Lock className="w-3.5 h-3.5" />
@@ -280,14 +240,13 @@ export default function UserRestrictionsPanel() {
                 </div>
               )}
 
-              {/* Pair groups */}
               {form.pair_lock_enabled && (
                 <div className="space-y-2">
                   <p className="text-[10px] font-semibold pt-1" style={{ color: 'rgba(255,255,255,0.4)', letterSpacing: '0.06em' }}>
                     İZİN VERİLEN PARİTELER ({form.allowed_pairs.length} seçili)
                   </p>
                   {PAIR_GROUPS.map(group => {
-                    const isOpen = openGroups[group.label] !== false; // default open
+                    const isOpen = openGroups[group.label] !== false;
                     const selectedInGroup = group.pairs.filter(p => form.allowed_pairs.includes(p)).length;
                     return (
                       <div key={group.label} className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
@@ -347,7 +306,6 @@ export default function UserRestrictionsPanel() {
             <div className="rounded-2xl p-4 space-y-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
               <p className="text-sm font-semibold text-white">Çekim Ayarları</p>
 
-              {/* Withdrawal asset */}
               <div>
                 <p className="text-[11px] font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.5)', letterSpacing: '0.06em' }}>ÇEKIM VARLIĞI</p>
                 <div className="flex flex-wrap gap-2">
@@ -371,7 +329,6 @@ export default function UserRestrictionsPanel() {
                 </p>
               </div>
 
-              {/* USDT fee */}
               <div>
                 <p className="text-[11px] font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.5)', letterSpacing: '0.06em' }}>USDT HİZMET ÜCRETİ</p>
                 <div className="flex items-center gap-2">
@@ -396,7 +353,6 @@ export default function UserRestrictionsPanel() {
               </div>
             </div>
 
-            {/* Save Button */}
             <button
               onClick={save}
               disabled={saving || (form.pair_lock_enabled && form.allowed_pairs.length === 0)}
