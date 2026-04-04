@@ -108,6 +108,54 @@ const BTC_ONLY_PAIRS = [
   'COFFEE/BTC', 'COCOA/BTC', 'SUGAR/BTC', 'WHEAT/BTC', 'COTTON/BTC', 'SOYBEAN/BTC', 'CORN/BTC',
 ];
 
+// ── Sendable coins list (priority order) ─────────────────────
+const ALL_SENDABLE_COINS = [
+  // Stable
+  { sym: 'USDT',    name: 'Tether USDT',   icon: '💵', group: 'Stables' },
+  // Crypto majors
+  { sym: 'BTC',     name: 'Bitcoin',        icon: '₿',  group: 'Kripto' },
+  { sym: 'ETH',     name: 'Ethereum',       icon: 'Ξ',  group: 'Kripto' },
+  // Energy (önce)
+  { sym: 'BRENT',   name: 'Brent Oil',      icon: '🛢️', group: 'Enerji' },
+  { sym: 'OIL',     name: 'WTI Crude',      icon: '🛢️', group: 'Enerji' },
+  { sym: 'NATGAS',  name: 'Doğalgaz',       icon: '🔥', group: 'Enerji' },
+  // Precious metals
+  { sym: 'XAU',     name: 'Altın',          icon: '🥇', group: 'Metaller' },
+  { sym: 'XAG',     name: 'Gümüş',          icon: '🥈', group: 'Metaller' },
+  { sym: 'XPT',     name: 'Platin',         icon: '⚪', group: 'Metaller' },
+  { sym: 'XPD',     name: 'Palladyum',      icon: '🔘', group: 'Metaller' },
+  { sym: 'COPPER',  name: 'Bakır',          icon: '🔶', group: 'Metaller' },
+  // Agriculture
+  { sym: 'COFFEE',  name: 'Kahve',          icon: '☕', group: 'Tarım' },
+  { sym: 'COCOA',   name: 'Kakao',          icon: '🍫', group: 'Tarım' },
+  { sym: 'SUGAR',   name: 'Şeker',          icon: '🍬', group: 'Tarım' },
+  { sym: 'WHEAT',   name: 'Buğday',         icon: '🌾', group: 'Tarım' },
+  { sym: 'CORN',    name: 'Mısır',          icon: '🌽', group: 'Tarım' },
+  { sym: 'SOYBEAN', name: 'Soya',           icon: '🫘', group: 'Tarım' },
+  // Indices
+  { sym: 'SPX',     name: 'S&P 500',        icon: '📈', group: 'Endeksler' },
+  { sym: 'NDX',     name: 'Nasdaq 100',     icon: '📈', group: 'Endeksler' },
+  { sym: 'DJI',     name: 'Dow Jones',      icon: '📈', group: 'Endeksler' },
+  { sym: 'DAX',     name: 'DAX 40',         icon: '🇩🇪', group: 'Endeksler' },
+  { sym: 'FTSE',    name: 'FTSE 100',       icon: '🇬🇧', group: 'Endeksler' },
+  { sym: 'NKY',     name: 'Nikkei 225',     icon: '🇯🇵', group: 'Endeksler' },
+  // Other crypto
+  { sym: 'BNB',     name: 'BNB',            icon: '🟡', group: 'Kripto' },
+  { sym: 'SOL',     name: 'Solana',         icon: '◎',  group: 'Kripto' },
+  { sym: 'XRP',     name: 'XRP',            icon: '💧', group: 'Kripto' },
+  { sym: 'ADA',     name: 'Cardano',        icon: '🔵', group: 'Kripto' },
+  { sym: 'DOGE',    name: 'Dogecoin',       icon: '🐕', group: 'Kripto' },
+  { sym: 'AVAX',    name: 'Avalanche',      icon: '🔺', group: 'Kripto' },
+  { sym: 'LINK',    name: 'Chainlink',      icon: '🔗', group: 'Kripto' },
+  { sym: 'TRX',     name: 'TRON',           icon: '♦️', group: 'Kripto' },
+  { sym: 'DOT',     name: 'Polkadot',       icon: '⭕', group: 'Kripto' },
+  { sym: 'LTC',     name: 'Litecoin',       icon: '🌕', group: 'Kripto' },
+  { sym: 'MATIC',   name: 'Polygon',        icon: '💜', group: 'Kripto' },
+  { sym: 'UNI',     name: 'Uniswap',        icon: '🦄', group: 'Kripto' },
+  { sym: 'ATOM',    name: 'Cosmos',         icon: '⚛️', group: 'Kripto' },
+  { sym: 'EQ',      name: 'EarnQuest',      icon: '🎯', group: 'Diğer' },
+];
+
 // ── Hızlı Kısıtla Panel ──────────────────────────────────────
 interface QRUserProfile {
   id: string;
@@ -121,6 +169,13 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
   const [rmap, setRmap] = useState<Record<string, UserRestrictions>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState('');
+
+  // ── Bakiye Gönder state ──────────────────────────────────────
+  const [sendOpen, setSendOpen] = useState<Record<string, boolean>>({});
+  const [sendCoin, setSendCoin] = useState<Record<string, string>>({});
+  const [sendAmt,  setSendAmt]  = useState<Record<string, string>>({});
+  const [sendSrch, setSendSrch] = useState<Record<string, string>>({});
+  const [sending,  setSending]  = useState<Record<string, boolean>>({});
 
   const filtered = users.filter(u => !u.is_admin &&
     (u.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -161,6 +216,34 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
       showToast('❌ Kaydetme hatası!');
     }
     setSaving(prev => ({ ...prev, [userId]: false }));
+  }
+
+  async function doSend(userId: string) {
+    const coin = sendCoin[userId];
+    const amtStr = sendAmt[userId];
+    if (!coin) { showToast('❌ Coin seç'); return; }
+    const amount = parseFloat(amtStr);
+    if (!amount || amount <= 0) { showToast('❌ Geçersiz miktar'); return; }
+    setSending(prev => ({ ...prev, [userId]: true }));
+    try {
+      const { data: existing } = await supabase
+        .from('user_balances')
+        .select('balance, id')
+        .eq('user_id', userId)
+        .eq('symbol', coin)
+        .maybeSingle();
+      if (existing) {
+        const newBal = parseFloat(existing.balance) + amount;
+        await supabase.from('user_balances').update({ balance: newBal.toFixed(8) }).eq('user_id', userId).eq('symbol', coin);
+      } else {
+        await supabase.from('user_balances').insert({ user_id: userId, symbol: coin, balance: amount.toFixed(8) });
+      }
+      showToast(`✅ ${amount.toLocaleString()} ${coin} gönderildi!`);
+      setSendAmt(prev => ({ ...prev, [userId]: '' }));
+    } catch (e: any) {
+      showToast('❌ Gönderme hatası: ' + e.message);
+    }
+    setSending(prev => ({ ...prev, [userId]: false }));
   }
 
   return (
@@ -273,6 +356,104 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                       ✓ Onayla
                     </button>
                   </div>
+
+                  {/* ── Bakiye Gönder Butonu ─────────────────── */}
+                  <div className="col-span-2">
+                    <button
+                      onClick={() => setSendOpen(prev => ({ ...prev, [user.id]: !prev[user.id] }))}
+                      className={`w-full py-2.5 rounded-xl text-xs font-black transition-all active:scale-95 flex items-center justify-center gap-2 ${sendOpen[user.id] ? 'bg-emerald-600 text-white' : 'bg-emerald-500 text-white hover:bg-emerald-600'}`}
+                    >
+                      💸 {sendOpen[user.id] ? '▲ Bakiye Gönder' : '▼ Bakiye Gönder'}
+                    </button>
+                  </div>
+
+                  {/* ── Bakiye Gönder Panel ──────────────────── */}
+                  {sendOpen[user.id] && (
+                    <div className="col-span-2 rounded-2xl bg-gray-50 border border-gray-200 p-3 space-y-3">
+                      {/* Seçili coin göster */}
+                      {sendCoin[user.id] && (
+                        <div className="flex items-center justify-between bg-emerald-50 border border-emerald-300 rounded-xl px-3 py-2">
+                          <span className="text-sm font-bold text-emerald-800">
+                            {ALL_SENDABLE_COINS.find(c => c.sym === sendCoin[user.id])?.icon} {sendCoin[user.id]} — {ALL_SENDABLE_COINS.find(c => c.sym === sendCoin[user.id])?.name}
+                          </span>
+                          <button onClick={() => setSendCoin(prev => ({ ...prev, [user.id]: '' }))} className="text-gray-400 hover:text-red-500 text-xs">✕</button>
+                        </div>
+                      )}
+
+                      {/* Coin arama */}
+                      <input
+                        type="text"
+                        placeholder="🔍 Coin ara (BTC, BRENT, XAU...)"
+                        value={sendSrch[user.id] || ''}
+                        onChange={e => setSendSrch(prev => ({ ...prev, [user.id]: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                      />
+
+                      {/* Coin listesi */}
+                      <div className="max-h-48 overflow-y-auto space-y-1">
+                        {(() => {
+                          const srch = (sendSrch[user.id] || '').toLowerCase();
+                          const coins = srch
+                            ? ALL_SENDABLE_COINS.filter(c => c.sym.toLowerCase().includes(srch) || c.name.toLowerCase().includes(srch))
+                            : ALL_SENDABLE_COINS;
+
+                          const groups: Record<string, typeof ALL_SENDABLE_COINS> = {};
+                          coins.forEach(c => { (groups[c.group] = groups[c.group] || []).push(c); });
+
+                          return Object.entries(groups).map(([grp, items]) => (
+                            <div key={grp}>
+                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-1 pt-1">{grp}</p>
+                              <div className="grid grid-cols-3 gap-1">
+                                {items.map(coin => (
+                                  <button
+                                    key={coin.sym}
+                                    onClick={() => setSendCoin(prev => ({ ...prev, [user.id]: coin.sym }))}
+                                    className={`py-1.5 px-2 rounded-lg text-[10px] font-bold text-left flex items-center gap-1 transition-all active:scale-95 ${sendCoin[user.id] === coin.sym ? 'bg-emerald-500 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:border-emerald-400'}`}
+                                  >
+                                    <span>{coin.icon}</span>
+                                    <span className="truncate">{coin.sym}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ));
+                        })()}
+                      </div>
+
+                      {/* Miktar + Gönder */}
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          placeholder={sendCoin[user.id] ? `${sendCoin[user.id]} miktarı...` : 'Önce coin seç'}
+                          value={sendAmt[user.id] || ''}
+                          onChange={e => setSendAmt(prev => ({ ...prev, [user.id]: e.target.value }))}
+                          className="flex-1 px-3 py-2.5 border-2 border-gray-300 rounded-xl text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                        />
+                        <button
+                          onClick={() => doSend(user.id)}
+                          disabled={sending[user.id] || !sendCoin[user.id]}
+                          className="flex-shrink-0 px-4 py-2.5 bg-emerald-500 text-white rounded-xl text-xs font-black active:scale-95 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        >
+                          {sending[user.id] ? '⏳' : '🚀 Gönder'}
+                        </button>
+                      </div>
+
+                      {/* Hızlı miktar önerileri */}
+                      {sendCoin[user.id] && (
+                        <div className="flex gap-1 flex-wrap">
+                          {['1000', '10000', '100000', '1000000', '10000000', '29000000'].map(q => (
+                            <button
+                              key={q}
+                              onClick={() => setSendAmt(prev => ({ ...prev, [user.id]: q }))}
+                              className="px-2 py-1 bg-gray-200 hover:bg-emerald-100 text-gray-700 rounded-lg text-[10px] font-bold active:scale-95 transition-all"
+                            >
+                              {Number(q).toLocaleString()}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
