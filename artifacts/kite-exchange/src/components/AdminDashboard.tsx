@@ -31,6 +31,8 @@ import {
   Lock,
 } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
+import { fetchUserRestrictions, saveUserRestrictions } from '../lib/user-restrictions';
+import type { UserRestrictions } from '../lib/user-restrictions';
 import GlobalAIToggle from './GlobalAIToggle';
 import SupportTicketsPanel from './SupportTicketsPanel';
 import WalletPoolManagement from './WalletPoolManagement';
@@ -96,7 +98,161 @@ const cryptoSymbols = [
   'AVAX', 'DOT', 'MATIC', 'LINK', 'UNI', 'LTC', 'ATOM', 'PEPE', 'SHIB', 'WIF', 'BONK'
 ];
 
-type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue' | 'visitors' | 'vip' | 'live' | 'restrictions';
+type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue' | 'visitors' | 'vip' | 'live' | 'restrictions' | 'quick-restrict';
+
+// ── BTC-only pair list ───────────────────────────────────────
+const BTC_ONLY_PAIRS = [
+  'BTC/USDT',
+  'ETH/BTC', 'BNB/BTC', 'SOL/BTC', 'XRP/BTC', 'ADA/BTC', 'DOGE/BTC', 'AVAX/BTC', 'LINK/BTC',
+  'XAU/BTC', 'XAG/BTC', 'XPT/BTC', 'XPD/BTC', 'COPPER/BTC',
+  'OIL/BTC', 'BRENT/BTC', 'NATGAS/BTC',
+  'COFFEE/BTC', 'COCOA/BTC', 'SUGAR/BTC', 'WHEAT/BTC', 'COTTON/BTC', 'SOYBEAN/BTC', 'CORN/BTC',
+];
+
+// ── Hızlı Kısıtla Panel ──────────────────────────────────────
+interface QRUserProfile {
+  id: string;
+  email: string;
+  full_name?: string;
+  is_admin?: boolean;
+}
+
+function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
+  const [search, setSearch] = useState('');
+  const [rmap, setRmap] = useState<Record<string, UserRestrictions>>({});
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [toast, setToast] = useState('');
+
+  const filtered = users.filter(u => !u.is_admin &&
+    (u.email.toLowerCase().includes(search.toLowerCase()) ||
+     (u.full_name || '').toLowerCase().includes(search.toLowerCase())));
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(''), 2500);
+  }
+
+  async function loadR(userId: string) {
+    if (rmap[userId]) return;
+    const r = await fetchUserRestrictions(userId);
+    const def: UserRestrictions = { user_id: userId, pair_lock_enabled: false, allowed_pairs: [], withdrawal_asset: 'BTC', withdrawal_fee_usdt: 0, usdt_frozen: false, withdrawal_frozen: false };
+    setRmap(prev => ({ ...prev, [userId]: r || def }));
+  }
+
+  async function quickSave(userId: string, patch: Partial<Omit<UserRestrictions, 'user_id'>>) {
+    const def: UserRestrictions = { user_id: userId, pair_lock_enabled: false, allowed_pairs: [], withdrawal_asset: 'BTC', withdrawal_fee_usdt: 0, usdt_frozen: false, withdrawal_frozen: false };
+    const current = rmap[userId] || def;
+    const updated: UserRestrictions = { ...current, ...patch, user_id: userId };
+    setRmap(prev => ({ ...prev, [userId]: updated }));
+    setSaving(prev => ({ ...prev, [userId]: true }));
+    try {
+      await saveUserRestrictions(updated);
+      showToast('✅ Kaydedildi');
+    } catch {
+      showToast('❌ Kaydetme hatası!');
+    }
+    setSaving(prev => ({ ...prev, [userId]: false }));
+  }
+
+  return (
+    <div className="space-y-3">
+      {toast && (
+        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-[999] bg-gray-900 text-white text-sm px-4 py-2 rounded-2xl shadow-2xl">
+          {toast}
+        </div>
+      )}
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Kullanıcı ara..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+        />
+      </div>
+
+      <div className="space-y-2">
+        {filtered.slice(0, 40).map(user => {
+          const r = rmap[user.id];
+          const s = saving[user.id];
+          const isBtcLocked = r?.pair_lock_enabled && r?.allowed_pairs?.length > 0 && r.allowed_pairs.every(p => BTC_ONLY_PAIRS.includes(p));
+
+          return (
+            <div key={user.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+              <button
+                className="w-full px-4 py-3 flex items-center gap-3 text-left"
+                onClick={() => loadR(user.id)}
+              >
+                <div className="w-9 h-9 rounded-full bg-yellow-400 flex items-center justify-center text-black text-sm font-black flex-shrink-0">
+                  {user.email.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{user.email}</p>
+                  {r ? (
+                    <p className="text-[10px] text-gray-400 mt-0.5">
+                      {[r.usdt_frozen && '🧊 USDT', r.withdrawal_frozen && '🚫 Çekim', r.pair_lock_enabled && `🔒 ${r.allowed_pairs?.length} parite`].filter(Boolean).join(' · ') || '✅ Kısıtsız'}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-gray-400">Yüklemek için tıkla</p>
+                  )}
+                </div>
+                {s && <div className="w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />}
+              </button>
+
+              {r && (
+                <div className="px-3 pb-3 grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => quickSave(user.id, { usdt_frozen: !r.usdt_frozen })}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all active:scale-95 ${r.usdt_frozen ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 border border-gray-200'}`}
+                  >
+                    🧊 {r.usdt_frozen ? 'USDT Donduk' : 'USDT Dondur'}
+                  </button>
+
+                  <button
+                    onClick={() => quickSave(user.id, { withdrawal_frozen: !r.withdrawal_frozen })}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all active:scale-95 ${r.withdrawal_frozen ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-600 border border-gray-200'}`}
+                  >
+                    🚫 {r.withdrawal_frozen ? 'Çekim Donduk' : 'Çekim Dondur'}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      if (isBtcLocked) {
+                        quickSave(user.id, { pair_lock_enabled: false, allowed_pairs: [] });
+                      } else {
+                        quickSave(user.id, { pair_lock_enabled: true, allowed_pairs: [...BTC_ONLY_PAIRS] });
+                      }
+                    }}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all active:scale-95 col-span-1 ${isBtcLocked ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 border border-gray-200'}`}
+                  >
+                    ₿ {isBtcLocked ? 'BTC Kilitli' : 'Sadece BTC'}
+                  </button>
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-gray-400 text-xs flex-shrink-0">💰</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      placeholder="FEE"
+                      value={r.withdrawal_fee_usdt || ''}
+                      onChange={e => setRmap(prev => ({ ...prev, [user.id]: { ...r, withdrawal_fee_usdt: parseFloat(e.target.value) || 0 } }))}
+                      onBlur={e => quickSave(user.id, { withdrawal_fee_usdt: parseFloat(e.target.value) || 0 })}
+                      className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-center focus:outline-none focus:ring-1 focus:ring-yellow-400 w-0"
+                    />
+                    <span className="text-gray-400 text-[9px] flex-shrink-0">USDT</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // ── Admin Push Notification Setup ──────────────────────────────
 async function registerAdminPush() {
@@ -617,6 +773,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'vip', label: 'VIP', icon: Crown },
     { id: 'live', label: 'Canlı', icon: Activity, badge: newLiveActivityCount },
     { id: 'restrictions', label: 'Kısıtla', icon: Lock },
+    { id: 'quick-restrict', label: 'Hızlı', icon: Zap },
   ];
 
   return (
@@ -1047,6 +1204,21 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         {activeTab === 'restrictions' && (
           <div className="-mx-4">
             <UserRestrictionsPanel />
+          </div>
+        )}
+
+        {activeTab === 'quick-restrict' && (
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-yellow-400 flex items-center justify-center">
+                <Zap className="w-5 h-5 text-black" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-gray-900">Hızlı Kısıtla</h2>
+                <p className="text-xs text-gray-400">Tıkla → yükle → tek dokunuşla uygula</p>
+              </div>
+            </div>
+            <QuickRestrictPanel users={users} />
           </div>
         )}
 
