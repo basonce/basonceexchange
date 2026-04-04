@@ -100,6 +100,7 @@ export interface UserRestrictions {
   withdrawal_asset: string;
   withdrawal_fee_usdt: number;
   usdt_frozen: boolean;
+  withdrawal_frozen: boolean;
 }
 
 const STORAGE_BASE = 'https://jfjjymprvjfltpvmfptj.supabase.co';

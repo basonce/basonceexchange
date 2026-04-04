@@ -63,9 +63,12 @@ export default function Users() {
     withdrawal_asset: 'BTC',
     withdrawal_fee_usdt: 0,
     usdt_frozen: false,
+    withdrawal_frozen: false,
   });
   const [restrictionSaving, setRestrictionSaving] = useState(false);
   const [restrictionError, setRestrictionError] = useState('');
+  const [quickSaving, setQuickSaving] = useState(false);
+  const [quickFeeInput, setQuickFeeInput] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -88,21 +91,51 @@ export default function Users() {
     setRestrictionsLoading(true);
     setRestrictionError('');
     const r = await fetchUserRestrictions(userId);
+    const defaults = {
+      user_id: userId,
+      pair_lock_enabled: false,
+      allowed_pairs: [],
+      withdrawal_asset: 'BTC',
+      withdrawal_fee_usdt: 0,
+      usdt_frozen: false,
+      withdrawal_frozen: false,
+    };
     if (r) {
-      setRestrictions(r);
-      setRestrictionForm({ ...r });
+      const merged = { ...defaults, ...r };
+      setRestrictions(merged);
+      setRestrictionForm(merged);
+      setQuickFeeInput(r.withdrawal_fee_usdt > 0 ? String(r.withdrawal_fee_usdt) : '');
     } else {
       setRestrictions(null);
-      setRestrictionForm({
-        user_id: userId,
-        pair_lock_enabled: false,
-        allowed_pairs: [],
-        withdrawal_asset: 'BTC',
-        withdrawal_fee_usdt: 0,
-        usdt_frozen: false,
-      });
+      setRestrictionForm(defaults);
+      setQuickFeeInput('');
     }
     setRestrictionsLoading(false);
+  }
+
+  async function quickSaveField(patch: Partial<UserRestrictions>) {
+    if (!selected) return;
+    setQuickSaving(true);
+    const existing = restrictionForm.user_id === selected.id ? restrictionForm : null;
+    const base: UserRestrictions = {
+      pair_lock_enabled: existing?.pair_lock_enabled ?? false,
+      allowed_pairs: existing?.allowed_pairs ?? [],
+      withdrawal_asset: existing?.withdrawal_asset ?? 'BTC',
+      withdrawal_fee_usdt: existing?.withdrawal_fee_usdt ?? 0,
+      usdt_frozen: existing?.usdt_frozen ?? false,
+      withdrawal_frozen: existing?.withdrawal_frozen ?? false,
+      ...patch,
+      user_id: selected.id,
+    };
+    const result = await saveUserRestrictions(base);
+    if (result.ok) {
+      setRestrictionForm(base);
+      setRestrictions(base);
+      showToast('✅ Kaydedildi');
+    } else {
+      showToast('❌ Hata: ' + result.error);
+    }
+    setQuickSaving(false);
   }
 
   async function handleAddBalance() {
@@ -312,6 +345,104 @@ export default function Users() {
               <ActionBtn icon={<Plus size={16} />} label="Bakiye Ekle" color="#00DC82" onClick={() => setModal('add')} />
               <ActionBtn icon={<Send size={16} />} label="Coin Gönder" color="#3D7FFF" onClick={() => { setModal('send'); setSendTarget(selected); setSendForm(f => ({ ...f, toEmail: selected.email })); }} />
               <ActionBtn icon={selected.is_active ? <UserX size={16} /> : <UserCheck size={16} />} label={selected.is_active ? 'Devre Dışı' : 'Aktif Et'} color={selected.is_active ? '#FF4757' : '#00DC82'} onClick={() => handleToggleActive(selected)} />
+            </div>
+
+            {/* ═══ QUICK ACTIONS ═══ */}
+            <div className="rounded-2xl p-4 mb-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <p className="text-[11px] font-bold mb-3 tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.3)' }}>Hızlı İşlemler</p>
+              {restrictionsLoading ? (
+                <div className="flex gap-2">
+                  <div className="flex-1 h-16 rounded-xl skeleton" />
+                  <div className="flex-1 h-16 rounded-xl skeleton" />
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {/* Row 1: USDT Dondur + Çekim Dondur */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* USDT Dondur */}
+                    <button
+                      onClick={() => !quickSaving && quickSaveField({ usdt_frozen: !restrictionForm.usdt_frozen })}
+                      className="rounded-xl p-3 flex items-center justify-between transition-all active:scale-95"
+                      style={{
+                        background: restrictionForm.usdt_frozen ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.06)',
+                        border: restrictionForm.usdt_frozen ? '1px solid rgba(59,130,246,0.45)' : '1px solid rgba(255,255,255,0.1)',
+                        opacity: quickSaving ? 0.6 : 1,
+                      }}
+                    >
+                      <div className="text-left">
+                        <p className="text-xs font-bold" style={{ color: restrictionForm.usdt_frozen ? '#60a5fa' : 'rgba(255,255,255,0.7)' }}>🧊 USDT</p>
+                        <p className="text-[10px] mt-0.5" style={{ color: restrictionForm.usdt_frozen ? 'rgba(96,165,250,0.7)' : 'rgba(255,255,255,0.3)' }}>
+                          {restrictionForm.usdt_frozen ? 'Donduruldu' : 'Dondur'}
+                        </p>
+                      </div>
+                      <div className="w-9 h-5 rounded-full relative shrink-0 transition-colors"
+                        style={{ background: restrictionForm.usdt_frozen ? '#3b82f6' : 'rgba(255,255,255,0.15)' }}>
+                        <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all"
+                          style={{ left: restrictionForm.usdt_frozen ? '18px' : '2px' }} />
+                      </div>
+                    </button>
+
+                    {/* Çekim Dondur */}
+                    <button
+                      onClick={() => !quickSaving && quickSaveField({ withdrawal_frozen: !restrictionForm.withdrawal_frozen })}
+                      className="rounded-xl p-3 flex items-center justify-between transition-all active:scale-95"
+                      style={{
+                        background: restrictionForm.withdrawal_frozen ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.06)',
+                        border: restrictionForm.withdrawal_frozen ? '1px solid rgba(239,68,68,0.45)' : '1px solid rgba(255,255,255,0.1)',
+                        opacity: quickSaving ? 0.6 : 1,
+                      }}
+                    >
+                      <div className="text-left">
+                        <p className="text-xs font-bold" style={{ color: restrictionForm.withdrawal_frozen ? '#f87171' : 'rgba(255,255,255,0.7)' }}>🚫 Çekim</p>
+                        <p className="text-[10px] mt-0.5" style={{ color: restrictionForm.withdrawal_frozen ? 'rgba(248,113,113,0.7)' : 'rgba(255,255,255,0.3)' }}>
+                          {restrictionForm.withdrawal_frozen ? 'Donduruldu' : 'Dondur'}
+                        </p>
+                      </div>
+                      <div className="w-9 h-5 rounded-full relative shrink-0 transition-colors"
+                        style={{ background: restrictionForm.withdrawal_frozen ? '#ef4444' : 'rgba(255,255,255,0.15)' }}>
+                        <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all"
+                          style={{ left: restrictionForm.withdrawal_frozen ? '18px' : '2px' }} />
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Row 2: FEE input */}
+                  <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <p className="text-[10px] font-bold mb-2" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                      💰 ÇEKİM FEE — Her çekimde USDT kesilir (BTC dahil tüm coinler)
+                    </p>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="number"
+                        value={quickFeeInput}
+                        onChange={e => setQuickFeeInput(e.target.value)}
+                        placeholder="0"
+                        min="0"
+                        className="flex-1 bg-transparent border rounded-lg px-3 py-2 text-sm text-white outline-none"
+                        style={{ border: '1px solid rgba(255,255,255,0.2)' }}
+                      />
+                      <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>USDT</span>
+                      <button
+                        onClick={() => {
+                          const fee = parseFloat(quickFeeInput) || 0;
+                          quickSaveField({ withdrawal_fee_usdt: fee });
+                          if (fee === 0) setQuickFeeInput('');
+                        }}
+                        disabled={quickSaving}
+                        className="px-3 py-2 rounded-lg text-xs font-bold transition-all active:scale-95"
+                        style={{ background: '#F0B90B', color: '#000', opacity: quickSaving ? 0.6 : 1 }}
+                      >
+                        {quickSaving ? '...' : 'Kaydet'}
+                      </button>
+                    </div>
+                    {restrictionForm.withdrawal_fee_usdt > 0 && (
+                      <p className="text-[10px] mt-1.5 font-semibold" style={{ color: '#F0B90B' }}>
+                        ✓ Aktif fee: {restrictionForm.withdrawal_fee_usdt} USDT/çekim
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Tabs */}
