@@ -225,24 +225,29 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                         quickSave(user.id, { pair_lock_enabled: true, allowed_pairs: [...BTC_ONLY_PAIRS] });
                       }
                     }}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all active:scale-95 col-span-1 ${isBtcLocked ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 border border-gray-200'}`}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all active:scale-95 col-span-2 ${isBtcLocked ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 border border-gray-200'}`}
                   >
-                    ₿ {isBtcLocked ? 'BTC Kilitli' : 'Sadece BTC'}
+                    ₿ {isBtcLocked ? '✓ BTC Pariteleri Kilitli — Tıkla Aç' : 'BTC Pariteleri ile İşlem Yapsın'}
                   </button>
 
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-gray-400 text-xs flex-shrink-0">💰</span>
+                  <div className="col-span-2 flex items-center gap-2">
+                    <span className="text-gray-500 text-xs font-semibold flex-shrink-0">💰 Çekim Fee:</span>
                     <input
                       type="number"
                       min="0"
                       step="0.1"
-                      placeholder="FEE"
+                      placeholder="0"
                       value={r.withdrawal_fee_usdt || ''}
                       onChange={e => setRmap(prev => ({ ...prev, [user.id]: { ...r, withdrawal_fee_usdt: parseFloat(e.target.value) || 0 } }))}
-                      onBlur={e => quickSave(user.id, { withdrawal_fee_usdt: parseFloat(e.target.value) || 0 })}
-                      className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-center focus:outline-none focus:ring-1 focus:ring-yellow-400 w-0"
+                      className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-xl text-sm text-center font-bold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 w-0"
                     />
-                    <span className="text-gray-400 text-[9px] flex-shrink-0">USDT</span>
+                    <span className="text-gray-500 text-xs font-semibold flex-shrink-0">USDT</span>
+                    <button
+                      onClick={() => quickSave(user.id, { withdrawal_fee_usdt: r.withdrawal_fee_usdt })}
+                      className="flex-shrink-0 px-3 py-2 bg-green-500 text-white rounded-xl text-xs font-black active:scale-95 transition-all hover:bg-green-600"
+                    >
+                      ✓ Onayla
+                    </button>
                   </div>
                 </div>
               )}
