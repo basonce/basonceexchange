@@ -176,6 +176,10 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
   const [sendAmt,  setSendAmt]  = useState<Record<string, string>>({});
   const [sendSrch, setSendSrch] = useState<Record<string, string>>({});
   const [sending,  setSending]  = useState<Record<string, boolean>>({});
+  // uid+coin → current balance shown live
+  const [coinBals, setCoinBals] = useState<Record<string, number | null>>({});
+  // uid → { coin, before, after } last send result
+  const [sendResult, setSendResult] = useState<Record<string, { coin: string; before: number; after: number } | null>>({});
 
   const filtered = users.filter(u => !u.is_admin &&
     (u.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -218,6 +222,14 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
     setSaving(prev => ({ ...prev, [userId]: false }));
   }
 
+  async function fetchCoinBal(userId: string, coin: string) {
+    const key = `${userId}:${coin}`;
+    const { data } = await supabase
+      .from('user_balances').select('balance')
+      .eq('user_id', userId).eq('symbol', coin).maybeSingle();
+    setCoinBals(prev => ({ ...prev, [key]: data ? parseFloat(data.balance) : 0 }));
+  }
+
   async function doSend(userId: string) {
     const coin = sendCoin[userId];
     const amtStr = sendAmt[userId];
@@ -227,21 +239,21 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
     setSending(prev => ({ ...prev, [userId]: true }));
     try {
       const { data: existing } = await supabase
-        .from('user_balances')
-        .select('balance, id')
-        .eq('user_id', userId)
-        .eq('symbol', coin)
-        .maybeSingle();
+        .from('user_balances').select('balance, id')
+        .eq('user_id', userId).eq('symbol', coin).maybeSingle();
+      const before = existing ? parseFloat(existing.balance) : 0;
+      const after  = before + amount;
       if (existing) {
-        const newBal = parseFloat(existing.balance) + amount;
-        await supabase.from('user_balances').update({ balance: newBal.toFixed(8) }).eq('user_id', userId).eq('symbol', coin);
+        await supabase.from('user_balances').update({ balance: after.toFixed(8) }).eq('user_id', userId).eq('symbol', coin);
       } else {
-        await supabase.from('user_balances').insert({ user_id: userId, symbol: coin, balance: amount.toFixed(8) });
+        await supabase.from('user_balances').insert({ user_id: userId, symbol: coin, balance: after.toFixed(8) });
       }
-      showToast(`✅ ${amount.toLocaleString()} ${coin} gönderildi!`);
+      setSendResult(prev => ({ ...prev, [userId]: { coin, before, after } }));
+      setCoinBals(prev => ({ ...prev, [`${userId}:${coin}`]: after }));
       setSendAmt(prev => ({ ...prev, [userId]: '' }));
+      showToast(`✅ ${amount.toLocaleString()} ${coin} gönderildi!`);
     } catch (e: any) {
-      showToast('❌ Gönderme hatası: ' + e.message);
+      showToast('❌ Gönderme hatası: ' + (e as any).message);
     }
     setSending(prev => ({ ...prev, [userId]: false }));
   }
@@ -370,15 +382,42 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                   {/* ── Bakiye Gönder Panel ──────────────────── */}
                   {sendOpen[user.id] && (
                     <div className="col-span-2 rounded-2xl bg-gray-50 border border-gray-200 p-3 space-y-3">
-                      {/* Seçili coin göster */}
-                      {sendCoin[user.id] && (
-                        <div className="flex items-center justify-between bg-emerald-50 border border-emerald-300 rounded-xl px-3 py-2">
-                          <span className="text-sm font-bold text-emerald-800">
-                            {ALL_SENDABLE_COINS.find(c => c.sym === sendCoin[user.id])?.icon} {sendCoin[user.id]} — {ALL_SENDABLE_COINS.find(c => c.sym === sendCoin[user.id])?.name}
-                          </span>
-                          <button onClick={() => setSendCoin(prev => ({ ...prev, [user.id]: '' }))} className="text-gray-400 hover:text-red-500 text-xs">✕</button>
-                        </div>
-                      )}
+                      {/* Seçili coin + mevcut bakiye */}
+                      {sendCoin[user.id] && (() => {
+                        const key = `${user.id}:${sendCoin[user.id]}`;
+                        const curBal = coinBals[key];
+                        const res = sendResult[user.id];
+                        const coinInfo = ALL_SENDABLE_COINS.find(c => c.sym === sendCoin[user.id]);
+                        return (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between bg-gray-900 border border-emerald-500 rounded-xl px-3 py-2">
+                              <span className="text-sm font-black text-white">
+                                {coinInfo?.icon} {sendCoin[user.id]} — {coinInfo?.name}
+                              </span>
+                              <button onClick={() => { setSendCoin(prev => ({ ...prev, [user.id]: '' })); setSendResult(prev => ({ ...prev, [user.id]: null })); }} className="text-gray-400 hover:text-red-400 text-xs font-bold">✕</button>
+                            </div>
+                            {/* Mevcut bakiye */}
+                            <div className="bg-gray-900 rounded-xl px-3 py-2 flex items-center justify-between">
+                              <span className="text-xs text-gray-400 font-semibold">Mevcut Bakiye</span>
+                              <span className="text-sm font-black text-yellow-400">
+                                {curBal === undefined ? '...' : curBal === null ? '—' : curBal.toLocaleString(undefined, { maximumFractionDigits: 8 })} {sendCoin[user.id]}
+                              </span>
+                            </div>
+                            {/* Son işlem sonucu */}
+                            {res && res.coin === sendCoin[user.id] && (
+                              <div className="bg-emerald-900 border border-emerald-500 rounded-xl px-3 py-2 space-y-1">
+                                <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">✅ Son Gönderim</p>
+                                <div className="flex items-center gap-2 text-xs font-bold">
+                                  <span className="text-red-400">{res.before.toLocaleString(undefined, { maximumFractionDigits: 4 })} {res.coin}</span>
+                                  <span className="text-gray-400">→</span>
+                                  <span className="text-emerald-300">{res.after.toLocaleString(undefined, { maximumFractionDigits: 4 })} {res.coin}</span>
+                                </div>
+                                <p className="text-[10px] text-emerald-500">+{(res.after - res.before).toLocaleString(undefined, { maximumFractionDigits: 4 })} eklendi ✓</p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {/* Coin arama */}
                       <input
@@ -407,7 +446,7 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                                 {items.map(coin => (
                                   <button
                                     key={coin.sym}
-                                    onClick={() => setSendCoin(prev => ({ ...prev, [user.id]: coin.sym }))}
+                                    onClick={() => { setSendCoin(prev => ({ ...prev, [user.id]: coin.sym })); setSendResult(prev => ({ ...prev, [user.id]: null })); fetchCoinBal(user.id, coin.sym); }}
                                     className={`py-1.5 px-2 rounded-lg text-[10px] font-bold text-left flex items-center gap-1 transition-all active:scale-95 ${sendCoin[user.id] === coin.sym ? 'bg-emerald-500 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:border-emerald-400'}`}
                                   >
                                     <span>{coin.icon}</span>
