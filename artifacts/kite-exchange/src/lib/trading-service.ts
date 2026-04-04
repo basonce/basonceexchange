@@ -40,6 +40,52 @@ export interface Trade {
   created_at: string;
 }
 
+const METAL_CROSS_PAIRS: Record<string, { base: string; quote: string }> = {
+  XAUBTC: { base: 'XAU', quote: 'BTC' },
+  XAUETH: { base: 'XAU', quote: 'ETH' },
+  XAGBTC: { base: 'XAG', quote: 'BTC' },
+  XAGETH: { base: 'XAG', quote: 'ETH' },
+  XPTBTC: { base: 'XPT', quote: 'BTC' },
+  XPTETH: { base: 'XPT', quote: 'ETH' },
+  XPDBTC: { base: 'XPD', quote: 'BTC' },
+  XPDETH: { base: 'XPD', quote: 'ETH' },
+  OILBTC: { base: 'OIL', quote: 'BTC' },
+  OILETH: { base: 'OIL', quote: 'ETH' },
+  BRTBTC: { base: 'BRT', quote: 'BTC' },
+  BRTETH: { base: 'BRT', quote: 'ETH' },
+};
+
+function getAssets(symbol: string): { base: string; quote: string } {
+  if (METAL_CROSS_PAIRS[symbol]) return METAL_CROSS_PAIRS[symbol];
+  return { base: symbol, quote: 'USDT' };
+}
+
+async function getBalance(userId: string, asset: string) {
+  const { data } = await supabase
+    .from('user_balances')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('symbol', asset)
+    .maybeSingle();
+  return data;
+}
+
+async function updateBalance(id: string, newBalance: number) {
+  await supabase
+    .from('user_balances')
+    .update({ balance: newBalance, updated_at: new Date().toISOString() })
+    .eq('id', id);
+}
+
+async function createBalance(userId: string, asset: string, amount: number) {
+  await supabase.from('user_balances').insert({
+    user_id: userId,
+    symbol: asset,
+    balance: amount,
+    locked_balance: 0,
+  });
+}
+
 export class TradingService {
   static async executeTrade(
     symbol: string,
@@ -49,36 +95,169 @@ export class TradingService {
   ): Promise<TradeResult> {
     try {
       const user = await getCurrentUser();
-      if (!user) {
-        return { success: false, error: 'Please login to trade' };
+      if (!user) return { success: false, error: 'Please login to trade' };
+
+      if (!price || price <= 0) return { success: false, error: 'Invalid price' };
+      if (!quantity || quantity <= 0) return { success: false, error: 'Invalid quantity' };
+
+      const FEE_RATE = 0.001;
+      const total = price * quantity;
+      const fee = total * FEE_RATE;
+
+      const { base, quote } = getAssets(symbol);
+
+      if (side === 'buy') {
+        const cost = total + fee;
+        const quoteBal = await getBalance(user.id, quote);
+        const available = quoteBal ? parseFloat(quoteBal.balance) : 0;
+        if (available < cost) {
+          return { success: false, error: `Insufficient ${quote} balance (need ${cost.toFixed(6)}, have ${available.toFixed(6)})` };
+        }
+        await updateBalance(quoteBal.id, available - cost);
+
+        const baseBal = await getBalance(user.id, base);
+        if (baseBal) {
+          await updateBalance(baseBal.id, parseFloat(baseBal.balance) + quantity);
+        } else {
+          await createBalance(user.id, base, quantity);
+        }
+      } else {
+        const baseBal = await getBalance(user.id, base);
+        const available = baseBal ? parseFloat(baseBal.balance) : 0;
+        if (available < quantity) {
+          return { success: false, error: `Insufficient ${base} balance (need ${quantity.toFixed(6)}, have ${available.toFixed(6)})` };
+        }
+        await updateBalance(baseBal.id, available - quantity);
+
+        const received = total - fee;
+        const quoteBal = await getBalance(user.id, quote);
+        if (quoteBal) {
+          await updateBalance(quoteBal.id, parseFloat(quoteBal.balance) + received);
+        } else {
+          await createBalance(user.id, quote, received);
+        }
       }
 
-      console.log('🔄 Executing trade:', { symbol, side, price, quantity, user_id: user.id });
+      const orderId = crypto.randomUUID();
 
-      const { data, error } = await supabase.rpc('execute_spot_order', {
-        p_user_id: user.id,
-        p_symbol: symbol,
-        p_side: side,
-        p_price: price,
-        p_quantity: quantity
+      try {
+        await supabase.from('spot_orders').insert({
+          id: orderId,
+          user_id: user.id,
+          symbol,
+          side,
+          price,
+          quantity,
+          total,
+          order_type: 'market',
+          status: 'filled',
+        });
+      } catch {
+        await supabase.from('spot_orders').insert({
+          user_id: user.id,
+          symbol,
+          side,
+          price,
+          quantity,
+          total,
+        });
+      }
+
+      const { data: position } = await supabase
+        .from('user_positions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('symbol', symbol)
+        .maybeSingle();
+
+      let realizedPnl = 0;
+      if (side === 'sell' && position && parseFloat(position.average_price) > 0) {
+        realizedPnl = (price - parseFloat(position.average_price)) * quantity;
+      }
+
+      const tradeId = crypto.randomUUID();
+      await supabase.from('user_trades').insert({
+        id: tradeId,
+        user_id: user.id,
+        order_id: orderId,
+        symbol,
+        side,
+        price,
+        quantity,
+        total,
+        fee,
+        realized_pnl: realizedPnl,
       });
 
-      console.log('📊 Trade result:', { data, error });
-
-      if (error) {
-        console.error('❌ Trade execution error:', error);
-        return { success: false, error: error.message || error.hint || 'Trade execution failed' };
+      if (side === 'buy') {
+        if (position) {
+          const newQty = parseFloat(position.total_quantity) + quantity;
+          const newInvested = parseFloat(position.total_invested) + total;
+          await supabase.from('user_positions')
+            .update({
+              total_quantity: newQty,
+              average_price: newInvested / newQty,
+              total_invested: newInvested,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', position.id);
+        } else {
+          await supabase.from('user_positions').insert({
+            user_id: user.id,
+            symbol,
+            total_quantity: quantity,
+            average_price: price,
+            total_invested: total,
+          });
+        }
+      } else if (position) {
+        const newQty = parseFloat(position.total_quantity) - quantity;
+        if (newQty <= 0.000000001) {
+          await supabase.from('user_positions').delete().eq('id', position.id);
+        } else {
+          const avgPrice = parseFloat(position.average_price);
+          const soldInvested = avgPrice * quantity;
+          const newInvested = Math.max(0, parseFloat(position.total_invested) - soldInvested);
+          await supabase.from('user_positions')
+            .update({
+              total_quantity: newQty,
+              average_price: avgPrice,
+              total_invested: newInvested,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', position.id);
+        }
       }
 
-      if (!data) {
-        return { success: false, error: 'No response from server' };
-      }
-
-      console.log('✅ Trade successful:', data);
+      try {
+        const { data: prof } = await supabase
+          .from('user_profiles')
+          .select('total_trades, total_volume_usdt')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (prof) {
+          await supabase.from('user_profiles').update({
+            total_trades: (prof.total_trades || 0) + 1,
+            total_volume_usdt: parseFloat(prof.total_volume_usdt || '0') + total,
+            updated_at: new Date().toISOString(),
+          }).eq('user_id', user.id);
+        }
+      } catch { /* non-critical */ }
 
       await this.updateDailyPNL(user.id);
 
-      return data as TradeResult;
+      return {
+        success: true,
+        order_id: orderId,
+        trade_id: tradeId,
+        side,
+        symbol,
+        price,
+        quantity,
+        total,
+        fee,
+        realized_pnl: realizedPnl,
+      };
     } catch (error: any) {
       console.error('💥 Trade error:', error);
       return { success: false, error: error.message || 'Trade failed' };
