@@ -131,6 +131,16 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
     setTimeout(() => setToast(''), 2500);
   }
 
+  useEffect(() => {
+    const nonAdmins = users.filter(u => !u.is_admin).slice(0, 40);
+    const def = (uid: string): UserRestrictions => ({ user_id: uid, pair_lock_enabled: false, allowed_pairs: [], withdrawal_asset: 'BTC', withdrawal_fee_usdt: 0, usdt_frozen: false, withdrawal_frozen: false, campaigns_blocked: false, mining_blocked: false });
+    Promise.all(nonAdmins.map(u => fetchUserRestrictions(u.id).then(r => ({ uid: u.id, r })))).then(results => {
+      const newMap: Record<string, UserRestrictions> = {};
+      results.forEach(({ uid, r }) => { newMap[uid] = r || def(uid); });
+      setRmap(prev => ({ ...newMap, ...prev }));
+    });
+  }, [users]);
+
   async function loadR(userId: string) {
     if (rmap[userId]) return;
     const r = await fetchUserRestrictions(userId);
@@ -177,20 +187,21 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
           const r = rmap[user.id];
           const s = saving[user.id];
           const isBtcLocked = r?.pair_lock_enabled && r?.allowed_pairs?.length > 0 && r.allowed_pairs.every(p => BTC_ONLY_PAIRS.includes(p));
+          const isRestricted = !!(r && (r.usdt_frozen || r.withdrawal_frozen || r.pair_lock_enabled || r.campaigns_blocked || r.mining_blocked));
 
           return (
-            <div key={user.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+            <div key={user.id} className={`rounded-2xl overflow-hidden shadow-sm transition-all ${isRestricted ? 'bg-orange-50 border-2 border-orange-400' : 'bg-white border border-gray-200'}`}>
               <button
                 className="w-full px-4 py-3 flex items-center gap-3 text-left"
                 onClick={() => loadR(user.id)}
               >
-                <div className="w-9 h-9 rounded-full bg-yellow-400 flex items-center justify-center text-black text-sm font-black flex-shrink-0">
-                  {user.email.charAt(0).toUpperCase()}
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0 ${isRestricted ? 'bg-orange-500 text-white' : 'bg-yellow-400 text-black'}`}>
+                  {isRestricted ? '⚠' : user.email.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{user.email}</p>
+                  <p className={`text-sm font-semibold truncate ${isRestricted ? 'text-orange-700' : 'text-gray-900'}`}>{user.email}</p>
                   {r ? (
-                    <p className="text-[10px] text-gray-400 mt-0.5">
+                    <p className={`text-[10px] mt-0.5 ${isRestricted ? 'text-orange-500 font-semibold' : 'text-gray-400'}`}>
                       {[r.usdt_frozen && '🧊 USDT', r.withdrawal_frozen && '🚫 Çekim', r.pair_lock_enabled && `🔒 ${r.allowed_pairs?.length} parite`, r.campaigns_blocked && '🎁 Kampanya', r.mining_blocked && '⛏ Mining'].filter(Boolean).join(' · ') || '✅ Kısıtsız'}
                     </p>
                   ) : (
