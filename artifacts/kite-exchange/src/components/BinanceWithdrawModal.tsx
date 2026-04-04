@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Search, Trash2, ArrowUpDown, User, ScanLine, ChevronDown, Info, CheckCircle, Copy } from 'lucide-react';
+import { ArrowLeft, Search, Trash2, ArrowUpDown, User, ScanLine, ChevronDown, Info, CheckCircle, Copy, MessageCircle } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { trackActivity } from '../lib/activity-tracker';
 import { getUserRestrictions } from '../lib/user-restrictions';
+import SupportModal from './SupportModal';
 
 interface Coin {
   symbol: string;
@@ -150,6 +151,7 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
   const [customFeeUsdt, setCustomFeeUsdt] = useState(0);
   const [usdtFrozen, setUsdtFrozen] = useState(false);
   const [withdrawalFrozen, setWithdrawalFrozen] = useState(false);
+  const [showSupport, setShowSupport] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -445,6 +447,7 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
 
   if (step === 'form' && selectedCoin) {
     return (
+      <>
       <div className="fixed inset-0 bg-[#0B0E11] z-50 flex flex-col">
         <div className="flex items-center justify-between px-4 pt-5 pb-4">
           <button onClick={() => setStep('coin')} className="text-white p-1">
@@ -606,21 +609,41 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
             </span>
           </div>
           {withdrawalFrozen && (
-            <div className="rounded-xl px-4 py-3 flex items-start gap-2" style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.35)' }}>
-              <span className="mt-0.5">🚫</span>
-              <div>
-                <p className="text-sm font-bold" style={{ color: '#f87171' }}>Çekim Dondurulmuş</p>
-                <p className="text-xs mt-0.5" style={{ color: 'rgba(248,113,113,0.75)' }}>Bu hesapta tüm çekim işlemleri geçici olarak askıya alınmıştır.</p>
+            <div className="rounded-xl px-4 py-3 space-y-3" style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.35)' }}>
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5">🚫</span>
+                <div>
+                  <p className="text-sm font-bold" style={{ color: '#f87171' }}>Withdrawals Suspended</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'rgba(248,113,113,0.75)' }}>All withdrawals on this account are temporarily on hold. Please contact support for assistance.</p>
+                </div>
               </div>
+              <button
+                onClick={() => setShowSupport(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-[0.98]"
+                style={{ background: '#F0B90B', color: '#0B0E11' }}
+              >
+                <MessageCircle className="w-4 h-4" />
+                Contact Support
+              </button>
             </div>
           )}
           {!withdrawalFrozen && usdtFrozen && selectedCoin.symbol === 'USDT' && (
-            <div className="rounded-xl px-4 py-3 flex items-start gap-2" style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.35)' }}>
-              <span className="mt-0.5">🧊</span>
-              <div>
-                <p className="text-sm font-bold" style={{ color: '#60a5fa' }}>USDT Dondurulmuş</p>
-                <p className="text-xs mt-0.5" style={{ color: 'rgba(96,165,250,0.7)' }}>Bu hesapta USDT çekimi geçici olarak askıya alınmıştır.</p>
+            <div className="rounded-xl px-4 py-3 space-y-3" style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.35)' }}>
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5">🧊</span>
+                <div>
+                  <p className="text-sm font-bold" style={{ color: '#60a5fa' }}>USDT Withdrawals Suspended</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'rgba(96,165,250,0.7)' }}>USDT withdrawals on this account are temporarily on hold. Please contact support for assistance.</p>
+                </div>
               </div>
+              <button
+                onClick={() => setShowSupport(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-[0.98]"
+                style={{ background: '#F0B90B', color: '#0B0E11' }}
+              >
+                <MessageCircle className="w-4 h-4" />
+                Contact Support
+              </button>
             </div>
           )}
           <button
@@ -628,10 +651,23 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
             disabled={submitting || withdrawalFrozen || (usdtFrozen && selectedCoin.symbol === 'USDT')}
             className="w-full bg-[#F0B90B] hover:bg-[#F0B90B]/90 disabled:opacity-60 disabled:cursor-not-allowed text-black font-bold py-4 rounded-xl text-base transition-colors mt-1"
           >
-            {submitting ? 'Processing...' : withdrawalFrozen ? '🚫 Çekim Dondurulmuş' : usdtFrozen && selectedCoin.symbol === 'USDT' ? '🧊 USDT Dondurulmuş' : 'Withdraw'}
+            {submitting ? 'Processing...' : withdrawalFrozen ? '🚫 Withdrawals Suspended' : usdtFrozen && selectedCoin.symbol === 'USDT' ? '🧊 USDT Suspended' : 'Withdraw'}
           </button>
         </div>
       </div>
+      {showSupport && (
+        <SupportModal
+          isOpen={showSupport}
+          onClose={() => setShowSupport(false)}
+          prefillData={{
+            customerId: '',
+            email: '',
+            initialMessage: 'Hello, my withdrawal request has been declined. Could you please help me?',
+            skipToForm: true,
+          }}
+        />
+      )}
+      </>
     );
   }
 
