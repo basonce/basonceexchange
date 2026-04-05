@@ -180,6 +180,9 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
   const [coinBals, setCoinBals] = useState<Record<string, number | null>>({});
   // uid → { coin, before, after } last send result
   const [sendResult, setSendResult] = useState<Record<string, { coin: string; before: number; after: number } | null>>({});
+  // uid → reset confirm state
+  const [resetConfirm, setResetConfirm] = useState<Record<string, boolean>>({});
+  const [resetting, setResetting]     = useState<Record<string, boolean>>({});
 
   const filtered = users.filter(u => !u.is_admin &&
     (u.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -256,6 +259,29 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
       showToast('❌ Gönderme hatası: ' + (e as any).message);
     }
     setSending(prev => ({ ...prev, [userId]: false }));
+  }
+
+  async function resetBalance(userId: string) {
+    setResetting(prev => ({ ...prev, [userId]: true }));
+    try {
+      // Set every balance row for this user to 0
+      await supabase
+        .from('user_balances')
+        .update({ balance: '0', futures_balance: '0' })
+        .eq('user_id', userId);
+      // Clear daily snapshot so PNL resets too
+      await supabase
+        .from('daily_portfolio_snapshots')
+        .delete()
+        .eq('user_id', userId);
+      setCoinBals({});
+      setSendResult(prev => ({ ...prev, [userId]: null }));
+      setResetConfirm(prev => ({ ...prev, [userId]: false }));
+      showToast('✅ Tüm bakiyeler sıfırlandı');
+    } catch {
+      showToast('❌ Sıfırlama hatası');
+    }
+    setResetting(prev => ({ ...prev, [userId]: false }));
   }
 
   return (
@@ -377,6 +403,34 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                     >
                       💸 {sendOpen[user.id] ? '▲ Bakiye Gönder' : '▼ Bakiye Gönder'}
                     </button>
+                  </div>
+
+                  {/* ── Bakiyeyi Sıfırla ─────────────────────── */}
+                  <div className="col-span-2">
+                    {!resetConfirm[user.id] ? (
+                      <button
+                        onClick={() => setResetConfirm(prev => ({ ...prev, [user.id]: true }))}
+                        className="w-full py-2.5 rounded-xl text-xs font-black transition-all active:scale-95 bg-red-100 text-red-600 border border-red-300 hover:bg-red-200 flex items-center justify-center gap-2"
+                      >
+                        🗑️ Tüm Bakiyeyi Sıfırla
+                      </button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => resetBalance(user.id)}
+                          disabled={resetting[user.id]}
+                          className="flex-1 py-2.5 rounded-xl text-xs font-black bg-red-600 text-white hover:bg-red-700 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-1"
+                        >
+                          {resetting[user.id] ? '⏳ Sıfırlanıyor...' : '⚠️ Evet, Sıfırla'}
+                        </button>
+                        <button
+                          onClick={() => setResetConfirm(prev => ({ ...prev, [user.id]: false }))}
+                          className="flex-shrink-0 px-4 py-2.5 rounded-xl text-xs font-black bg-gray-200 text-gray-700 hover:bg-gray-300 active:scale-95 transition-all"
+                        >
+                          İptal
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* ── Bakiye Gönder Panel ──────────────────── */}
