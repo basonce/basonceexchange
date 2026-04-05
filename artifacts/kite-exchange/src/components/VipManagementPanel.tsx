@@ -24,44 +24,30 @@ interface VipMembership {
 
 interface UserOption { id: string; email: string; full_name: string; }
 
-const VIP_CFG: Record<number, { bg: string; text: string; border: string; glow: string }> = {
-  1:  { bg: 'linear-gradient(135deg,#6b7280,#9ca3af,#e5e7eb,#9ca3af,#6b7280)', text: '#fff', border: '#9ca3af', glow: 'rgba(156,163,175,0.6)' },
-  2:  { bg: 'linear-gradient(135deg,#475569,#64748b,#94a3b8,#64748b,#475569)', text: '#fff', border: '#64748b', glow: 'rgba(100,116,139,0.6)' },
-  3:  { bg: 'linear-gradient(135deg,#b45309,#f59e0b,#fde68a,#f59e0b,#b45309)', text: '#000', border: '#F59E0B', glow: 'rgba(245,158,11,0.7)' },
-  4:  { bg: 'linear-gradient(135deg,#065f46,#059669,#34d399,#059669,#065f46)', text: '#fff', border: '#10B981', glow: 'rgba(16,185,129,0.6)' },
-  5:  { bg: 'linear-gradient(135deg,#94a3b8,#cbd5e1,#f1f5f9,#cbd5e1,#94a3b8)', text: '#1e293b', border: '#cbd5e1', glow: 'rgba(203,213,225,0.8)' },
-  6:  { bg: 'linear-gradient(135deg,#1e3a8a,#1d4ed8,#60a5fa,#1d4ed8,#1e3a8a)', text: '#fff', border: '#3B82F6', glow: 'rgba(59,130,246,0.7)' },
-  7:  { bg: 'linear-gradient(135deg,#4c1d95,#7c3aed,#a78bfa,#7c3aed,#4c1d95)', text: '#fff', border: '#8B5CF6', glow: 'rgba(139,92,246,0.7)' },
-  8:  { bg: 'linear-gradient(135deg,#9d174d,#be185d,#f472b6,#be185d,#9d174d)', text: '#fff', border: '#EC4899', glow: 'rgba(236,72,153,0.7)' },
-  9:  { bg: 'linear-gradient(135deg,#7c2d12,#c2410c,#fb923c,#c2410c,#7c2d12)', text: '#fff', border: '#F97316', glow: 'rgba(249,115,22,0.7)' },
-  10: { bg: 'linear-gradient(135deg,#78350f,#b45309,#fbbf24,#fde68a,#fbbf24,#b45309,#78350f)', text: '#1a0a00', border: '#F59E0B', glow: 'rgba(251,191,36,0.9)' },
-};
+const VIP_BG = '#F0B90B';
+const VIP_TEXT = '#ffffff';
+const VIP_CFG: Record<number, { bg: string; text: string; border: string; glow: string }> = Object.fromEntries(
+  Array.from({ length: 10 }, (_, i) => [i + 1, { bg: VIP_BG, text: VIP_TEXT, border: '#d4a008', glow: 'rgba(240,185,11,0.5)' }])
+) as Record<number, { bg: string; text: string; border: string; glow: string }>;
 
 function vipCfg(level: number) {
   return VIP_CFG[level] || { bg: '#374151', text: '#fff', border: '#6b7280', glow: 'rgba(107,114,128,0.5)' };
 }
 
 function VipBadge({ level, size = 'sm' }: { level: number; size?: 'sm' | 'lg' }) {
-  const cfg = vipCfg(level);
-  const isSupreme = level === 10;
-  const px = size === 'lg' ? 'px-4 py-1.5 text-base' : 'px-2.5 py-0.5 text-xs';
+  const px = size === 'lg' ? 'px-5 py-1.5 text-base' : 'px-2.5 py-0.5 text-xs';
   return (
     <span
       className={`inline-flex items-center rounded-full font-black tracking-wider ${px} relative overflow-hidden`}
-      style={{
-        background: cfg.bg,
-        color: cfg.text,
-        border: `1.5px solid ${cfg.border}`,
-        boxShadow: `0 0 ${isSupreme ? 12 : 6}px ${cfg.glow}`,
-        textShadow: isSupreme ? '0 1px 2px rgba(0,0,0,0.4)' : undefined,
-      }}
+      style={{ background: '#F0B90B', color: '#fff', border: '1.5px solid #d4a008' }}
     >
       <span className="relative z-10">VIP {level}</span>
       <span
-        className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity"
+        className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.3) 50%,transparent 100%)',
-          animation: 'shimmer 1.8s infinite',
+          background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.45) 50%, transparent 100%)',
+          backgroundSize: '200% 100%',
+          animation: 'vipShimmer 2.5s linear infinite',
         }}
       />
     </span>
@@ -241,13 +227,9 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
   return (
     <>
       <style>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-        @keyframes vipPulse {
-          0%,100% { opacity: 1; }
-          50% { opacity: 0.7; }
+        @keyframes vipShimmer {
+          0%   { background-position: -200% 0; }
+          100% { background-position:  200% 0; }
         }
       `}</style>
 
@@ -314,14 +296,10 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
                 <div className="flex items-center gap-3 p-4">
                   <div
                     className="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm flex-none relative overflow-hidden"
-                    style={{
-                      background: cfg.bg,
-                      color: cfg.text,
-                      boxShadow: `0 0 8px ${cfg.glow}`,
-                    }}
+                    style={{ background: '#F0B90B', color: '#fff' }}
                   >
                     {m.vip_level}
-                    <span className="absolute inset-0" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent)', animation: 'shimmer 2s infinite' }} />
+                    <span className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.45),transparent)', backgroundSize: '200% 100%', animation: 'vipShimmer 2.5s linear infinite' }} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -409,19 +387,14 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
                   <label className="block text-sm font-black text-gray-800 mb-2">VIP Seviyesi</label>
                   <div className="grid grid-cols-5 gap-2">
                     {[1,2,3,4,5,6,7,8,9,10].map(lvl => {
-                      const cfg = vipCfg(lvl);
                       const sel = form.vip_level === lvl;
                       return (
                         <button key={lvl} onClick={() => setForm(f => ({ ...f, vip_level: lvl }))}
-                          className={`py-2.5 rounded-xl font-black text-sm relative overflow-hidden transition-all ${sel ? 'scale-105 ring-2 ring-offset-1' : 'opacity-60 hover:opacity-90'}`}
-                          style={{
-                            background: cfg.bg, color: cfg.text,
-                            ringColor: cfg.border,
-                            boxShadow: sel ? `0 0 12px ${cfg.glow}` : undefined,
-                          }}
+                          className={`py-2.5 rounded-xl font-black text-sm relative overflow-hidden transition-all ${sel ? 'scale-105 ring-2 ring-[#d4a008] ring-offset-1' : 'opacity-50 hover:opacity-80'}`}
+                          style={{ background: '#F0B90B', color: '#fff' }}
                         >
                           {lvl}
-                          <span className="absolute inset-0" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent)', animation: 'shimmer 2s infinite' }} />
+                          {sel && <span className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.45),transparent)', backgroundSize: '200% 100%', animation: 'vipShimmer 2.5s linear infinite' }} />}
                         </button>
                       );
                     })}

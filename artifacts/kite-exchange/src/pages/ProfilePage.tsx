@@ -405,22 +405,9 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
 
   const memberSince = profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recently';
 
-  // VIP helpers — all badges use Binance yellow (#F0B90B)
-  const VIP_STYLES: Record<number, { bg: string; text: string; border: string; glow: string }> = {
-    1:  { bg: 'linear-gradient(135deg,#6b7280,#9ca3af,#e5e7eb,#9ca3af,#6b7280)', text: '#fff', border: '#9ca3af', glow: 'rgba(156,163,175,0.6)' },
-    2:  { bg: 'linear-gradient(135deg,#475569,#64748b,#94a3b8,#64748b,#475569)', text: '#fff', border: '#64748b', glow: 'rgba(100,116,139,0.6)' },
-    3:  { bg: 'linear-gradient(135deg,#b45309,#f59e0b,#fde68a,#f59e0b,#b45309)', text: '#000', border: '#F59E0B', glow: 'rgba(245,158,11,0.7)' },
-    4:  { bg: 'linear-gradient(135deg,#065f46,#059669,#34d399,#059669,#065f46)', text: '#fff', border: '#10B981', glow: 'rgba(16,185,129,0.6)' },
-    5:  { bg: 'linear-gradient(135deg,#94a3b8,#cbd5e1,#f1f5f9,#cbd5e1,#94a3b8)', text: '#1e293b', border: '#cbd5e1', glow: 'rgba(203,213,225,0.8)' },
-    6:  { bg: 'linear-gradient(135deg,#1e3a8a,#1d4ed8,#60a5fa,#1d4ed8,#1e3a8a)', text: '#fff', border: '#3B82F6', glow: 'rgba(59,130,246,0.7)' },
-    7:  { bg: 'linear-gradient(135deg,#4c1d95,#7c3aed,#a78bfa,#7c3aed,#4c1d95)', text: '#fff', border: '#8B5CF6', glow: 'rgba(139,92,246,0.7)' },
-    8:  { bg: 'linear-gradient(135deg,#9d174d,#be185d,#f472b6,#be185d,#9d174d)', text: '#fff', border: '#EC4899', glow: 'rgba(236,72,153,0.7)' },
-    9:  { bg: 'linear-gradient(135deg,#7c2d12,#c2410c,#fb923c,#c2410c,#7c2d12)', text: '#fff', border: '#F97316', glow: 'rgba(249,115,22,0.7)' },
-    10: { bg: 'linear-gradient(135deg,#78350f,#b45309,#fbbf24,#fde68a,#fbbf24,#b45309,#78350f)', text: '#1a0a00', border: '#F59E0B', glow: 'rgba(251,191,36,0.9)' },
-  };
-  // Show VIP badge from vip_memberships if available, else fall back to user_level
+  // All VIP levels: plain Binance yellow, white text, shimmer
   const effectiveVipLevel = vipMembership?.vip_level || (profile?.user_level && profile.user_level > 0 ? profile.user_level : null);
-  const vipStyle = effectiveVipLevel ? (VIP_STYLES[effectiveVipLevel] || VIP_STYLES[1]) : null;
+  const vipStyle = effectiveVipLevel ? { bg: '#F0B90B', text: '#ffffff', border: '#d4a008' } : null;
   const vipDaysLeft = vipMembership ? Math.ceil((new Date(vipMembership.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
   const isAccountFrozen = !profile?.is_active && profile?.id;
 
@@ -571,15 +558,10 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
                     <button
                       onClick={() => setShowVipPayModal(true)}
                       className="px-3 py-1 rounded-full text-xs font-black active:scale-95 transition-transform relative overflow-hidden"
-                      style={{
-                        background: vipStyle.bg,
-                        color: vipStyle.text,
-                        border: `1px solid ${vipStyle.border}`,
-                        boxShadow: `0 0 8px ${vipStyle.glow}`,
-                      }}
+                      style={{ background: '#F0B90B', color: '#fff', border: '1px solid #d4a008' }}
                     >
-                      VIP {effectiveVipLevel}
-                      {vipMembership?.status === 'frozen' && ' ❄'}
+                      <span className="relative z-10">VIP {effectiveVipLevel}{vipMembership?.status === 'frozen' ? ' ❄' : ''}</span>
+                      <span className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.45),transparent)', backgroundSize: '200% 100%', animation: 'vipShimmer 2.5s linear infinite' }} />
                     </button>
                   ) : (
                     <button
