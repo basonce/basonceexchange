@@ -280,40 +280,25 @@ export default function AssetsPage() {
         localStorage.setItem('basonce_assets_cache_v1', JSON.stringify({ ts: Date.now(), balances: allBalances }));
       } catch {}
 
-      const coinsNeedingFresh = SUPPORTED_COINS.filter(
-        c => c.symbol !== 'USDT' && c.symbol !== 'EQ' && c.symbol !== 'EQL'
-      );
-
-      const freshPrices = await Promise.all(
-        coinsNeedingFresh.map(async (coin) => {
-          try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
-            const response = await fetch(
-              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/binance-proxy?symbol=${coin.symbol}USDT`,
-              {
-                headers: { 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
-                signal: controller.signal
-              }
-            );
-            clearTimeout(timeoutId);
-            const priceData = await response.json();
-            return {
-              symbol: coin.symbol,
-              price: parseFloat(priceData.price || priceData.lastPrice || '0'),
-              priceChange24h: parseFloat(priceData.priceChangePercent || '0')
-            };
-          } catch {
-            return null;
+      // Fetch all crypto prices in one batch from api-server (KuCoin backend — no geo-blocking)
+      try {
+        const cryptoRes = await fetch('/api/crypto-prices', { signal: AbortSignal.timeout(8000) });
+        if (cryptoRes.ok) {
+          const cryptoJson = await cryptoRes.json() as {
+            success: boolean;
+            data?: Record<string, { price: number; change: number }>;
+          };
+          if (cryptoJson.success && cryptoJson.data) {
+            setBalances(prev => prev.map(b => {
+              const d = cryptoJson.data![b.symbol];
+              if (d && d.price > 0) return { ...b, price: d.price, priceChange24h: d.change };
+              return b;
+            }));
           }
-        })
-      );
-
-      setBalances(prev => prev.map(b => {
-        const fresh = freshPrices.find(f => f?.symbol === b.symbol);
-        if (fresh) return { ...b, price: fresh.price, priceChange24h: fresh.priceChange24h };
-        return b;
-      }));
+        }
+      } catch {
+        // keep existing prices
+      }
     } catch (error) {
       console.error('Error fetching balances:', error);
       setLoading(false);
