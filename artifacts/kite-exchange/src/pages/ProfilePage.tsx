@@ -406,19 +406,21 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
   const memberSince = profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recently';
 
   // VIP helpers — all badges use Binance yellow (#F0B90B)
-  const VIP_STYLES: Record<number, { bg: string; text: string; label: string; emoji: string }> = {
-    1:  { bg: '#F0B90B', text: '#000', label: 'VIP 1',  emoji: '🥉' },
-    2:  { bg: '#F0B90B', text: '#000', label: 'VIP 2',  emoji: '🥈' },
-    3:  { bg: '#F0B90B', text: '#000', label: 'VIP 3',  emoji: '🥇' },
-    4:  { bg: '#F0B90B', text: '#000', label: 'VIP 4',  emoji: '💚' },
-    5:  { bg: '#F0B90B', text: '#000', label: 'VIP 5',  emoji: '💎' },
-    6:  { bg: '#F0B90B', text: '#000', label: 'VIP 6',  emoji: '🔵' },
-    7:  { bg: '#F0B90B', text: '#000', label: 'VIP 7',  emoji: '💜' },
-    8:  { bg: '#F0B90B', text: '#000', label: 'VIP 8',  emoji: '💗' },
-    9:  { bg: '#F0B90B', text: '#000', label: 'VIP 9',  emoji: '🔥' },
-    10: { bg: '#F0B90B', text: '#000', label: 'VIP 10', emoji: '👑' },
+  const VIP_STYLES: Record<number, { bg: string; text: string; border: string; glow: string }> = {
+    1:  { bg: 'linear-gradient(135deg,#6b7280,#9ca3af,#e5e7eb,#9ca3af,#6b7280)', text: '#fff', border: '#9ca3af', glow: 'rgba(156,163,175,0.6)' },
+    2:  { bg: 'linear-gradient(135deg,#475569,#64748b,#94a3b8,#64748b,#475569)', text: '#fff', border: '#64748b', glow: 'rgba(100,116,139,0.6)' },
+    3:  { bg: 'linear-gradient(135deg,#b45309,#f59e0b,#fde68a,#f59e0b,#b45309)', text: '#000', border: '#F59E0B', glow: 'rgba(245,158,11,0.7)' },
+    4:  { bg: 'linear-gradient(135deg,#065f46,#059669,#34d399,#059669,#065f46)', text: '#fff', border: '#10B981', glow: 'rgba(16,185,129,0.6)' },
+    5:  { bg: 'linear-gradient(135deg,#94a3b8,#cbd5e1,#f1f5f9,#cbd5e1,#94a3b8)', text: '#1e293b', border: '#cbd5e1', glow: 'rgba(203,213,225,0.8)' },
+    6:  { bg: 'linear-gradient(135deg,#1e3a8a,#1d4ed8,#60a5fa,#1d4ed8,#1e3a8a)', text: '#fff', border: '#3B82F6', glow: 'rgba(59,130,246,0.7)' },
+    7:  { bg: 'linear-gradient(135deg,#4c1d95,#7c3aed,#a78bfa,#7c3aed,#4c1d95)', text: '#fff', border: '#8B5CF6', glow: 'rgba(139,92,246,0.7)' },
+    8:  { bg: 'linear-gradient(135deg,#9d174d,#be185d,#f472b6,#be185d,#9d174d)', text: '#fff', border: '#EC4899', glow: 'rgba(236,72,153,0.7)' },
+    9:  { bg: 'linear-gradient(135deg,#7c2d12,#c2410c,#fb923c,#c2410c,#7c2d12)', text: '#fff', border: '#F97316', glow: 'rgba(249,115,22,0.7)' },
+    10: { bg: 'linear-gradient(135deg,#78350f,#b45309,#fbbf24,#fde68a,#fbbf24,#b45309,#78350f)', text: '#1a0a00', border: '#F59E0B', glow: 'rgba(251,191,36,0.9)' },
   };
-  const vipStyle = vipMembership ? (VIP_STYLES[vipMembership.vip_level] || { bg: '#F0B90B', text: '#000', label: `VIP ${vipMembership.vip_level}`, emoji: '⭐' }) : null;
+  // Show VIP badge from vip_memberships if available, else fall back to user_level
+  const effectiveVipLevel = vipMembership?.vip_level || (profile?.user_level && profile.user_level > 0 ? profile.user_level : null);
+  const vipStyle = effectiveVipLevel ? (VIP_STYLES[effectiveVipLevel] || VIP_STYLES[1]) : null;
   const vipDaysLeft = vipMembership ? Math.ceil((new Date(vipMembership.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
   const isAccountFrozen = !profile?.is_active && profile?.id;
 
@@ -565,14 +567,19 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
-                  {vipMembership && vipStyle ? (
+                  {vipStyle && effectiveVipLevel ? (
                     <button
                       onClick={() => setShowVipPayModal(true)}
-                      className="px-3 py-1 rounded-full text-xs font-black flex items-center gap-1 active:scale-95 transition-transform"
-                      style={{ background: vipStyle.bg, color: vipStyle.text }}
+                      className="px-3 py-1 rounded-full text-xs font-black active:scale-95 transition-transform relative overflow-hidden"
+                      style={{
+                        background: vipStyle.bg,
+                        color: vipStyle.text,
+                        border: `1px solid ${vipStyle.border}`,
+                        boxShadow: `0 0 8px ${vipStyle.glow}`,
+                      }}
                     >
-                      {vipStyle.emoji} {vipStyle.label}
-                      {vipMembership.status === 'frozen' && ' ❄️'}
+                      VIP {effectiveVipLevel}
+                      {vipMembership?.status === 'frozen' && ' ❄'}
                     </button>
                   ) : (
                     <button
