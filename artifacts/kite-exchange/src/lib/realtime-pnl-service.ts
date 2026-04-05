@@ -1,8 +1,8 @@
 import { supabase, getCurrentUser } from './supabase';
-import { TradingService } from './trading-service';
 import { EarnQuestPriceManager } from './earnquest-price';
 import { isTradFiSymbol } from './tradfi-data';
 import { getCachedTradFiPrice, startTradFiPriceUpdater } from './tradfi-price-service';
+import { PriceCache } from './price-cache';
 
 export interface RealtimePnL {
   currentTotalValue: number;
@@ -47,12 +47,14 @@ class RealtimePnLService {
   };
 
   private eqPriceManager = EarnQuestPriceManager.getInstance();
-  // Cache of last known good prices – prevents wild jumps when API times out
+  private priceCacheSvc = PriceCache.getInstance();
+  // Fallback: last known good prices – prevents wild jumps on cache miss
   private priceCache: Record<string, number> = {};
 
   private constructor() {
     startTradFiPriceUpdater();
-    this.recalculate();
+    // Initialise the shared PriceCache (fetches via Supabase proxy, not Binance directly)
+    this.priceCacheSvc.init().then(() => this.recalculate());
     this.intervalId = window.setInterval(() => this.recalculate(), 15_000);
     this.eqPriceManager.subscribe(() => this.recalculate());
   }
@@ -91,35 +93,27 @@ class RealtimePnLService {
 
   // ─── PRICE HELPER ──────────────────────────────────────────────────────────
 
-  private async getPrice(symbol: string): Promise<number> {
+  private getPrice(symbol: string): number {
     if (symbol === 'USDT') return 1;
+
     if (symbol === 'EQ' || symbol === 'EQL') {
       const p = this.eqPriceManager.getPrice();
       if (p > 0) this.priceCache[symbol] = p;
-      return p || this.priceCache[symbol] || 0;
+      return p > 0 ? p : (this.priceCache[symbol] || 0);
     }
+
     if (isTradFiSymbol(symbol)) {
       const tradfi = getCachedTradFiPrice(symbol);
       const p = tradfi?.price || 0;
       if (p > 0) this.priceCache[symbol] = p;
-      return p || this.priceCache[symbol] || 0;
+      return p > 0 ? p : (this.priceCache[symbol] || 0);
     }
-    try {
-      const fetched = await Promise.race([
-        TradingService.getCurrentPrice(symbol),
-        new Promise<number>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5_000))
-      ]);
-      const p = fetched || 0;
-      if (p > 0) {
-        this.priceCache[symbol] = p;
-        return p;
-      }
-      // Fetch returned 0 → use last known good price to avoid wild jumps
-      return this.priceCache[symbol] || 0;
-    } catch {
-      // Timeout or error → use last known good price
-      return this.priceCache[symbol] || 0;
-    }
+
+    // ── Crypto: read from PriceCache (uses Supabase proxy, not Binance directly) ──
+    const cached = this.priceCacheSvc.get(`${symbol}USDT`);
+    const p = cached?.price || 0;
+    if (p > 0) this.priceCache[symbol] = p;
+    return p > 0 ? p : (this.priceCache[symbol] || 0);
   }
 
   // ─── PORTFOLIO VALUE (THE SINGLE FORMULA) ──────────────────────────────────
@@ -152,12 +146,7 @@ class RealtimePnLService {
     const futuresWallet = parseFloat(usdtRow?.futures_balance || '0') || 0;
 
     // ── 2. Spot value ──
-    const spotValues = await Promise.all(
-      spotBalances.map(async b => {
-        const price = await this.getPrice(b.symbol);
-        return b.balance * price;
-      })
-    );
+    const spotValues = spotBalances.map(b => b.balance * this.getPrice(b.symbol));
     const spotTotal = spotValues.reduce((a, b) => a + b, 0);
 
     // ── 3. Futures unrealized PnL from open positions ──
@@ -173,7 +162,7 @@ class RealtimePnLService {
     let futuresUnrealizedPnL = 0;
     for (const pos of (positions || [])) {
       const coinSymbol = pos.symbol.replace(/usdt$/i, '');
-      const currentPrice = await this.getPrice(coinSymbol);
+      const currentPrice = this.getPrice(coinSymbol);
       const entryPrice = parseFloat(pos.entry_price) || 0;
       const positionSize = parseFloat(pos.position_size) || 0;
       const leverage = parseFloat(pos.leverage) || 1;
