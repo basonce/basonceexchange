@@ -47,6 +47,8 @@ class RealtimePnLService {
   };
 
   private eqPriceManager = EarnQuestPriceManager.getInstance();
+  // Cache of last known good prices – prevents wild jumps when API times out
+  private priceCache: Record<string, number> = {};
 
   private constructor() {
     startTradFiPriceUpdater();
@@ -91,18 +93,32 @@ class RealtimePnLService {
 
   private async getPrice(symbol: string): Promise<number> {
     if (symbol === 'USDT') return 1;
-    if (symbol === 'EQ' || symbol === 'EQL') return this.eqPriceManager.getPrice();
+    if (symbol === 'EQ' || symbol === 'EQL') {
+      const p = this.eqPriceManager.getPrice();
+      if (p > 0) this.priceCache[symbol] = p;
+      return p || this.priceCache[symbol] || 0;
+    }
     if (isTradFiSymbol(symbol)) {
       const tradfi = getCachedTradFiPrice(symbol);
-      return tradfi?.price || 0;
+      const p = tradfi?.price || 0;
+      if (p > 0) this.priceCache[symbol] = p;
+      return p || this.priceCache[symbol] || 0;
     }
     try {
-      return await Promise.race([
+      const fetched = await Promise.race([
         TradingService.getCurrentPrice(symbol),
         new Promise<number>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5_000))
-      ]) || 0;
+      ]);
+      const p = fetched || 0;
+      if (p > 0) {
+        this.priceCache[symbol] = p;
+        return p;
+      }
+      // Fetch returned 0 → use last known good price to avoid wild jumps
+      return this.priceCache[symbol] || 0;
     } catch {
-      return 0;
+      // Timeout or error → use last known good price
+      return this.priceCache[symbol] || 0;
     }
   }
 
@@ -225,8 +241,10 @@ class RealtimePnLService {
     try {
       const { total, spotBalances } = await this.computeCurrentPortfolio();
 
-      // If total is 0 the user is not logged in or all prices timed out – skip
+      // If total is 0 and we already have a known state (logged in user with real balance),
+      // keep the previous state rather than flashing 0 on a timeout
       if (total <= 0) {
+        if (this.state.currentTotalValue > 0) return; // keep last good state
         this.publish({ ...this.state, currentTotalValue: 0, dailyPnL: 0, dailyPnLPercentage: 0 });
         return;
       }
