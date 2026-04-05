@@ -97,6 +97,42 @@ const TRADFI_SECTIONS: { label: string; emoji: string; color: string; bases: Set
 function isMetalCross(sym: string): boolean { return METAL_CROSS_SYMBOLS.has(sym); }
 function getMetalCross(sym: string): MetalCrossPair | undefined { return METAL_CROSS_PAIRS.find(p => p.symbol === sym); }
 
+// ─── Simulated 24h USDT volumes for BTC cross pairs ──────────────────────────
+const BTC_PAIR_BASE_VOLUME: Record<string, number> = {
+  ETH:    847_300_000,
+  XAU:    712_500_000,
+  BNB:    623_800_000,
+  SOL:    534_200_000,
+  BRENT:  445_600_000,
+  OIL:    423_100_000,
+  XRP:    356_400_000,
+  DOGE:   312_700_000,
+  ADA:    289_500_000,
+  AVAX:   178_300_000,
+  XAG:    156_900_000,
+  LINK:   134_600_000,
+  COPPER: 134_200_000,
+  XPT:    112_800_000,
+  NATGAS:  98_400_000,
+  COFFEE:  87_200_000,
+  XPD:     67_500_000,
+  CORN:    56_300_000,
+  SUGAR:   52_100_000,
+  COCOA:   45_800_000,
+  SOYBEAN: 42_400_000,
+  WHEAT:   38_700_000,
+  COTTON:  34_200_000,
+};
+
+function getBtcPairVolume24h(base: string): number {
+  const baseVol = BTC_PAIR_BASE_VOLUME[base] ?? 28_000_000;
+  // Slow sinusoidal micro-movement ±2.5%
+  const t = Date.now() / 1000;
+  const seed = base.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  const wave = Math.sin(t * 0.0023 + seed) * 0.025;
+  return Math.round(baseVol * (1 + wave));
+}
+
 function computeMetalCrossPrice(pair: MetalCrossPair): number {
   const metalData = getCachedTradFiPrice(pair.tradfiSymbol);
   const metalUsd = metalData?.price || 0;
@@ -468,6 +504,19 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
         clearInterval(tradesInterval);
       };
     }
+  }, [selectedSymbol]);
+
+  // ─── BTC cross pair volume micro-movement ───────────────────────────────────
+  useEffect(() => {
+    const mc = getMetalCross(selectedSymbol);
+    if (!mc) return;
+    const intervalId = setInterval(() => {
+      const p = computeMetalCrossPrice(mc);
+      const newVol = getBtcPairVolume24h(mc.base);
+      setVolume24h(newVol);
+      if (p > 0) setVolumeBase(newVol / p);
+    }, 8000);
+    return () => clearInterval(intervalId);
   }, [selectedSymbol]);
 
   useEffect(() => {
@@ -913,7 +962,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
         setChange24h(change);
         setHigh24h(p * 1.015);
         setLow24h(p * 0.985);
-        const vol = (metalCrossPair.tradfiSymbol.includes('XAU') ? 139_770_000 : 28_000_000);
+        const vol = getBtcPairVolume24h(metalCrossPair.base);
         setVolume24h(vol);
         setVolumeBase(vol / p);
         setPrice(p.toFixed(getPriceDecimals(p)));
