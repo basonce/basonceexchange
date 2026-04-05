@@ -443,7 +443,7 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
 
                   {/* Selected VIP showcase */}
                   <div className="mt-3 flex items-center justify-center gap-3 py-3 rounded-xl border"
-                    style={{ borderColor: vipCfg(form.vip_level).border, boxShadow: `0 0 16px ${vipCfg(form.vip_level).glow}` }}>
+                    style={{ borderColor: '#d4a008', boxShadow: form.vip_level === 10 ? '0 0 8px rgba(240,185,11,0.3)' : '0 0 4px rgba(240,185,11,0.15)' }}>
                     <VipBadge level={form.vip_level} size="lg" />
                     <span className="font-black text-gray-700">secildi</span>
                   </div>
