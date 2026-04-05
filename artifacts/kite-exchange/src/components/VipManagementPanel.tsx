@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import {
-  Crown, Plus, X, Edit3, Snowflake, CheckCircle, AlertTriangle,
-  Clock, Calendar, DollarSign, User, RefreshCw, Search, ChevronDown, ChevronUp
+  Plus, X, Edit3, Snowflake, CheckCircle, AlertTriangle,
+  Clock, Calendar, DollarSign, RefreshCw, Search, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 interface VipMembership {
@@ -22,33 +22,59 @@ interface VipMembership {
   user_name?: string;
 }
 
-const VIP_COLORS: Record<number, { bg: string; text: string; label: string; emoji: string }> = {
-  1:  { bg: '#CD7F32', text: '#fff', label: 'VIP 1',  emoji: '🥉' },
-  2:  { bg: '#A8A9AD', text: '#fff', label: 'VIP 2',  emoji: '🥈' },
-  3:  { bg: '#FFD700', text: '#000', label: 'VIP 3',  emoji: '🥇' },
-  4:  { bg: '#50C878', text: '#fff', label: 'VIP 4',  emoji: '💚' },
-  5:  { bg: '#E5E4E2', text: '#000', label: 'VIP 5',  emoji: '💎' },
-  6:  { bg: '#b9f2ff', text: '#000', label: 'VIP 6',  emoji: '🔵' },
-  7:  { bg: '#9B59B6', text: '#fff', label: 'VIP 7',  emoji: '💜' },
-  8:  { bg: '#E91E8C', text: '#fff', label: 'VIP 8',  emoji: '💗' },
-  9:  { bg: '#FF4500', text: '#fff', label: 'VIP 9',  emoji: '🔥' },
-  10: { bg: 'linear-gradient(135deg,#FFD700,#FF4500)', text: '#fff', label: 'VIP 10', emoji: '👑' },
+interface UserOption { id: string; email: string; full_name: string; }
+
+const VIP_CFG: Record<number, { bg: string; text: string; border: string; glow: string }> = {
+  1:  { bg: 'linear-gradient(135deg,#6b7280,#9ca3af,#e5e7eb,#9ca3af,#6b7280)', text: '#fff', border: '#9ca3af', glow: 'rgba(156,163,175,0.6)' },
+  2:  { bg: 'linear-gradient(135deg,#475569,#64748b,#94a3b8,#64748b,#475569)', text: '#fff', border: '#64748b', glow: 'rgba(100,116,139,0.6)' },
+  3:  { bg: 'linear-gradient(135deg,#b45309,#f59e0b,#fde68a,#f59e0b,#b45309)', text: '#000', border: '#F59E0B', glow: 'rgba(245,158,11,0.7)' },
+  4:  { bg: 'linear-gradient(135deg,#065f46,#059669,#34d399,#059669,#065f46)', text: '#fff', border: '#10B981', glow: 'rgba(16,185,129,0.6)' },
+  5:  { bg: 'linear-gradient(135deg,#94a3b8,#cbd5e1,#f1f5f9,#cbd5e1,#94a3b8)', text: '#1e293b', border: '#cbd5e1', glow: 'rgba(203,213,225,0.8)' },
+  6:  { bg: 'linear-gradient(135deg,#1e3a8a,#1d4ed8,#60a5fa,#1d4ed8,#1e3a8a)', text: '#fff', border: '#3B82F6', glow: 'rgba(59,130,246,0.7)' },
+  7:  { bg: 'linear-gradient(135deg,#4c1d95,#7c3aed,#a78bfa,#7c3aed,#4c1d95)', text: '#fff', border: '#8B5CF6', glow: 'rgba(139,92,246,0.7)' },
+  8:  { bg: 'linear-gradient(135deg,#9d174d,#be185d,#f472b6,#be185d,#9d174d)', text: '#fff', border: '#EC4899', glow: 'rgba(236,72,153,0.7)' },
+  9:  { bg: 'linear-gradient(135deg,#7c2d12,#c2410c,#fb923c,#c2410c,#7c2d12)', text: '#fff', border: '#F97316', glow: 'rgba(249,115,22,0.7)' },
+  10: { bg: 'linear-gradient(135deg,#78350f,#b45309,#fbbf24,#fde68a,#fbbf24,#b45309,#78350f)', text: '#1a0a00', border: '#F59E0B', glow: 'rgba(251,191,36,0.9)' },
 };
 
-function vipStyle(level: number) {
-  return VIP_COLORS[level] || { bg: '#666', text: '#fff', label: `VIP ${level}`, emoji: '⭐' };
+function vipCfg(level: number) {
+  return VIP_CFG[level] || { bg: '#374151', text: '#fff', border: '#6b7280', glow: 'rgba(107,114,128,0.5)' };
+}
+
+function VipBadge({ level, size = 'sm' }: { level: number; size?: 'sm' | 'lg' }) {
+  const cfg = vipCfg(level);
+  const isSupreme = level === 10;
+  const px = size === 'lg' ? 'px-4 py-1.5 text-base' : 'px-2.5 py-0.5 text-xs';
+  return (
+    <span
+      className={`inline-flex items-center rounded-full font-black tracking-wider ${px} relative overflow-hidden`}
+      style={{
+        background: cfg.bg,
+        color: cfg.text,
+        border: `1.5px solid ${cfg.border}`,
+        boxShadow: `0 0 ${isSupreme ? 12 : 6}px ${cfg.glow}`,
+        textShadow: isSupreme ? '0 1px 2px rgba(0,0,0,0.4)' : undefined,
+      }}
+    >
+      <span className="relative z-10">VIP {level}</span>
+      <span
+        className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity"
+        style={{
+          background: 'linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.3) 50%,transparent 100%)',
+          animation: 'shimmer 1.8s infinite',
+        }}
+      />
+    </span>
+  );
 }
 
 function daysLeft(expires_at: string) {
-  const diff = new Date(expires_at).getTime() - Date.now();
-  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  return Math.ceil((new Date(expires_at).getTime() - Date.now()) / 86400000);
 }
 
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
-
-interface UserOption { id: string; email: string; full_name: string; }
 
 export default function VipManagementPanel() {
   const [memberships, setMemberships] = useState<VipMembership[]>([]);
@@ -61,45 +87,35 @@ export default function VipManagementPanel() {
   const [freezeReason, setFreezeReason] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [tableError, setTableError] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createDone, setCreateDone] = useState(false);
 
   const [form, setForm] = useState({
-    user_id: '',
-    vip_level: 3,
-    price_usdt: 1000,
+    user_id: '', vip_level: 3, price_usdt: 1000,
     starts_at: new Date().toISOString().slice(0, 10),
-    duration_months: 24,
-    admin_note: '',
-    payment_ref: '',
+    duration_months: 24, admin_note: '', payment_ref: '',
   });
 
-  useEffect(() => {
-    load();
-    loadUsers();
-  }, []);
+  useEffect(() => { load(); loadUsers(); }, []);
 
   async function load() {
     setLoading(true);
     const { data, error } = await supabase
-      .from('vip_memberships')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .from('vip_memberships').select('*').order('created_at', { ascending: false });
     if (error?.code === '42P01') {
       setTableError(true);
     } else {
       setTableError(false);
-      // Enrich with user data
       const mems = data || [];
       const userIds = [...new Set(mems.map((m: any) => m.user_id))];
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
-          .from('user_profiles')
-          .select('id, email, full_name')
-          .in('id', userIds);
-        const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.id, p]));
+          .from('user_profiles').select('id, email, full_name').in('id', userIds);
+        const pm = Object.fromEntries((profiles || []).map((p: any) => [p.id, p]));
         setMemberships(mems.map((m: any) => ({
           ...m,
-          user_email: profileMap[m.user_id]?.email || '',
-          user_name: profileMap[m.user_id]?.full_name || '',
+          user_email: pm[m.user_id]?.email || '',
+          user_name: pm[m.user_id]?.full_name || '',
         })));
       } else {
         setMemberships([]);
@@ -110,10 +126,7 @@ export default function VipManagementPanel() {
 
   async function loadUsers() {
     const { data } = await supabase
-      .from('user_profiles')
-      .select('id, email, full_name')
-      .order('created_at', { ascending: false })
-      .limit(200);
+      .from('user_profiles').select('id, email, full_name').order('created_at', { ascending: false }).limit(200);
     setUsers(data || []);
   }
 
@@ -121,32 +134,21 @@ export default function VipManagementPanel() {
     const starts = new Date(form.starts_at);
     const expires = new Date(starts);
     expires.setMonth(expires.getMonth() + Number(form.duration_months));
-
     const payload = {
-      user_id: form.user_id,
-      vip_level: Number(form.vip_level),
+      user_id: form.user_id, vip_level: Number(form.vip_level),
       price_usdt: Number(form.price_usdt),
-      starts_at: starts.toISOString(),
-      expires_at: expires.toISOString(),
+      starts_at: starts.toISOString(), expires_at: expires.toISOString(),
       duration_months: Number(form.duration_months),
-      admin_note: form.admin_note,
-      payment_ref: form.payment_ref,
-      status: 'active',
-      updated_at: new Date().toISOString(),
+      admin_note: form.admin_note, payment_ref: form.payment_ref,
+      status: 'active', updated_at: new Date().toISOString(),
     };
-
     if (editItem) {
       await supabase.from('vip_memberships').update(payload).eq('id', editItem.id);
     } else {
       await supabase.from('vip_memberships').insert(payload);
     }
-
-    // Also update user_level in user_profiles
     await supabase.from('user_profiles').update({ user_level: Number(form.vip_level) }).eq('id', form.user_id);
-
-    setShowForm(false);
-    setEditItem(null);
-    load();
+    setShowForm(false); setEditItem(null); load();
   }
 
   async function toggleFreeze(m: VipMembership) {
@@ -157,9 +159,7 @@ export default function VipManagementPanel() {
       await supabase.from('vip_memberships').update({ status: 'frozen', freeze_reason: freezeReason || 'VIP aidat ödenmedi', updated_at: new Date().toISOString() }).eq('id', m.id);
       await supabase.from('user_profiles').update({ is_active: false }).eq('id', m.user_id);
     }
-    setFreezeModal(null);
-    setFreezeReason('');
-    load();
+    setFreezeModal(null); setFreezeReason(''); load();
   }
 
   async function cancelVip(m: VipMembership) {
@@ -170,40 +170,19 @@ export default function VipManagementPanel() {
   }
 
   function openEdit(m: VipMembership) {
-    setForm({
-      user_id: m.user_id,
-      vip_level: m.vip_level,
-      price_usdt: m.price_usdt,
-      starts_at: m.starts_at.slice(0, 10),
-      duration_months: m.duration_months,
-      admin_note: m.admin_note || '',
-      payment_ref: m.payment_ref || '',
-    });
-    setEditItem(m);
-    setShowForm(true);
+    setForm({ user_id: m.user_id, vip_level: m.vip_level, price_usdt: m.price_usdt, starts_at: m.starts_at.slice(0, 10), duration_months: m.duration_months, admin_note: m.admin_note || '', payment_ref: m.payment_ref || '' });
+    setEditItem(m); setShowForm(true);
   }
 
   const filtered = memberships.filter(m =>
     m.user_email?.toLowerCase().includes(search.toLowerCase()) ||
     m.user_name?.toLowerCase().includes(search.toLowerCase())
   );
-
-  const activeCount = memberships.filter(m => m.status === 'active').length;
-  const frozenCount = memberships.filter(m => m.status === 'frozen').length;
+  const activeCount  = memberships.filter(m => m.status === 'active').length;
+  const frozenCount  = memberships.filter(m => m.status === 'frozen').length;
   const expiringSoon = memberships.filter(m => m.status === 'active' && daysLeft(m.expires_at) <= 30).length;
 
-  if (tableError) {
-    return (
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">👑 VIP Yönetimi</h2>
-        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-6">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-6 h-6 text-amber-600 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="font-bold text-amber-800 mb-2">Önce veritabanı tablosunu oluşturmanız gerekiyor</p>
-              <p className="text-amber-700 text-sm mb-3">Supabase Dashboard → SQL Editor'e gidin ve aşağıdaki SQL'i çalıştırın:</p>
-              <div className="bg-gray-900 rounded-xl p-4 text-xs text-green-400 font-mono overflow-auto max-h-64">
-                {`CREATE TABLE IF NOT EXISTS vip_memberships (
+  const CREATE_SQL = `CREATE TABLE IF NOT EXISTS vip_memberships (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
   vip_level int NOT NULL CHECK (vip_level BETWEEN 1 AND 10),
@@ -211,7 +190,8 @@ export default function VipManagementPanel() {
   starts_at timestamptz NOT NULL DEFAULT now(),
   expires_at timestamptz NOT NULL,
   duration_months int NOT NULL DEFAULT 12,
-  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active','frozen','expired','cancelled')),
+  status text NOT NULL DEFAULT 'active'
+    CHECK (status IN ('active','frozen','expired','cancelled')),
   freeze_reason text,
   admin_note text,
   payment_ref text,
@@ -219,302 +199,326 @@ export default function VipManagementPanel() {
   updated_at timestamptz DEFAULT now()
 );
 ALTER TABLE vip_memberships ENABLE ROW LEVEL SECURITY;
-CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (true);`}
-              </div>
-              <button onClick={load} className="mt-3 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-semibold hover:bg-amber-700">
-                SQL çalıştırdım, yenile
-              </button>
+CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (true);`;
+
+  if (tableError) {
+    return (
+      <div className="space-y-4">
+        <h2 className="text-xl font-black text-gray-900">VIP Yönetimi</h2>
+        <div className="bg-red-50 border-2 border-red-400 rounded-2xl p-5 space-y-4">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-6 h-6 text-red-600 flex-none" />
+            <div>
+              <p className="font-black text-red-800">Veritabanı tablosu eksik</p>
+              <p className="text-red-600 text-sm mt-0.5">Supabase Dashboard → SQL Editor'e girin ve aşağıdaki kodu çalıştırın:</p>
             </div>
           </div>
+          <div className="bg-gray-950 rounded-xl p-4 text-xs text-emerald-400 font-mono overflow-auto select-all" style={{ userSelect: 'all' }}>
+            {CREATE_SQL}
+          </div>
+          <div className="flex gap-3">
+            <a
+              href="https://supabase.com/dashboard/project/jfjjymprvjfltpvmfptj/editor"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-sm font-black text-center hover:bg-red-700"
+            >
+              Supabase SQL Editor'u Ac
+            </a>
+            <button
+              onClick={async () => { setCreating(true); await load(); setCreating(false); setCreateDone(true); }}
+              className="px-4 py-2.5 bg-gray-200 text-gray-800 rounded-xl text-sm font-bold hover:bg-gray-300"
+            >
+              {creating ? 'Kontrol ediliyor...' : 'SQL calistirdim, yenile'}
+            </button>
+          </div>
+          {createDone && <p className="text-xs text-center text-gray-500">Hala hata aliyorsan SQL dogru calistirilmamis olabilir.</p>}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          👑 VIP Yönetimi
-        </h2>
-        <div className="flex gap-2">
-          <button onClick={load} className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200">
-            <RefreshCw className="w-4 h-4 text-gray-600" />
-          </button>
-          <button
-            onClick={() => { setEditItem(null); setForm({ user_id: '', vip_level: 3, price_usdt: 1000, starts_at: new Date().toISOString().slice(0, 10), duration_months: 24, admin_note: '', payment_ref: '' }); setShowForm(true); }}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#F0B90B] text-black rounded-lg text-sm font-bold hover:bg-yellow-400"
-          >
-            <Plus className="w-4 h-4" /> Yeni VIP At
-          </button>
-        </div>
-      </div>
+    <>
+      <style>{`
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        @keyframes vipPulse {
+          0%,100% { opacity: 1; }
+          50% { opacity: 0.7; }
+        }
+      `}</style>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 text-center">
-          <p className="text-2xl font-black text-green-600">{activeCount}</p>
-          <p className="text-sm font-semibold text-gray-700 mt-0.5">Aktif VIP</p>
-        </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 text-center">
-          <p className="text-2xl font-black text-blue-600">{frozenCount}</p>
-          <p className="text-sm font-semibold text-gray-700 mt-0.5">Dondurulmuş</p>
-        </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 text-center">
-          <p className="text-2xl font-black text-amber-600">{expiringSoon}</p>
-          <p className="text-sm font-semibold text-gray-700 mt-0.5">30 Günde Bitiyor</p>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Üye ara..."
-          className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400"
-        />
-      </div>
-
-      {/* List */}
-      <div className="space-y-2">
-        {loading ? (
-          <div className="text-center py-10 text-gray-400">Yükleniyor...</div>
-        ) : filtered.length === 0 ? (
-          <div className="bg-white rounded-xl p-10 text-center text-gray-400 border border-gray-200">
-            Henüz VIP üye yok. "Yeni VIP At" ile başlayın.
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-black text-gray-900">VIP Yönetimi</h2>
+          <div className="flex gap-2">
+            <button onClick={load} className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200">
+              <RefreshCw className="w-4 h-4 text-gray-600" />
+            </button>
+            <button
+              onClick={() => { setEditItem(null); setForm({ user_id: '', vip_level: 3, price_usdt: 1000, starts_at: new Date().toISOString().slice(0, 10), duration_months: 24, admin_note: '', payment_ref: '' }); setShowForm(true); }}
+              className="flex items-center gap-1.5 px-4 py-2 bg-[#F0B90B] text-black rounded-lg text-sm font-black hover:bg-yellow-400"
+            >
+              <Plus className="w-4 h-4" /> Yeni VIP At
+            </button>
           </div>
-        ) : filtered.map(m => {
-          const v = vipStyle(m.vip_level);
-          const days = daysLeft(m.expires_at);
-          const isExpanded = expandedId === m.id;
-          return (
-            <div key={m.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="flex items-center gap-3 p-4">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg flex-none" style={{ background: v.bg.startsWith('linear') ? undefined : v.bg, backgroundImage: v.bg.startsWith('linear') ? v.bg : undefined }}>
-                  {v.emoji}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-gray-900 text-sm truncate">{m.user_name || m.user_email}</span>
-                    <span className="text-xs font-black px-2 py-0.5 rounded-full flex-none" style={{ background: v.bg.startsWith('linear') ? '#FFD700' : v.bg, color: v.text }}>{v.label}</span>
-                    {m.status === 'frozen' && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 flex-none">❄️ Donduruldu</span>}
-                    {m.status === 'expired' && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 flex-none">Süresi Doldu</span>}
-                    {m.status === 'active' && days <= 30 && days > 0 && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 flex-none">⚠️ {days}g kaldı</span>}
-                    {m.status === 'active' && days <= 0 && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 flex-none">Süresi Doldu</span>}
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 text-center">
+            <p className="text-2xl font-black text-green-600">{activeCount}</p>
+            <p className="text-sm font-semibold text-gray-700 mt-0.5">Aktif VIP</p>
+          </div>
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 text-center">
+            <p className="text-2xl font-black text-blue-600">{frozenCount}</p>
+            <p className="text-sm font-semibold text-gray-700 mt-0.5">Dondurulmus</p>
+          </div>
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 text-center">
+            <p className="text-2xl font-black text-amber-600">{expiringSoon}</p>
+            <p className="text-sm font-semibold text-gray-700 mt-0.5">30 Gunde Bitiyor</p>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Uye ara..."
+            className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" />
+        </div>
+
+        {/* List */}
+        <div className="space-y-2">
+          {loading ? (
+            <div className="text-center py-10 text-gray-400">Yukleniyor...</div>
+          ) : filtered.length === 0 ? (
+            <div className="bg-white rounded-xl p-10 text-center text-gray-400 border border-gray-200">
+              Henuz VIP uye yok. "Yeni VIP At" ile baslayin.
+            </div>
+          ) : filtered.map(m => {
+            const cfg = vipCfg(m.vip_level);
+            const days = daysLeft(m.expires_at);
+            const isExpanded = expandedId === m.id;
+            const isSupreme = m.vip_level === 10;
+            return (
+              <div key={m.id}
+                className="bg-white rounded-xl shadow-sm border overflow-hidden"
+                style={{ borderColor: isSupreme ? '#F59E0B' : '#e5e7eb' }}
+              >
+                {isSupreme && (
+                  <div className="h-1 w-full" style={{ background: cfg.bg }} />
+                )}
+                <div className="flex items-center gap-3 p-4">
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm flex-none relative overflow-hidden"
+                    style={{
+                      background: cfg.bg,
+                      color: cfg.text,
+                      boxShadow: `0 0 8px ${cfg.glow}`,
+                    }}
+                  >
+                    {m.vip_level}
+                    <span className="absolute inset-0" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent)', animation: 'shimmer 2s infinite' }} />
                   </div>
-                  <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-3">
-                    <span>{fmtDate(m.starts_at)} → {fmtDate(m.expires_at)}</span>
-                    <span className="font-semibold text-green-600">${m.price_usdt.toLocaleString()}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-gray-900 text-sm truncate">{m.user_name || m.user_email}</span>
+                      <VipBadge level={m.vip_level} />
+                      {m.status === 'frozen' && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 flex-none">Donduruldu</span>}
+                      {m.status === 'expired' && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 flex-none">Suresi Doldu</span>}
+                      {m.status === 'active' && days <= 30 && days > 0 && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 flex-none">{days}g kaldi</span>}
+                      {m.status === 'active' && days <= 0 && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 flex-none">Suresi Doldu</span>}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-3">
+                      <span>{fmtDate(m.starts_at)} → {fmtDate(m.expires_at)}</span>
+                      <span className="font-semibold text-green-600">${m.price_usdt.toLocaleString()}</span>
+                    </div>
                   </div>
+                  <button onClick={() => setExpandedId(isExpanded ? null : m.id)} className="p-1.5 rounded-lg hover:bg-gray-100">
+                    {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                  </button>
                 </div>
-                <button onClick={() => setExpandedId(isExpanded ? null : m.id)} className="p-1.5 rounded-lg hover:bg-gray-100">
-                  {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+
+                {isExpanded && (
+                  <div className="border-t border-gray-100 px-4 py-3 space-y-3">
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      {[['Baslangic', fmtDate(m.starts_at)], ['Bitis', fmtDate(m.expires_at)], ['Sure', `${m.duration_months} ay`]].map(([k, v]) => (
+                        <div key={k} className="bg-gray-50 rounded-lg p-2">
+                          <p className="text-gray-400 font-semibold uppercase tracking-wider">{k}</p>
+                          <p className="text-gray-800 font-bold">{v}</p>
+                        </div>
+                      ))}
+                      <div className="bg-gray-50 rounded-lg p-2">
+                        <p className="text-gray-400 font-semibold uppercase tracking-wider">Kalan</p>
+                        <p className={`font-black ${days > 30 ? 'text-green-600' : days > 0 ? 'text-amber-600' : 'text-red-600'}`}>{days > 0 ? `${days} gun` : 'Suresi doldu'}</p>
+                      </div>
+                    </div>
+                    {m.admin_note && <div className="bg-blue-50 rounded-lg p-2 text-xs text-blue-800">{m.admin_note}</div>}
+                    {m.freeze_reason && <div className="bg-blue-50 rounded-lg p-2 text-xs text-blue-800">Dondurma: {m.freeze_reason}</div>}
+                    <div className="flex gap-2 flex-wrap">
+                      <button onClick={() => openEdit(m)} className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-200">
+                        <Edit3 className="w-3 h-3" /> Duzenle
+                      </button>
+                      {m.status !== 'frozen' ? (
+                        <button onClick={() => { setFreezeModal(m); setFreezeReason(''); }} className="flex items-center gap-1 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold hover:bg-blue-200">
+                          <Snowflake className="w-3 h-3" /> Dondur
+                        </button>
+                      ) : (
+                        <button onClick={() => toggleFreeze(m)} className="flex items-center gap-1 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-semibold hover:bg-green-200">
+                          <CheckCircle className="w-3 h-3" /> Ac
+                        </button>
+                      )}
+                      <button onClick={() => cancelVip(m)} className="flex items-center gap-1 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-semibold hover:bg-red-200">
+                        <X className="w-3 h-3" /> Iptal
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Add/Edit Modal */}
+        {showForm && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setShowForm(false)}>
+            <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between rounded-t-2xl">
+                <h3 className="font-black text-gray-900">{editItem ? 'VIP Duzenle' : 'Yeni VIP At'}</h3>
+                <button onClick={() => setShowForm(false)} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200">
+                  <X className="w-4 h-4 text-gray-500" />
                 </button>
               </div>
 
-              {isExpanded && (
-                <div className="border-t border-gray-100 px-4 py-3 space-y-3">
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-gray-50 rounded-lg p-2">
-                      <p className="text-gray-400 font-semibold uppercase tracking-wider">Başlangıç</p>
-                      <p className="text-gray-800 font-bold">{fmtDate(m.starts_at)}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-2">
-                      <p className="text-gray-400 font-semibold uppercase tracking-wider">Bitiş</p>
-                      <p className="text-gray-800 font-bold">{fmtDate(m.expires_at)}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-2">
-                      <p className="text-gray-400 font-semibold uppercase tracking-wider">Süre</p>
-                      <p className="text-gray-800 font-bold">{m.duration_months} ay</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-2">
-                      <p className="text-gray-400 font-semibold uppercase tracking-wider">Kalan</p>
-                      <p className={`font-black ${days > 30 ? 'text-green-600' : days > 0 ? 'text-amber-600' : 'text-red-600'}`}>{days > 0 ? `${days} gün` : 'Süresi doldu'}</p>
-                    </div>
+              <div className="p-5 space-y-5">
+                {/* User */}
+                <div>
+                  <label className="block text-sm font-black text-gray-800 mb-1.5">Kullanici</label>
+                  <select value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-yellow-400">
+                    <option value="">Kullanici secin...</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.email} — {u.email}</option>)}
+                  </select>
+                </div>
+
+                {/* VIP Level grid */}
+                <div>
+                  <label className="block text-sm font-black text-gray-800 mb-2">VIP Seviyesi</label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {[1,2,3,4,5,6,7,8,9,10].map(lvl => {
+                      const cfg = vipCfg(lvl);
+                      const sel = form.vip_level === lvl;
+                      return (
+                        <button key={lvl} onClick={() => setForm(f => ({ ...f, vip_level: lvl }))}
+                          className={`py-2.5 rounded-xl font-black text-sm relative overflow-hidden transition-all ${sel ? 'scale-105 ring-2 ring-offset-1' : 'opacity-60 hover:opacity-90'}`}
+                          style={{
+                            background: cfg.bg, color: cfg.text,
+                            ringColor: cfg.border,
+                            boxShadow: sel ? `0 0 12px ${cfg.glow}` : undefined,
+                          }}
+                        >
+                          {lvl}
+                          <span className="absolute inset-0" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent)', animation: 'shimmer 2s infinite' }} />
+                        </button>
+                      );
+                    })}
                   </div>
-                  {m.admin_note && (
-                    <div className="bg-blue-50 rounded-lg p-2 text-xs text-blue-800">
-                      📝 {m.admin_note}
-                    </div>
-                  )}
-                  {m.freeze_reason && (
-                    <div className="bg-blue-50 rounded-lg p-2 text-xs text-blue-800">
-                      ❄️ Dondurma sebebi: {m.freeze_reason}
-                    </div>
-                  )}
-                  <div className="flex gap-2 flex-wrap">
-                    <button onClick={() => openEdit(m)} className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-200">
-                      <Edit3 className="w-3 h-3" /> Düzenle
-                    </button>
-                    {m.status !== 'frozen' ? (
-                      <button onClick={() => { setFreezeModal(m); setFreezeReason(''); }} className="flex items-center gap-1 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold hover:bg-blue-200">
-                        <Snowflake className="w-3 h-3" /> Dondur
-                      </button>
-                    ) : (
-                      <button onClick={() => toggleFreeze(m)} className="flex items-center gap-1 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-semibold hover:bg-green-200">
-                        <CheckCircle className="w-3 h-3" /> Aç
-                      </button>
-                    )}
-                    <button onClick={() => cancelVip(m)} className="flex items-center gap-1 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-semibold hover:bg-red-200">
-                      <X className="w-3 h-3" /> İptal
-                    </button>
+
+                  {/* Selected VIP showcase */}
+                  <div className="mt-3 flex items-center justify-center gap-3 py-3 rounded-xl border"
+                    style={{ borderColor: vipCfg(form.vip_level).border, boxShadow: `0 0 16px ${vipCfg(form.vip_level).glow}` }}>
+                    <VipBadge level={form.vip_level} size="lg" />
+                    <span className="font-black text-gray-700">secildi</span>
                   </div>
                 </div>
-              )}
+
+                {/* Price */}
+                <div>
+                  <label className="block text-sm font-black text-gray-800 mb-1.5">Aidat (USDT)</label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input type="number" value={form.price_usdt} onChange={e => setForm(f => ({ ...f, price_usdt: Number(e.target.value) }))}
+                      className="w-full pl-8 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" placeholder="1000" />
+                  </div>
+                </div>
+
+                {/* Start date */}
+                <div>
+                  <label className="block text-sm font-black text-gray-800 mb-1.5">
+                    Baslangic Tarihi <span className="text-amber-600 font-normal text-xs">(gecmis tarih girebilirsiniz)</span>
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input type="date" value={form.starts_at} onChange={e => setForm(f => ({ ...f, starts_at: e.target.value }))}
+                      className="w-full pl-8 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" />
+                  </div>
+                </div>
+
+                {/* Duration */}
+                <div>
+                  <label className="block text-sm font-black text-gray-800 mb-1.5">Sure</label>
+                  <div className="grid grid-cols-4 gap-2 mb-2">
+                    {[6, 12, 24, 36].map(mo => (
+                      <button key={mo} onClick={() => setForm(f => ({ ...f, duration_months: mo }))}
+                        className={`py-2 rounded-xl text-sm font-bold transition-all ${form.duration_months === mo ? 'bg-[#F0B90B] text-black' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+                        {mo < 12 ? `${mo} ay` : `${mo/12} yil`}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input type="number" value={form.duration_months} onChange={e => setForm(f => ({ ...f, duration_months: Number(e.target.value) }))}
+                      className="w-full pl-8 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" placeholder="Ay olarak sure" />
+                  </div>
+                  {form.starts_at && form.duration_months > 0 && (
+                    <p className="text-xs text-green-600 font-semibold mt-1 px-1">
+                      Bitis: {fmtDate(new Date(new Date(form.starts_at).setMonth(new Date(form.starts_at).getMonth() + Number(form.duration_months))).toISOString())}
+                    </p>
+                  )}
+                </div>
+
+                {/* Admin note */}
+                <div>
+                  <label className="block text-sm font-black text-gray-800 mb-1.5">Admin Notu <span className="font-normal text-gray-500">(istege bagli)</span></label>
+                  <textarea value={form.admin_note} onChange={e => setForm(f => ({ ...f, admin_note: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400 resize-none"
+                    rows={2} placeholder="Odeme onaylandi, referans: TXH123..." />
+                </div>
+
+                <button onClick={saveVip} disabled={!form.user_id || !form.duration_months}
+                  className="w-full py-3 bg-[#F0B90B] text-black font-black rounded-xl hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed text-sm">
+                  {editItem ? 'Guncelle' : 'VIP Olustur'}
+                </button>
+              </div>
             </div>
-          );
-        })}
+          </div>
+        )}
+
+        {/* Freeze Modal */}
+        {freezeModal && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setFreezeModal(null)}>
+            <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-5 space-y-4" onClick={e => e.stopPropagation()}>
+              <h3 className="font-black text-gray-900">VIP Dondur</h3>
+              <p className="text-sm text-gray-600">
+                <span className="font-semibold">{freezeModal.user_name || freezeModal.user_email}</span> icin
+                <VipBadge level={freezeModal.vip_level} /> uyeligi dondurulacak.
+              </p>
+              <textarea value={freezeReason} onChange={e => setFreezeReason(e.target.value)}
+                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-400 resize-none"
+                rows={2} placeholder="Dondurma sebebi (isteğe bağlı)..." />
+              <div className="flex gap-3">
+                <button onClick={() => setFreezeModal(null)} className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-200">Iptal</button>
+                <button onClick={() => toggleFreeze(freezeModal)} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-black hover:bg-blue-700 flex items-center justify-center gap-1.5">
+                  <Snowflake className="w-4 h-4" /> Dondur
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Add/Edit Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between rounded-t-2xl">
-              <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                <Crown className="w-5 h-5 text-yellow-500" />
-                {editItem ? 'VIP Düzenle' : 'Yeni VIP At'}
-              </h3>
-              <button onClick={() => setShowForm(false)} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200">
-                <X className="w-4 h-4 text-gray-500" />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              {/* User select */}
-              <div>
-                <label className="block text-sm font-bold text-gray-800 mb-1.5">Kullanıcı</label>
-                <select
-                  value={form.user_id}
-                  onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))}
-                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-yellow-400"
-                >
-                  <option value="">Kullanıcı seçin...</option>
-                  {users.map(u => (
-                    <option key={u.id} value={u.id}>{u.full_name || u.email} — {u.email}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* VIP Level */}
-              <div>
-                <label className="block text-sm font-bold text-gray-800 mb-1.5">VIP Seviyesi</label>
-                <div className="grid grid-cols-5 gap-1.5">
-                  {[1,2,3,4,5,6,7,8,9,10].map(lvl => {
-                    const v = vipStyle(lvl);
-                    return (
-                      <button
-                        key={lvl}
-                        onClick={() => setForm(f => ({ ...f, vip_level: lvl }))}
-                        className={`py-2 rounded-xl text-sm font-black transition-all ${form.vip_level === lvl ? 'ring-2 ring-yellow-500 scale-105' : 'opacity-70'}`}
-                        style={{ background: v.bg.startsWith('linear') ? undefined : v.bg, backgroundImage: v.bg.startsWith('linear') ? v.bg : undefined, color: v.text }}
-                      >
-                        {lvl === 10 ? '👑' : lvl}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-center text-sm font-black text-gray-700 mt-2">{vipStyle(form.vip_level).emoji} {vipStyle(form.vip_level).label} seçildi</p>
-              </div>
-
-              {/* Price */}
-              <div>
-                <label className="block text-sm font-bold text-gray-800 mb-1.5">Aidat (USDT)</label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="number" value={form.price_usdt} onChange={e => setForm(f => ({ ...f, price_usdt: Number(e.target.value) }))}
-                    className="w-full pl-8 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400"
-                    placeholder="1000" />
-                </div>
-              </div>
-
-              {/* Start date */}
-              <div>
-                <label className="block text-sm font-bold text-gray-800 mb-1.5">
-                  Başlangıç Tarihi <span className="text-amber-600 font-normal text-xs">(geçmiş tarih girebilirsiniz)</span>
-                </label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="date" value={form.starts_at} onChange={e => setForm(f => ({ ...f, starts_at: e.target.value }))}
-                    className="w-full pl-8 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" />
-                </div>
-              </div>
-
-              {/* Duration */}
-              <div>
-                <label className="block text-sm font-bold text-gray-800 mb-1.5">Süre</label>
-                <div className="grid grid-cols-4 gap-2 mb-2">
-                  {[6, 12, 24, 36].map(m => (
-                    <button key={m} onClick={() => setForm(f => ({ ...f, duration_months: m }))}
-                      className={`py-2 rounded-xl text-sm font-bold transition-all ${form.duration_months === m ? 'bg-[#F0B90B] text-black' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
-                      {m < 12 ? `${m} ay` : `${m/12} yıl`}
-                    </button>
-                  ))}
-                </div>
-                <div className="relative">
-                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="number" value={form.duration_months} onChange={e => setForm(f => ({ ...f, duration_months: Number(e.target.value) }))}
-                    className="w-full pl-8 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400"
-                    placeholder="Ay olarak süre" />
-                </div>
-                {form.starts_at && form.duration_months > 0 && (
-                  <p className="text-xs text-green-600 font-semibold mt-1 px-1">
-                    ✅ Bitiş: {fmtDate(new Date(new Date(form.starts_at).setMonth(new Date(form.starts_at).getMonth() + Number(form.duration_months))).toISOString())}
-                  </p>
-                )}
-              </div>
-
-              {/* Admin note */}
-              <div>
-                <label className="block text-sm font-bold text-gray-800 mb-1.5">Admin Notu <span className="font-normal text-gray-500">(isteğe bağlı)</span></label>
-                <textarea value={form.admin_note} onChange={e => setForm(f => ({ ...f, admin_note: e.target.value }))}
-                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400 resize-none"
-                  rows={2} placeholder="Ödeme onaylandı, referans: TXH123..." />
-              </div>
-
-              <button
-                onClick={saveVip}
-                disabled={!form.user_id || !form.duration_months}
-                className="w-full py-3 bg-[#F0B90B] text-black rounded-xl font-black text-sm hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {editItem ? '✅ Güncelle' : `👑 ${vipStyle(form.vip_level).label} Ver`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Freeze Modal */}
-      {freezeModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setFreezeModal(null)}>
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6" onClick={e => e.stopPropagation()}>
-            <div className="text-center mb-4">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Snowflake className="w-8 h-8 text-blue-600" />
-              </div>
-              <h3 className="font-black text-gray-900">Hesabı Dondur</h3>
-              <p className="text-gray-500 text-sm mt-1">{freezeModal.user_name || freezeModal.user_email}</p>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Dondurma Sebebi</label>
-              <textarea
-                value={freezeReason} onChange={e => setFreezeReason(e.target.value)}
-                placeholder="VIP aidat ödenmedi — 30 günlük süre doldu"
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none resize-none"
-                rows={3}
-              />
-            </div>
-            <div className="flex gap-2 mt-4">
-              <button onClick={() => setFreezeModal(null)} className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-semibold text-sm hover:bg-gray-200">
-                İptal
-              </button>
-              <button onClick={() => toggleFreeze(freezeModal)} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-black text-sm hover:bg-blue-700">
-                ❄️ Dondur
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   );
 }
