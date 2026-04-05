@@ -25,13 +25,32 @@ export interface RealtimePnL {
  * Today's PnL = current_total – snapshot_total_at_start_of_day
  */
 
+const PORTFOLIO_CACHE_KEY = 'basonce_pnl_cache_v1';
+
+function loadCachedState(): RealtimePnL | null {
+  try {
+    const raw = localStorage.getItem(PORTFOLIO_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { ts: number; state: RealtimePnL };
+    // Use cache up to 10 minutes old (so page opens instantly with last value)
+    if (Date.now() - parsed.ts < 10 * 60 * 1000) return parsed.state;
+  } catch {}
+  return null;
+}
+
+function saveCachedState(state: RealtimePnL): void {
+  try {
+    localStorage.setItem(PORTFOLIO_CACHE_KEY, JSON.stringify({ ts: Date.now(), state }));
+  } catch {}
+}
+
 class RealtimePnLService {
   private static instance: RealtimePnLService;
 
   private subscribers: Array<(pnl: RealtimePnL) => void> = [];
   private intervalId: number | null = null;
 
-  private state: RealtimePnL = {
+  private state: RealtimePnL = loadCachedState() ?? {
     currentTotalValue: 0,
     startingValue: 0,
     dailyPnL: 0,
@@ -46,10 +65,20 @@ class RealtimePnLService {
   private constructor() {
     startTradFiPriceUpdater();
     startCryptoPriceUpdater();
-    // Give price services 2 sec to load before first calculation
-    setTimeout(() => this.recalculate(), 2000);
+    // Wait for crypto prices before first calculation (KuCoin ~250ms, buffer to 3s)
+    this.waitForPricesThenCalculate();
     this.intervalId = window.setInterval(() => this.recalculate(), 15_000);
     this.eqPriceManager.subscribe(() => this.recalculate());
+  }
+
+  private async waitForPricesThenCalculate(): Promise<void> {
+    // Poll until BTC price is available (or timeout after 8s)
+    const start = Date.now();
+    while (Date.now() - start < 8000) {
+      await new Promise(r => setTimeout(r, 300));
+      if (getCachedCryptoPrice('BTC') !== null) break;
+    }
+    await this.recalculate();
   }
 
   static getInstance(): RealtimePnLService {
@@ -231,6 +260,7 @@ class RealtimePnLService {
 
   private publish(pnl: RealtimePnL): void {
     this.state = pnl;
+    if (pnl.currentTotalValue > 0) saveCachedState(pnl);
     this.subscribers.forEach(cb => cb(pnl));
   }
 }
