@@ -24,30 +24,47 @@ interface VipMembership {
 
 interface UserOption { id: string; email: string; full_name: string; }
 
-const VIP_BG = '#F0B90B';
-const VIP_TEXT = '#ffffff';
-const VIP_CFG: Record<number, { bg: string; text: string; border: string; glow: string }> = Object.fromEntries(
-  Array.from({ length: 10 }, (_, i) => [i + 1, { bg: VIP_BG, text: VIP_TEXT, border: '#d4a008', glow: 'rgba(240,185,11,0.5)' }])
-) as Record<number, { bg: string; text: string; border: string; glow: string }>;
-
-function vipCfg(level: number) {
-  return VIP_CFG[level] || { bg: '#374151', text: '#fff', border: '#6b7280', glow: 'rgba(107,114,128,0.5)' };
-}
-
 function VipBadge({ level, size = 'sm' }: { level: number; size?: 'sm' | 'lg' }) {
-  const px = size === 'lg' ? 'px-5 py-1.5 text-base' : 'px-2.5 py-0.5 text-xs';
+  const isSupreme = level === 10;
+  const px = size === 'lg' ? 'px-5 py-2 text-base' : 'px-3 py-1 text-xs';
   return (
     <span
-      className={`inline-flex items-center rounded-full font-black tracking-wider ${px} relative overflow-hidden`}
-      style={{ background: '#F0B90B', color: '#fff', border: '1.5px solid #d4a008' }}
+      className={`inline-flex items-center rounded-full font-black tracking-widest ${px} relative overflow-hidden select-none`}
+      style={{
+        background: isSupreme
+          ? 'linear-gradient(135deg,#1a1100 0%,#2e1f00 25%,#1a1100 50%,#2e1f00 75%,#1a1100 100%)'
+          : 'linear-gradient(135deg,#111 0%,#1e1800 40%,#111 100%)',
+        border: `${isSupreme ? 1.5 : 1}px solid ${isSupreme ? '#f0b90b' : '#a07800'}`,
+        boxShadow: isSupreme
+          ? '0 0 18px rgba(240,185,11,0.75), 0 0 40px rgba(240,185,11,0.25), inset 0 1px 0 rgba(255,255,255,0.08)'
+          : '0 0 8px rgba(240,185,11,0.35), inset 0 1px 0 rgba(255,255,255,0.05)',
+      }}
     >
-      <span className="relative z-10">VIP {level}</span>
+      {/* metallic gradient text */}
+      <span
+        className="relative z-10"
+        style={{
+          background: isSupreme
+            ? 'linear-gradient(180deg,#fff8c0 0%,#ffe033 18%,#f0b90b 38%,#b8780a 58%,#f0b90b 78%,#fff3a0 100%)'
+            : 'linear-gradient(180deg,#ffe566 0%,#f0b90b 40%,#a06800 65%,#f0b90b 85%,#ffe566 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          filter: isSupreme
+            ? 'drop-shadow(0 0 5px rgba(255,210,0,0.9)) drop-shadow(0 1px 2px rgba(0,0,0,0.8))'
+            : 'drop-shadow(0 1px 1px rgba(0,0,0,0.7))',
+          letterSpacing: '0.06em',
+        }}
+      >
+        VIP {level}
+      </span>
+      {/* slow shimmer streak */}
       <span
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.45) 50%, transparent 100%)',
+          background: 'linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.18) 50%,transparent 100%)',
           backgroundSize: '200% 100%',
-          animation: 'vipShimmer 2.5s linear infinite',
+          animation: `vipShimmer ${isSupreme ? 2 : 3}s linear infinite`,
         }}
       />
     </span>
@@ -281,7 +298,6 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
               Henuz VIP uye yok. "Yeni VIP At" ile baslayin.
             </div>
           ) : filtered.map(m => {
-            const cfg = vipCfg(m.vip_level);
             const days = daysLeft(m.expires_at);
             const isExpanded = expandedId === m.id;
             const isSupreme = m.vip_level === 10;
@@ -291,15 +307,29 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
                 style={{ borderColor: isSupreme ? '#F59E0B' : '#e5e7eb' }}
               >
                 {isSupreme && (
-                  <div className="h-1 w-full" style={{ background: cfg.bg }} />
+                  <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg,#7a5000,#f0b90b,#fff8c0,#f0b90b,#7a5000)' }} />
                 )}
                 <div className="flex items-center gap-3 p-4">
                   <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm flex-none relative overflow-hidden"
-                    style={{ background: '#F0B90B', color: '#fff' }}
+                    className="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm flex-none relative overflow-hidden select-none"
+                    style={{
+                      background: m.vip_level === 10
+                        ? 'linear-gradient(135deg,#1a1100,#2e1f00,#1a1100)'
+                        : 'linear-gradient(135deg,#111,#1e1800,#111)',
+                      border: `1.5px solid ${m.vip_level === 10 ? '#f0b90b' : '#a07800'}`,
+                      boxShadow: m.vip_level === 10
+                        ? '0 0 14px rgba(240,185,11,0.7)'
+                        : '0 0 6px rgba(240,185,11,0.3)',
+                    }}
                   >
-                    {m.vip_level}
-                    <span className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.45),transparent)', backgroundSize: '200% 100%', animation: 'vipShimmer 2.5s linear infinite' }} />
+                    <span style={{
+                      background: 'linear-gradient(180deg,#fff8c0 0%,#ffe033 20%,#f0b90b 40%,#b8780a 60%,#f0b90b 80%,#fff3a0 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                      filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.9))',
+                    }}>{m.vip_level}</span>
+                    <span className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent)', backgroundSize: '200% 100%', animation: 'vipShimmer 2.5s linear infinite' }} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -388,13 +418,24 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
                   <div className="grid grid-cols-5 gap-2">
                     {[1,2,3,4,5,6,7,8,9,10].map(lvl => {
                       const sel = form.vip_level === lvl;
+                      const supreme = lvl === 10;
                       return (
                         <button key={lvl} onClick={() => setForm(f => ({ ...f, vip_level: lvl }))}
-                          className={`py-2.5 rounded-xl font-black text-sm relative overflow-hidden transition-all ${sel ? 'scale-105 ring-2 ring-[#d4a008] ring-offset-1' : 'opacity-50 hover:opacity-80'}`}
-                          style={{ background: '#F0B90B', color: '#fff' }}
+                          className={`py-2.5 rounded-xl font-black text-sm relative overflow-hidden transition-all select-none ${sel ? 'scale-110' : 'opacity-50 hover:opacity-80'}`}
+                          style={{
+                            background: supreme ? 'linear-gradient(135deg,#1a1100,#2e1f00,#1a1100)' : 'linear-gradient(135deg,#111,#1e1800,#111)',
+                            border: `${sel ? 2 : 1}px solid ${supreme ? '#f0b90b' : '#a07800'}`,
+                            boxShadow: sel ? (supreme ? '0 0 16px rgba(240,185,11,0.8)' : '0 0 10px rgba(240,185,11,0.5)') : undefined,
+                          }}
                         >
-                          {lvl}
-                          {sel && <span className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.45),transparent)', backgroundSize: '200% 100%', animation: 'vipShimmer 2.5s linear infinite' }} />}
+                          <span style={{
+                            background: 'linear-gradient(180deg,#fff8c0 0%,#ffe033 20%,#f0b90b 40%,#b8780a 60%,#f0b90b 80%,#fff3a0 100%)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            backgroundClip: 'text',
+                            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.9))',
+                          }}>{lvl}</span>
+                          {sel && <span className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent)', backgroundSize: '200% 100%', animation: `vipShimmer ${supreme ? 2 : 3}s linear infinite` }} />}
                         </button>
                       );
                     })}

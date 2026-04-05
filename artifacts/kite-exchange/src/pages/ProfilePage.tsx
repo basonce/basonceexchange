@@ -557,11 +557,34 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
                   {vipStyle && effectiveVipLevel ? (
                     <button
                       onClick={() => setShowVipPayModal(true)}
-                      className="px-3 py-1 rounded-full text-xs font-black active:scale-95 transition-transform relative overflow-hidden"
-                      style={{ background: '#F0B90B', color: '#fff', border: '1px solid #d4a008' }}
+                      className="px-3 py-1 rounded-full font-black tracking-widest text-xs active:scale-95 transition-transform relative overflow-hidden select-none"
+                      style={{
+                        background: effectiveVipLevel === 10
+                          ? 'linear-gradient(135deg,#1a1100 0%,#2e1f00 25%,#1a1100 50%,#2e1f00 75%,#1a1100 100%)'
+                          : 'linear-gradient(135deg,#111 0%,#1e1800 40%,#111 100%)',
+                        border: `${effectiveVipLevel === 10 ? 1.5 : 1}px solid ${effectiveVipLevel === 10 ? '#f0b90b' : '#a07800'}`,
+                        boxShadow: effectiveVipLevel === 10
+                          ? '0 0 18px rgba(240,185,11,0.75), 0 0 40px rgba(240,185,11,0.25)'
+                          : '0 0 8px rgba(240,185,11,0.35)',
+                      }}
                     >
-                      <span className="relative z-10">VIP {effectiveVipLevel}{vipMembership?.status === 'frozen' ? ' ❄' : ''}</span>
-                      <span className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.45),transparent)', backgroundSize: '200% 100%', animation: 'vipShimmer 2.5s linear infinite' }} />
+                      <span
+                        className="relative z-10"
+                        style={{
+                          background: effectiveVipLevel === 10
+                            ? 'linear-gradient(180deg,#fff8c0 0%,#ffe033 18%,#f0b90b 38%,#b8780a 58%,#f0b90b 78%,#fff3a0 100%)'
+                            : 'linear-gradient(180deg,#ffe566 0%,#f0b90b 40%,#a06800 65%,#f0b90b 85%,#ffe566 100%)',
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          backgroundClip: 'text',
+                          filter: effectiveVipLevel === 10
+                            ? 'drop-shadow(0 0 5px rgba(255,210,0,0.9)) drop-shadow(0 1px 2px rgba(0,0,0,0.8))'
+                            : 'drop-shadow(0 1px 1px rgba(0,0,0,0.7))',
+                        }}
+                      >
+                        VIP {effectiveVipLevel}{vipMembership?.status === 'frozen' ? ' ❄' : ''}
+                      </span>
+                      <span className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.18),transparent)', backgroundSize: '200% 100%', animation: `vipShimmer ${effectiveVipLevel === 10 ? 2 : 3}s linear infinite` }} />
                     </button>
                   ) : (
                     <button
