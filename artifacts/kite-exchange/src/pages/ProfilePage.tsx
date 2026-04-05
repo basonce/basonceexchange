@@ -913,10 +913,10 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
                   <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">USDT TRC20 Wallet Address</p>
                 </div>
                 <div className="bg-[#181A20] rounded-xl p-3 flex items-center justify-between gap-2 mb-3">
-                  <p className="text-white text-xs font-mono break-all leading-relaxed">TLxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</p>
+                  <p className="text-white text-xs font-mono break-all leading-relaxed">TZE4jHmWd2jc3974xjpqd8ocxEQN46GyBU</p>
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText('TLxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+                      navigator.clipboard.writeText('TZE4jHmWd2jc3974xjpqd8ocxEQN46GyBU');
                       setVipPayCopied(true);
                       setTimeout(() => setVipPayCopied(false), 2000);
                     }}
