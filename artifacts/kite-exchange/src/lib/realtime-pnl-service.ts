@@ -2,7 +2,6 @@ import { supabase, getCurrentUser } from './supabase';
 import { EarnQuestPriceManager } from './earnquest-price';
 import { isTradFiSymbol } from './tradfi-data';
 import { getCachedTradFiPrice, startTradFiPriceUpdater } from './tradfi-price-service';
-import { PriceCache } from './price-cache';
 
 export interface RealtimePnL {
   currentTotalValue: number;
@@ -32,6 +31,10 @@ export interface RealtimePnL {
  * captures the same formula above so the baseline is apples-to-apples.
  */
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+const PROXY_INDIVIDUAL = `${SUPABASE_URL}/functions/v1/binance-proxy`;
+
 class RealtimePnLService {
   private static instance: RealtimePnLService;
 
@@ -47,14 +50,13 @@ class RealtimePnLService {
   };
 
   private eqPriceManager = EarnQuestPriceManager.getInstance();
-  private priceCacheSvc = PriceCache.getInstance();
-  // Fallback: last known good prices – prevents wild jumps on cache miss
+  // Last known good prices – prevents wild jumps on cache miss
   private priceCache: Record<string, number> = {};
 
   private constructor() {
     startTradFiPriceUpdater();
-    // Initialise the shared PriceCache (fetches via Supabase proxy, not Binance directly)
-    this.priceCacheSvc.init().then(() => this.recalculate());
+    // Initial calculation after a short delay to allow page to settle
+    setTimeout(() => this.recalculate(), 2000);
     this.intervalId = window.setInterval(() => this.recalculate(), 15_000);
     this.eqPriceManager.subscribe(() => this.recalculate());
   }
@@ -91,9 +93,36 @@ class RealtimePnLService {
     }
   }
 
+  // ─── CRYPTO PRICE FETCH (same method as AssetsPage) ────────────────────────
+
+  private async fetchCryptoPrice(symbol: string): Promise<number> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const response = await fetch(
+        `${PROXY_INDIVIDUAL}?symbol=${symbol}USDT`,
+        {
+          headers: { 'Authorization': `Bearer ${ANON_KEY}` },
+          signal: controller.signal
+        }
+      );
+      clearTimeout(timeoutId);
+      if (!response.ok) return this.priceCache[symbol] || 0;
+      const data = await response.json();
+      const price = parseFloat(data.price || data.lastPrice || '0');
+      if (price > 0) {
+        this.priceCache[symbol] = price;
+        return price;
+      }
+      return this.priceCache[symbol] || 0;
+    } catch {
+      return this.priceCache[symbol] || 0;
+    }
+  }
+
   // ─── PRICE HELPER ──────────────────────────────────────────────────────────
 
-  private getPrice(symbol: string): number {
+  private getSyncPrice(symbol: string): number {
     if (symbol === 'USDT') return 1;
 
     if (symbol === 'EQ' || symbol === 'EQL') {
@@ -109,11 +138,8 @@ class RealtimePnLService {
       return p > 0 ? p : (this.priceCache[symbol] || 0);
     }
 
-    // ── Crypto: read from PriceCache (uses Supabase proxy, not Binance directly) ──
-    const cached = this.priceCacheSvc.get(`${symbol}USDT`);
-    const p = cached?.price || 0;
-    if (p > 0) this.priceCache[symbol] = p;
-    return p > 0 ? p : (this.priceCache[symbol] || 0);
+    // Return last known good price for crypto (will be refreshed async)
+    return this.priceCache[symbol] || 0;
   }
 
   // ─── PORTFOLIO VALUE (THE SINGLE FORMULA) ──────────────────────────────────
@@ -141,18 +167,25 @@ class RealtimePnLService {
     }));
 
     // futures_wallet = the USDT balance that sits in the futures account
-    // (cash not yet committed as margin)
     const usdtRow = rows.find(r => r.symbol === 'USDT');
     const futuresWallet = parseFloat(usdtRow?.futures_balance || '0') || 0;
 
-    // ── 2. Spot value ──
-    const spotValues = spotBalances.map(b => b.balance * this.getPrice(b.symbol));
+    // ── 2. Refresh crypto prices for symbols with non-zero balance ──
+    const cryptoSymbolsNeeded = spotBalances
+      .filter(b => b.balance > 0 && b.symbol !== 'USDT' && b.symbol !== 'EQ' && b.symbol !== 'EQL' && !isTradFiSymbol(b.symbol))
+      .map(b => b.symbol);
+
+    if (cryptoSymbolsNeeded.length > 0) {
+      await Promise.allSettled(
+        cryptoSymbolsNeeded.map(sym => this.fetchCryptoPrice(sym))
+      );
+    }
+
+    // ── 3. Spot value ──
+    const spotValues = spotBalances.map(b => b.balance * this.getSyncPrice(b.symbol));
     const spotTotal = spotValues.reduce((a, b) => a + b, 0);
 
-    // ── 3. Futures unrealized PnL from open positions ──
-    //
-    // margin was ALREADY deducted from futures_wallet when position opened.
-    // So we only add the profit/loss delta – NOT the margin itself.
+    // ── 4. Futures unrealized PnL from open positions ──
     const { data: positions } = await supabase
       .from('futures_positions')
       .select('symbol, side, entry_price, position_size, leverage')
@@ -162,14 +195,12 @@ class RealtimePnLService {
     let futuresUnrealizedPnL = 0;
     for (const pos of (positions || [])) {
       const coinSymbol = pos.symbol.replace(/usdt$/i, '');
-      const currentPrice = this.getPrice(coinSymbol);
+      const currentPrice = this.getSyncPrice(coinSymbol);
       const entryPrice = parseFloat(pos.entry_price) || 0;
       const positionSize = parseFloat(pos.position_size) || 0;
-      const leverage = parseFloat(pos.leverage) || 1;
 
       if (entryPrice <= 0 || positionSize <= 0) continue;
 
-      // position_size is the NOTIONAL value in USDT
       const quantity = positionSize / entryPrice;
 
       let pnl = 0;
@@ -182,7 +213,7 @@ class RealtimePnLService {
       futuresUnrealizedPnL += pnl;
     }
 
-    // ── 4. Total ──
+    // ── 5. Total ──
     const total = spotTotal + futuresWallet + futuresUnrealizedPnL;
 
     return { total, spotBalances, futuresWallet, futuresUnrealizedPnL };
@@ -205,13 +236,9 @@ class RealtimePnLService {
 
     if (existing) {
       const v = parseFloat(existing.total_value_usdt);
-      // Only skip the snapshot if it was literally 0 (bad data).
-      // Do NOT invalidate it on big drops — that's exactly when we need it (liquidations etc.)
       if (v > 0) return v;
     }
 
-    // Create a fresh snapshot using the current portfolio value.
-    // If the snapshot already exists (race condition / broken value) we upsert.
     await supabase
       .from('daily_portfolio_snapshots')
       .upsert({
@@ -230,10 +257,9 @@ class RealtimePnLService {
     try {
       const { total, spotBalances } = await this.computeCurrentPortfolio();
 
-      // If total is 0 and we already have a known state (logged in user with real balance),
-      // keep the previous state rather than flashing 0 on a timeout
+      // If total is 0 and we already have a known good state, keep it
       if (total <= 0) {
-        if (this.state.currentTotalValue > 0) return; // keep last good state
+        if (this.state.currentTotalValue > 0) return;
         this.publish({ ...this.state, currentTotalValue: 0, dailyPnL: 0, dailyPnLPercentage: 0 });
         return;
       }
@@ -241,8 +267,6 @@ class RealtimePnLService {
       const startingValue = await this.getOrCreateTodaySnapshot(total);
 
       const dailyPnL = total - startingValue;
-
-      // Hard-clamp percentage to prevent insane display values
       const dailyPnLPercentage = startingValue > 0
         ? Math.max(-100, Math.min(100_000, (dailyPnL / startingValue) * 100))
         : 0;
