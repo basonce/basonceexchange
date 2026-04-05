@@ -183,6 +183,26 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
   // uid → reset confirm state
   const [resetConfirm, setResetConfirm] = useState<Record<string, boolean>>({});
   const [resetting, setResetting]     = useState<Record<string, boolean>>({});
+  // uid → member since date override
+  const [memberSinceDate, setMemberSinceDate] = useState<Record<string, string>>({});
+  const [memberSinceSaving, setMemberSinceSaving] = useState<Record<string, boolean>>({});
+
+  async function saveMemberSince(userId: string) {
+    const dateVal = memberSinceDate[userId];
+    if (!dateVal) return;
+    setMemberSinceSaving(prev => ({ ...prev, [userId]: true }));
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ created_at: new Date(dateVal).toISOString() })
+        .eq('id', userId);
+      if (error) throw error;
+      showToast('✅ Member Since güncellendi');
+    } catch {
+      showToast('❌ Güncelleme hatası');
+    }
+    setMemberSinceSaving(prev => ({ ...prev, [userId]: false }));
+  }
 
   const filtered = users.filter(u => !u.is_admin &&
     (u.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -431,6 +451,24 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                         </button>
                       </div>
                     )}
+                  </div>
+
+                  {/* ── Member Since Override ────────────────── */}
+                  <div className="col-span-2 flex items-center gap-2">
+                    <span className="text-gray-500 text-xs font-semibold flex-shrink-0">📅 Üyelik:</span>
+                    <input
+                      type="date"
+                      value={memberSinceDate[user.id] || ''}
+                      onChange={e => setMemberSinceDate(prev => ({ ...prev, [user.id]: e.target.value }))}
+                      className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-xl text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 w-0"
+                    />
+                    <button
+                      onClick={() => saveMemberSince(user.id)}
+                      disabled={memberSinceSaving[user.id] || !memberSinceDate[user.id]}
+                      className="flex-shrink-0 px-3 py-2 bg-yellow-400 text-black rounded-xl text-xs font-black active:scale-95 transition-all hover:bg-yellow-500 disabled:opacity-40"
+                    >
+                      {memberSinceSaving[user.id] ? '⏳' : '✓'}
+                    </button>
                   </div>
 
                   {/* ── Bakiye Gönder Panel ──────────────────── */}
