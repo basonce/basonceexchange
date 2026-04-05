@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Lock, Unlock, Save, CheckCircle, AlertTriangle, X, ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
+import { Search, Lock, Unlock, Save, CheckCircle, AlertTriangle, X, ChevronDown, ChevronUp, ArrowLeft, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchUserRestrictions, saveUserRestrictions } from '../lib/user-restrictions';
 import type { UserRestrictions } from '../lib/user-restrictions';
@@ -93,6 +93,8 @@ export default function UserRestrictionsPanel() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [memberSinceDate, setMemberSinceDate] = useState('');
+  const [memberSinceSaving, setMemberSinceSaving] = useState(false);
 
   useEffect(() => {
     setLoadingUsers(true);
@@ -118,17 +120,40 @@ export default function UserRestrictionsPanel() {
     setSelected(u);
     setLoading(true);
     try {
-      const data = await fetchUserRestrictions(u.id);
-      setForm(data ? {
-        pair_lock_enabled: data.pair_lock_enabled,
-        allowed_pairs: data.allowed_pairs,
-        withdrawal_asset: data.withdrawal_asset,
-        withdrawal_fee_usdt: data.withdrawal_fee_usdt,
+      const [restrictData, profileData] = await Promise.all([
+        fetchUserRestrictions(u.id),
+        supabase.from('user_profiles').select('created_at').eq('id', u.id).single(),
+      ]);
+      setForm(restrictData ? {
+        pair_lock_enabled: restrictData.pair_lock_enabled,
+        allowed_pairs: restrictData.allowed_pairs,
+        withdrawal_asset: restrictData.withdrawal_asset,
+        withdrawal_fee_usdt: restrictData.withdrawal_fee_usdt,
       } : { ...DEFAULT });
+      if (profileData.data?.created_at) {
+        setMemberSinceDate(new Date(profileData.data.created_at).toISOString().split('T')[0]);
+      }
     } catch {
       setForm({ ...DEFAULT });
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function saveMemberSince() {
+    if (!selected || !memberSinceDate) return;
+    setMemberSinceSaving(true);
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ created_at: new Date(memberSinceDate).toISOString() })
+        .eq('id', selected.id);
+      if (error) throw error;
+      showToast('Member since tarihi güncellendi ✓', true);
+    } catch {
+      showToast('Güncelleme başarısız', false);
+    } finally {
+      setMemberSinceSaving(false);
     }
   }
 
@@ -362,6 +387,35 @@ export default function UserRestrictionsPanel() {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Member Since Override */}
+            <div className="rounded-2xl p-4 space-y-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="flex items-center gap-2 mb-1">
+                <Calendar className="w-4 h-4" style={{ color: '#F0B90B' }} />
+                <p className="text-sm font-semibold text-white">Member Since Tarihi</p>
+              </div>
+              <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                Kullanıcının profil sayfasında görünen hesap açılış tarihini değiştir
+              </p>
+              <input
+                type="date"
+                value={memberSinceDate}
+                onChange={e => setMemberSinceDate(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl text-sm text-white focus:outline-none"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+              />
+              <button
+                onClick={saveMemberSince}
+                disabled={memberSinceSaving || !memberSinceDate}
+                className="w-full py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                style={{ background: 'rgba(240,185,11,0.12)', border: '1px solid rgba(240,185,11,0.3)', color: '#F0B90B' }}
+              >
+                {memberSinceSaving
+                  ? <div className="w-4 h-4 border-2 border-yellow-500/40 border-t-yellow-500 rounded-full animate-spin" />
+                  : <Calendar className="w-4 h-4" />}
+                {memberSinceSaving ? 'Güncelleniyor…' : 'Tarihi Uygula'}
+              </button>
             </div>
 
             <button
