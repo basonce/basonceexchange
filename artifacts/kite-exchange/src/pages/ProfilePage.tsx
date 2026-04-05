@@ -564,8 +564,8 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
                           : 'linear-gradient(135deg,#111 0%,#1e1800 40%,#111 100%)',
                         border: `${effectiveVipLevel === 10 ? 1.5 : 1}px solid ${effectiveVipLevel === 10 ? '#f0b90b' : '#a07800'}`,
                         boxShadow: effectiveVipLevel === 10
-                          ? '0 0 18px rgba(240,185,11,0.75), 0 0 40px rgba(240,185,11,0.25)'
-                          : '0 0 8px rgba(240,185,11,0.35)',
+                          ? '0 0 6px rgba(240,185,11,0.3)'
+                          : '0 0 4px rgba(240,185,11,0.15)',
                       }}
                     >
                       <span

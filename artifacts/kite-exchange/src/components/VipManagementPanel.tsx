@@ -36,8 +36,8 @@ function VipBadge({ level, size = 'sm' }: { level: number; size?: 'sm' | 'lg' })
           : 'linear-gradient(135deg,#111 0%,#1e1800 40%,#111 100%)',
         border: `${isSupreme ? 1.5 : 1}px solid ${isSupreme ? '#f0b90b' : '#a07800'}`,
         boxShadow: isSupreme
-          ? '0 0 18px rgba(240,185,11,0.75), 0 0 40px rgba(240,185,11,0.25), inset 0 1px 0 rgba(255,255,255,0.08)'
-          : '0 0 8px rgba(240,185,11,0.35), inset 0 1px 0 rgba(255,255,255,0.05)',
+          ? '0 0 6px rgba(240,185,11,0.3), inset 0 1px 0 rgba(255,255,255,0.06)'
+          : '0 0 4px rgba(240,185,11,0.15), inset 0 1px 0 rgba(255,255,255,0.04)',
       }}
     >
       {/* metallic gradient text */}
@@ -318,8 +318,8 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
                         : 'linear-gradient(135deg,#111,#1e1800,#111)',
                       border: `1.5px solid ${m.vip_level === 10 ? '#f0b90b' : '#a07800'}`,
                       boxShadow: m.vip_level === 10
-                        ? '0 0 14px rgba(240,185,11,0.7)'
-                        : '0 0 6px rgba(240,185,11,0.3)',
+                        ? '0 0 5px rgba(240,185,11,0.25)'
+                        : '0 0 3px rgba(240,185,11,0.12)',
                     }}
                   >
                     <span style={{
@@ -425,7 +425,7 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
                           style={{
                             background: supreme ? 'linear-gradient(135deg,#1a1100,#2e1f00,#1a1100)' : 'linear-gradient(135deg,#111,#1e1800,#111)',
                             border: `${sel ? 2 : 1}px solid ${supreme ? '#f0b90b' : '#a07800'}`,
-                            boxShadow: sel ? (supreme ? '0 0 16px rgba(240,185,11,0.8)' : '0 0 10px rgba(240,185,11,0.5)') : undefined,
+                            boxShadow: sel ? (supreme ? '0 0 6px rgba(240,185,11,0.3)' : '0 0 4px rgba(240,185,11,0.2)') : undefined,
                           }}
                         >
                           <span style={{
