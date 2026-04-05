@@ -868,7 +868,7 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
                 <span className="text-2xl">👑</span>
                 <div>
                   <h3 className="text-white font-black text-base">VIP Membership</h3>
-                  <p className="text-gray-400 text-xs">Pay with crypto, admin confirms</p>
+                  <p className="text-gray-400 text-xs">Premium membership via crypto</p>
                 </div>
               </div>
               <button onClick={() => setShowVipPayModal(false)} className="w-8 h-8 rounded-full bg-[#2B3139] flex items-center justify-center text-gray-400 hover:text-white">
@@ -897,7 +897,7 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
                 {[
                   { step: '1', text: 'Send USDT (TRC20) to the wallet address below' },
                   { step: '2', text: 'Contact support with your TX ID' },
-                  { step: '3', text: 'Admin confirms your payment and activates VIP membership' },
+                  { step: '3', text: 'Your VIP membership will be activated within 24 hours' },
                 ].map(s => (
                   <div key={s.step} className="flex items-start gap-3 bg-[#2B3139] rounded-xl p-3">
                     <div className="w-6 h-6 rounded-full bg-[#F0B90B] text-black text-xs font-black flex items-center justify-center flex-shrink-0">{s.step}</div>
