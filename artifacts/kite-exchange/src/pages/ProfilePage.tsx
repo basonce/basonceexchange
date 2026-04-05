@@ -587,12 +587,33 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
                       <span className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.18),transparent)', backgroundSize: '200% 100%', animation: `vipShimmer ${effectiveVipLevel === 10 ? 2 : 3}s linear infinite` }} />
                     </button>
                   ) : (
-                    <button
-                      onClick={() => setShowVipPayModal(true)}
-                      className={`px-3 py-1 rounded-full text-xs font-bold active:scale-95 transition-transform ${ profile?.verification_status === 'verified' ? 'bg-green-500/20 text-green-400' : 'bg-[#F0B90B] text-black' }`}
-                    >
-                      {profile?.verification_status === 'verified' ? 'Verified' : 'Regular'}
-                    </button>
+                    <>
+                      {profile?.verification_status === 'verified' ? (
+                        <span
+                          className="relative overflow-hidden flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold select-none"
+                          style={{
+                            background: 'linear-gradient(135deg, #0a2f1a 0%, #0d3d22 40%, #0a2f1a 100%)',
+                            border: '1px solid rgba(16,185,129,0.55)',
+                            boxShadow: '0 0 10px rgba(16,185,129,0.25), inset 0 0 8px rgba(16,185,129,0.08)',
+                            color: '#34d399',
+                          }}
+                        >
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                            <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z" fill="rgba(52,211,153,0.25)" stroke="#34d399" strokeWidth="1.8"/>
+                            <path d="M8.5 12l2.5 2.5 4.5-4.5" stroke="#34d399" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                          <span style={{ letterSpacing: '0.03em' }}>Verified</span>
+                          <span className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent 0%,rgba(52,211,153,0.15) 50%,transparent 100%)', backgroundSize: '200% 100%', animation: 'vipShimmer 3s linear infinite' }} />
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => setShowVipPayModal(true)}
+                          className="px-3 py-1 rounded-full text-xs font-bold active:scale-95 transition-transform bg-[#F0B90B] text-black"
+                        >
+                          Regular
+                        </button>
+                      )}
+                    </>
                   )}
                   {profile?.is_admin && (
                     <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-500/20 text-purple-400">
