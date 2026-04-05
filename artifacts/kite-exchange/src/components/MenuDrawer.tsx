@@ -159,9 +159,23 @@ export default function MenuDrawer({
                   {userProfile?.username || maskEmail(user.email || '')}
                 </div>
                 <div className="flex items-center gap-2 mt-1.5">
-                  <span className="text-[11px] bg-[#F0B90B]/15 text-[#F0B90B] px-2 py-0.5 rounded font-semibold border border-[#F0B90B]/20">
-                    Regular
-                  </span>
+                  {(userProfile?.user_level ?? 0) >= 1 ? (
+                    <span
+                      className="text-[11px] px-2 py-0.5 rounded font-bold vipShimmer"
+                      style={{
+                        background: 'linear-gradient(135deg,#1a1100 0%,#2d1f00 40%,#1a1100 100%)',
+                        border: '1px solid rgba(240,185,11,0.45)',
+                        color: '#F0B90B',
+                        boxShadow: '0 0 6px rgba(240,185,11,0.2)',
+                      }}
+                    >
+                      VIP {userProfile.user_level}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] bg-[#F0B90B]/15 text-[#F0B90B] px-2 py-0.5 rounded font-semibold border border-[#F0B90B]/20">
+                      Regular
+                    </span>
+                  )}
                   <span className="text-[11px] bg-[#0ECB81]/10 text-[#0ECB81] px-2 py-0.5 rounded font-semibold border border-[#0ECB81]/20">
                     Verified
                   </span>

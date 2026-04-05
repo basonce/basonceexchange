@@ -207,7 +207,10 @@ export default function Header({ onNavigate, currentPage, isAdmin }: HeaderProps
                           </div>
                           <div className="flex-1">
                             <div className="text-[#eaecef] font-medium">{maskEmail(user.email || '')}</div>
-                            <div className="text-xs mt-0.5">Regular User</div>
+                            <div className="text-xs mt-0.5" style={{ color: '#F0B90B' }}>
+                              {/* userProfile not loaded in Header dropdown — static label */}
+                              Member
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
