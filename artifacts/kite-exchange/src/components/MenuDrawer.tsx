@@ -161,7 +161,7 @@ export default function MenuDrawer({
                 <div className="flex items-center gap-2 mt-1.5">
                   {(userProfile?.user_level ?? 0) >= 1 ? (
                     <span
-                      className="text-[11px] px-2 py-0.5 rounded font-bold vipShimmer"
+                      className="text-[11px] px-2 py-0.5 rounded font-bold relative overflow-hidden"
                       style={{
                         background: 'linear-gradient(135deg,#1a1100 0%,#2d1f00 40%,#1a1100 100%)',
                         border: '1px solid rgba(240,185,11,0.45)',
@@ -170,6 +170,14 @@ export default function MenuDrawer({
                       }}
                     >
                       VIP {userProfile.user_level}
+                      <span
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                          background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.18),transparent)',
+                          backgroundSize: '200% 100%',
+                          animation: `vipShimmer ${userProfile.user_level === 10 ? 2 : 3}s linear infinite`,
+                        }}
+                      />
                     </span>
                   ) : (
                     <span className="text-[11px] bg-[#F0B90B]/15 text-[#F0B90B] px-2 py-0.5 rounded font-semibold border border-[#F0B90B]/20">
