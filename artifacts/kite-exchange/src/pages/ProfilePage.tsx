@@ -961,7 +961,7 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
                 onClick={() => { setShowVipPayModal(false); setShowSupportModal(true); }}
                 className="w-full py-4 bg-[#F0B90B] text-black rounded-2xl font-black text-base active:scale-95 transition-transform flex items-center justify-center gap-2"
               >
-                💬 Destek Ekibine Yaz
+                💬 Contact Support
               </button>
 
             </div>
