@@ -48,6 +48,8 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
   const [showVipPayModal, setShowVipPayModal] = useState(false);
   const [vipPayCopied, setVipPayCopied] = useState(false);
   const [userTrc20Address, setUserTrc20Address] = useState<string>('');
+  const [vipOverdueNotice, setVipOverdueNotice] = useState(false);
+  const [vipOverdueMessage, setVipOverdueMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
@@ -125,6 +127,13 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
       }
       if (restrictionsResult?.trc20_address) {
         setUserTrc20Address(restrictionsResult.trc20_address);
+      }
+      if (restrictionsResult?.vip_overdue_notice) {
+        setVipOverdueNotice(true);
+        setVipOverdueMessage(restrictionsResult.vip_overdue_message || '');
+      } else {
+        setVipOverdueNotice(false);
+        setVipOverdueMessage('');
       }
 
       setStatistics(statsResult.data);
@@ -656,6 +665,28 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
             <ChevronRight className="w-5 h-5 text-gray-400 mt-2" />
           </div>
         </div>
+
+        {/* VIP Overdue Notice Banner */}
+        {vipOverdueNotice && (
+          <div className="mb-4 rounded-2xl overflow-hidden" style={{ border: '1.5px solid #f59e0b', boxShadow: '0 0 16px rgba(245,158,11,0.25)' }}>
+            <div className="flex items-center gap-2 px-4 py-2" style={{ background: 'linear-gradient(90deg,#7c2d12,#92400e)' }}>
+              <span className="text-lg">⚠️</span>
+              <span className="text-white font-black text-sm tracking-wide">VIP Membership Fee Due</span>
+            </div>
+            <div className="px-4 py-3" style={{ background: 'linear-gradient(135deg,#1c1007,#2d1a08)' }}>
+              <p className="text-amber-300 text-sm font-semibold mb-3 leading-relaxed">
+                {vipOverdueMessage || 'Your VIP membership fee is overdue. Please complete your payment to keep your membership active.'}
+              </p>
+              <button
+                onClick={() => setShowVipPayModal(true)}
+                className="w-full py-2.5 rounded-xl font-black text-sm text-black active:scale-95 transition-transform"
+                style={{ background: 'linear-gradient(90deg,#f59e0b,#d97706)', boxShadow: '0 2px 8px rgba(245,158,11,0.4)' }}
+              >
+                💳 Pay Now — View Payment Details
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="mb-6">
           <h3 className="text-[#F5F5F5] font-semibold mb-3 px-1 text-lg">Shortcut</h3>

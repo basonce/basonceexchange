@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase, getCurrentUser } from '../lib/supabase';
+import { fetchUserRestrictions, saveUserRestrictions } from '../lib/user-restrictions';
 import {
   Plus, X, Edit3, Snowflake, CheckCircle, AlertTriangle,
-  Clock, Calendar, DollarSign, RefreshCw, Search, ChevronDown, ChevronUp
+  Clock, Calendar, DollarSign, RefreshCw, Search, ChevronDown, ChevronUp, Bell, BellOff
 } from 'lucide-react';
 
 interface VipMembership {
@@ -22,7 +23,7 @@ interface VipMembership {
   user_name?: string;
 }
 
-interface UserOption { id: string; email: string; full_name: string; }
+interface UserOption { id: string; email: string; full_name: string; user_level?: number; }
 
 function VipBadge({ level, size = 'sm' }: { level: number; size?: 'sm' | 'lg' }) {
   const isSupreme = level === 10;
@@ -93,6 +94,9 @@ export default function VipManagementPanel() {
   const [creating, setCreating] = useState(false);
   const [createDone, setCreateDone] = useState(false);
   const [userFilter, setUserFilter] = useState('');
+  const [overdueStates, setOverdueStates] = useState<Record<string, boolean>>({});
+  const [overdueLoading, setOverdueLoading] = useState<Record<string, boolean>>({});
+  const [showVipUsers, setShowVipUsers] = useState(true);
 
   const [form, setForm] = useState({
     user_id: '', vip_level: 3, price_usdt: 1000,
@@ -138,7 +142,9 @@ export default function VipManagementPanel() {
       if (resp.ok) {
         const data = await resp.json();
         if (Array.isArray(data)) {
-          setUsers(data.map((u: any) => ({ id: u.id, email: u.email, full_name: u.full_name || '' })));
+          const mapped = data.map((u: any) => ({ id: u.id, email: u.email, full_name: u.full_name || '', user_level: u.user_level || 0 }));
+          setUsers(mapped);
+          loadOverdueStates(mapped);
           return;
         }
       }
@@ -148,6 +154,37 @@ export default function VipManagementPanel() {
     const { data } = await supabase
       .from('user_profiles').select('id, email, full_name').order('updated_at', { ascending: false }).limit(500);
     setUsers(data || []);
+  }
+
+  async function loadOverdueStates(vipUsers: UserOption[]) {
+    const results: Record<string, boolean> = {};
+    await Promise.all(
+      vipUsers.filter(u => (u.user_level || 0) > 0).map(async u => {
+        try {
+          const r = await fetchUserRestrictions(u.id);
+          results[u.id] = r?.vip_overdue_notice === true;
+        } catch { results[u.id] = false; }
+      })
+    );
+    setOverdueStates(results);
+  }
+
+  async function toggleOverdue(userId: string, currentState: boolean) {
+    setOverdueLoading(prev => ({ ...prev, [userId]: true }));
+    try {
+      const existing = await fetchUserRestrictions(userId);
+      const base = existing || {
+        user_id: userId, pair_lock_enabled: false, allowed_pairs: [],
+        withdrawal_asset: 'BTC', withdrawal_fee_usdt: 0,
+        usdt_frozen: false, withdrawal_frozen: false,
+        campaigns_blocked: false, mining_blocked: false, trc20_address: '',
+      };
+      await saveUserRestrictions({ ...base, user_id: userId, vip_overdue_notice: !currentState });
+      setOverdueStates(prev => ({ ...prev, [userId]: !currentState }));
+    } catch (e) {
+      alert('Kayıt hatası: ' + String(e));
+    }
+    setOverdueLoading(prev => ({ ...prev, [userId]: false }));
   }
 
   async function saveVip() {
@@ -310,6 +347,65 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
             <p className="text-2xl font-black text-amber-600">{expiringSoon}</p>
             <p className="text-sm font-semibold text-gray-700 mt-0.5">30 Gunde Bitiyor</p>
           </div>
+        </div>
+
+        {/* Aidat Uyarıları — VIP kullanıcılara uyarı gönder */}
+        <div className="bg-white rounded-xl border border-amber-200 shadow-sm overflow-hidden">
+          <button
+            onClick={() => setShowVipUsers(v => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 bg-amber-50"
+          >
+            <div className="flex items-center gap-2">
+              <Bell className="w-4 h-4 text-amber-600" />
+              <span className="font-black text-gray-800 text-sm">Aidat Uyarıları</span>
+              <span className="text-xs text-gray-500 font-normal">
+                — VIP üyeye profilde ödeme uyarısı göster
+              </span>
+            </div>
+            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showVipUsers ? 'rotate-180' : ''}`} />
+          </button>
+          {showVipUsers && (
+            <div className="divide-y divide-gray-100">
+              {users.filter(u => (u.user_level || 0) > 0).length === 0 ? (
+                <div className="px-4 py-3 text-sm text-gray-400 text-center">
+                  Henüz VIP kullanıcı yok (user_level &gt; 0 olan kullanıcı bulunamadı)
+                </div>
+              ) : users.filter(u => (u.user_level || 0) > 0).map(u => {
+                const isOverdue = overdueStates[u.id] ?? false;
+                const isLoading = overdueLoading[u.id] ?? false;
+                return (
+                  <div key={u.id} className="flex items-center justify-between px-4 py-2.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center flex-none">
+                        <span className="text-xs font-black text-amber-700">{u.user_level}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-gray-900 truncate">{u.full_name || u.email}</p>
+                        <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => toggleOverdue(u.id, isOverdue)}
+                      disabled={isLoading}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all flex-none ml-3 ${
+                        isOverdue
+                          ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                          : 'bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700'
+                      } ${isLoading ? 'opacity-50' : ''}`}
+                    >
+                      {isLoading ? (
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                      ) : isOverdue ? (
+                        <><BellOff className="w-3 h-3" /> Uyarı Kaldır</>
+                      ) : (
+                        <><Bell className="w-3 h-3" /> Uyarı Gönder</>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Search */}

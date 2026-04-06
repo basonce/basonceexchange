@@ -20,6 +20,8 @@ export interface UserRestrictions {
   campaigns_blocked: boolean;
   mining_blocked: boolean;
   trc20_address?: string;
+  vip_overdue_notice?: boolean;
+  vip_overdue_message?: string;
 }
 
 const DEFAULT: Omit<UserRestrictions, 'user_id'> = {
@@ -32,6 +34,8 @@ const DEFAULT: Omit<UserRestrictions, 'user_id'> = {
   campaigns_blocked: false,
   mining_blocked: false,
   trc20_address: '',
+  vip_overdue_notice: false,
+  vip_overdue_message: '',
 };
 
 // In-memory cache keyed by user_id
