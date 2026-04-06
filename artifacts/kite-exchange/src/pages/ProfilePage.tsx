@@ -682,17 +682,35 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
             {/* Top gold accent line */}
             <div style={{ height: 3, background: 'linear-gradient(90deg,transparent,#F0B90B 30%,#F0B90B 70%,transparent)' }} />
 
+            <style>{`
+              @keyframes warnStroke {
+                0%, 40%  { stroke: #F0B90B; }
+                60%, 100% { stroke: #ef4444; }
+              }
+              @keyframes warnFill {
+                0%, 40%  { fill: #F0B90B; }
+                60%, 100% { fill: #ef4444; }
+              }
+              @keyframes warnBg {
+                0%, 40%  { background: rgba(240,185,11,0.12); border-color: rgba(240,185,11,0.3); }
+                60%, 100% { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.3); }
+              }
+              .warn-stroke { animation: warnStroke 2.8s ease-in-out infinite alternate; }
+              .warn-fill   { animation: warnFill   2.8s ease-in-out infinite alternate; }
+              .warn-icon-box { animation: warnBg   2.8s ease-in-out infinite alternate; }
+            `}</style>
+
             <div className="px-5 pt-4 pb-5">
               {/* Header row */}
               <div className="flex items-center gap-3 mb-3">
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-none"
+                  className="warn-icon-box w-10 h-10 rounded-xl flex items-center justify-center flex-none"
                   style={{ background: 'rgba(240,185,11,0.12)', border: '1px solid rgba(240,185,11,0.3)' }}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 2L2 19.5h20L12 2z" stroke="#F0B90B" strokeWidth="1.8" strokeLinejoin="round"/>
-                    <path d="M12 9v5" stroke="#F0B90B" strokeWidth="2" strokeLinecap="round"/>
-                    <circle cx="12" cy="16.5" r="1" fill="#F0B90B"/>
+                    <path className="warn-stroke" d="M12 2L2 19.5h20L12 2z" stroke="#F0B90B" strokeWidth="1.8" strokeLinejoin="round"/>
+                    <path className="warn-stroke" d="M12 9v5" stroke="#F0B90B" strokeWidth="2" strokeLinecap="round"/>
+                    <circle className="warn-fill" cx="12" cy="16.5" r="1" fill="#F0B90B"/>
                   </svg>
                 </div>
                 <div>
