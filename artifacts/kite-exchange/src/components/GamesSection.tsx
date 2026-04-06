@@ -67,30 +67,37 @@ function makeOdds(): Odds {
  * diff < 0 = this team is LOSING  (high odds)
  * diff = 0 = tied                 (balanced odds)
  */
+/* Ensure a float never shows as a round integer (e.g. 14 → 14.23) */
+function oddVal(n: number): number {
+  const base = Math.round(n * 100);
+  const frac = base % 10 === 0 ? base + ri(2, 8) : base;
+  return frac / 100;
+}
+
 function winOdds(diff: number, minsLeft: number): number {
   const tf = Math.max(0.10, minsLeft / 90); // time factor: 0→90
   if (diff === 0) {
     // Equal match — around 2.0-3.5 depending on time
-    return +Math.max(1.55, Math.min(4.0, rf(1.75, 3.2) * Math.sqrt(tf) + rf(0, 0.1))).toFixed(2);
+    return oddVal(Math.max(1.55, Math.min(4.0, rf(1.75, 3.2) * Math.sqrt(tf) + rf(0.03, 0.18))));
   } else if (diff > 0) {
     // LEADING — high probability to win → LOW odds
     const prob = Math.min(0.97, 0.55 + diff * 0.16 * (1 / tf));
-    return +Math.max(1.02, (1 / prob + rf(-0.04, 0.04))).toFixed(2);
+    return oddVal(Math.max(1.02, 1 / prob + rf(0.02, 0.12)));
   } else {
-    // LOSING — low probability to win → HIGH odds
+    // LOSING — low probability → capped realistic odds (max ~14)
     const absD = Math.abs(diff);
-    const prob = Math.max(0.02, 0.45 - absD * 0.15 * (1 / tf));
-    return +Math.min(40, (1 / prob + rf(-0.3, 0.3))).toFixed(2);
+    const prob = Math.max(0.09, 0.45 - absD * 0.09 * (1 / tf));
+    return oddVal(Math.min(13.95, 1 / prob + rf(0.05, 0.28)));
   }
 }
 
 function drawOdds(diff: number, minsLeft: number): number {
   const tf = Math.max(0.10, minsLeft / 90);
-  if (diff === 0) return +Math.max(2.4, Math.min(5.5, rf(2.8, 4.2) * Math.sqrt(tf))).toFixed(2);
+  if (diff === 0) return oddVal(Math.max(2.4, Math.min(5.5, rf(2.8, 4.2) * Math.sqrt(tf) + rf(0.03, 0.15))));
   const absD = Math.abs(diff);
   // Hard to draw when one team leads by multiple goals late
   const base = 4.5 + absD * 3.2 * (1 - tf * 0.6);
-  return +Math.max(3.2, Math.min(22, base + rf(-0.4, 0.4))).toFixed(2);
+  return oddVal(Math.max(3.2, Math.min(9.75, base + rf(0.03, 0.35))));
 }
 
 function recalcOdds(prev: Odds, homeScore: number, awayScore: number, minute: number, isGoal: boolean, _?: 'home'|'away'): Odds {
@@ -105,9 +112,9 @@ function recalcOdds(prev: Odds, homeScore: number, awayScore: number, minute: nu
   }
   const d = 0.018;
   return {
-    w1: +Math.max(1.02, Math.min(40, prev.w1 + rf(-d, d))).toFixed(2),
-    w2: +Math.max(1.02, Math.min(40, prev.w2 + rf(-d, d))).toFixed(2),
-    x:  +Math.max(1.5,  Math.min(22, prev.x  + rf(-d*0.5, d*0.5))).toFixed(2),
+    w1: oddVal(Math.max(1.02, Math.min(13.95, prev.w1 + rf(-d, d)))),
+    w2: oddVal(Math.max(1.02, Math.min(13.95, prev.w2 + rf(-d, d)))),
+    x:  oddVal(Math.max(1.5,  Math.min(9.75,  prev.x  + rf(-d*0.5, d*0.5)))),
   };
 }
 
