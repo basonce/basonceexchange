@@ -194,6 +194,27 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
     return m;
   });
   const [verifiedSaving, setVerifiedSaving] = useState<Record<string, boolean>>({});
+  // uid → user level override
+  const [userLevelInput, setUserLevelInput] = useState<Record<string, string>>({});
+  const [userLevelSaving, setUserLevelSaving] = useState<Record<string, boolean>>({});
+
+  async function saveUserLevel(userId: string) {
+    const val = parseInt(userLevelInput[userId]);
+    if (isNaN(val) || val < 0 || val > 10) { showToast('❌ Geçersiz seviye (0-10)'); return; }
+    setUserLevelSaving(prev => ({ ...prev, [userId]: true }));
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ user_level: val })
+        .eq('id', userId);
+      if (error) throw error;
+      showToast(`✅ User Level → ${val} ayarlandı`);
+      setUserLevelInput(prev => ({ ...prev, [userId]: '' }));
+    } catch {
+      showToast('❌ Güncelleme hatası');
+    }
+    setUserLevelSaving(prev => ({ ...prev, [userId]: false }));
+  }
 
   async function toggleVerified(userId: string) {
     const newVal = !verifiedMap[userId];
@@ -498,6 +519,28 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                     )}
                     {verifiedMap[user.id] ? '✓ Verified Rozeti Aktif — Geri Al' : 'Verified Rozeti Ver'}
                   </button>
+
+                  {/* ── User Level Override ──────────────────── */}
+                  <div className="col-span-2 flex items-center gap-2">
+                    <span className="text-gray-500 text-xs font-semibold flex-shrink-0">⭐ Level:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      step="1"
+                      placeholder="0–10"
+                      value={userLevelInput[user.id] || ''}
+                      onChange={e => setUserLevelInput(prev => ({ ...prev, [user.id]: e.target.value }))}
+                      className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-xl text-sm text-center font-bold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 w-0"
+                    />
+                    <button
+                      onClick={() => saveUserLevel(user.id)}
+                      disabled={userLevelSaving[user.id] || !userLevelInput[user.id]}
+                      className="flex-shrink-0 px-3 py-2 bg-yellow-400 text-black rounded-xl text-xs font-black active:scale-95 transition-all hover:bg-yellow-500 disabled:opacity-40"
+                    >
+                      {userLevelSaving[user.id] ? '⏳' : '✓'}
+                    </button>
+                  </div>
 
                   {/* ── Member Since Override ────────────────── */}
                   <div className="col-span-2 flex items-center gap-2">
