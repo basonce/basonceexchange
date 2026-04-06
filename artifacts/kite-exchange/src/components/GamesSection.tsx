@@ -145,18 +145,18 @@ function buildExtMarkets(hs: number, as_: number, w1: number, xo: number, w2: nu
     const overO = +Math.max(1.05, Math.min(18, 1 / Math.max(0.05, prob) + rf(-0.08, 0.08))).toFixed(2);
     const underO = +Math.max(1.05, Math.min(18, 1 / Math.max(0.05, 1-prob) + rf(-0.08, 0.08))).toFixed(2);
     return [
-      { label: `Ü ${l}`, odd: overO,  key: `OVER_${l}`  },
-      { label: `A ${l}`, odd: underO, key: `UNDER_${l}` },
+      { label: `O ${l}`, odd: overO,  key: `OVER_${l}`  },
+      { label: `U ${l}`, odd: underO, key: `UNDER_${l}` },
     ];
   });
   // Half-time result
   const ht: ExtMarket[] = [
-    { label: '1. Yarı 1', odd: +rf(1.8, 3.5).toFixed(2),  key: 'HT1'  },
-    { label: '1. Yarı X', odd: +rf(1.9, 3.2).toFixed(2),  key: 'HTX'  },
-    { label: '1. Yarı 2', odd: +rf(1.8, 3.5).toFixed(2),  key: 'HT2'  },
-    { label: '2. Yarı 1', odd: +rf(1.7, 3.3).toFixed(2),  key: '2HT1' },
-    { label: '2. Yarı X', odd: +rf(1.8, 3.0).toFixed(2),  key: '2HTX' },
-    { label: '2. Yarı 2', odd: +rf(1.7, 3.3).toFixed(2),  key: '2HT2' },
+    { label: '1st Half 1', odd: +rf(1.8, 3.5).toFixed(2),  key: 'HT1'  },
+    { label: '1st Half X', odd: +rf(1.9, 3.2).toFixed(2),  key: 'HTX'  },
+    { label: '1st Half 2', odd: +rf(1.8, 3.5).toFixed(2),  key: 'HT2'  },
+    { label: '2nd Half 1', odd: +rf(1.7, 3.3).toFixed(2),  key: '2HT1' },
+    { label: '2nd Half X', odd: +rf(1.8, 3.0).toFixed(2),  key: '2HTX' },
+    { label: '2nd Half 2', odd: +rf(1.7, 3.3).toFixed(2),  key: '2HT2' },
   ];
   // HT / FT combos
   const htft: ExtMarket[] = ['1/1','1/X','1/2','X/1','X/X','X/2','2/1','2/X','2/2'].map(k => ({
@@ -170,46 +170,46 @@ function buildExtMarkets(hs: number, as_: number, w1: number, xo: number, w2: nu
   // Corners
   const cLines = [7.5, 8.5, 9.5, 10.5, 11.5, 12.5];
   const corners: ExtMarket[] = cLines.flatMap(l => [
-    { label: `Korner Ü ${l}`, odd: +rf(1.65, 2.30).toFixed(2), key: `COR_O_${l}` },
-    { label: `Korner A ${l}`, odd: +rf(1.65, 2.30).toFixed(2), key: `COR_U_${l}` },
+    { label: `Corners O ${l}`, odd: +rf(1.65, 2.30).toFixed(2), key: `COR_O_${l}` },
+    { label: `Corners U ${l}`, odd: +rf(1.65, 2.30).toFixed(2), key: `COR_U_${l}` },
   ]);
   // Yellow cards
   const yLines = [2.5, 3.5, 4.5, 5.5];
   const cards: ExtMarket[] = yLines.flatMap(l => [
-    { label: `Kart Ü ${l}`, odd: +rf(1.60, 2.20).toFixed(2), key: `CARD_O_${l}` },
-    { label: `Kart A ${l}`, odd: +rf(1.60, 2.20).toFixed(2), key: `CARD_U_${l}` },
+    { label: `Cards O ${l}`, odd: +rf(1.60, 2.20).toFixed(2), key: `CARD_O_${l}` },
+    { label: `Cards U ${l}`, odd: +rf(1.60, 2.20).toFixed(2), key: `CARD_U_${l}` },
   ]);
   // Clean sheet
   const cs: ExtMarket[] = [
-    { label: '1 Clean Sheet - Evet', odd: +rf(1.75, 3.0).toFixed(2),  key: 'CS_H_Y' },
-    { label: '1 Clean Sheet - Hayir', odd: +rf(1.4, 2.0).toFixed(2),  key: 'CS_H_N' },
-    { label: '2 Clean Sheet - Evet', odd: +rf(1.75, 3.0).toFixed(2),  key: 'CS_A_Y' },
-    { label: '2 Clean Sheet - Hayir', odd: +rf(1.4, 2.0).toFixed(2),  key: 'CS_A_N' },
+    { label: 'Home Clean Sheet - Yes', odd: +rf(1.75, 3.0).toFixed(2),  key: 'CS_H_Y' },
+    { label: 'Home Clean Sheet - No',  odd: +rf(1.4, 2.0).toFixed(2),   key: 'CS_H_N' },
+    { label: 'Away Clean Sheet - Yes', odd: +rf(1.75, 3.0).toFixed(2),  key: 'CS_A_Y' },
+    { label: 'Away Clean Sheet - No',  odd: +rf(1.4, 2.0).toFixed(2),   key: 'CS_A_N' },
   ];
   // Win to nil
   const wtn: ExtMarket[] = [
-    { label: '1 Win to Nil', odd: +rf(2.2, 5.5).toFixed(2), key: 'WTN_H' },
-    { label: '2 Win to Nil', odd: +rf(2.2, 5.5).toFixed(2), key: 'WTN_A' },
+    { label: 'Home Win to Nil', odd: +rf(2.2, 5.5).toFixed(2), key: 'WTN_H' },
+    { label: 'Away Win to Nil', odd: +rf(2.2, 5.5).toFixed(2), key: 'WTN_A' },
   ];
 
   return [
-    { title: 'Çifte Şans', markets: [
+    { title: 'Double Chance', markets: [
       { label: '1X', odd: Math.min(dc1x, 1.85), key: 'DC_1X' },
       { label: '12', odd: Math.min(dc12, 1.75), key: 'DC_12' },
       { label: 'X2', odd: Math.min(dcx2, 1.85), key: 'DC_X2' },
     ]},
-    { title: 'İki Takım da Gol Atar', markets: [
-      { label: 'Evet', odd: bttsY, key: 'BTTS_Y' },
-      { label: 'Hayir', odd: bttsN, key: 'BTTS_N' },
+    { title: 'Both Teams Score', markets: [
+      { label: 'Yes', odd: bttsY, key: 'BTTS_Y' },
+      { label: 'No',  odd: bttsN, key: 'BTTS_N' },
     ]},
-    { title: 'Asya Handikap', markets: ahGroup },
-    { title: 'Toplam Gol A/Ü', markets: totGroup },
-    { title: 'Yarı Sonucu', markets: ht },
-    { title: 'İY/MS', markets: htft },
-    { title: 'Doğru Skor', markets: exactScore },
-    { title: 'Korneler', markets: corners },
-    { title: 'Sarı Kartlar', markets: cards },
-    { title: 'Goalsiz Galibiyet', markets: [...cs, ...wtn] },
+    { title: 'Asian Handicap', markets: ahGroup },
+    { title: 'Total Goals O/U', markets: totGroup },
+    { title: 'Half-Time Result', markets: ht },
+    { title: 'HT/FT', markets: htft },
+    { title: 'Correct Score', markets: exactScore },
+    { title: 'Corners', markets: corners },
+    { title: 'Yellow Cards', markets: cards },
+    { title: 'Clean Sheet', markets: [...cs, ...wtn] },
   ];
 }
 
@@ -234,9 +234,9 @@ function buildMatch(tmpl: MatchTemplate, idx: number): LiveMatch {
 function betLabel(b: BetType, homeTeam: string, awayTeam: string): string {
   if (b === 'W1') return `1 (${homeTeam})`;
   if (b === 'W2') return `2 (${awayTeam})`;
-  if (b === 'X') return 'Beraberlik (X)';
-  if (b === 'OVER') return 'Üst';
-  if (b === 'UNDER') return 'Alt';
+  if (b === 'X') return 'Draw (X)';
+  if (b === 'OVER') return 'Over';
+  if (b === 'UNDER') return 'Under';
   return b;
 }
 
@@ -394,124 +394,183 @@ function OddPill({
   );
 }
 
-/* ── Horizontal match card (reference design) ── */
+/* ── Premium Binance-style match card ── */
 function TopCard({
   m, selectedBetMatchId, onSelect,
 }: { m: LiveMatch; selectedBetMatchId: string | null; onSelect: (matchId: string, type: BetType, odds: number) => void }) {
   const lg = getLeague(m.tmpl.leagueId);
   const ht = m.tmpl.homeTeam;
   const at = m.tmpl.awayTeam;
-  const isFlashing = m.goalFlash && Date.now() - m.flashTs < 3000;
+  const isFlashing = !!(m.goalFlash && Date.now() - m.flashTs < 3000);
   const sel = selectedBetMatchId === m.id;
   const od = m.oddsDir;
+  const diff = m.homeScore - m.awayScore;
+
+  // Fake possession — home advantage if leading
+  const rawPoss = Math.min(70, Math.max(30, 50 + diff * 7 + (strHash(m.id) % 12) - 6));
+  const homePoss = rawPoss;
+  const awayPoss = 100 - rawPoss;
+
+  // Fake total bets for "pressure" feel
+  const totalBets = ((strHash(m.id) % 28000) + 5000 + m.minute * 180).toLocaleString();
+
+  // HOT match: high minute, scored goals, or seeded by hash
+  const isHot = m.minute > 58 || (m.homeScore + m.awayScore) >= 2 || (strHash(m.id) % 3 === 0);
 
   const oddsRow = [
-    { label: 'W1', value: m.odds.w1, type: 'W1' as BetType, trend: od?.w1 },
-    { label: 'X',  value: m.odds.x,  type: 'X'  as BetType, trend: od?.x  },
-    { label: 'W2', value: m.odds.w2, type: 'W2' as BetType, trend: od?.w2 },
+    { label: '1', sublabel: ht.abbr, value: m.odds.w1, type: 'W1' as BetType, trend: od?.w1 },
+    { label: 'Draw',  sublabel: 'X',       value: m.odds.x,  type: 'X'  as BetType, trend: od?.x  },
+    { label: '2', sublabel: at.abbr, value: m.odds.w2, type: 'W2' as BetType, trend: od?.w2 },
   ];
 
   return (
     <div
-      onClick={() => onSelect(m.id, 'W1', m.odds.w1)}
+      className="match-card"
       style={{
-        minWidth: 195, maxWidth: 195, flexShrink: 0, cursor: 'pointer',
+        minWidth: 210, maxWidth: 210, flexShrink: 0, cursor: 'pointer',
         background: isFlashing
-          ? 'linear-gradient(160deg,#0a2416,#0f3320,#0a2416)'
-          : 'linear-gradient(160deg,#0d2318,#163325,#0d2318)',
-        border: `1.5px solid ${sel ? '#3b82f6' : isFlashing ? '#22c55e' : 'rgba(255,255,255,0.09)'}`,
-        borderRadius: 12, overflow: 'hidden',
-        transition: 'border-color 0.3s, background 0.3s',
-        boxShadow: sel ? '0 0 0 2px #3b82f644' : '0 2px 14px rgba(0,0,0,0.45)',
+          ? 'linear-gradient(160deg,#0d1f12,#112818)'
+          : 'linear-gradient(160deg,#141A21,#1a2332,#141A21)',
+        border: `1px solid ${sel ? '#3b82f6' : isFlashing ? 'rgba(34,197,94,0.55)' : 'rgba(240,185,11,0.18)'}`,
+        borderRadius: 14, overflow: 'hidden',
+        boxShadow: sel
+          ? '0 0 0 2px #3b82f666, 0 4px 24px rgba(0,0,0,0.6)'
+          : isFlashing
+            ? '0 0 18px rgba(34,197,94,0.22), 0 4px 24px rgba(0,0,0,0.55)'
+            : '0 2px 16px rgba(0,0,0,0.5)',
       }}
     >
-      {/* Green header bar */}
+      {/* ── Header: LIVE badge + minute + league ── */}
       <div style={{
-        background: 'linear-gradient(90deg,rgba(22,163,74,0.3),rgba(22,163,74,0.12),rgba(22,163,74,0.3))',
-        borderBottom: '1px solid rgba(22,163,74,0.22)',
-        padding: '5px 10px',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '7px 10px 5px',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        background: 'rgba(0,0,0,0.25)',
       }}>
-        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 7px #22c55e' }} />
-        <span style={{ fontSize: 9.5, color: '#86efac', fontWeight: 800, letterSpacing: '0.03em' }}>Premature Victory</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', boxShadow: '0 0 6px #ef4444' }} className="animate-pulse" />
+          <span style={{ fontSize: 10, color: '#ef4444', fontWeight: 900, letterSpacing: '0.08em' }}>LIVE</span>
+          <span style={{
+            fontSize: 10.5, color: '#fca5a5', fontWeight: 700,
+            background: 'rgba(239,68,68,0.12)', borderRadius: 4, padding: '1px 5px',
+            border: '1px solid rgba(239,68,68,0.22)',
+          }}>{m.minute}'</span>
+        </div>
+        <span style={{ fontSize: 8.5, color: '#4B5563', fontWeight: 600, maxWidth: 90, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+          {lg?.flag} {lg?.name.split(' ').slice(0,2).join(' ')}
+        </span>
       </div>
 
-      {/* League */}
-      <p style={{ fontSize: 9, color: '#6ee7b7aa', textAlign: 'center', margin: '5px 8px 0', fontWeight: 600 }}>
-        {lg?.flag} {lg?.country}, {lg?.name.split(' ').slice(0,2).join(' ')}
-      </p>
-
-      {/* Logos + Score */}
-      <div style={{ display: 'flex', alignItems: 'center', padding: '7px 8px 3px' }}>
-        {/* Home shield */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 50 }}>
-          <TeamShield abbr={ht.abbr} color={ht.color} size={46} />
-          <span style={{ fontSize: 7.5, color: '#94a3b855', maxWidth: 50, textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{ht.name.split(' ')[0]}</span>
+      {/* ── Teams + Score ── */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '10px 10px 6px', gap: 4 }}>
+        {/* Home */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, width: 52 }}>
+          <TeamShield abbr={ht.abbr} color={ht.color} size={42} />
+          <span style={{
+            fontSize: 8.5, color: diff > 0 ? '#e2e8f0' : '#64748b',
+            fontWeight: diff > 0 ? 800 : 600,
+            maxWidth: 52, textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+          }}>{ht.abbr}</span>
         </div>
 
-        {/* Center */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-          {/* Live badge */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 3,
-            background: 'rgba(239,68,68,0.14)', borderRadius: 4, padding: '2px 6px',
-            border: '1px solid rgba(239,68,68,0.28)',
-          }}>
-            <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#ef4444' }} className="animate-pulse" />
-            <span style={{ fontSize: 10, color: '#fca5a5', fontWeight: 900 }}>{m.minute}'</span>
-          </div>
-          {/* Score */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+        {/* Score center */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{
-              fontSize: 26, fontWeight: 900, lineHeight: 1, fontVariantNumeric: 'tabular-nums',
-              color: isFlashing && m.goalFlash === 'home' ? '#4ade80' : '#fff',
-              transition: 'color 0.35s',
+              fontSize: 30, fontWeight: 900, lineHeight: 1, fontVariantNumeric: 'tabular-nums',
+              color: isFlashing && m.goalFlash === 'home' ? '#4ade80' : '#F0B90B',
+              textShadow: isFlashing && m.goalFlash === 'home' ? '0 0 12px #4ade80' : '0 0 14px rgba(240,185,11,0.45)',
+              transition: 'color 0.35s, text-shadow 0.35s',
             }}>{m.homeScore}</span>
-            <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.22)' }}>:</span>
+            <span style={{ fontSize: 16, color: 'rgba(255,255,255,0.2)', fontWeight: 300 }}>-</span>
             <span style={{
-              fontSize: 26, fontWeight: 900, lineHeight: 1, fontVariantNumeric: 'tabular-nums',
-              color: isFlashing && m.goalFlash === 'away' ? '#4ade80' : '#fff',
-              transition: 'color 0.35s',
+              fontSize: 30, fontWeight: 900, lineHeight: 1, fontVariantNumeric: 'tabular-nums',
+              color: isFlashing && m.goalFlash === 'away' ? '#4ade80' : '#F0B90B',
+              textShadow: isFlashing && m.goalFlash === 'away' ? '0 0 12px #4ade80' : '0 0 14px rgba(240,185,11,0.45)',
+              transition: 'color 0.35s, text-shadow 0.35s',
             }}>{m.awayScore}</span>
           </div>
+          {isFlashing && (
+            <span style={{ fontSize: 9.5, color: '#4ade80', fontWeight: 900, letterSpacing: '0.05em', animation: 'pulse 0.6s ease-in-out infinite' }}>⚽ GOAL!</span>
+          )}
         </div>
 
-        {/* Away shield */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 50 }}>
-          <TeamShield abbr={at.abbr} color={at.color} size={46} />
-          <span style={{ fontSize: 7.5, color: '#94a3b855', maxWidth: 50, textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{at.name.split(' ')[0]}</span>
+        {/* Away */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, width: 52 }}>
+          <TeamShield abbr={at.abbr} color={at.color} size={42} />
+          <span style={{
+            fontSize: 8.5, color: diff < 0 ? '#e2e8f0' : '#64748b',
+            fontWeight: diff < 0 ? 800 : 600,
+            maxWidth: 52, textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+          }}>{at.abbr}</span>
         </div>
       </div>
 
-      {/* Match name line */}
-      <p style={{
-        fontSize: 9, color: 'rgba(255,255,255,0.5)', textAlign: 'center',
-        margin: '1px 6px 4px', lineHeight: 1.3, overflow: 'hidden',
-        whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-      }}>{ht.name} — {at.name}</p>
+      {/* ── Possession bar ── */}
+      <div style={{ padding: '0 10px 8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+          <span style={{ fontSize: 8, color: '#4B5563', fontWeight: 600 }}>Possession</span>
+          <span style={{ fontSize: 8, color: '#4B5563' }}>{homePoss}% — {awayPoss}%</span>
+        </div>
+        <div style={{ height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+          <div style={{
+            height: '100%', width: `${homePoss}%`,
+            background: `linear-gradient(90deg,${ht.color},rgba(240,185,11,0.7))`,
+            borderRadius: 2, transition: 'width 0.6s',
+          }} />
+        </div>
+      </div>
 
-      {/* Odds row */}
-      <div style={{ display: 'flex', borderTop: '1px solid rgba(255,255,255,0.07)', margin: '0 0 0' }}>
+      {/* ── HOT badge + Total bets ── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '4px 10px 6px',
+      }}>
+        {isHot ? (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 3,
+            background: 'rgba(239,68,68,0.12)', borderRadius: 4, padding: '2px 7px',
+            border: '1px solid rgba(239,68,68,0.3)',
+          }}>
+            <span style={{ fontSize: 9 }}>🔥</span>
+            <span style={{ fontSize: 9, color: '#fca5a5', fontWeight: 800, letterSpacing: '0.06em' }}>HOT</span>
+          </div>
+        ) : (
+          <div style={{ width: 40 }} />
+        )}
+        <span style={{ fontSize: 8.5, color: '#4B5563' }}>
+          💰 <span style={{ color: '#F0B90B', fontWeight: 700 }}>{totalBets}</span> USDT
+        </span>
+      </div>
+
+      {/* ── Odds buttons ── */}
+      <div style={{ display: 'flex', borderTop: '1px solid rgba(255,255,255,0.06)', gap: 0 }}>
         {oddsRow.map((o, i) => {
-          const tColor = o.trend === 'up' ? '#4ade80' : o.trend === 'down' ? '#ef4444' : '#F0B90B';
+          const tColor = o.trend === 'up' ? '#0ECB81' : o.trend === 'down' ? '#F6465D' : '#F0B90B';
           const tArrow = o.trend === 'up' ? '▲' : o.trend === 'down' ? '▼' : '';
-          const isActive = sel;
           return (
             <button
               key={o.label}
+              className="odd-btn-big"
               onClick={e => { e.stopPropagation(); onSelect(m.id, o.type, o.value); }}
               style={{
-                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
-                background: isActive ? 'rgba(59,130,246,0.18)' : 'rgba(0,0,0,0.28)',
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                gap: 1, background: sel ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)',
                 border: 'none',
                 borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.06)' : 'none',
-                padding: '5px 2px 6px', cursor: 'pointer', transition: 'all 0.2s',
+                padding: '8px 4px 9px', cursor: 'pointer',
               }}
             >
-              <span style={{ fontSize: 8.5, color: 'rgba(255,255,255,0.4)', fontWeight: 600, marginBottom: 1 }}>{o.label}</span>
+              <span style={{ fontSize: 8, color: '#64748b', fontWeight: 600, letterSpacing: '0.02em' }}>{o.label}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <span style={{ fontSize: 13, color: isActive ? '#93c5fd' : tColor, fontWeight: 900, transition: 'color 0.4s' }}>{o.value}</span>
-                {tArrow && <span style={{ fontSize: 7, color: tColor, fontWeight: 900, transition: 'color 0.4s' }}>{tArrow}</span>}
+                <span style={{
+                  fontSize: 14, fontWeight: 900, lineHeight: 1,
+                  color: sel ? '#93c5fd' : tColor,
+                  transition: 'color 0.35s',
+                }}>{o.value}</span>
+                {tArrow && (
+                  <span style={{ fontSize: 7.5, color: tColor, fontWeight: 900, transition: 'color 0.35s' }}>{tArrow}</span>
+                )}
               </div>
             </button>
           );
@@ -609,12 +668,12 @@ function MarketPanel({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 4, padding: '8px 8px 10px' }}>
         {group?.markets.map(mkt => (
           <button key={mkt.key}
+            className="mkt-btn"
             onClick={() => onSelectBet(matchId, mkt.key, mkt.odd)}
             style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
               background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)',
               borderRadius: 5, padding: '5px 4px', cursor: 'pointer',
-              transition: 'background 0.15s',
             }}
           >
             <span style={{ fontSize: 9, color: '#94a3b8', lineHeight: 1.2, textAlign: 'center' }}>{mkt.label}</span>
@@ -720,10 +779,10 @@ function MatchRow({
           <OddBtn label="W2" value={m.odds.w2} trend={od?.w2}            small onClick={() => onSelectBet(m.id,'W2',m.odds.w2)}/>
         </div>
 
-        {/* Total odds: A (Alt/Under) LEFT | Ü (Üst/Over) RIGHT */}
+        {/* Total odds: U (Under) LEFT | O (Over) RIGHT */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '0 3px' }}>
-          <OddBtn label={`A ${ln}`} value={m.totalOdds.under} small onClick={() => onSelectBet(m.id,'UNDER',m.totalOdds.under)}/>
-          <OddBtn label={`Ü ${ln}`} value={m.totalOdds.over}  small onClick={() => onSelectBet(m.id,'OVER', m.totalOdds.over)} />
+          <OddBtn label={`U ${ln}`} value={m.totalOdds.under} small onClick={() => onSelectBet(m.id,'UNDER',m.totalOdds.under)}/>
+          <OddBtn label={`O ${ln}`} value={m.totalOdds.over}  small onClick={() => onSelectBet(m.id,'OVER', m.totalOdds.over)} />
         </div>
 
       </div>
@@ -738,9 +797,9 @@ function MatchRow({
         }}>
           <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }} className="animate-pulse"/>
           <span style={{ fontSize: 10.5, color: '#4ade80', fontWeight: 900 }}>
-            ⚽ GOL! {m.goalFlash === 'home' ? ht.name : at.name} — {m.homeScore}:{m.awayScore}
+            ⚽ GOAL! {m.goalFlash === 'home' ? ht.name : at.name} — {m.homeScore}:{m.awayScore}
           </span>
-          <span style={{ marginLeft: 'auto', fontSize: 9, color: '#6ee7b7' }}>Oranlar güncellendi</span>
+          <span style={{ marginLeft: 'auto', fontSize: 9, color: '#6ee7b7' }}>Odds updated</span>
         </div>
       )}
 
@@ -755,7 +814,7 @@ function MatchRow({
         }}
       >
         <span style={{ fontSize: 9, color: expanded ? '#F0B90B' : '#4B5563', fontWeight: 700 }}>
-          {expanded ? '▲ Daha az market' : `▼ Tüm marketler (${(m.extMarkets ?? []).reduce((s,g)=>s+g.markets.length,0)}+)`}
+          {expanded ? '▲ Show less' : `▼ All markets (${(m.extMarkets ?? []).reduce((s,g)=>s+g.markets.length,0)}+)`}
         </span>
       </button>
 
@@ -987,7 +1046,7 @@ export default function GamesSection() {
   const [activeView, setActiveView] = useState<'live' | 'bets'>('live');
   const [notification, setNotification] = useState<{ msg: string; type: 'win' | 'loss' | 'info' } | null>(null);
   const [winnersFeeds, setWinnersFeeds] = useState<WinnerFeed[]>(() => {
-    const descOpts = ['Maç Sonucu 1','Maç Sonucu 2','Beraberlik','Üst 2.5','Alt 2.5','Asya Handicap','Çifte Şans','BTTS Evet','Doğru Skor','Yarı Sonucu 1'];
+    const descOpts = ['Match Result 1','Match Result 2','Draw','Over 2.5','Under 2.5','Asian Handicap','Double Chance','BTTS Yes','Correct Score','Half-Time 1'];
     const teamOpts = ['FC Rayon','Mtibwa Sugar','Elman FC','APR FC','Nkana FC','Singida Utd','Harare Rvr','Pamplemousses'];
     return Array.from({ length: 16 }, (_, i) => ({
       name: FAKER_NAMES[i % FAKER_NAMES.length],
@@ -1180,7 +1239,7 @@ export default function GamesSection() {
 
   /* Winners feed — new entry every 15-28 seconds */
   useEffect(() => {
-    const descOpts = ['Maç Sonucu 1','Maç Sonucu 2','Beraberlik','Üst 2.5','Alt 2.5','Asya Handicap -1','Çifte Şans 1X','BTTS Evet','Doğru Skor 1-0','Yarı Sonucu 2','Korner Ü 9.5','Kart A 3.5'];
+    const descOpts = ['Match Result 1','Match Result 2','Draw','Over 2.5','Under 2.5','Asian Handicap -1','Double Chance 1X','BTTS Yes','Correct Score 1-0','Half-Time 2','Corners O 9.5','Cards U 3.5'];
     const teamOpts = ['FC Rayon','Mtibwa Sugar','Elman FC','APR FC','Nkana FC','Singida Utd','Harare Rvr','Pamplemousses'];
     const iv = setInterval(() => {
       setWinnersFeeds(prev => {
