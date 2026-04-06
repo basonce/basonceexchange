@@ -9,6 +9,36 @@ const ADMIN_UUIDS = new Set([
   '88292f59-898a-4fef-a1c8-8813d7b60b61',
 ]);
 
+router.post('/admin/set-user-level', async (req, res) => {
+  try {
+    const requesterId = req.headers['x-requester-id'] as string;
+    if (!requesterId || !ADMIN_UUIDS.has(requesterId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const { userId, level } = req.body;
+    if (!userId || level === undefined) {
+      return res.status(400).json({ error: 'userId and level required' });
+    }
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': SERVICE_KEY,
+          'Authorization': `Bearer ${SERVICE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify({ user_level: Number(level) }),
+      }
+    );
+    const data = await resp.json();
+    return res.json({ ok: true, data });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 router.get('/admin/users', async (req, res) => {
   try {
     const requesterId = req.headers['x-requester-id'] as string;

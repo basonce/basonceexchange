@@ -151,6 +151,7 @@ export default function VipManagementPanel() {
   }
 
   async function saveVip() {
+    // Try vip_memberships table (may not exist — ignore errors)
     const starts = new Date(form.starts_at);
     const expires = new Date(starts);
     expires.setMonth(expires.getMonth() + Number(form.duration_months));
@@ -163,11 +164,23 @@ export default function VipManagementPanel() {
       status: 'active', updated_at: new Date().toISOString(),
     };
     if (editItem) {
-      await supabase.from('vip_memberships').update(payload).eq('id', editItem.id);
+      await supabase.from('vip_memberships').update(payload).eq('id', editItem.id).then(() => {});
     } else {
-      await supabase.from('vip_memberships').insert(payload);
+      await supabase.from('vip_memberships').insert(payload).then(() => {});
     }
-    await supabase.from('user_profiles').update({ user_level: Number(form.vip_level) }).eq('id', form.user_id);
+    // Always update user_level via service-role API (bypasses RLS)
+    try {
+      const adminUser = await getCurrentUser();
+      const adminId = adminUser?.id || '';
+      await fetch('/api/admin/set-user-level', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-requester-id': adminId },
+        body: JSON.stringify({ userId: form.user_id, level: Number(form.vip_level) }),
+      });
+    } catch {
+      // fallback: direct supabase
+      await supabase.from('user_profiles').update({ user_level: Number(form.vip_level) }).eq('id', form.user_id);
+    }
     setShowForm(false); setEditItem(null); load();
   }
 
@@ -481,7 +494,8 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input type="number" value={form.price_usdt} onChange={e => setForm(f => ({ ...f, price_usdt: Number(e.target.value) }))}
-                      className="w-full pl-8 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" placeholder="1000" />
+                      className="w-full pl-8 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm font-bold focus:outline-none focus:border-yellow-400"
+                      style={{ backgroundColor: '#0f172a', color: '#ffffff' }} placeholder="1000" />
                   </div>
                 </div>
 
@@ -493,7 +507,8 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input type="date" value={form.starts_at} onChange={e => setForm(f => ({ ...f, starts_at: e.target.value }))}
-                      className="w-full pl-8 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-yellow-400" />
+                      className="w-full pl-8 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm font-bold focus:outline-none focus:border-yellow-400"
+                      style={{ backgroundColor: '#0f172a', color: '#ffffff', colorScheme: 'dark' }} />
                   </div>
                 </div>
 
