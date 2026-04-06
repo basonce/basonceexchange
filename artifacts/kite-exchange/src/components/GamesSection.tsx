@@ -264,7 +264,24 @@ function strHash(s: string): number {
 }
 
 /* ── Real Football Club Crest ── */
-function TeamShield({ abbr, color, size = 32 }: { abbr: string; color: string; size?: number }) {
+function TeamShield({ abbr, color, size = 32, logoUrl }: { abbr: string; color: string; size?: number; logoUrl?: string }) {
+  const [imgFailed, setImgFailed] = useState(false);
+
+  if (logoUrl && !imgFailed) {
+    return (
+      <div style={{ width: size, height: size, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, overflow: 'hidden', background: 'rgba(255,255,255,0.06)' }}>
+        <img
+          src={logoUrl}
+          alt={abbr}
+          width={size - 4}
+          height={size - 4}
+          style={{ objectFit: 'contain', display: 'block' }}
+          onError={() => setImgFailed(true)}
+        />
+      </div>
+    );
+  }
+
   const s = size;
   const cx = s / 2;
 
@@ -453,7 +470,7 @@ function TopCard({
       <div style={{ display: 'flex', alignItems: 'center', padding: '7px 8px 3px' }}>
         {/* Home shield */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 50 }}>
-          <TeamShield abbr={ht.abbr} color={ht.color} size={46} />
+          <TeamShield abbr={ht.abbr} color={ht.color} size={46} logoUrl={ht.logoUrl} />
           <span style={{ fontSize: 7.5, color: '#94a3b855', maxWidth: 50, textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{ht.name.split(' ')[0]}</span>
         </div>
 
@@ -486,7 +503,7 @@ function TopCard({
 
         {/* Away shield */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 50 }}>
-          <TeamShield abbr={at.abbr} color={at.color} size={46} />
+          <TeamShield abbr={at.abbr} color={at.color} size={46} logoUrl={at.logoUrl} />
           <span style={{ fontSize: 7.5, color: '#94a3b855', maxWidth: 50, textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{at.name.split(' ')[0]}</span>
         </div>
       </div>
@@ -702,7 +719,7 @@ function MatchRow({
         }}>
           {/* Home row */}
           <div style={{ display: 'grid', gridTemplateColumns: '22px 1fr 16px', alignItems: 'center', gap: 4 }}>
-            <TeamShield abbr={ht.abbr} color={ht.color} size={22}/>
+            <TeamShield abbr={ht.abbr} color={ht.color} size={22} logoUrl={ht.logoUrl}/>
             <span style={{
               fontSize: 11.5, fontWeight: homeWin ? 800 : 600,
               color: isGoalFlash && m.goalFlash === 'home' ? '#4ade80' : homeWin ? '#e2e8f0' : '#94a3b8',
@@ -717,7 +734,7 @@ function MatchRow({
           </div>
           {/* Away row */}
           <div style={{ display: 'grid', gridTemplateColumns: '22px 1fr 16px', alignItems: 'center', gap: 4 }}>
-            <TeamShield abbr={at.abbr} color={at.color} size={22}/>
+            <TeamShield abbr={at.abbr} color={at.color} size={22} logoUrl={at.logoUrl}/>
             <span style={{
               fontSize: 11.5, fontWeight: awayWin ? 800 : 600,
               color: isGoalFlash && m.goalFlash === 'away' ? '#4ade80' : awayWin ? '#e2e8f0' : '#94a3b8',

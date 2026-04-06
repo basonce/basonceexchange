@@ -16,6 +16,7 @@ export interface Team {
   abbr: string;
   color: string;
   alt?: string;
+  logoUrl?: string;
 }
 
 export interface MatchTemplate {
@@ -23,6 +24,49 @@ export interface MatchTemplate {
   homeTeam: Team;
   awayTeam: Team;
 }
+
+/* Real Wikipedia logo URLs — browser <img> will load these fine */
+export const TEAM_LOGOS: Record<string, string> = {
+  // Tanzania
+  'Simba SC':           'https://upload.wikimedia.org/wikipedia/en/a/a5/Simba_SC_logo.svg',
+  'Young Africans SC':  'https://upload.wikimedia.org/wikipedia/en/a/a1/Yanga_SC.svg',
+  // Kenya
+  'Gor Mahia FC':       'https://upload.wikimedia.org/wikipedia/en/3/3f/Gor_Mahia_logo.svg',
+  'AFC Leopards':       'https://upload.wikimedia.org/wikipedia/en/2/27/AFC_Leopards.svg',
+  'Tusker FC':          'https://upload.wikimedia.org/wikipedia/en/5/51/Tusker_FC_logo.svg',
+  // Ghana
+  'Asante Kotoko SC':   'https://upload.wikimedia.org/wikipedia/en/7/78/Asante_Kotoko_SC_logo.svg',
+  'Hearts of Oak SC':   'https://upload.wikimedia.org/wikipedia/en/1/11/Hearts_of_Oak_logo.svg',
+  // DR Congo
+  'TP Mazembe':         'https://upload.wikimedia.org/wikipedia/en/0/0a/Tp_mazembe_logo.svg',
+  'AS Vita Club':       'https://upload.wikimedia.org/wikipedia/commons/4/42/AS_Vita_Club.png',
+  // Zambia
+  'Zesco United':       'https://upload.wikimedia.org/wikipedia/en/1/1e/ZESCO_United_FC_logo.svg',
+  'Nkana FC':           'https://upload.wikimedia.org/wikipedia/en/f/f9/Nkana_FC.svg',
+  // Rwanda
+  'APR FC':             'https://upload.wikimedia.org/wikipedia/en/c/ce/APR_FC.svg',
+  // Egypt
+  'Al Ahly SC':         'https://upload.wikimedia.org/wikipedia/en/8/8a/Al_Ahly_SC_logo.svg',
+  'Zamalek SC':         'https://upload.wikimedia.org/wikipedia/en/0/04/ZamalekSC-Logo.svg',
+  'Pyramids FC':        'https://upload.wikimedia.org/wikipedia/en/b/b1/Pyramids_FC_logo.svg',
+  'Ismaily SC':         'https://upload.wikimedia.org/wikipedia/en/3/39/Ismaily_SC_logo.svg',
+  // South Africa
+  'Kaizer Chiefs':      'https://upload.wikimedia.org/wikipedia/en/3/3d/Kaizer_Chiefs_logo.svg',
+  'Orlando Pirates':    'https://upload.wikimedia.org/wikipedia/en/8/8f/Orlando_Pirates_FC_logo.svg',
+  'Mamelodi Sundowns':  'https://upload.wikimedia.org/wikipedia/en/a/a2/Mamelodi_Sundowns_F.C._logo.svg',
+  'SuperSport United':  'https://upload.wikimedia.org/wikipedia/en/b/bc/SuperSport_United_FC_logo.svg',
+  'Cape Town City FC':  'https://upload.wikimedia.org/wikipedia/en/a/a4/Cape_Town_City_F.C._logo.svg',
+  // Morocco
+  'Wydad AC':           'https://upload.wikimedia.org/wikipedia/en/b/ba/Wydad_Athletic_Club_logo.svg',
+  'Raja Casablanca':    'https://upload.wikimedia.org/wikipedia/en/e/e3/Raja_Casablanca_logo.svg',
+  'FUS Rabat':          'https://upload.wikimedia.org/wikipedia/commons/1/16/FUS_Rabat_logo.png',
+  'RS Berkane':         'https://upload.wikimedia.org/wikipedia/commons/7/71/RS_Berkane_logo.png',
+  // Senegal
+  'Teungueth FC':       'https://upload.wikimedia.org/wikipedia/commons/9/99/Teungueth_FC_logo.png',
+  // Angola
+  'Petro de Luanda':    'https://upload.wikimedia.org/wikipedia/commons/a/ae/Petro_de_Luanda.png',
+  'Primeiro de Agosto': 'https://upload.wikimedia.org/wikipedia/commons/9/9f/GD_Primeiro_de_Agosto.png',
+};
 
 // ── 28 African Leagues ─────────────────────────────────────
 export const LEAGUES: League[] = [
@@ -54,6 +98,9 @@ export const LEAGUES: League[] = [
   { id: 'COF', name: 'COSAFA Cup Qualifying', country: 'Southern Africa', flag: '🌍', color: '#ff6600' },
   { id: 'WAF', name: 'WAFU-B Zone League', country: 'West Africa', flag: '🌍', color: '#9b59b6' },
   { id: 'EAF', name: 'East Africa Community League', country: 'East Africa', flag: '🌍', color: '#e74c3c' },
+  { id: 'RSA', name: 'South Africa Premier Soccer League', country: 'South Africa', flag: '🇿🇦', color: '#007a4d' },
+  { id: 'EGY', name: 'Egyptian Premier League', country: 'Egypt', flag: '🇪🇬', color: '#c8102e' },
+  { id: 'MAR', name: 'Morocco Botola Pro', country: 'Morocco', flag: '🇲🇦', color: '#c1272d' },
 ];
 
 const COLORS = ['#1a56db','#e02424','#057a55','#9f1239','#7e3af2','#d97706','#0e9f6e','#be185d','#0284c7','#4f46e5','#dc2626','#16a34a','#7c3aed','#c2410c','#0891b2','#0d9488','#9333ea','#db2777','#65a30d','#ca8a04'];
@@ -88,11 +135,14 @@ const RAW_TEAMS: Record<string, [string, string][]> = {
   COF: [['Southern Stars','SST'],['Cape All Stars','CAS'],['Windhoek United','WNU'],['Maputo Select','MPS'],['Harare Rovers','HRV'],['Lusaka Rangers','LSR'],['Gaborone FC','GBR'],['Blantyre Elite','BLE'],['Mbabane Select','MBS'],['Victoria Falls','VCF']],
   WAF: [['Dakar Warriors','DKW'],['Abidjan Select','ABS'],['Accra Warriors','ACW'],['Lagos City','LGC'],['Bamako Stars','BMS'],['Conakry Elite','CNE'],['Ouagadougou FC','OGD'],['Niamey Select','NMS'],['Lomé Warriors','LMW'],['Cotonou Elite','CNT']],
   EAF: [['Nairobi City Stars','NCS'],['Dar City','DAC'],['Kampala Lions','KPL'],['Kigali City','KGC'],['Bujumbura United','BJU'],['Juba Lions','JBL'],['Asmara City','ASC'],['Djibouti City','DJC'],['Mogadishu Stars','MGS'],['Hargeisa United','HGU']],
+  RSA: [['Kaizer Chiefs','KCH'],['Orlando Pirates','ORL'],['Mamelodi Sundowns','SUN'],['SuperSport United','SSU'],['Cape Town City FC','CTC'],['Stellenbosch FC','STB'],['TS Galaxy','TSG'],['Sekhukhune United','SEK'],['Golden Arrows','GDA'],['Maritzburg United','MRZ']],
+  EGY: [['Al Ahly SC','AHL'],['Zamalek SC','ZAM'],['Pyramids FC','PYR'],['Ismaily SC','ISM'],['Future FC','FUT'],['Ceramica Cleopatra','CER'],['Smouha SC','SMH'],['National Bank of Egypt','NBE'],['El Entag El Harby','ENT'],['El Gouna FC','GON']],
+  MAR: [['Wydad AC','WAC'],['Raja Casablanca','RAJ'],['FUS Rabat','FUS'],['RS Berkane','RSB'],['Mouloudia Oujda','MOU'],['Hassania Agadir','HAS'],['Renaissance Berkane','RNB'],['Moghreb Tetouan','MOG'],['Difaa El Jadidi','DEJ'],['Ittihad Tanger','ITT']],
 };
 
 // ── Build team objects ──────────────────────────────────────
 function buildTeam(name: string, abbr: string, idx: number): Team {
-  return { name, abbr, color: COLORS[idx % COLORS.length] };
+  return { name, abbr, color: COLORS[idx % COLORS.length], logoUrl: TEAM_LOGOS[name] };
 }
 
 const LEAGUE_TEAMS: Record<string, Team[]> = {};
