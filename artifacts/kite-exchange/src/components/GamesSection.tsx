@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { pickFreshMatchups, getLeague, ri, rf, type MatchTemplate } from '../lib/sportsData';
 
@@ -121,41 +121,124 @@ function betLabel(b: BetType, homeTeam: string, awayTeam: string): string {
    SUB-COMPONENTS
 ══════════════════════════════════════════════════════════ */
 
-/* SVG Shield Badge — unique per team color */
+/* ── Color helpers ── */
+function adjustHex(hex: string, amt: number): string {
+  const h = hex.replace('#','');
+  const r = Math.min(255, Math.max(0, parseInt(h.slice(0,2)||'88',16) + amt));
+  const g = Math.min(255, Math.max(0, parseInt(h.slice(2,4)||'88',16) + amt));
+  const b = Math.min(255, Math.max(0, parseInt(h.slice(4,6)||'88',16) + amt));
+  return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+}
+function strHash(s: string): number {
+  let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h;
+}
+
+/* ── Real Football Club Crest ── */
 function TeamShield({ abbr, color, size = 32 }: { abbr: string; color: string; size?: number }) {
   const s = size;
   const cx = s / 2;
-  // Classic soccer shield / pentagon shape
-  const d = `M ${cx},${s*0.03} L ${s*0.95},${s*0.18} L ${s*0.95},${s*0.62} Q ${cx},${s*0.97} ${s*0.05},${s*0.62} L ${s*0.05},${s*0.18} Z`;
-  const fz = abbr.length > 3 ? s*0.2 : abbr.length > 2 ? s*0.24 : s*0.26;
-  const uid = `shd_${abbr.replace(/\W/g,'_')}`;
+
+  // UEFA-style crest path: flat top, straight sides, rounded arch bottom to point
+  const shield = `M ${s*0.08},${s*0.06} L ${s*0.92},${s*0.06} L ${s*0.92},${s*0.62} Q ${s*0.92},${s*0.95} ${cx},${s*0.99} Q ${s*0.08},${s*0.95} ${s*0.08},${s*0.62} Z`;
+
+  const uid = `c_${abbr.replace(/\W/g,'_')}`;
+  const hash = strHash(abbr);
+  const pat = hash % 7;  // 7 unique patterns
+
+  const c1 = color;
+  const c2 = adjustHex(color, 55);   // lighter variant
+  const c3 = adjustHex(color, -40);  // darker variant
+
+  const fz = abbr.length > 3 ? s*0.19 : abbr.length > 2 ? s*0.23 : s*0.25;
+  const ty = s * 0.63;
+
+  // Pattern fills (clipped to shield)
+  const patterns: Record<number, ReactNode> = {
+    0: ( // Horizontal thirds: c3 | c1 | c3
+      <>
+        <rect x={s*0.08} y={s*0.06} width={s*0.84} height={s*0.31} fill={c3}/>
+        <rect x={s*0.08} y={s*0.37} width={s*0.84} height={s*0.31} fill={c1}/>
+        <rect x={s*0.08} y={s*0.68} width={s*0.84} height={s*0.35} fill={c3}/>
+      </>
+    ),
+    1: ( // Diagonal split: top-left c1, bottom-right c2
+      <>
+        <rect x={0} y={0} width={s} height={s} fill={c2}/>
+        <polygon points={`${s*0.08},${s*0.06} ${s*0.92},${s*0.06} ${s*0.08},${s*0.99}`} fill={c1}/>
+      </>
+    ),
+    2: ( // Vertical halves: left c1, right c3
+      <>
+        <rect x={s*0.08} y={0} width={s*0.42} height={s} fill={c1}/>
+        <rect x={s*0.50} y={0} width={s*0.42} height={s} fill={c3}/>
+      </>
+    ),
+    3: ( // Quarters: TL+BR = c1, TR+BL = c2
+      <>
+        <rect x={0} y={0} width={s} height={s} fill={c1}/>
+        <polygon points={`${cx},${s*0.06} ${s*0.92},${s*0.06} ${s*0.92},${cx} ${cx},${cx}`} fill={c2}/>
+        <polygon points={`${s*0.08},${cx} ${cx},${cx} ${s*0.08},${s*0.99}`} fill={c2}/>
+      </>
+    ),
+    4: ( // Stripes (3 vertical): c1 c2 c1
+      <>
+        <rect x={s*0.08} y={0} width={s*0.28} height={s} fill={c1}/>
+        <rect x={s*0.36} y={0} width={s*0.28} height={s} fill={c2}/>
+        <rect x={s*0.64} y={0} width={s*0.28} height={s} fill={c1}/>
+      </>
+    ),
+    5: ( // Circle badge on solid: big circle c2 on c1 bg
+      <>
+        <rect x={0} y={0} width={s} height={s} fill={c3}/>
+        <circle cx={cx} cy={s*0.42} r={s*0.28} fill={c1}/>
+        <circle cx={cx} cy={s*0.42} r={s*0.22} fill={c3}/>
+      </>
+    ),
+    6: ( // Cross/plus on solid
+      <>
+        <rect x={0} y={0} width={s} height={s} fill={c1}/>
+        <rect x={cx-s*0.07} y={s*0.06} width={s*0.14} height={s*0.9} fill={c2} opacity={0.85}/>
+        <rect x={s*0.08} y={s*0.3} width={s*0.84} height={s*0.15} fill={c2} opacity={0.85}/>
+      </>
+    ),
+  };
+
   return (
     <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`} style={{ flexShrink: 0, display:'block' }}>
       <defs>
-        <radialGradient id={`${uid}rg`} cx="38%" cy="32%" r="65%">
-          <stop offset="0%" stopColor={color} stopOpacity="1"/>
-          <stop offset="100%" stopColor={color} stopOpacity="0.55"/>
-        </radialGradient>
-        <linearGradient id={`${uid}sh`} x1="0" y1="0" x2="0.5" y2="1">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.22"/>
-          <stop offset="55%" stopColor="#ffffff" stopOpacity="0"/>
+        <clipPath id={`${uid}cp`}>
+          <path d={shield}/>
+        </clipPath>
+        <linearGradient id={`${uid}gl`} x1="0" y1="0" x2="0.4" y2="1">
+          <stop offset="0%"  stopColor="#ffffff" stopOpacity="0.18"/>
+          <stop offset="60%" stopColor="#ffffff" stopOpacity="0"/>
         </linearGradient>
       </defs>
-      {/* Shadow */}
-      <path d={d} fill="rgba(0,0,0,0.35)" transform={`translate(${s*0.03},${s*0.04})`}/>
-      {/* Fill */}
-      <path d={d} fill={`url(#${uid}rg)`}/>
-      {/* Shine */}
-      <path d={d} fill={`url(#${uid}sh)`}/>
-      {/* Border */}
-      <path d={d} fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth={s*0.032}/>
-      {/* Text shadow */}
-      <text x={cx+s*0.013} y={s*0.58+fz*0.32} textAnchor="middle" fill="rgba(0,0,0,0.55)"
-        fontSize={fz} fontWeight="900" fontFamily="'Arial Black', Arial, sans-serif">{abbr}</text>
-      {/* Text */}
-      <text x={cx} y={s*0.58+fz*0.32} textAnchor="middle" fill="#ffffff"
-        fontSize={fz} fontWeight="900" fontFamily="'Arial Black', Arial, sans-serif"
-        style={{ filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.7))' }}>{abbr}</text>
+
+      {/* Drop shadow */}
+      <path d={shield} fill="rgba(0,0,0,0.4)" transform={`translate(${s*0.04},${s*0.05})`}/>
+
+      {/* Pattern (clipped) */}
+      <g clipPath={`url(#${uid}cp)`}>
+        {patterns[pat]}
+      </g>
+
+      {/* Gloss overlay */}
+      <path d={shield} fill={`url(#${uid}gl)`}/>
+
+      {/* Gold border */}
+      <path d={shield} fill="none" stroke="rgba(240,185,11,0.55)" strokeWidth={s*0.035}/>
+      {/* Inner white border */}
+      <path d={shield} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth={s*0.018}
+        transform={`scale(0.88) translate(${s*0.068},${s*0.068})`}/>
+
+      {/* Abbreviation shadow */}
+      <text x={cx+s*0.015} y={ty+s*0.015} textAnchor="middle" fill="rgba(0,0,0,0.7)"
+        fontSize={fz} fontWeight="900" fontFamily="'Arial Black',Arial,sans-serif">{abbr}</text>
+      {/* Abbreviation */}
+      <text x={cx} y={ty} textAnchor="middle" fill="#ffffff"
+        fontSize={fz} fontWeight="900" fontFamily="'Arial Black',Arial,sans-serif"
+        stroke="rgba(0,0,0,0.3)" strokeWidth={s*0.015} paintOrder="stroke">{abbr}</text>
     </svg>
   );
 }
