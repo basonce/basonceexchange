@@ -625,20 +625,42 @@ export default function GamesSection() {
   const initialized = useRef(false);
   const topScrollRef = useRef<HTMLDivElement>(null);
 
-  /* Auto-scroll top cards left-to-right, loop back */
+  /* Smooth continuous auto-scroll — pixel-by-pixel via RAF */
   useEffect(() => {
     const el = topScrollRef.current;
     if (!el) return;
-    let dir = 1;
-    const step = setInterval(() => {
-      if (!el) return;
-      const maxScroll = el.scrollWidth - el.clientWidth;
-      if (maxScroll <= 0) return;
-      el.scrollLeft += dir * 198;
-      if (el.scrollLeft >= maxScroll - 5) dir = -1;
-      if (el.scrollLeft <= 5) dir = 1;
-    }, 2800);
-    return () => clearInterval(step);
+    let rafId: number;
+    let paused = false;
+    const speed = 0.55; // px per frame (~33px/s at 60fps)
+
+    const tick = () => {
+      if (!paused && el) {
+        el.scrollLeft += speed;
+        // Seamless reset: when last card exits viewport, jump back to start
+        if (el.scrollLeft >= el.scrollWidth - el.clientWidth - 1) {
+          el.scrollLeft = 0;
+        }
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+
+    const pause  = () => { paused = true;  };
+    const resume = () => { paused = false; };
+
+    el.addEventListener('mouseenter', pause);
+    el.addEventListener('mouseleave', resume);
+    el.addEventListener('touchstart', pause,  { passive: true });
+    el.addEventListener('touchend',   resume, { passive: true });
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      el.removeEventListener('mouseenter', pause);
+      el.removeEventListener('mouseleave', resume);
+      el.removeEventListener('touchstart', pause);
+      el.removeEventListener('touchend',   resume);
+    };
   }, []);
 
   /* Init matches */
@@ -888,7 +910,7 @@ export default function GamesSection() {
             style={{
               overflowX: 'auto', display: 'flex', gap: 8,
               padding: '10px 12px 8px', scrollbarWidth: 'none',
-              scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch',
+              cursor: 'grab',
             }}
           >
             {live.slice(0, 12).map(m => (
