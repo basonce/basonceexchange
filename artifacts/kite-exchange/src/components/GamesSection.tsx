@@ -537,12 +537,12 @@ function OddBtn({
         gap: 0, background: active ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.04)',
         border: `1px solid ${active ? '#3b82f6' : 'rgba(255,255,255,0.07)'}`,
         borderRadius: 4, padding: small ? '2px 3px' : '3px 4px',
-        minWidth: small ? 36 : 40, cursor: 'pointer', transition: 'background 0.2s',
+        minWidth: small ? 36 : 42, cursor: 'pointer', transition: 'background 0.2s',
       }}
     >
-      <span style={{ fontSize: small ? 7.5 : 8, color: '#64748b', fontWeight: 600, lineHeight: 1.2 }}>{label}</span>
+      <span style={{ fontSize: small ? 7.5 : 8.5, color: '#64748b', fontWeight: 600, lineHeight: 1.2 }}>{label}</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <span style={{ fontSize: small ? 11 : 12, color: active ? '#93c5fd' : tc, fontWeight: 900, lineHeight: 1.3, transition: 'color 0.4s' }}>{value}</span>
+        <span style={{ fontSize: small ? 11 : 13, color: active ? '#93c5fd' : tc, fontWeight: 900, lineHeight: 1.3, transition: 'color 0.4s' }}>{value}</span>
         {arrow && <span style={{ fontSize: 6.5, color: tc, fontWeight: 900 }}>{arrow}</span>}
       </div>
     </button>
@@ -598,12 +598,12 @@ function MarketPanel({
       <div style={{ display: 'flex', gap: 0, overflowX: 'auto', borderBottom: '1px solid #1C2128', scrollbarWidth: 'none' }}>
         {groups.map((g, i) => (
           <button key={i} onClick={() => setActiveGroup(i)} style={{
-            padding: '6px 10px', whiteSpace: 'nowrap', background: 'none', border: 'none',
-            cursor: 'pointer', fontSize: 10, fontWeight: 700,
-            color: activeGroup === i ? '#F0B90B' : '#4B5563',
+            flexShrink: 0, padding: '7px 11px', whiteSpace: 'nowrap', background: 'none', border: 'none',
+            cursor: 'pointer', fontSize: 11, fontWeight: 700,
+            color: activeGroup === i ? '#F0B90B' : '#6B7280',
             borderBottom: activeGroup === i ? '2px solid #F0B90B' : '2px solid transparent',
             transition: 'all 0.15s',
-          }}>{g.title} <span style={{ color: '#374151', fontSize: 8 }}>{g.markets.length}</span></button>
+          }}>{g.title}</button>
         ))}
       </div>
       {/* Markets grid */}
@@ -664,7 +664,7 @@ function MatchRow({
       {/* ── Main grid: [time | teams | result-odds | total-odds] ── */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '34px 1fr 126px 82px',
+        gridTemplateColumns: '34px 1fr 144px 90px',
         alignItems: 'stretch',
       }}>
 
@@ -715,16 +715,16 @@ function MatchRow({
         </div>
 
         {/* Result odds: W1 | X | W2 */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '0 3px', borderRight: '1px solid #1C2128' }}>
-          <OddBtn label="W1" value={m.odds.w1} trend={od?.w1} active={sel} small onClick={() => onSelectBet(m.id,'W1',m.odds.w1)}/>
-          <OddBtn label="X"  value={m.odds.x}  trend={od?.x}             small onClick={() => onSelectBet(m.id,'X', m.odds.x)} />
-          <OddBtn label="W2" value={m.odds.w2} trend={od?.w2}            small onClick={() => onSelectBet(m.id,'W2',m.odds.w2)}/>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '4px 4px', borderRight: '1px solid #1C2128' }}>
+          <OddBtn label="W1" value={m.odds.w1} trend={od?.w1} active={sel} onClick={() => onSelectBet(m.id,'W1',m.odds.w1)}/>
+          <OddBtn label="X"  value={m.odds.x}  trend={od?.x}             onClick={() => onSelectBet(m.id,'X', m.odds.x)} />
+          <OddBtn label="W2" value={m.odds.w2} trend={od?.w2}            onClick={() => onSelectBet(m.id,'W2',m.odds.w2)}/>
         </div>
 
-        {/* Total odds: U (Under) LEFT | O (Over) RIGHT */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '0 3px' }}>
-          <OddBtn label={`U ${ln}`} value={m.totalOdds.under} small onClick={() => onSelectBet(m.id,'UNDER',m.totalOdds.under)}/>
-          <OddBtn label={`O ${ln}`} value={m.totalOdds.over}  small onClick={() => onSelectBet(m.id,'OVER', m.totalOdds.over)} />
+        {/* Total odds: A (Under) LEFT | Ü (Over) RIGHT */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '4px 4px' }}>
+          <OddBtn label={`A ${ln}`} value={m.totalOdds.under} onClick={() => onSelectBet(m.id,'UNDER',m.totalOdds.under)}/>
+          <OddBtn label={`Ü ${ln}`} value={m.totalOdds.over}  onClick={() => onSelectBet(m.id,'OVER', m.totalOdds.over)} />
         </div>
 
       </div>
@@ -755,8 +755,8 @@ function MatchRow({
           transition: 'background 0.15s',
         }}
       >
-        <span style={{ fontSize: 9, color: expanded ? '#F0B90B' : '#4B5563', fontWeight: 700 }}>
-          {expanded ? '▲ Show less' : `▼ All markets (${(m.extMarkets ?? []).reduce((s,g)=>s+g.markets.length,0)}+)`}
+        <span style={{ fontSize: 10, color: expanded ? '#F0B90B' : '#4B5563', fontWeight: 700 }}>
+          {expanded ? '▲ Show less' : '▼ All markets'}
         </span>
       </button>
 
