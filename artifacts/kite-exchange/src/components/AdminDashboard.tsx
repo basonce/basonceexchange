@@ -250,7 +250,7 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
     setMemberSinceSaving(prev => ({ ...prev, [userId]: false }));
   }
 
-  const filtered = users.filter(u => !u.is_admin &&
+  const filtered = users.filter(u =>
     (u.email.toLowerCase().includes(search.toLowerCase()) ||
      (u.full_name || '').toLowerCase().includes(search.toLowerCase())));
 
@@ -260,7 +260,7 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
   }
 
   useEffect(() => {
-    const nonAdmins = users.filter(u => !u.is_admin).slice(0, 40);
+    const nonAdmins = users.slice(0, 50);
     const def = (uid: string): UserRestrictions => ({ user_id: uid, pair_lock_enabled: false, allowed_pairs: [], withdrawal_asset: 'BTC', withdrawal_fee_usdt: 0, usdt_frozen: false, withdrawal_frozen: false, campaigns_blocked: false, mining_blocked: false });
     Promise.all(nonAdmins.map(u => fetchUserRestrictions(u.id).then(r => ({ uid: u.id, r })))).then(results => {
       const newMap: Record<string, UserRestrictions> = {};
@@ -370,7 +370,7 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
       </div>
 
       <div className="space-y-2">
-        {filtered.slice(0, 40).map(user => {
+        {filtered.slice(0, 50).map(user => {
           const r = rmap[user.id];
           const s = saving[user.id];
           const isBtcLocked = r?.pair_lock_enabled && r?.allowed_pairs?.length > 0 && r.allowed_pairs.every(p => BTC_ONLY_PAIRS.includes(p));
