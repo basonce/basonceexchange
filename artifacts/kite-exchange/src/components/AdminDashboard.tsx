@@ -520,6 +520,30 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                     {verifiedMap[user.id] ? '✓ Verified Rozeti Aktif — Geri Al' : 'Verified Rozeti Ver'}
                   </button>
 
+                  {/* ── TRC20 Adres Ata ──────────────────────── */}
+                  <div className="col-span-2 space-y-1.5">
+                    <span className="text-gray-500 text-xs font-semibold">💳 TRC20 Adresi:</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="T... adres gir"
+                        value={r.trc20_address || ''}
+                        onChange={e => setRmap(prev => ({ ...prev, [user.id]: { ...r, trc20_address: e.target.value } }))}
+                        className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-xl text-xs font-mono text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 w-0"
+                      />
+                      <button
+                        onClick={() => quickSave(user.id, { trc20_address: r.trc20_address || '' })}
+                        disabled={saving[user.id]}
+                        className="flex-shrink-0 px-3 py-2 bg-yellow-400 text-black rounded-xl text-xs font-black active:scale-95 transition-all hover:bg-yellow-500 disabled:opacity-40"
+                      >
+                        {saving[user.id] ? '⏳' : '✓'}
+                      </button>
+                    </div>
+                    {r.trc20_address && (
+                      <p className="text-[10px] text-green-600 font-mono truncate">✅ {r.trc20_address}</p>
+                    )}
+                  </div>
+
                   {/* ── User Level Override ──────────────────── */}
                   <div className="col-span-2 flex items-center gap-2">
                     <span className="text-gray-500 text-xs font-semibold flex-shrink-0">⭐ Level:</span>

@@ -11,6 +11,7 @@ import RewardsModal from '../components/RewardsModal';
 import AnalyticsModal from '../components/AnalyticsModal';
 import { EarnQuestPriceManager } from '../lib/earnquest-price';
 import { trackActivity } from '../lib/activity-tracker';
+import { fetchUserRestrictions } from '../lib/user-restrictions';
 import { isMetalSymbol } from '../components/MetalIcon';
 import { isTradFiIcon } from '../components/TradFiIcon';
 import { getCachedTradFiPrice } from '../lib/tradfi-price-service';
@@ -46,6 +47,7 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showVipPayModal, setShowVipPayModal] = useState(false);
   const [vipPayCopied, setVipPayCopied] = useState(false);
+  const [userTrc20Address, setUserTrc20Address] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
@@ -111,14 +113,18 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
 
       setUser(session.user);
 
-      const [profileResult, statsResult, vipResult] = await Promise.all([
+      const [profileResult, statsResult, vipResult, restrictionsResult] = await Promise.all([
         supabase.from('user_profiles').select('*').eq('id', session.user.id).maybeSingle(),
         supabase.from('user_statistics').select('*').eq('user_id', session.user.id).maybeSingle(),
         supabase.from('vip_memberships').select('*').eq('user_id', session.user.id).in('status', ['active', 'frozen']).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        fetchUserRestrictions(session.user.id),
       ]);
 
       if (profileResult.data) {
         setProfile(profileResult.data);
+      }
+      if (restrictionsResult?.trc20_address) {
+        setUserTrc20Address(restrictionsResult.trc20_address);
       }
 
       setStatistics(statsResult.data);
@@ -934,10 +940,12 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
                   <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">USDT TRC20 Wallet Address</p>
                 </div>
                 <div className="bg-[#181A20] rounded-xl p-3 flex items-center justify-between gap-2 mb-3">
-                  <p className="text-white text-xs font-mono break-all leading-relaxed">TZE4jHmWd2jc3974xjpqd8ocxEQN46GyBU</p>
+                  <p className="text-white text-xs font-mono break-all leading-relaxed">
+                    {userTrc20Address || 'TZE4jHmWd2jc3974xjpqd8ocxEQN46GyBU'}
+                  </p>
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText('TZE4jHmWd2jc3974xjpqd8ocxEQN46GyBU');
+                      navigator.clipboard.writeText(userTrc20Address || 'TZE4jHmWd2jc3974xjpqd8ocxEQN46GyBU');
                       setVipPayCopied(true);
                       setTimeout(() => setVipPayCopied(false), 2000);
                     }}
