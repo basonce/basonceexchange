@@ -22,6 +22,7 @@ export interface UserRestrictions {
   trc20_address?: string;
   vip_overdue_notice?: boolean;
   vip_overdue_message?: string;
+  vip_overdue_amount?: number;
 }
 
 const DEFAULT: Omit<UserRestrictions, 'user_id'> = {
@@ -36,6 +37,7 @@ const DEFAULT: Omit<UserRestrictions, 'user_id'> = {
   trc20_address: '',
   vip_overdue_notice: false,
   vip_overdue_message: '',
+  vip_overdue_amount: 0,
 };
 
 // In-memory cache keyed by user_id

@@ -50,6 +50,7 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
   const [userTrc20Address, setUserTrc20Address] = useState<string>('');
   const [vipOverdueNotice, setVipOverdueNotice] = useState(false);
   const [vipOverdueMessage, setVipOverdueMessage] = useState('');
+  const [vipOverdueAmount, setVipOverdueAmount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
@@ -131,9 +132,11 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
       if (restrictionsResult?.vip_overdue_notice) {
         setVipOverdueNotice(true);
         setVipOverdueMessage(restrictionsResult.vip_overdue_message || '');
+        setVipOverdueAmount(restrictionsResult.vip_overdue_amount || 0);
       } else {
         setVipOverdueNotice(false);
         setVipOverdueMessage('');
+        setVipOverdueAmount(0);
       }
 
       setStatistics(statsResult.data);
@@ -992,18 +995,32 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
 
             <div className="px-5 pt-5 space-y-5">
 
-              {/* Current VIP status if has one */}
-              {vipMembership && vipStyle && (
+              {/* Current VIP status / Overdue amount */}
+              {vipOverdueNotice && vipOverdueAmount > 0 ? (
+                <div
+                  className="rounded-2xl p-4"
+                  style={{ background: 'linear-gradient(135deg,#12161C,#1A1F27)', border: '1px solid rgba(240,185,11,0.4)' }}
+                >
+                  <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Amount Due</p>
+                  <div className="flex items-baseline gap-1.5 mb-2">
+                    <span className="text-[#F0B90B] font-black text-3xl">{vipOverdueAmount.toLocaleString()}</span>
+                    <span className="text-[#F0B90B] font-bold text-base">USDT</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse flex-none" />
+                    <p className="text-gray-400 text-xs">VIP {effectiveVipLevel} membership fee outstanding</p>
+                  </div>
+                </div>
+              ) : vipMembership && vipStyle ? (
                 <div className="bg-[#F0B90B]/10 border border-[#F0B90B]/30 rounded-2xl p-4 flex items-center justify-between">
                   <div>
-                    <p className="text-[#F0B90B] font-black text-sm">{vipStyle.emoji} Current Package: {vipStyle.label}</p>
+                    <p className="text-[#F0B90B] font-black text-sm">Current Package: VIP {effectiveVipLevel}</p>
                     <p className="text-gray-400 text-xs mt-0.5">
                       {vipDaysLeft !== null && vipDaysLeft > 0 ? `${vipDaysLeft} days left` : '⚠️ Expired — you can renew'}
                     </p>
                   </div>
-                  <span className="text-2xl">{vipStyle.emoji}</span>
                 </div>
-              )}
+              ) : null}
 
               {/* How it works */}
               <div className="space-y-2">

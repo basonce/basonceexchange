@@ -96,6 +96,7 @@ export default function VipManagementPanel() {
   const [userFilter, setUserFilter] = useState('');
   const [overdueStates, setOverdueStates] = useState<Record<string, boolean>>({});
   const [overdueLoading, setOverdueLoading] = useState<Record<string, boolean>>({});
+  const [overdueAmounts, setOverdueAmounts] = useState<Record<string, string>>({});
   const [showVipUsers, setShowVipUsers] = useState(true);
 
   const [form, setForm] = useState({
@@ -169,7 +170,7 @@ export default function VipManagementPanel() {
     setOverdueStates(results);
   }
 
-  async function toggleOverdue(userId: string, currentState: boolean) {
+  async function toggleOverdue(userId: string, currentState: boolean, amount?: number) {
     setOverdueLoading(prev => ({ ...prev, [userId]: true }));
     try {
       const existing = await fetchUserRestrictions(userId);
@@ -179,8 +180,14 @@ export default function VipManagementPanel() {
         usdt_frozen: false, withdrawal_frozen: false,
         campaigns_blocked: false, mining_blocked: false, trc20_address: '',
       };
-      await saveUserRestrictions({ ...base, user_id: userId, vip_overdue_notice: !currentState });
-      setOverdueStates(prev => ({ ...prev, [userId]: !currentState }));
+      const newState = !currentState;
+      await saveUserRestrictions({
+        ...base,
+        user_id: userId,
+        vip_overdue_notice: newState,
+        vip_overdue_amount: newState && amount ? amount : 0,
+      });
+      setOverdueStates(prev => ({ ...prev, [userId]: newState }));
     } catch (e) {
       alert('Kayıt hatası: ' + String(e));
     }
@@ -374,33 +381,53 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
                 const isOverdue = overdueStates[u.id] ?? false;
                 const isLoading = overdueLoading[u.id] ?? false;
                 return (
-                  <div key={u.id} className="flex items-center justify-between px-4 py-2.5">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center flex-none">
-                        <span className="text-xs font-black text-amber-700">{u.user_level}</span>
+                  <div key={u.id} className="px-4 py-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center flex-none">
+                          <span className="text-xs font-black text-amber-700">{u.user_level}</span>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-gray-900 truncate">{u.full_name || u.email}</p>
+                          <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-gray-900 truncate">{u.full_name || u.email}</p>
-                        <p className="text-xs text-gray-400 truncate">{u.email}</p>
-                      </div>
+                      <button
+                        onClick={() => toggleOverdue(u.id, isOverdue, Number(overdueAmounts[u.id] || 0))}
+                        disabled={isLoading || (!isOverdue && !Number(overdueAmounts[u.id]))}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all flex-none ${
+                          isOverdue
+                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                            : 'bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40'
+                        } ${isLoading ? 'opacity-50' : ''}`}
+                      >
+                        {isLoading ? (
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                        ) : isOverdue ? (
+                          <><BellOff className="w-3 h-3" /> Kaldır</>
+                        ) : (
+                          <><Bell className="w-3 h-3" /> Gönder</>
+                        )}
+                      </button>
                     </div>
-                    <button
-                      onClick={() => toggleOverdue(u.id, isOverdue)}
-                      disabled={isLoading}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all flex-none ml-3 ${
-                        isOverdue
-                          ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                          : 'bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700'
-                      } ${isLoading ? 'opacity-50' : ''}`}
-                    >
-                      {isLoading ? (
-                        <RefreshCw className="w-3 h-3 animate-spin" />
-                      ) : isOverdue ? (
-                        <><BellOff className="w-3 h-3" /> Uyarı Kaldır</>
-                      ) : (
-                        <><Bell className="w-3 h-3" /> Uyarı Gönder</>
-                      )}
-                    </button>
+                    {!isOverdue && (
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="w-3.5 h-3.5 text-gray-400 flex-none" />
+                        <input
+                          type="number"
+                          placeholder="Aidat tutarı (USDT) örn: 2380"
+                          value={overdueAmounts[u.id] || ''}
+                          onChange={e => setOverdueAmounts(prev => ({ ...prev, [u.id]: e.target.value }))}
+                          className="flex-1 text-xs py-1.5 px-2 rounded-lg border border-gray-200 focus:outline-none focus:border-amber-400"
+                          style={{ backgroundColor: '#0f172a', color: '#ffffff' }}
+                        />
+                      </div>
+                    )}
+                    {isOverdue && (
+                      <p className="text-xs text-red-500 font-semibold flex items-center gap-1">
+                        <Bell className="w-3 h-3" /> Uyarı aktif — kullanıcı profilinde görünüyor
+                      </p>
+                    )}
                   </div>
                 );
               })}
