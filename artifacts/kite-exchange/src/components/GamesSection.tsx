@@ -11,6 +11,10 @@ interface TotalOdds { line: number; over: number; under: number }
 type OddsDir = 'up' | 'down' | 'same';
 interface OddsDirs { w1: OddsDir; x: OddsDir; w2: OddsDir }
 
+/* Extended markets — 100+ options per match */
+interface ExtMarket { label: string; odd: number; key: string }
+interface MarketGroup { title: string; markets: ExtMarket[] }
+
 interface LiveMatch {
   id: string;
   tmpl: MatchTemplate;
@@ -23,13 +27,14 @@ interface LiveMatch {
   prevOdds?: Odds;
   oddsDir?: OddsDirs;
   totalOdds: TotalOdds;
+  extMarkets: MarketGroup[];
   goalFlash: null | 'home' | 'away';
   flashTs: number;
   finishedAt: number | null;
   halfTimeScore?: { h: number; a: number };
 }
 
-type BetType = 'W1' | 'X' | 'W2' | 'OVER' | 'UNDER';
+type BetType = string;
 interface BetSlipItem {
   matchId: string;
   betType: BetType;
@@ -46,6 +51,9 @@ interface PlacedBet extends BetSlipItem {
   result?: string;
 }
 
+/* Winner ticker item */
+interface WinnerFeed { name: string; amount: number; match: string; betDesc: string; ts: number }
+
 /* ══════════════════════════════════════════════════════════
    HELPERS
 ══════════════════════════════════════════════════════════ */
@@ -54,45 +62,53 @@ function makeOdds(): Odds {
 }
 
 /**
- * Realistic odds recalculation:
- * - Score difference drives win/loss probability
- * - Time remaining amplifies volatility (urgent near 90')
- * - Winning team's W odds drop; losing team's W odds rise
- * - Draw (X) odds drop when leading, rise when tied
+ * CORRECT probability → odds conversion
+ * diff > 0 = this team is LEADING (low odds)
+ * diff < 0 = this team is LOSING  (high odds)
+ * diff = 0 = tied                 (balanced odds)
  */
-function scoreBasedOdds(diff: number, minsLeft: number): number {
-  // Probability model: each goal = ~0.25 base advantage, amplified by time pressure
-  const timeFactor = Math.max(0.2, minsLeft / 90);
-  if (diff === 0) return +(2.8 * timeFactor + rf(0.05, 0.15)).toFixed(2);  // ~50% base
-  const absD = Math.abs(diff);
-  // More goals ahead + less time = much lower odds (very likely to win)
-  const prob = Math.min(0.97, 0.52 + absD * 0.18 * (1 / timeFactor));
-  const raw = 1 / prob;
-  return Math.max(1.02, +(raw + rf(-0.04, 0.04)).toFixed(2));
+function winOdds(diff: number, minsLeft: number): number {
+  const tf = Math.max(0.10, minsLeft / 90); // time factor: 0→90
+  if (diff === 0) {
+    // Equal match — around 2.0-3.5 depending on time
+    return +Math.max(1.55, Math.min(4.0, rf(1.75, 3.2) * Math.sqrt(tf) + rf(0, 0.1))).toFixed(2);
+  } else if (diff > 0) {
+    // LEADING — high probability to win → LOW odds
+    const prob = Math.min(0.97, 0.55 + diff * 0.16 * (1 / tf));
+    return +Math.max(1.02, (1 / prob + rf(-0.04, 0.04))).toFixed(2);
+  } else {
+    // LOSING — low probability to win → HIGH odds
+    const absD = Math.abs(diff);
+    const prob = Math.max(0.02, 0.45 - absD * 0.15 * (1 / tf));
+    return +Math.min(40, (1 / prob + rf(-0.3, 0.3))).toFixed(2);
+  }
 }
 
-function recalcOdds(prev: Odds, homeScore: number, awayScore: number, minute: number, isGoal: boolean, _scoringSide?: 'home'|'away'): Odds {
+function drawOdds(diff: number, minsLeft: number): number {
+  const tf = Math.max(0.10, minsLeft / 90);
+  if (diff === 0) return +Math.max(2.4, Math.min(5.5, rf(2.8, 4.2) * Math.sqrt(tf))).toFixed(2);
+  const absD = Math.abs(diff);
+  // Hard to draw when one team leads by multiple goals late
+  const base = 4.5 + absD * 3.2 * (1 - tf * 0.6);
+  return +Math.max(3.2, Math.min(22, base + rf(-0.4, 0.4))).toFixed(2);
+}
+
+function recalcOdds(prev: Odds, homeScore: number, awayScore: number, minute: number, isGoal: boolean, _?: 'home'|'away'): Odds {
   const minsLeft = Math.max(1, 90 - minute);
-  const diff = homeScore - awayScore;   // positive = home leading, negative = away leading
-
-  let w1: number, w2: number, x: number;
-
+  const diff = homeScore - awayScore;
   if (isGoal) {
-    // Hard recalc from score reality on a goal
-    w1 = scoreBasedOdds(diff, minsLeft);
-    w2 = scoreBasedOdds(-diff, minsLeft);
-    // Draw odds: lower when a team leads, higher when tied
-    const xBase = diff === 0 ? rf(2.8, 3.8) : rf(4.5, 12) * Math.min(1, minsLeft / 45);
-    x = +Math.max(1.3, Math.min(20, xBase)).toFixed(2);
-  } else {
-    // Small random drift (keep values close to reality, don't drift from score state)
-    const d = 0.018;
-    w1 = Math.max(1.02, Math.min(25, prev.w1 + rf(-d, d)));
-    w2 = Math.max(1.02, Math.min(25, prev.w2 + rf(-d, d)));
-    x  = Math.max(1.5,  Math.min(20, prev.x  + rf(-d * 0.5, d * 0.5)));
+    return {
+      w1: winOdds(diff, minsLeft),
+      w2: winOdds(-diff, minsLeft),
+      x:  drawOdds(diff, minsLeft),
+    };
   }
-
-  return { w1: +w1.toFixed(2), x: +x.toFixed(2), w2: +w2.toFixed(2) };
+  const d = 0.018;
+  return {
+    w1: +Math.max(1.02, Math.min(40, prev.w1 + rf(-d, d))).toFixed(2),
+    w2: +Math.max(1.02, Math.min(40, prev.w2 + rf(-d, d))).toFixed(2),
+    x:  +Math.max(1.5,  Math.min(22, prev.x  + rf(-d*0.5, d*0.5))).toFixed(2),
+  };
 }
 
 function calcOddsDir(prev: Odds | undefined, cur: Odds): OddsDirs {
@@ -102,34 +118,126 @@ function calcOddsDir(prev: Odds | undefined, cur: Odds): OddsDirs {
 }
 
 function makeTotalOdds(): TotalOdds {
-  const line = (ri(1, 3)) + 0.5;
-  return { line, over: rf(1.40, 2.60), under: rf(1.40, 2.60) };
+  const line = ri(1, 3) + 0.5;
+  return { line, over: rf(1.45, 2.55), under: rf(1.45, 2.55) };
 }
+
+/* Build 100+ extended markets for a match */
+function buildExtMarkets(hs: number, as_: number, w1: number, xo: number, w2: number): MarketGroup[] {
+  const total = hs + as_;
+  // Double Chance: 1X | 12 | X2
+  const dc1x = +(1 / (1/w1 + 1/xo) * 1.05).toFixed(2);
+  const dc12 = +(1 / (1/w1 + 1/w2) * 1.05).toFixed(2);
+  const dcx2 = +(1 / (1/xo + 1/w2) * 1.05).toFixed(2);
+  // BTTS
+  const bttsY = +rf(1.55, 2.70).toFixed(2);
+  const bttsN = +rf(1.45, 2.30).toFixed(2);
+  // Asian Handicap lines
+  const ahLines = [-2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2];
+  const ahGroup: ExtMarket[] = ahLines.flatMap(l => [
+    { label: `${l > 0 ? '+' : ''}${l} 1`, odd: +rf(1.65, 2.15).toFixed(2), key: `AH_H${l}` },
+    { label: `${l > 0 ? '-' : l < 0 ? '+' : ''}${Math.abs(l)} 2`, odd: +rf(1.65, 2.15).toFixed(2), key: `AH_A${l}` },
+  ]);
+  // Multiple total goals lines
+  const totLines = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5];
+  const totGroup: ExtMarket[] = totLines.flatMap(l => {
+    const prob = 1 / (1 + Math.exp(-(total - l) * 0.8));
+    const overO = +Math.max(1.05, Math.min(18, 1 / Math.max(0.05, prob) + rf(-0.08, 0.08))).toFixed(2);
+    const underO = +Math.max(1.05, Math.min(18, 1 / Math.max(0.05, 1-prob) + rf(-0.08, 0.08))).toFixed(2);
+    return [
+      { label: `Ü ${l}`, odd: overO,  key: `OVER_${l}`  },
+      { label: `A ${l}`, odd: underO, key: `UNDER_${l}` },
+    ];
+  });
+  // Half-time result
+  const ht: ExtMarket[] = [
+    { label: '1. Yarı 1', odd: +rf(1.8, 3.5).toFixed(2),  key: 'HT1'  },
+    { label: '1. Yarı X', odd: +rf(1.9, 3.2).toFixed(2),  key: 'HTX'  },
+    { label: '1. Yarı 2', odd: +rf(1.8, 3.5).toFixed(2),  key: 'HT2'  },
+    { label: '2. Yarı 1', odd: +rf(1.7, 3.3).toFixed(2),  key: '2HT1' },
+    { label: '2. Yarı X', odd: +rf(1.8, 3.0).toFixed(2),  key: '2HTX' },
+    { label: '2. Yarı 2', odd: +rf(1.7, 3.3).toFixed(2),  key: '2HT2' },
+  ];
+  // HT / FT combos
+  const htft: ExtMarket[] = ['1/1','1/X','1/2','X/1','X/X','X/2','2/1','2/X','2/2'].map(k => ({
+    label: k, odd: +rf(2.2, 22).toFixed(2), key: `HTFT_${k}`,
+  }));
+  // Exact score
+  const scores = ['0-0','1-0','0-1','1-1','2-0','0-2','2-1','1-2','2-2','3-0','0-3','3-1','1-3','3-2','2-3','4+'];
+  const exactScore: ExtMarket[] = scores.map(s => ({
+    label: s, odd: +rf(5, 28).toFixed(2), key: `ES_${s}`,
+  }));
+  // Corners
+  const cLines = [7.5, 8.5, 9.5, 10.5, 11.5, 12.5];
+  const corners: ExtMarket[] = cLines.flatMap(l => [
+    { label: `Korner Ü ${l}`, odd: +rf(1.65, 2.30).toFixed(2), key: `COR_O_${l}` },
+    { label: `Korner A ${l}`, odd: +rf(1.65, 2.30).toFixed(2), key: `COR_U_${l}` },
+  ]);
+  // Yellow cards
+  const yLines = [2.5, 3.5, 4.5, 5.5];
+  const cards: ExtMarket[] = yLines.flatMap(l => [
+    { label: `Kart Ü ${l}`, odd: +rf(1.60, 2.20).toFixed(2), key: `CARD_O_${l}` },
+    { label: `Kart A ${l}`, odd: +rf(1.60, 2.20).toFixed(2), key: `CARD_U_${l}` },
+  ]);
+  // Clean sheet
+  const cs: ExtMarket[] = [
+    { label: '1 Clean Sheet - Evet', odd: +rf(1.75, 3.0).toFixed(2),  key: 'CS_H_Y' },
+    { label: '1 Clean Sheet - Hayir', odd: +rf(1.4, 2.0).toFixed(2),  key: 'CS_H_N' },
+    { label: '2 Clean Sheet - Evet', odd: +rf(1.75, 3.0).toFixed(2),  key: 'CS_A_Y' },
+    { label: '2 Clean Sheet - Hayir', odd: +rf(1.4, 2.0).toFixed(2),  key: 'CS_A_N' },
+  ];
+  // Win to nil
+  const wtn: ExtMarket[] = [
+    { label: '1 Win to Nil', odd: +rf(2.2, 5.5).toFixed(2), key: 'WTN_H' },
+    { label: '2 Win to Nil', odd: +rf(2.2, 5.5).toFixed(2), key: 'WTN_A' },
+  ];
+
+  return [
+    { title: 'Çifte Şans', markets: [
+      { label: '1X', odd: Math.min(dc1x, 1.85), key: 'DC_1X' },
+      { label: '12', odd: Math.min(dc12, 1.75), key: 'DC_12' },
+      { label: 'X2', odd: Math.min(dcx2, 1.85), key: 'DC_X2' },
+    ]},
+    { title: 'İki Takım da Gol Atar', markets: [
+      { label: 'Evet', odd: bttsY, key: 'BTTS_Y' },
+      { label: 'Hayir', odd: bttsN, key: 'BTTS_N' },
+    ]},
+    { title: 'Asya Handikap', markets: ahGroup },
+    { title: 'Toplam Gol A/Ü', markets: totGroup },
+    { title: 'Yarı Sonucu', markets: ht },
+    { title: 'İY/MS', markets: htft },
+    { title: 'Doğru Skor', markets: exactScore },
+    { title: 'Korneler', markets: corners },
+    { title: 'Sarı Kartlar', markets: cards },
+    { title: 'Goalsiz Galibiyet', markets: [...cs, ...wtn] },
+  ];
+}
+
 function buildMatch(tmpl: MatchTemplate, idx: number): LiveMatch {
   const minute = ri(4, 82);
   const maxG = Math.floor(minute / 24);
+  const hs = ri(0, maxG);
+  const as_ = ri(0, maxG);
+  const odds = makeOdds();
   return {
     id: `m_${idx}_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-    tmpl,
-    homeScore: ri(0, maxG),
-    awayScore: ri(0, maxG),
-    minute,
-    half: minute > 45 ? 2 : 1,
+    tmpl, homeScore: hs, awayScore: as_,
+    minute, half: minute > 45 ? 2 : 1,
     status: 'live',
-    odds: makeOdds(),
+    odds,
     totalOdds: makeTotalOdds(),
-    goalFlash: null,
-    flashTs: 0,
-    finishedAt: null,
+    extMarkets: buildExtMarkets(hs, as_, odds.w1, odds.x, odds.w2),
+    goalFlash: null, flashTs: 0, finishedAt: null,
   };
 }
 
 function betLabel(b: BetType, homeTeam: string, awayTeam: string): string {
   if (b === 'W1') return `1 (${homeTeam})`;
   if (b === 'W2') return `2 (${awayTeam})`;
-  if (b === 'X') return 'Draw (X)';
-  if (b === 'OVER') return 'Over';
-  return 'Under';
+  if (b === 'X') return 'Beraberlik (X)';
+  if (b === 'OVER') return 'Üst';
+  if (b === 'UNDER') return 'Alt';
+  return b;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -440,13 +548,93 @@ function OddBtn({
   );
 }
 
+/* ── Winners ticker bar ── */
+const FAKER_NAMES = ['Ahmed K.','Fatima W.','John M.','Grace A.','Kwame B.','Amara D.','Sipho N.','Yasmin T.','Carlos R.','Linda O.','Musa J.','Chioma E.'];
+function WinnersTickerBar({ feeds }: { feeds: WinnerFeed[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    let pos = 0; let af = 0;
+    const step = () => {
+      pos += 0.5;
+      if (pos >= el.scrollWidth / 2) pos = 0;
+      el.scrollLeft = pos;
+      af = requestAnimationFrame(step);
+    };
+    af = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(af);
+  }, [feeds]);
+  return (
+    <div style={{ background: '#060A0D', borderBottom: '1px solid #1C2128', overflow: 'hidden', position: 'relative' }}>
+      <div ref={ref} style={{ display: 'flex', gap: 0, overflowX: 'hidden', whiteSpace: 'nowrap' }}>
+        {[...feeds, ...feeds].map((f, i) => (
+          <div key={i} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 18px 5px 10px',
+            borderRight: '1px solid rgba(255,255,255,0.05)',
+            flexShrink: 0,
+          }}>
+            <span style={{ fontSize: 13 }}>🏆</span>
+            <span style={{ fontSize: 10, color: '#F0B90B', fontWeight: 800 }}>{f.name}</span>
+            <span style={{ fontSize: 10, color: '#4ade80', fontWeight: 900 }}>+{f.amount.toFixed(2)} USDT</span>
+            <span style={{ fontSize: 9, color: '#64748b' }}>· {f.betDesc}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Expandable market panel ── */
+function MarketPanel({
+  groups, matchId, onSelectBet,
+}: { groups: MarketGroup[] | undefined; matchId: string; onSelectBet: (matchId: string, type: BetType, odds: number) => void }) {
+  const [activeGroup, setActiveGroup] = useState(0);
+  if (!groups || groups.length === 0) return null;
+  const group = groups[Math.min(activeGroup, groups.length - 1)];
+  return (
+    <div style={{ background: '#0A0E13', borderTop: '1px solid #1C2128' }}>
+      {/* Category tabs */}
+      <div style={{ display: 'flex', gap: 0, overflowX: 'auto', borderBottom: '1px solid #1C2128', scrollbarWidth: 'none' }}>
+        {groups.map((g, i) => (
+          <button key={i} onClick={() => setActiveGroup(i)} style={{
+            padding: '6px 10px', whiteSpace: 'nowrap', background: 'none', border: 'none',
+            cursor: 'pointer', fontSize: 10, fontWeight: 700,
+            color: activeGroup === i ? '#F0B90B' : '#4B5563',
+            borderBottom: activeGroup === i ? '2px solid #F0B90B' : '2px solid transparent',
+            transition: 'all 0.15s',
+          }}>{g.title} <span style={{ color: '#374151', fontSize: 8 }}>{g.markets.length}</span></button>
+        ))}
+      </div>
+      {/* Markets grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 4, padding: '8px 8px 10px' }}>
+        {group?.markets.map(mkt => (
+          <button key={mkt.key}
+            onClick={() => onSelectBet(matchId, mkt.key, mkt.odd)}
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)',
+              borderRadius: 5, padding: '5px 4px', cursor: 'pointer',
+              transition: 'background 0.15s',
+            }}
+          >
+            <span style={{ fontSize: 9, color: '#94a3b8', lineHeight: 1.2, textAlign: 'center' }}>{mkt.label}</span>
+            <span style={{ fontSize: 13, color: '#F0B90B', fontWeight: 900 }}>{mkt.odd}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ── List row — perfect grid alignment ── */
 function MatchRow({
-  m, activeBetMatchId, onSelectBet,
+  m, activeBetMatchId, expandedMatchId, onSelectBet, onToggleExpand,
 }: {
   m: LiveMatch;
   activeBetMatchId: string | null;
+  expandedMatchId: string | null;
   onSelectBet: (matchId: string, type: BetType, odds: number) => void;
+  onToggleExpand: (id: string) => void;
 }) {
   const ht = m.tmpl.homeTeam;
   const at = m.tmpl.awayTeam;
@@ -454,6 +642,7 @@ function MatchRow({
   const isGoalFlash = !!(m.goalFlash && now - m.flashTs < 3500);
   const halfLabel = m.half === 1 ? '1st' : '2nd';
   const sel = activeBetMatchId === m.id;
+  const expanded = expandedMatchId === m.id;
   const homeWin = m.homeScore > m.awayScore;
   const awayWin = m.awayScore > m.homeScore;
   const od = m.oddsDir;
@@ -549,10 +738,30 @@ function MatchRow({
         }}>
           <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }} className="animate-pulse"/>
           <span style={{ fontSize: 10.5, color: '#4ade80', fontWeight: 900 }}>
-            ⚽ GOAL! {m.goalFlash === 'home' ? ht.name : at.name} — {m.homeScore}:{m.awayScore}
+            ⚽ GOL! {m.goalFlash === 'home' ? ht.name : at.name} — {m.homeScore}:{m.awayScore}
           </span>
           <span style={{ marginLeft: 'auto', fontSize: 9, color: '#6ee7b7' }}>Oranlar güncellendi</span>
         </div>
+      )}
+
+      {/* ── More markets button ── */}
+      <button
+        onClick={() => onToggleExpand(m.id)}
+        style={{
+          width: '100%', background: expanded ? 'rgba(240,185,11,0.06)' : 'rgba(255,255,255,0.02)',
+          border: 'none', borderTop: '1px solid rgba(255,255,255,0.05)',
+          padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+          transition: 'background 0.15s',
+        }}
+      >
+        <span style={{ fontSize: 9, color: expanded ? '#F0B90B' : '#4B5563', fontWeight: 700 }}>
+          {expanded ? '▲ Daha az market' : `▼ Tüm marketler (${(m.extMarkets ?? []).reduce((s,g)=>s+g.markets.length,0)}+)`}
+        </span>
+      </button>
+
+      {/* ── Expandable market panel ── */}
+      {expanded && (
+        <MarketPanel groups={m.extMarkets} matchId={m.id} onSelectBet={onSelectBet} />
       )}
     </div>
   );
@@ -770,12 +979,24 @@ export default function GamesSection() {
   const [matches, setMatches] = useState<LiveMatch[]>([]);
   const [betSlip, setBetSlip] = useState<BetSlipItem | null>(null);
   const [activeBetMatchId, setActiveBetMatchId] = useState<string | null>(null);
+  const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
   const [placedBets, setPlacedBets] = useState<PlacedBet[]>([]);
   const [usdtBalance, setUsdtBalance] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
   const [balanceId, setBalanceId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<'live' | 'bets'>('live');
   const [notification, setNotification] = useState<{ msg: string; type: 'win' | 'loss' | 'info' } | null>(null);
+  const [winnersFeeds, setWinnersFeeds] = useState<WinnerFeed[]>(() => {
+    const descOpts = ['Maç Sonucu 1','Maç Sonucu 2','Beraberlik','Üst 2.5','Alt 2.5','Asya Handicap','Çifte Şans','BTTS Evet','Doğru Skor','Yarı Sonucu 1'];
+    const teamOpts = ['FC Rayon','Mtibwa Sugar','Elman FC','APR FC','Nkana FC','Singida Utd','Harare Rvr','Pamplemousses'];
+    return Array.from({ length: 16 }, (_, i) => ({
+      name: FAKER_NAMES[i % FAKER_NAMES.length],
+      amount: +(rf(12, 980)).toFixed(2),
+      match: `${teamOpts[ri(0, teamOpts.length-1)]} vs ${teamOpts[ri(0, teamOpts.length-1)]}`,
+      betDesc: descOpts[ri(0, descOpts.length-1)],
+      ts: Date.now() - ri(0, 3600000),
+    }));
+  });
   const counter = useRef(200);
   const notifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialized = useRef(false);
@@ -913,7 +1134,6 @@ export default function GamesSection() {
             const newHome = scoringSide === 'home' ? mm.homeScore + 1 : mm.homeScore;
             const newAway = scoringSide === 'away' ? mm.awayScore + 1 : mm.awayScore;
             const totalGoals = newHome + newAway;
-            // Line must always be ABOVE current total goals — jump to next .5 above total
             const newLine = totalGoals + 0.5 + (Math.random() < 0.35 ? 1 : 0);
             const newTotalOdds: TotalOdds = {
               line: newLine,
@@ -933,7 +1153,10 @@ export default function GamesSection() {
           // Recalc result odds — big shift on goal, small drift every tick
           const newOdds = recalcOdds(mm.odds, mm.homeScore, mm.awayScore, mm.minute, !!scoringSide, scoringSide);
           const newOddsDir = calcOddsDir(mm.odds, newOdds);
-          mm = { ...mm, prevOdds: mm.odds, odds: newOdds, oddsDir: newOddsDir };
+          const newExtMarkets = scoringSide
+            ? buildExtMarkets(mm.homeScore, mm.awayScore, newOdds.w1, newOdds.x, newOdds.w2)
+            : mm.extMarkets;
+          mm = { ...mm, prevOdds: mm.odds, odds: newOdds, oddsDir: newOddsDir, extMarkets: newExtMarkets };
 
           return mm;
         });
@@ -954,6 +1177,30 @@ export default function GamesSection() {
     }, 10000);
     return () => clearInterval(tick);
   }, [settleBets]);
+
+  /* Winners feed — new entry every 15-28 seconds */
+  useEffect(() => {
+    const descOpts = ['Maç Sonucu 1','Maç Sonucu 2','Beraberlik','Üst 2.5','Alt 2.5','Asya Handicap -1','Çifte Şans 1X','BTTS Evet','Doğru Skor 1-0','Yarı Sonucu 2','Korner Ü 9.5','Kart A 3.5'];
+    const teamOpts = ['FC Rayon','Mtibwa Sugar','Elman FC','APR FC','Nkana FC','Singida Utd','Harare Rvr','Pamplemousses'];
+    const iv = setInterval(() => {
+      setWinnersFeeds(prev => {
+        const next: WinnerFeed = {
+          name: FAKER_NAMES[ri(0, FAKER_NAMES.length - 1)],
+          amount: +(rf(18, 1250)).toFixed(2),
+          match: `${teamOpts[ri(0, teamOpts.length-1)]} vs ${teamOpts[ri(0, teamOpts.length-1)]}`,
+          betDesc: descOpts[ri(0, descOpts.length-1)],
+          ts: Date.now(),
+        };
+        return [next, ...prev.slice(0, 19)];
+      });
+    }, ri(15000, 28000));
+    return () => clearInterval(iv);
+  }, []);
+
+  /* Toggle expanded match markets */
+  const handleToggleExpand = useCallback((id: string) => {
+    setExpandedMatchId(prev => prev === id ? null : id);
+  }, []);
 
   /* Select bet */
   const handleSelectBet = useCallback((matchId: string, type: BetType, odds: number) => {
@@ -1071,6 +1318,9 @@ export default function GamesSection() {
       {/* ── LIVE VIEW ── */}
       {activeView === 'live' && (
         <>
+          {/* Winners feed ticker */}
+          <WinnersTickerBar feeds={winnersFeeds} />
+
           {/* Top horizontal cards — auto-scroll L→R */}
           <div
             ref={topScrollRef}
@@ -1118,7 +1368,7 @@ export default function GamesSection() {
                   </span>
                 </div>
                 {ms.map(m => (
-                  <MatchRow key={m.id} m={m} activeBetMatchId={activeBetMatchId} onSelectBet={handleSelectBet} />
+                  <MatchRow key={m.id} m={m} activeBetMatchId={activeBetMatchId} expandedMatchId={expandedMatchId} onSelectBet={handleSelectBet} onToggleExpand={handleToggleExpand} />
                 ))}
               </div>
             );
