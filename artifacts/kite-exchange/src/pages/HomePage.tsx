@@ -8,6 +8,7 @@ import HomeMarketList from '../components/HomeMarketList';
 import FuturesMarketList from '../components/FuturesMarketList';
 import NewListingSection from '../components/NewListingSection';
 import HomeTradFiList from '../components/HomeTradFiList';
+import GamesSection from '../components/GamesSection';
 import MenuDrawer from '../components/MenuDrawer';
 import FuturesCampaignModal from '../components/FuturesCampaignModal';
 import LaunchpoolModal from '../components/LaunchpoolModal';
@@ -35,7 +36,7 @@ interface HomePageProps {
 }
 
 export default function HomePage({ onNavigate }: HomePageProps) {
-  const [activeTab, setActiveTab] = useState<'crypto' | 'spot' | 'futures' | 'new-listing' | 'alpha'>('crypto');
+  const [activeTab, setActiveTab] = useState<'crypto' | 'spot' | 'futures' | 'new-listing' | 'alpha' | 'games'>('crypto');
   const [activeFilter, setActiveFilter] = useState<'gainers' | 'losers' | '24h-vol' | 'tradfi'>('gainers');
   const [discoverTab, setDiscoverTab] = useState<'discover' | 'following' | 'campaign' | 'announcement'>('discover');
   const [showFAB, setShowFAB] = useState(false);
@@ -500,6 +501,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 { id: 'futures', label: 'Futures' },
                 { id: 'new-listing', label: 'New' },
                 { id: 'alpha', label: 'Basonce Alpha', special: true },
+                { id: 'games', label: '🎮 Games', special: false },
               ].map(({ id, label, special }) => (
                 <button
                   key={id}
@@ -515,7 +517,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               ))}
             </div>
 
-            {activeTab !== 'new-listing' && activeTab !== 'futures' && activeTab !== 'alpha' && (
+            {activeTab !== 'new-listing' && activeTab !== 'futures' && activeTab !== 'alpha' && activeTab !== 'games' && (
               <div className="flex items-center gap-1.5 mb-1.5 overflow-x-auto scrollbar-hide -mx-4 px-4">
                 {[
                   { id: 'gainers', label: 'Gainers' },
@@ -548,6 +550,8 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             <FuturesMarketList />
           ) : activeTab === 'alpha' ? (
             <BasonceAlpha />
+          ) : activeTab === 'games' ? (
+            <GamesSection />
           ) : activeFilter === 'tradfi' ? (
             <HomeTradFiList />
           ) : (
