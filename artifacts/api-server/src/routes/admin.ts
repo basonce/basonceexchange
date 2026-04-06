@@ -17,7 +17,7 @@ router.get('/admin/users', async (req, res) => {
     }
 
     const resp = await fetch(
-      `${SUPABASE_URL}/rest/v1/user_profiles?select=id,email,full_name,is_admin,is_active,is_real_user,is_deleted,created_at,verification_status,user_level&order=created_at.desc&limit=500`,
+      `${SUPABASE_URL}/rest/v1/user_profiles?select=id,email,full_name,is_admin,is_active,is_real_user,is_deleted,created_at,verification_status,user_level&is_deleted=eq.false&is_real_user=eq.true&order=created_at.desc&limit=500`,
       {
         headers: {
           'apikey': SERVICE_KEY,
