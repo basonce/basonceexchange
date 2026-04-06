@@ -114,7 +114,22 @@ function OddPill({
   );
 }
 
-/* ── Horizontal match card ── */
+/* ── Big Team Logo ── */
+function BigLogo({ abbr, color, size = 44 }: { abbr: string; color: string; size?: number }) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%',
+      background: `radial-gradient(circle at 35% 35%, ${color}ff, ${color}99)`,
+      border: `2.5px solid rgba(255,255,255,0.18)`,
+      boxShadow: `0 0 12px ${color}66, inset 0 1px 2px rgba(255,255,255,0.25)`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: size > 40 ? 10 : 8, fontWeight: 900, color: '#fff', flexShrink: 0,
+      letterSpacing: '-0.3px', textShadow: '0 1px 3px rgba(0,0,0,0.7)',
+    }}>{abbr}</div>
+  );
+}
+
+/* ── Horizontal match card (reference design) ── */
 function TopCard({
   m, selectedBetMatchId, onSelect,
 }: { m: LiveMatch; selectedBetMatchId: string | null; onSelect: (matchId: string, type: BetType, odds: number) => void }) {
@@ -125,53 +140,110 @@ function TopCard({
   const sel = selectedBetMatchId === m.id;
 
   return (
-    <div style={{
-      minWidth: 164, maxWidth: 164, flexShrink: 0,
-      background: isFlashing ? 'linear-gradient(145deg,#0f1f0f,#162016)' : 'linear-gradient(145deg,#161B22,#1C2128)',
-      border: `1.5px solid ${sel ? '#3b82f6' : isFlashing ? '#22c55e88' : '#2B3139'}`,
-      borderRadius: 10, padding: '8px 9px 7px',
-      transition: 'border-color 0.3s, background 0.3s',
-    }}>
-      {/* Badge + minute */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e' }} />
-          <span style={{ fontSize: 8, color: '#22c55e', fontWeight: 700 }}>LIVE</span>
+    <div
+      onClick={() => onSelect(m.id, 'W1', m.odds.w1)}
+      style={{
+        minWidth: 190, maxWidth: 190, flexShrink: 0, cursor: 'pointer',
+        background: isFlashing
+          ? 'linear-gradient(160deg,#0a2416,#0f3320,#0a2416)'
+          : 'linear-gradient(160deg,#0d2318,#163325,#0d2318)',
+        border: `1.5px solid ${sel ? '#3b82f6' : isFlashing ? '#22c55e' : 'rgba(255,255,255,0.09)'}`,
+        borderRadius: 12,
+        overflow: 'hidden',
+        transition: 'border-color 0.3s, background 0.3s',
+        boxShadow: sel ? '0 0 0 2px #3b82f644' : '0 2px 12px rgba(0,0,0,0.4)',
+      }}
+    >
+      {/* Top green header */}
+      <div style={{
+        background: 'linear-gradient(90deg,rgba(22,163,74,0.25),rgba(22,163,74,0.1))',
+        borderBottom: '1px solid rgba(22,163,74,0.2)',
+        padding: '5px 10px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+      }}>
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
+        <span style={{ fontSize: 9.5, color: '#86efac', fontWeight: 800, letterSpacing: '0.02em' }}>Premature Victory</span>
+      </div>
+
+      {/* League name */}
+      <p style={{ fontSize: 9, color: '#6ee7b7', textAlign: 'center', margin: '5px 8px 0', fontWeight: 600, opacity: 0.8 }}>
+        {lg?.flag} {lg?.country}, {lg?.name.split(' ').slice(0,2).join(' ')}
+      </p>
+
+      {/* Main: Logo | Info | Logo */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '8px 10px 4px', gap: 0 }}>
+        {/* Home logo */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, width: 48 }}>
+          <BigLogo abbr={ht.abbr} color={ht.color} size={44} />
         </div>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 3,
-          background: '#ef444420', borderRadius: 4, padding: '1px 5px',
-        }}>
-          <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#ef4444' }} className="animate-pulse" />
-          <span style={{ fontSize: 9, color: '#ef4444', fontWeight: 800 }}>{m.minute}'</span>
+
+        {/* Center info */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0 }}>
+          {/* Match name */}
+          <p style={{
+            fontSize: 9.5, color: '#e2e8f0', fontWeight: 700, textAlign: 'center', lineHeight: 1.3,
+            overflow: 'hidden', width: '100%',
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+          }}>
+            {ht.name} — {at.name}
+          </p>
+          {/* Live time */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 4, marginTop: 2,
+            background: 'rgba(239,68,68,0.15)', borderRadius: 4, padding: '2px 7px',
+            border: '1px solid rgba(239,68,68,0.3)',
+          }}>
+            <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444' }} className="animate-pulse" />
+            <span style={{ fontSize: 11, color: '#fca5a5', fontWeight: 900 }}>{m.minute}'</span>
+          </div>
+          {/* Score */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 1 }}>
+            <span style={{
+              fontSize: 22, fontWeight: 900, lineHeight: 1,
+              color: isFlashing && m.goalFlash === 'home' ? '#4ade80' : '#ffffff',
+              transition: 'color 0.3s',
+            }}>{m.homeScore}</span>
+            <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>:</span>
+            <span style={{
+              fontSize: 22, fontWeight: 900, lineHeight: 1,
+              color: isFlashing && m.goalFlash === 'away' ? '#4ade80' : '#ffffff',
+              transition: 'color 0.3s',
+            }}>{m.awayScore}</span>
+          </div>
+        </div>
+
+        {/* Away logo */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, width: 48 }}>
+          <BigLogo abbr={at.abbr} color={at.color} size={44} />
         </div>
       </div>
 
-      {/* League */}
-      <p style={{ fontSize: 8.5, color: '#848E9C', marginBottom: 5 }}>{lg?.flag} {lg?.country} · {lg?.name.split(' ').slice(0, 2).join(' ')}</p>
-
-      {/* Teams + Score */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-          <TeamBadge abbr={ht.abbr} color={ht.color} size={26} />
-          <span style={{ fontSize: 8, color: '#94a3b8', textAlign: 'center', lineHeight: 1.2, maxWidth: 54, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{ht.name}</span>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-          <span style={{ fontSize: 20, fontWeight: 900, color: isFlashing && m.goalFlash === 'home' ? '#4ade80' : '#F0B90B', transition: 'color 0.3s', lineHeight: 1 }}>{m.homeScore}</span>
-          <span style={{ fontSize: 9, color: '#4B5563' }}>—</span>
-          <span style={{ fontSize: 20, fontWeight: 900, color: isFlashing && m.goalFlash === 'away' ? '#4ade80' : '#F0B90B', transition: 'color 0.3s', lineHeight: 1 }}>{m.awayScore}</span>
-        </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-          <TeamBadge abbr={at.abbr} color={at.color} size={26} />
-          <span style={{ fontSize: 8, color: '#94a3b8', textAlign: 'center', lineHeight: 1.2, maxWidth: 54, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{at.name}</span>
-        </div>
-      </div>
-
-      {/* Odds */}
-      <div style={{ display: 'flex', gap: 3 }}>
-        <OddPill label="W1" value={m.odds.w1} active={sel} onClick={() => onSelect(m.id, 'W1', m.odds.w1)} />
-        <OddPill label="X" value={m.odds.x} active={false} onClick={() => onSelect(m.id, 'X', m.odds.x)} />
-        <OddPill label="W2" value={m.odds.w2} active={false} onClick={() => onSelect(m.id, 'W2', m.odds.w2)} />
+      {/* Odds row */}
+      <div style={{ display: 'flex', gap: 0, padding: '6px 8px 8px', borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 4 }}>
+        {[
+          { label: 'W1', value: m.odds.w1, type: 'W1' as BetType },
+          { label: 'X', value: m.odds.x, type: 'X' as BetType },
+          { label: 'W2', value: m.odds.w2, type: 'W2' as BetType },
+        ].map((o, i) => (
+          <button
+            key={o.label}
+            onClick={e => { e.stopPropagation(); onSelect(m.id, o.type, o.value); }}
+            style={{
+              flex: 1,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+              background: sel && o.type === 'W1' ? 'rgba(59,130,246,0.3)' : 'rgba(0,0,0,0.35)',
+              border: `1px solid ${sel && o.type === 'W1' ? '#3b82f6' : 'rgba(255,255,255,0.08)'}`,
+              borderRadius: i === 0 ? '6px 0 0 6px' : i === 2 ? '0 6px 6px 0' : '0',
+              borderLeft: i > 0 ? 'none' : undefined,
+              padding: '4px 2px',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >
+            <span style={{ fontSize: 8.5, color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>{o.label}</span>
+            <span style={{ fontSize: 13, color: '#F0B90B', fontWeight: 900 }}>{o.value}</span>
+          </button>
+        ))}
       </div>
     </div>
   );
