@@ -557,7 +557,18 @@ function OddBtn({
 }
 
 /* ── Winners ticker bar ── */
-const FAKER_NAMES = ['Ahmed K.','Fatima W.','John M.','Grace A.','Kwame B.','Amara D.','Sipho N.','Yasmin T.','Carlos R.','Linda O.','Musa J.','Chioma E.'];
+const FAKER_NAMES = [
+  'James T.','Emma L.','Luca R.','Sofia B.','Marcus K.',
+  'Olivia S.','Diego V.','Sarah J.','Ryan O.','Chloe W.',
+  'Victor P.','Isabelle F.','Nathan G.','Zara H.','Lucas M.',
+  'Elena D.','Kevin C.','Priya N.','Tyler B.','Hana S.',
+  'Owen R.','Maya K.','Ethan L.','Lily P.','Noah W.',
+];
+/* Big-win amount: 70% normal (150-4500), 30% large (6000-48000) */
+function fakeWinAmt(): number {
+  if (Math.random() < 0.30) return +(rf(6000, 48000)).toFixed(2);
+  return +(rf(150, 4500)).toFixed(2);
+}
 function WinnersTickerBar({ feeds }: { feeds: WinnerFeed[] }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -999,7 +1010,7 @@ export default function GamesSection() {
     const teamOpts = ['FC Rayon','Mtibwa Sugar','Elman FC','APR FC','Nkana FC','Singida Utd','Harare Rvr','Pamplemousses'];
     return Array.from({ length: 16 }, (_, i) => ({
       name: FAKER_NAMES[i % FAKER_NAMES.length],
-      amount: +(rf(12, 980)).toFixed(2),
+      amount: fakeWinAmt(),
       match: `${teamOpts[ri(0, teamOpts.length-1)]} vs ${teamOpts[ri(0, teamOpts.length-1)]}`,
       betDesc: descOpts[ri(0, descOpts.length-1)],
       ts: Date.now() - ri(0, 3600000),
@@ -1194,7 +1205,7 @@ export default function GamesSection() {
       setWinnersFeeds(prev => {
         const next: WinnerFeed = {
           name: FAKER_NAMES[ri(0, FAKER_NAMES.length - 1)],
-          amount: +(rf(18, 1250)).toFixed(2),
+          amount: fakeWinAmt(),
           match: `${teamOpts[ri(0, teamOpts.length-1)]} vs ${teamOpts[ri(0, teamOpts.length-1)]}`,
           betDesc: descOpts[ri(0, descOpts.length-1)],
           ts: Date.now(),
