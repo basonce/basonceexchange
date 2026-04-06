@@ -53,30 +53,45 @@ function makeOdds(): Odds {
   return { w1: rf(1.25, 4.50), x: rf(2.80, 5.20), w2: rf(1.25, 4.50) };
 }
 
-function recalcOdds(prev: Odds, homeScore: number, awayScore: number, minute: number, isGoal: boolean, scoringSide?: 'home'|'away'): Odds {
-  let { w1, x, w2 } = prev;
-  const minsLeft = Math.max(1, 90 - minute);
-  // More volatile near end of match
-  const urgency = 90 / minsLeft;
+/**
+ * Realistic odds recalculation:
+ * - Score difference drives win/loss probability
+ * - Time remaining amplifies volatility (urgent near 90')
+ * - Winning team's W odds drop; losing team's W odds rise
+ * - Draw (X) odds drop when leading, rise when tied
+ */
+function scoreBasedOdds(diff: number, minsLeft: number): number {
+  // Probability model: each goal = ~0.25 base advantage, amplified by time pressure
+  const timeFactor = Math.max(0.2, minsLeft / 90);
+  if (diff === 0) return +(2.8 * timeFactor + rf(0.05, 0.15)).toFixed(2);  // ~50% base
+  const absD = Math.abs(diff);
+  // More goals ahead + less time = much lower odds (very likely to win)
+  const prob = Math.min(0.97, 0.52 + absD * 0.18 * (1 / timeFactor));
+  const raw = 1 / prob;
+  return Math.max(1.02, +(raw + rf(-0.04, 0.04)).toFixed(2));
+}
 
-  if (isGoal && scoringSide) {
-    const shift = rf(0.08, 0.32) * Math.sqrt(urgency);
-    if (scoringSide === 'home') {
-      w1 = Math.max(1.02, w1 - shift * (1 + Math.abs(homeScore - awayScore) * 0.15));
-      w2 = Math.min(22, w2 + shift * 1.6);
-      x  = Math.min(12, x  + shift * 0.6);
-    } else {
-      w2 = Math.max(1.02, w2 - shift * (1 + Math.abs(awayScore - homeScore) * 0.15));
-      w1 = Math.min(22, w1 + shift * 1.6);
-      x  = Math.min(12, x  + shift * 0.6);
-    }
+function recalcOdds(prev: Odds, homeScore: number, awayScore: number, minute: number, isGoal: boolean, _scoringSide?: 'home'|'away'): Odds {
+  const minsLeft = Math.max(1, 90 - minute);
+  const diff = homeScore - awayScore;   // positive = home leading, negative = away leading
+
+  let w1: number, w2: number, x: number;
+
+  if (isGoal) {
+    // Hard recalc from score reality on a goal
+    w1 = scoreBasedOdds(diff, minsLeft);
+    w2 = scoreBasedOdds(-diff, minsLeft);
+    // Draw odds: lower when a team leads, higher when tied
+    const xBase = diff === 0 ? rf(2.8, 3.8) : rf(4.5, 12) * Math.min(1, minsLeft / 45);
+    x = +Math.max(1.3, Math.min(20, xBase)).toFixed(2);
   } else {
-    // Small random drift every tick
-    const d = 0.025;
-    w1 = Math.max(1.02, Math.min(22, w1 + rf(-d, d)));
-    x  = Math.max(1.5,  Math.min(12, x  + rf(-d*0.4, d*0.4)));
-    w2 = Math.max(1.02, Math.min(22, w2 + rf(-d, d)));
+    // Small random drift (keep values close to reality, don't drift from score state)
+    const d = 0.018;
+    w1 = Math.max(1.02, Math.min(25, prev.w1 + rf(-d, d)));
+    w2 = Math.max(1.02, Math.min(25, prev.w2 + rf(-d, d)));
+    x  = Math.max(1.5,  Math.min(20, prev.x  + rf(-d * 0.5, d * 0.5)));
   }
+
   return { w1: +w1.toFixed(2), x: +x.toFixed(2), w2: +w2.toFixed(2) };
 }
 
@@ -398,7 +413,34 @@ function TopCard({
   );
 }
 
-/* ── List row ── */
+/* ── Compact odds button for list rows ── */
+function OddBtn({
+  label, value, trend, active, small, onClick,
+}: { label: string; value: number; trend?: OddsDir; active?: boolean; small?: boolean; onClick: () => void }) {
+  const tc = trend === 'up' ? '#4ade80' : trend === 'down' ? '#ef4444' : '#F0B90B';
+  const arrow = trend === 'up' ? '▲' : trend === 'down' ? '▼' : '';
+  return (
+    <button
+      onClick={onClick}
+      className={trend && trend !== 'same' ? 'odds-changed' : ''}
+      style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        gap: 0, background: active ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.04)',
+        border: `1px solid ${active ? '#3b82f6' : 'rgba(255,255,255,0.07)'}`,
+        borderRadius: 4, padding: small ? '2px 3px' : '3px 4px',
+        minWidth: small ? 36 : 40, cursor: 'pointer', transition: 'background 0.2s',
+      }}
+    >
+      <span style={{ fontSize: small ? 7.5 : 8, color: '#64748b', fontWeight: 600, lineHeight: 1.2 }}>{label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <span style={{ fontSize: small ? 11 : 12, color: active ? '#93c5fd' : tc, fontWeight: 900, lineHeight: 1.3, transition: 'color 0.4s' }}>{value}</span>
+        {arrow && <span style={{ fontSize: 6.5, color: tc, fontWeight: 900 }}>{arrow}</span>}
+      </div>
+    </button>
+  );
+}
+
+/* ── List row — perfect grid alignment ── */
 function MatchRow({
   m, activeBetMatchId, onSelectBet,
 }: {
@@ -408,77 +450,108 @@ function MatchRow({
 }) {
   const ht = m.tmpl.homeTeam;
   const at = m.tmpl.awayTeam;
-  const isFlashing = m.goalFlash && Date.now() - m.flashTs < 3000;
+  const now = Date.now();
+  const isGoalFlash = !!(m.goalFlash && now - m.flashTs < 3500);
   const halfLabel = m.half === 1 ? '1st' : '2nd';
   const sel = activeBetMatchId === m.id;
+  const homeWin = m.homeScore > m.awayScore;
+  const awayWin = m.awayScore > m.homeScore;
+  const od = m.oddsDir;
+  const ln = m.totalOdds.line;
 
   return (
-    <div style={{
-      background: sel ? '#0d1f35' : isFlashing ? '#0b1a0b' : 'transparent',
-      borderBottom: '1px solid #1C2128',
-      transition: 'background 0.3s',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'stretch' }}>
-        {/* Minute */}
+    <div
+      className={isGoalFlash ? 'goal-ring' : ''}
+      style={{
+        borderTop: `1px solid ${isGoalFlash ? 'rgba(34,197,94,0.4)' : sel ? 'rgba(59,130,246,0.25)' : 'transparent'}`,
+        borderRight: `1px solid ${isGoalFlash ? 'rgba(34,197,94,0.4)' : sel ? 'rgba(59,130,246,0.25)' : 'transparent'}`,
+        borderLeft: `1px solid ${isGoalFlash ? 'rgba(34,197,94,0.4)' : sel ? 'rgba(59,130,246,0.25)' : 'transparent'}`,
+        borderBottom: '1px solid #1C2128',
+        background: sel ? 'rgba(29,78,216,0.06)' : 'transparent',
+        transition: 'background 0.3s',
+      }}
+    >
+      {/* ── Main grid: [time | teams | result-odds | total-odds] ── */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '34px 1fr 126px 82px',
+        alignItems: 'stretch',
+      }}>
+
+        {/* Time column */}
         <div style={{
-          width: 36, display: 'flex', flexDirection: 'column', alignItems: 'center',
-          justifyContent: 'center', borderRight: '1px solid #1C2128', flexShrink: 0, gap: 1, paddingTop: 2,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          borderRight: '1px solid #1C2128', padding: '5px 0', gap: 1,
         }}>
-          <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 800 }}>{m.minute}'</span>
-          <span style={{ fontSize: 8.5, color: '#374151', fontWeight: 700 }}>{halfLabel}</span>
+          <span style={{ fontSize: 10.5, color: '#ef4444', fontWeight: 900, lineHeight: 1 }}>{m.minute}'</span>
+          <span style={{ fontSize: 7.5, color: '#374151', fontWeight: 700 }}>{halfLabel}</span>
         </div>
 
-        {/* Teams */}
+        {/* Teams column — each row: [shield | name | score] perfect grid */}
         <div style={{
-          flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center',
-          padding: '5px 7px', borderRight: '1px solid #1C2128', minWidth: 0, gap: 4,
+          display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          padding: '4px 6px', borderRight: '1px solid #1C2128', gap: 3, minWidth: 0,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <TeamShield abbr={ht.abbr} color={ht.color} size={22} />
+          {/* Home row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '22px 1fr 16px', alignItems: 'center', gap: 4 }}>
+            <TeamShield abbr={ht.abbr} color={ht.color} size={22}/>
             <span style={{
-              fontSize: 12, fontWeight: 700,
-              color: isFlashing && m.goalFlash === 'home' ? '#4ade80' : '#e2e8f0',
-              flex: 1, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-              transition: 'color 0.3s',
+              fontSize: 11.5, fontWeight: homeWin ? 800 : 600,
+              color: isGoalFlash && m.goalFlash === 'home' ? '#4ade80' : homeWin ? '#e2e8f0' : '#94a3b8',
+              overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+              transition: 'color 0.35s',
             }}>{ht.name}</span>
-            <span style={{ fontSize: 14, fontWeight: 900, color: isFlashing && m.goalFlash === 'home' ? '#4ade80' : '#F0B90B', minWidth: 12, textAlign: 'right', transition: 'color 0.3s' }}>{m.homeScore}</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <TeamShield abbr={at.abbr} color={at.color} size={22} />
             <span style={{
-              fontSize: 12, fontWeight: 700,
-              color: isFlashing && m.goalFlash === 'away' ? '#4ade80' : '#94a3b8',
-              flex: 1, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-              transition: 'color 0.3s',
+              fontSize: 13, fontWeight: 900, textAlign: 'right',
+              color: isGoalFlash && m.goalFlash === 'home' ? '#4ade80' : '#F0B90B',
+              transition: 'color 0.35s',
+            }}>{m.homeScore}</span>
+          </div>
+          {/* Away row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '22px 1fr 16px', alignItems: 'center', gap: 4 }}>
+            <TeamShield abbr={at.abbr} color={at.color} size={22}/>
+            <span style={{
+              fontSize: 11.5, fontWeight: awayWin ? 800 : 600,
+              color: isGoalFlash && m.goalFlash === 'away' ? '#4ade80' : awayWin ? '#e2e8f0' : '#94a3b8',
+              overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+              transition: 'color 0.35s',
             }}>{at.name}</span>
-            <span style={{ fontSize: 14, fontWeight: 900, color: isFlashing && m.goalFlash === 'away' ? '#4ade80' : '#F0B90B', minWidth: 12, textAlign: 'right', transition: 'color 0.3s' }}>{m.awayScore}</span>
+            <span style={{
+              fontSize: 13, fontWeight: 900, textAlign: 'right',
+              color: isGoalFlash && m.goalFlash === 'away' ? '#4ade80' : '#F0B90B',
+              transition: 'color 0.35s',
+            }}>{m.awayScore}</span>
           </div>
         </div>
 
-        {/* RESULT odds */}
-        <div style={{ display: 'flex', gap: 2, alignItems: 'center', padding: '0 4px', borderRight: '1px solid #1C2128' }}>
-          <OddPill label="W1" value={m.odds.w1} trend={m.oddsDir?.w1} active={sel} onClick={() => onSelectBet(m.id, 'W1', m.odds.w1)} />
-          <OddPill label="X"  value={m.odds.x}  trend={m.oddsDir?.x}             onClick={() => onSelectBet(m.id, 'X',  m.odds.x)}  />
-          <OddPill label="W2" value={m.odds.w2} trend={m.oddsDir?.w2}            onClick={() => onSelectBet(m.id, 'W2', m.odds.w2)} />
+        {/* Result odds: W1 | X | W2 */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '0 3px', borderRight: '1px solid #1C2128' }}>
+          <OddBtn label="W1" value={m.odds.w1} trend={od?.w1} active={sel} small onClick={() => onSelectBet(m.id,'W1',m.odds.w1)}/>
+          <OddBtn label="X"  value={m.odds.x}  trend={od?.x}             small onClick={() => onSelectBet(m.id,'X', m.odds.x)} />
+          <OddBtn label="W2" value={m.odds.w2} trend={od?.w2}            small onClick={() => onSelectBet(m.id,'W2',m.odds.w2)}/>
         </div>
 
-        {/* TOTAL odds */}
-        <div style={{ display: 'flex', gap: 2, alignItems: 'center', padding: '0 4px' }}>
-          <OddPill label={`O ${m.totalOdds.line}`} value={m.totalOdds.over}  onClick={() => onSelectBet(m.id, 'OVER',  m.totalOdds.over)}  />
-          <OddPill label={`U ${m.totalOdds.line}`} value={m.totalOdds.under} onClick={() => onSelectBet(m.id, 'UNDER', m.totalOdds.under)} />
+        {/* Total odds: Ü (Over) | A (Under) — Turkish labels */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '0 3px' }}>
+          <OddBtn label={`Ü ${ln}`} value={m.totalOdds.over}  small onClick={() => onSelectBet(m.id,'OVER', m.totalOdds.over)} />
+          <OddBtn label={`A ${ln}`} value={m.totalOdds.under} small onClick={() => onSelectBet(m.id,'UNDER',m.totalOdds.under)}/>
         </div>
+
       </div>
 
-      {/* Goal banner */}
-      {isFlashing && m.goalFlash && (
+      {/* ── Goal flash banner ── */}
+      {isGoalFlash && m.goalFlash && (
         <div style={{
-          background: 'linear-gradient(90deg,#052e16,#14532d,#052e16)',
-          padding: '2px 44px', display: 'flex', alignItems: 'center', gap: 6,
+          display: 'flex', alignItems: 'center', gap: 6,
+          background: 'linear-gradient(90deg,rgba(5,46,22,0.9),rgba(20,83,45,0.95),rgba(5,46,22,0.9))',
+          padding: '3px 12px',
+          borderTop: '1px solid rgba(34,197,94,0.3)',
         }}>
-          <span>⚽</span>
-          <span style={{ fontSize: 11, color: '#4ade80', fontWeight: 800 }}>
-            GOAL — {m.goalFlash === 'home' ? ht.name : at.name} scores!
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }} className="animate-pulse"/>
+          <span style={{ fontSize: 10.5, color: '#4ade80', fontWeight: 900 }}>
+            ⚽ GOAL! {m.goalFlash === 'home' ? ht.name : at.name} — {m.homeScore}:{m.awayScore}
           </span>
+          <span style={{ marginLeft: 'auto', fontSize: 9, color: '#6ee7b7' }}>Oranlar güncellendi</span>
         </div>
       )}
     </div>
@@ -1001,21 +1074,21 @@ export default function GamesSection() {
             ))}
           </div>
 
-          {/* Column headers */}
+          {/* Column headers — exact grid match: 34px | 1fr | 126px | 82px */}
           <div style={{
-            display: 'flex', alignItems: 'center',
+            display: 'grid', gridTemplateColumns: '34px 1fr 126px 82px',
             background: '#12161B', borderTop: '1px solid #1C2128', borderBottom: '1px solid #1C2128',
-            padding: '4px 0',
+            padding: '3px 0',
           }}>
-            <div style={{ width: 36, flexShrink: 0 }} />
-            <div style={{ flex: 1, paddingLeft: 7 }}>
-              <span style={{ fontSize: 9.5, color: '#374151', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Match</span>
+            <div />
+            <div style={{ paddingLeft: 7 }}>
+              <span style={{ fontSize: 8.5, color: '#374151', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Match</span>
             </div>
-            <div style={{ padding: '0 4px', width: 140 }}>
-              <span style={{ fontSize: 9.5, color: '#374151', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', textAlign: 'center' }}>RESULT ↓</span>
+            <div style={{ textAlign: 'center' }}>
+              <span style={{ fontSize: 8.5, color: '#374151', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>W1 · X · W2</span>
             </div>
-            <div style={{ padding: '0 4px', width: 96 }}>
-              <span style={{ fontSize: 9.5, color: '#374151', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', textAlign: 'center' }}>TOTAL</span>
+            <div style={{ textAlign: 'center' }}>
+              <span style={{ fontSize: 8.5, color: '#374151', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ü · A</span>
             </div>
           </div>
 

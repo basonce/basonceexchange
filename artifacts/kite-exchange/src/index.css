@@ -31,6 +31,25 @@ body.deposit-modal-open .bottom-nav-bar {
   50%, 100% { color: #F6465D; }
 }
 
+/* ── Sports goal ring animation ── */
+@keyframes goalRingPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.9),  inset 0 0 0 2px rgba(34,197,94,0.9); }
+  40%  { box-shadow: 0 0 0 6px rgba(34,197,94,0),  inset 0 0 0 2px rgba(34,197,94,0.6); }
+  100% { box-shadow: 0 0 0 10px rgba(34,197,94,0), inset 0 0 0 1px rgba(34,197,94,0); }
+}
+.goal-ring {
+  animation: goalRingPulse 0.7s ease-out 4;
+  outline: 1.5px solid rgba(34,197,94,0.6);
+  outline-offset: -1px;
+  background: rgba(34,197,94,0.04) !important;
+}
+@keyframes oddsBump {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+.odds-changed { animation: oddsBump 0.35s ease-out; }
+
 @keyframes soundarc {
   0%   { opacity: 1; transform: translateY(-50%) scale(0.3); }
   80%  { opacity: 0.3; }
