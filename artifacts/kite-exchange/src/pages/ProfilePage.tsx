@@ -561,42 +561,41 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
 
                 <div className="flex items-center gap-2 flex-wrap">
                   {vipStyle && effectiveVipLevel ? (
-                    <button
-                      onClick={() => setShowVipPayModal(true)}
-                      className="px-3 py-1 rounded-full font-black tracking-widest text-xs active:scale-95 transition-transform relative overflow-hidden select-none"
-                      style={{
-                        background: effectiveVipLevel === 10
-                          ? 'linear-gradient(135deg,#1a1100 0%,#2e1f00 25%,#1a1100 50%,#2e1f00 75%,#1a1100 100%)'
-                          : 'linear-gradient(135deg,#111 0%,#1e1800 40%,#111 100%)',
-                        border: `${effectiveVipLevel === 10 ? 1.5 : 1}px solid ${effectiveVipLevel === 10 ? '#f0b90b' : '#a07800'}`,
-                        boxShadow: effectiveVipLevel === 10
-                          ? '0 0 6px rgba(240,185,11,0.3)'
-                          : '0 0 4px rgba(240,185,11,0.15)',
-                      }}
-                    >
-                      <span
-                        className="relative z-10"
+                    <>
+                      <button
+                        onClick={() => setShowVipPayModal(true)}
+                        className="px-3 py-1 rounded-full font-black tracking-widest text-xs active:scale-95 transition-transform relative overflow-hidden select-none"
                         style={{
                           background: effectiveVipLevel === 10
-                            ? 'linear-gradient(180deg,#fff8c0 0%,#ffe033 18%,#f0b90b 38%,#b8780a 58%,#f0b90b 78%,#fff3a0 100%)'
-                            : 'linear-gradient(180deg,#ffe566 0%,#f0b90b 40%,#a06800 65%,#f0b90b 85%,#ffe566 100%)',
-                          WebkitBackgroundClip: 'text',
-                          WebkitTextFillColor: 'transparent',
-                          backgroundClip: 'text',
-                          filter: effectiveVipLevel === 10
-                            ? 'drop-shadow(0 0 5px rgba(255,210,0,0.9)) drop-shadow(0 1px 2px rgba(0,0,0,0.8))'
-                            : 'drop-shadow(0 1px 1px rgba(0,0,0,0.7))',
+                            ? 'linear-gradient(135deg,#1a1100 0%,#2e1f00 25%,#1a1100 50%,#2e1f00 75%,#1a1100 100%)'
+                            : 'linear-gradient(135deg,#111 0%,#1e1800 40%,#111 100%)',
+                          border: `${effectiveVipLevel === 10 ? 1.5 : 1}px solid ${effectiveVipLevel === 10 ? '#f0b90b' : '#a07800'}`,
+                          boxShadow: effectiveVipLevel === 10
+                            ? '0 0 6px rgba(240,185,11,0.3)'
+                            : '0 0 4px rgba(240,185,11,0.15)',
                         }}
                       >
-                        VIP {effectiveVipLevel}{vipMembership?.status === 'frozen' ? ' ❄' : ''}
-                      </span>
-                      <span className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.18),transparent)', backgroundSize: '200% 100%', animation: `vipShimmer ${effectiveVipLevel === 10 ? 2 : 3}s linear infinite` }} />
-                    </button>
-                  ) : (
-                    <>
-                      {profile?.verification_status === 'verified' ? (
                         <span
-                          className="relative overflow-hidden flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold select-none"
+                          className="relative z-10"
+                          style={{
+                            background: effectiveVipLevel === 10
+                              ? 'linear-gradient(180deg,#fff8c0 0%,#ffe033 18%,#f0b90b 38%,#b8780a 58%,#f0b90b 78%,#fff3a0 100%)'
+                              : 'linear-gradient(180deg,#ffe566 0%,#f0b90b 40%,#a06800 65%,#f0b90b 85%,#ffe566 100%)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            backgroundClip: 'text',
+                            filter: effectiveVipLevel === 10
+                              ? 'drop-shadow(0 0 5px rgba(255,210,0,0.9)) drop-shadow(0 1px 2px rgba(0,0,0,0.8))'
+                              : 'drop-shadow(0 1px 1px rgba(0,0,0,0.7))',
+                          }}
+                        >
+                          VIP {effectiveVipLevel}{vipMembership?.status === 'frozen' ? ' ❄' : ''}
+                        </span>
+                        <span className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.18),transparent)', backgroundSize: '200% 100%', animation: `vipShimmer ${effectiveVipLevel === 10 ? 2 : 3}s linear infinite` }} />
+                      </button>
+                      {profile?.verification_status === 'verified' && (
+                        <span
+                          className="relative overflow-hidden flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold select-none"
                           style={{
                             background: 'linear-gradient(135deg, #0a2f1a 0%, #0d3d22 40%, #0a2f1a 100%)',
                             border: '1px solid rgba(16,185,129,0.55)',
@@ -611,13 +610,33 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
                           <span style={{ letterSpacing: '0.03em' }}>Verified</span>
                           <span className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent 0%,rgba(52,211,153,0.15) 50%,transparent 100%)', backgroundSize: '200% 100%', animation: 'vipShimmer 3s linear infinite' }} />
                         </span>
-                      ) : (
-                        <button
-                          onClick={() => setShowVipPayModal(true)}
-                          className="px-3 py-1 rounded-full text-xs font-bold active:scale-95 transition-transform bg-[#F0B90B] text-black"
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setShowVipPayModal(true)}
+                        className="px-3 py-1 rounded-full text-xs font-bold active:scale-95 transition-transform bg-[#F0B90B] text-black"
+                      >
+                        Regular
+                      </button>
+                      {profile?.verification_status === 'verified' && (
+                        <span
+                          className="relative overflow-hidden flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold select-none"
+                          style={{
+                            background: 'linear-gradient(135deg, #0a2f1a 0%, #0d3d22 40%, #0a2f1a 100%)',
+                            border: '1px solid rgba(16,185,129,0.55)',
+                            boxShadow: '0 0 10px rgba(16,185,129,0.25), inset 0 0 8px rgba(16,185,129,0.08)',
+                            color: '#34d399',
+                          }}
                         >
-                          Regular
-                        </button>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                            <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z" fill="rgba(52,211,153,0.25)" stroke="#34d399" strokeWidth="1.8"/>
+                            <path d="M8.5 12l2.5 2.5 4.5-4.5" stroke="#34d399" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                          <span style={{ letterSpacing: '0.03em' }}>Verified</span>
+                          <span className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(90deg,transparent 0%,rgba(52,211,153,0.15) 50%,transparent 100%)', backgroundSize: '200% 100%', animation: 'vipShimmer 3s linear infinite' }} />
+                        </span>
                       )}
                     </>
                   )}
