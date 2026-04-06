@@ -1,25 +1,33 @@
 import { useState, useEffect, useRef } from 'react';
 
+/* ─── Types ─────────────────────────────────────────────── */
+interface Odds { w1: number; x: number; w2: number }
+interface HcOdds { h1: number; hx: number; h2: number; label1: string; label2: string }
+interface TotalOdds { over: number; under: number; line: number }
+
 interface Match {
   id: string;
   league: string;
   country: string;
-  flagEmoji: string;
+  flag: string;
   homeTeam: string;
   awayTeam: string;
-  homeLogo: string;
-  awayLogo: string;
+  homeBg: string;
+  awayBg: string;
   homeScore: number;
   awayScore: number;
   minute: number;
+  half: number; // 1 or 2
   status: 'live' | 'finished';
+  odds: Odds;
+  hcOdds: HcOdds;
+  totalOdds: TotalOdds;
   goalFlash: null | 'home' | 'away';
-  locked: boolean;
-  lockedUntil: number;
-  flashPhase: 'red' | 'green' | null;
+  flashTs: number;
   finishedAt: number | null;
 }
 
+/* ─── Data ───────────────────────────────────────────────── */
 const LEAGUES = [
   { name: 'Uganda Premier League', country: 'Uganda', flag: '🇺🇬' },
   { name: 'Tanzania Ligi Kuu', country: 'Tanzania', flag: '🇹🇿' },
@@ -33,357 +41,386 @@ const LEAGUES = [
   { name: 'Zimbabwe PSL', country: 'Zimbabwe', flag: '🇿🇼' },
 ];
 
-const TEAMS_BY_COUNTRY: Record<string, string[][]> = {
-  Uganda: [
-    ['Kampala FC', 'K'], ['Victoria Bulls', 'VB'], ['Nile Stars', 'NS'],
-    ['Gulu United', 'GU'], ['Pearl City', 'PC'], ['Entebbe Eagles', 'EE'],
-  ],
-  Tanzania: [
-    ['Dar Stars', 'DS'], ['Kilimanjaro SC', 'KS'], ['Zanzibar FC', 'ZF'],
-    ['Serengeti United', 'SU'], ['Mwanza City', 'MC'], ['Dodoma Red', 'DR'],
-  ],
-  Ethiopia: [
-    ['Addis Blue', 'AB'], ['Coffee FC', 'CF'], ['Rift Valley', 'RV'],
-    ['Dire Dawa', 'DD'], ['Hawassa United', 'HU'], ['Gondar Lions', 'GL'],
-  ],
-  Ghana: [
-    ['Accra Hearts', 'AH'], ['Gold Stars', 'GS'], ['Kumasi Kings', 'KK'],
-    ['Cape Heroes', 'CH'], ['Tamale Rovers', 'TR'], ['Takoradi SC', 'TS'],
-  ],
-  Kenya: [
-    ['Nairobi City', 'NC'], ['Rift Wanderers', 'RW'], ['Mombasa Marina', 'MM'],
-    ['Lake Victoria', 'LV'], ['Kisumu Stars', 'KS'], ['Nakuru FC', 'NF'],
-  ],
-  Rwanda: [
-    ['Kigali FC', 'KF'], ['Volcano Stars', 'VS'], ['Muhazi United', 'MU'],
-    ['Musanze Eagles', 'ME'], ['Huye Lions', 'HL'], ['Butare City', 'BC'],
-  ],
-  Zambia: [
-    ['Lusaka Dynamos', 'LD'], ['Copper Kings', 'CK'], ['Victoria Falls', 'VF'],
-    ['Ndola United', 'NU'], ['Kitwe Rangers', 'KR'], ['Livingstone SC', 'LS'],
-  ],
-  Senegal: [
-    ['Dakar Warriors', 'DW'], ['Teranga Lions', 'TL'], ['Saint-Louis', 'SL'],
-    ['Thiès City', 'TC'], ['Kaolack Stars', 'KS'], ['Ziguinchor FC', 'ZF'],
-  ],
-  Mozambique: [
-    ['Maputo City', 'MP'], ['Beira United', 'BU'], ['Nampula Stars', 'NS'],
-    ['Tete FC', 'TF'], ['Pemba Rovers', 'PR'], ['Quelimane SC', 'QS'],
-  ],
-  Zimbabwe: [
-    ['Harare City', 'HC'], ['Bulawayo Stars', 'BS'], ['Mutare United', 'MU'],
-    ['Kwekwe FC', 'KF'], ['Gweru Lions', 'GL'], ['Masvingo SC', 'MS'],
-  ],
+const TEAMS: Record<string, string[]> = {
+  Uganda:     ['Kampala FC','Victoria Bulls','Nile Stars','Gulu United','Pearl City','Entebbe Eagles'],
+  Tanzania:   ['Dar Stars','Kilimanjaro SC','Zanzibar FC','Serengeti United','Mwanza City','Dodoma Red'],
+  Ethiopia:   ['Addis Blue','Coffee FC','Rift Valley','Dire Dawa','Hawassa United','Gondar Lions'],
+  Ghana:      ['Accra Hearts','Gold Stars','Kumasi Kings','Cape Heroes','Tamale Rovers','Takoradi SC'],
+  Kenya:      ['Nairobi City','Rift Wanderers','Mombasa Marina','Lake Victoria','Kisumu Stars','Nakuru FC'],
+  Rwanda:     ['Kigali FC','Volcano Stars','Muhazi United','Musanze Eagles','Huye Lions','Butare City'],
+  Zambia:     ['Lusaka Dynamos','Copper Kings','Victoria Falls','Ndola United','Kitwe Rangers','Livingstone SC'],
+  Senegal:    ['Dakar Warriors','Teranga Lions','Saint-Louis','Thiès City','Kaolack Stars','Ziguinchor FC'],
+  Mozambique: ['Maputo City','Beira United','Nampula Stars','Tete FC','Pemba Rovers','Quelimane SC'],
+  Zimbabwe:   ['Harare City','Bulawayo Stars','Mutare United','Kwekwe FC','Gweru Lions','Masvingo SC'],
 };
 
-const TEAM_COLORS = [
-  '#F0B90B', '#3B82F6', '#EF4444', '#10B981', '#8B5CF6',
-  '#F97316', '#EC4899', '#14B8A6', '#6366F1', '#84CC16',
-];
+const TEAM_COLORS = ['#1a56db','#e02424','#057a55','#9f1239','#7e3af2','#d97706','#0e9f6e','#be185d','#0284c7','#4f46e5'];
 
-function rand(min: number, max: number) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
+function r(min: number, max: number) { return Math.random() * (max - min) + min; }
+function ri(min: number, max: number) { return Math.floor(r(min, max + 1)); }
+function pick<T>(arr: T[]): T { return arr[ri(0, arr.length - 1)]; }
 function pickTwo<T>(arr: T[]): [T, T] {
-  const i = rand(0, arr.length - 1);
-  let j = rand(0, arr.length - 1);
-  while (j === i) j = rand(0, arr.length - 1);
+  const i = ri(0, arr.length - 1);
+  let j = ri(0, arr.length - 1);
+  while (j === i) j = ri(0, arr.length - 1);
   return [arr[i], arr[j]];
 }
 
-function generateMatch(id: string): Match {
-  const league = LEAGUES[rand(0, LEAGUES.length - 1)];
-  const teams = TEAMS_BY_COUNTRY[league.country];
-  const [homeTeamData, awayTeamData] = pickTwo(teams);
-  const minute = rand(5, 75);
-  const maxGoals = Math.floor(minute / 20);
-  const homeScore = rand(0, maxGoals);
-  const awayScore = rand(0, maxGoals);
-  const colorH = TEAM_COLORS[rand(0, TEAM_COLORS.length - 1)];
-  const colorA = TEAM_COLORS[rand(0, TEAM_COLORS.length - 1)];
-
+function makeOdds(): Odds {
+  const base = r(1.1, 3.5);
+  return { w1: +base.toFixed(2), x: +(r(2.5, 4.5)).toFixed(2), w2: +(r(1.1, 4.0)).toFixed(2) };
+}
+function makeHcOdds(hcSign: '+' | '-'): HcOdds {
+  const line = (ri(0, 1) * 0.5 + 0.5);
   return {
-    id,
-    league: league.name,
-    country: league.country,
-    flagEmoji: league.flag,
-    homeTeam: homeTeamData[0],
-    awayTeam: awayTeamData[0],
-    homeLogo: colorH,
-    awayLogo: colorA,
-    homeScore,
-    awayScore,
-    minute,
-    status: 'live',
-    goalFlash: null,
-    locked: false,
-    lockedUntil: 0,
-    flashPhase: null,
-    finishedAt: null,
+    label1: `H1 (${hcSign}${line})`, h1: +(r(1.3, 2.8)).toFixed(2),
+    hx: +(r(1.5, 3.0)).toFixed(2),
+    label2: `H2 (${hcSign === '+' ? '-' : '+'}${line})`, h2: +(r(1.3, 2.8)).toFixed(2),
+  };
+}
+function makeTotalOdds(): TotalOdds {
+  const line = ri(1, 3) + 0.5;
+  return { line, over: +(r(1.3, 2.5)).toFixed(2), under: +(r(1.3, 2.5)).toFixed(2) };
+}
+
+function makeMatch(id: string): Match {
+  const league = pick(LEAGUES);
+  const teams = TEAMS[league.country];
+  const [ht, at] = pickTwo(teams);
+  const minute = ri(5, 78);
+  const half = minute > 45 ? 2 : 1;
+  const maxG = Math.floor(minute / 22);
+  return {
+    id, league: league.name, country: league.country, flag: league.flag,
+    homeTeam: ht, awayTeam: at,
+    homeBg: pick(TEAM_COLORS), awayBg: pick(TEAM_COLORS),
+    homeScore: ri(0, maxG), awayScore: ri(0, maxG),
+    minute, half, status: 'live',
+    odds: makeOdds(), hcOdds: makeHcOdds('+'), totalOdds: makeTotalOdds(),
+    goalFlash: null, flashTs: 0, finishedAt: null,
   };
 }
 
-function TeamBadge({ abbr, color, size = 36 }: { abbr: string; color: string; size?: number }) {
+/* ─── Sub-components ─────────────────────────────────────── */
+function TeamCircle({ color, abbr }: { color: string; abbr: string }) {
   return (
-    <div
-      style={{
-        width: size, height: size,
-        background: `linear-gradient(135deg, ${color}33 0%, ${color}22 100%)`,
-        border: `1.5px solid ${color}66`,
-        borderRadius: 8,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: size < 36 ? 9 : 11,
-        fontWeight: 900,
-        color,
-        letterSpacing: '-0.5px',
-        flexShrink: 0,
-      }}
-    >
+    <div style={{
+      width: 32, height: 32, borderRadius: '50%',
+      background: `linear-gradient(135deg,${color}cc,${color}66)`,
+      border: `2px solid ${color}99`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: 9, fontWeight: 900, color: '#fff', flexShrink: 0,
+      textShadow: '0 1px 2px rgba(0,0,0,0.6)',
+    }}>
       {abbr}
     </div>
   );
 }
 
-function getAbbr(country: string, teamName: string): string {
-  const teams = TEAMS_BY_COUNTRY[country] || [];
-  const found = teams.find(t => t[0] === teamName);
-  return found ? found[1] : teamName.slice(0, 2).toUpperCase();
+function OddsBtn({ label, value, active }: { label: string; value: number; active?: boolean }) {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      background: active ? '#2a3a5a' : '#1C2128',
+      border: `1px solid ${active ? '#3b82f6' : '#2B3139'}`,
+      borderRadius: 4,
+      padding: '3px 0',
+      minWidth: 38,
+      cursor: 'pointer',
+      transition: 'all 0.15s',
+    }}>
+      <span style={{ fontSize: 9, color: '#848E9C', fontWeight: 600 }}>{label}</span>
+      <span style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 700, marginTop: 1 }}>{value}</span>
+    </div>
+  );
 }
 
+/* Top horizontal card */
+function MatchCard({ m }: { m: Match }) {
+  const abbrevH = m.homeTeam.slice(0, 3).toUpperCase();
+  const abbrevA = m.awayTeam.slice(0, 3).toUpperCase();
+  const isFlashing = m.goalFlash && Date.now() - m.flashTs < 2000;
+
+  return (
+    <div style={{
+      minWidth: 170, maxWidth: 170,
+      background: isFlashing ? 'linear-gradient(145deg,#1a2a1a,#152115)' : 'linear-gradient(145deg,#161B22,#1C2128)',
+      border: `1px solid ${isFlashing ? '#16a34a77' : '#2B3139'}`,
+      borderRadius: 10,
+      padding: '10px 10px 8px',
+      flexShrink: 0,
+      transition: 'border-color 0.3s, background 0.3s',
+    }}>
+      {/* Premature Victory badge */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+        <span style={{ fontSize: 9, color: '#22c55e', fontWeight: 700 }}>Premature Victory</span>
+      </div>
+
+      {/* League */}
+      <p style={{ fontSize: 9, color: '#848E9C', marginBottom: 6 }}>{m.flag} {m.league}</p>
+
+      {/* Teams + Score row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+        <TeamCircle color={m.homeBg} abbr={abbrevH} />
+        {/* Live time badge */}
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+        }}>
+          <div style={{
+            background: '#ef444433', border: '1px solid #ef444466',
+            borderRadius: 4, padding: '2px 7px',
+            display: 'flex', alignItems: 'center', gap: 4,
+          }}>
+            <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444' }} className="animate-pulse" />
+            <span style={{ fontSize: 10, color: '#ef4444', fontWeight: 800 }}>{m.minute}'</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 18, fontWeight: 900, color: m.goalFlash === 'home' && isFlashing ? '#4ade80' : '#F0B90B', transition: 'color 0.3s' }}>{m.homeScore}</span>
+            <span style={{ fontSize: 12, color: '#4B5563', fontWeight: 700 }}>:</span>
+            <span style={{ fontSize: 18, fontWeight: 900, color: m.goalFlash === 'away' && isFlashing ? '#4ade80' : '#F0B90B', transition: 'color 0.3s' }}>{m.awayScore}</span>
+          </div>
+        </div>
+        <TeamCircle color={m.awayBg} abbr={abbrevA} />
+      </div>
+
+      {/* Team names */}
+      <p style={{ fontSize: 9, color: '#94a3b8', textAlign: 'center', marginBottom: 8, lineHeight: 1.3 }}>
+        {m.homeTeam} — {m.awayTeam}
+      </p>
+
+      {/* Odds row */}
+      <div style={{ display: 'flex', gap: 4 }}>
+        <OddsBtn label="W1" value={m.odds.w1} />
+        <OddsBtn label="X" value={m.odds.x} />
+        <OddsBtn label="W2" value={m.odds.w2} />
+      </div>
+    </div>
+  );
+}
+
+/* List row */
+function MatchRow({ m }: { m: Match }) {
+  const isFlashing = m.goalFlash && Date.now() - m.flashTs < 2000;
+  const halfLabel = m.half === 1 ? '1H' : '2H';
+
+  return (
+    <div style={{
+      background: isFlashing ? '#0f1a0f' : 'transparent',
+      borderBottom: '1px solid #1C2128',
+      transition: 'background 0.3s',
+    }}>
+      {/* Main row */}
+      <div style={{ display: 'flex', alignItems: 'stretch', minHeight: 52 }}>
+        {/* Minute + half */}
+        <div style={{
+          width: 38, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          borderRight: '1px solid #1C2128', flexShrink: 0, gap: 1,
+        }}>
+          <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 800 }}>{m.minute}'</span>
+          <span style={{ fontSize: 9, color: '#4B5563', fontWeight: 600 }}>{halfLabel}</span>
+        </div>
+
+        {/* Teams + score */}
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column',
+          justifyContent: 'center', padding: '4px 8px',
+          borderRight: '1px solid #1C2128', minWidth: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+            <TeamCircle color={m.homeBg} abbr={m.homeTeam.slice(0,2).toUpperCase()} />
+            <span style={{
+              fontSize: 12, fontWeight: 700,
+              color: isFlashing && m.goalFlash === 'home' ? '#4ade80' : '#e2e8f0',
+              flex: 1, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+              transition: 'color 0.3s',
+            }}>{m.homeTeam}</span>
+            <span style={{ fontSize: 13, fontWeight: 900, color: m.goalFlash === 'home' && isFlashing ? '#4ade80' : '#F0B90B', minWidth: 14, textAlign: 'right', transition: 'color 0.3s' }}>{m.homeScore}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <TeamCircle color={m.awayBg} abbr={m.awayTeam.slice(0,2).toUpperCase()} />
+            <span style={{
+              fontSize: 12, fontWeight: 700,
+              color: isFlashing && m.goalFlash === 'away' ? '#4ade80' : '#94a3b8',
+              flex: 1, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+              transition: 'color 0.3s',
+            }}>{m.awayTeam}</span>
+            <span style={{ fontSize: 13, fontWeight: 900, color: m.goalFlash === 'away' && isFlashing ? '#4ade80' : '#F0B90B', minWidth: 14, textAlign: 'right', transition: 'color 0.3s' }}>{m.awayScore}</span>
+          </div>
+        </div>
+
+        {/* RESULT odds */}
+        <div style={{
+          display: 'flex', gap: 2, alignItems: 'center',
+          padding: '0 5px',
+          borderRight: '1px solid #1C2128',
+        }}>
+          <OddsBtn label="W1" value={m.odds.w1} />
+          <OddsBtn label="X" value={m.odds.x} />
+          <OddsBtn label="W2" value={m.odds.w2} />
+        </div>
+
+        {/* HANDICAP (hidden on narrow) + TOTAL collapsed */}
+        <div style={{
+          display: 'flex', alignItems: 'center',
+          padding: '0 6px',
+          gap: 2,
+        }}>
+          <OddsBtn label={`O(${m.totalOdds.line})`} value={m.totalOdds.over} />
+          <OddsBtn label={`U(${m.totalOdds.line})`} value={m.totalOdds.under} />
+        </div>
+      </div>
+
+      {/* Goal flash banner */}
+      {isFlashing && m.goalFlash && (
+        <div style={{
+          background: 'linear-gradient(90deg,#16a34a22,#16a34a44,#16a34a22)',
+          padding: '3px 46px',
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          <span style={{ fontSize: 13 }}>⚽</span>
+          <span style={{ fontSize: 11, color: '#4ade80', fontWeight: 800 }}>
+            GOAL — {m.goalFlash === 'home' ? m.homeTeam : m.awayTeam}!
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Main Component ─────────────────────────────────────── */
 export default function GamesSection() {
   const [matches, setMatches] = useState<Match[]>(() =>
-    Array.from({ length: 8 }, (_, i) => generateMatch(`m${i}-${Date.now()}`))
+    Array.from({ length: 10 }, (_, i) => makeMatch(`m${i}`))
   );
-  const idCounter = useRef(100);
+  const counter = useRef(100);
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const tick = setInterval(() => {
+      const now = Date.now();
       setMatches(prev => {
-        const now = Date.now();
         let next = prev.map(m => {
           if (m.status === 'finished') return m;
+          let mm = { ...m, minute: m.minute + 1, half: m.minute + 1 > 45 ? 2 : 1 };
+          if (mm.minute >= 90) return { ...mm, status: 'finished' as const, finishedAt: now };
 
-          let match = { ...m, minute: m.minute + 1 };
-
-          if (match.locked && now >= match.lockedUntil) {
-            match = { ...match, locked: false, goalFlash: null, flashPhase: null };
-          }
-
-          if (match.minute >= 90) {
-            return { ...match, status: 'finished' as const, finishedAt: now };
-          }
-
-          if (!match.locked) {
-            const goalProb = 0.07;
-            if (Math.random() < goalProb) {
-              const isHome = Math.random() < 0.5;
-              match = {
-                ...match,
-                homeScore: isHome ? match.homeScore + 1 : match.homeScore,
-                awayScore: !isHome ? match.awayScore + 1 : match.awayScore,
-                goalFlash: isHome ? 'home' : 'away',
-                flashPhase: 'red',
-                locked: true,
-                lockedUntil: now + 10000,
+          if (!m.goalFlash || now - m.flashTs > 10000) {
+            if (Math.random() < 0.08) {
+              const side = Math.random() < 0.5 ? 'home' : 'away';
+              mm = {
+                ...mm,
+                homeScore: side === 'home' ? mm.homeScore + 1 : mm.homeScore,
+                awayScore: side === 'away' ? mm.awayScore + 1 : mm.awayScore,
+                goalFlash: side as 'home' | 'away',
+                flashTs: now,
               };
             }
           }
-
-          if (match.flashPhase === 'red' && now - (match.lockedUntil - 10000) > 500) {
-            match = { ...match, flashPhase: 'green' };
-          }
-          if (match.flashPhase === 'green' && now - (match.lockedUntil - 10000) > 1200) {
-            match = { ...match, flashPhase: null };
-          }
-
-          return match;
+          return mm;
         });
 
         next = next.filter(m => !(m.status === 'finished' && m.finishedAt && now - m.finishedAt > 8000));
-        while (next.length < 8) {
-          idCounter.current += 1;
-          next.push(generateMatch(`m${idCounter.current}-${Date.now()}`));
+        while (next.length < 10) {
+          counter.current++;
+          next.push(makeMatch(`m${counter.current}`));
         }
-
         return next;
       });
     }, 10000);
-
-    return () => clearInterval(interval);
+    return () => clearInterval(tick);
   }, []);
 
   const live = matches.filter(m => m.status === 'live');
   const finished = matches.filter(m => m.status === 'finished');
 
+  // Group by league for list view
+  const byLeague: Record<string, Match[]> = {};
+  live.forEach(m => {
+    if (!byLeague[m.league]) byLeague[m.league] = [];
+    byLeague[m.league].push(m);
+  });
+
   return (
-    <div className="bg-[#0B0E11] min-h-[60vh] pb-8">
-      <style>{`
-        @keyframes flashRed {
-          0%,100% { background-color: rgba(239,68,68,0.18); }
-          50%      { background-color: rgba(239,68,68,0.32); }
-        }
-        @keyframes flashGreen {
-          0%,100% { background-color: rgba(16,185,129,0.18); }
-          50%      { background-color: rgba(16,185,129,0.32); }
-        }
-        @keyframes goalPop {
-          0%   { transform: scale(0.7); opacity:0; }
-          50%  { transform: scale(1.15); opacity:1; }
-          100% { transform: scale(1); opacity:1; }
-        }
-        .flash-red   { animation: flashRed   0.5s ease-in-out 2; }
-        .flash-green { animation: flashGreen 0.5s ease-in-out 2; }
-        .goal-pop    { animation: goalPop 0.35s cubic-bezier(.17,.67,.38,1.2) forwards; }
-      `}</style>
-
-      {/* Header */}
-      <div className="px-4 pt-3 pb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div
-            className="px-2.5 py-1 rounded-lg text-[10px] font-black tracking-widest"
-            style={{ background: 'linear-gradient(135deg,#1a2a1a,#0d1f0d)', border: '1px solid #16a34a55', color: '#4ade80' }}
-          >
-            BASONCE SPORTS
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-[11px] text-gray-400 font-semibold">{live.length} LIVE</span>
-          </div>
+    <div style={{ background: '#0B0E11', minHeight: '60vh', paddingBottom: 32 }}>
+      {/* ── Header ── */}
+      <div style={{ padding: '10px 12px 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 16 }}>⚽</span>
+        <span style={{ fontSize: 15, color: '#e2e8f0', fontWeight: 800 }}>Football</span>
+        <span style={{ fontSize: 12, color: '#848E9C' }}>({live.length} matches)</span>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444' }} className="animate-pulse" />
+          <span style={{ fontSize: 11, color: '#848E9C', fontWeight: 600 }}>LIVE</span>
         </div>
-        <span className="text-[11px] text-gray-500">Simulated · Updates every 10s</span>
       </div>
 
-      {/* Live Matches */}
-      <div className="px-3 space-y-2.5 mt-1">
-        {live.map(m => {
-          const flashClass = m.flashPhase === 'red' ? 'flash-red' : m.flashPhase === 'green' ? 'flash-green' : '';
-          const abbrevH = getAbbr(m.country, m.homeTeam);
-          const abbrevA = getAbbr(m.country, m.awayTeam);
-
-          return (
-            <div
-              key={m.id}
-              className={`rounded-2xl overflow-hidden ${flashClass}`}
-              style={{
-                background: 'linear-gradient(145deg,#161A1F,#1C2128)',
-                border: '1px solid #2B3139',
-              }}
-            >
-              {/* League header */}
-              <div className="flex items-center justify-between px-3.5 pt-2.5 pb-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm">{m.flagEmoji}</span>
-                  <span className="text-[11px] text-gray-400 font-semibold">{m.league}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {m.locked && m.goalFlash && (
-                    <span
-                      className="goal-pop text-[10px] font-black px-2 py-0.5 rounded-full"
-                      style={{ background: '#16a34a22', color: '#4ade80', border: '1px solid #16a34a55' }}
-                    >
-                      ⚽ GOAL!
-                    </span>
-                  )}
-                  <div
-                    className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-                    style={{ background: '#ef444422', border: '1px solid #ef444444' }}
-                  >
-                    <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                    <span className="text-[10px] text-red-400 font-black">{m.minute}'</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Match row */}
-              <div className="flex items-center px-3.5 pb-3">
-                {/* Home */}
-                <div className="flex-1 flex items-center gap-2.5 min-w-0">
-                  <TeamBadge abbr={abbrevH} color={m.homeLogo} />
-                  <p className="text-white text-[13px] font-bold truncate leading-tight">{m.homeTeam}</p>
-                </div>
-
-                {/* Score */}
-                <div
-                  className="mx-3 px-4 py-2 rounded-xl flex-none"
-                  style={{ background: '#0B0E11', border: '1px solid #2B3139', minWidth: 72 }}
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <span
-                      className="text-xl font-black leading-none"
-                      style={{
-                        color: m.goalFlash === 'home' && m.flashPhase ? '#4ade80' : '#F0B90B',
-                        transition: 'color 0.3s',
-                      }}
-                    >
-                      {m.homeScore}
-                    </span>
-                    <span className="text-gray-600 text-base font-bold">—</span>
-                    <span
-                      className="text-xl font-black leading-none"
-                      style={{
-                        color: m.goalFlash === 'away' && m.flashPhase ? '#4ade80' : '#F0B90B',
-                        transition: 'color 0.3s',
-                      }}
-                    >
-                      {m.awayScore}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Away */}
-                <div className="flex-1 flex items-center gap-2.5 justify-end min-w-0">
-                  <p className="text-white text-[13px] font-bold truncate leading-tight text-right">{m.awayTeam}</p>
-                  <TeamBadge abbr={abbrevA} color={m.awayLogo} />
-                </div>
-              </div>
-
-              {/* Half time indicator */}
-              <div
-                className="px-3.5 pb-2.5 flex items-center gap-2"
-                style={{ borderTop: '1px solid #2B313955' }}
-              >
-                <span className="text-[10px] text-gray-600 font-semibold">
-                  {m.minute <= 45 ? '1st Half' : '2nd Half'}
-                </span>
-                {m.locked && (
-                  <span className="text-[10px] text-amber-400/70 font-semibold ml-auto">
-                    🔒 Updating...
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
+      {/* ── Horizontal scroll cards ── */}
+      <div style={{ overflowX: 'auto', display: 'flex', gap: 8, padding: '4px 12px 10px', scrollbarWidth: 'none' }}>
+        {live.map(m => <MatchCard key={m.id} m={m} />)}
       </div>
 
-      {/* Finished */}
-      {finished.length > 0 && (
-        <div className="px-3 mt-4">
-          <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider mb-2 px-1">Completed</p>
-          <div className="space-y-2">
-            {finished.map(m => (
-              <div
-                key={m.id}
-                className="rounded-xl px-3.5 py-2.5 flex items-center gap-3 opacity-50"
-                style={{ background: '#161A1F', border: '1px solid #2B3139' }}
-              >
-                <span className="text-sm">{m.flagEmoji}</span>
-                <span className="text-gray-400 text-xs font-semibold flex-1 truncate">{m.homeTeam}</span>
-                <span className="text-white text-sm font-black px-2">
-                  {m.homeScore} — {m.awayScore}
-                </span>
-                <span className="text-gray-400 text-xs font-semibold flex-1 truncate text-right">{m.awayTeam}</span>
-                <span className="text-gray-600 text-[10px] font-bold ml-1">FT</span>
-              </div>
-            ))}
+      {/* ── Column headers ── */}
+      <div style={{
+        display: 'flex', alignItems: 'center',
+        background: '#161A1F',
+        borderTop: '1px solid #1C2128',
+        borderBottom: '1px solid #1C2128',
+        padding: '5px 0',
+      }}>
+        <div style={{ width: 38, flexShrink: 0 }} />
+        <div style={{ flex: 1, paddingLeft: 8 }}>
+          <span style={{ fontSize: 10, color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Match</span>
+        </div>
+        <div style={{ display: 'flex', gap: 2, padding: '0 5px', width: 128 }}>
+          <span style={{ fontSize: 10, color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', flex: 1, textAlign: 'center' }}>RESULT ↓</span>
+        </div>
+        <div style={{ display: 'flex', padding: '0 6px', width: 88 }}>
+          <span style={{ fontSize: 10, color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', flex: 1, textAlign: 'center' }}>TOTAL</span>
+        </div>
+      </div>
+
+      {/* ── Match list by league ── */}
+      {Object.entries(byLeague).map(([league, ms]) => (
+        <div key={league}>
+          {/* League header */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '6px 12px',
+            background: '#12161B',
+            borderBottom: '1px solid #1C2128',
+          }}>
+            <span style={{ fontSize: 13 }}>{ms[0].flag}</span>
+            <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700 }}>{ms[0].country}. {league}</span>
           </div>
+          {ms.map(m => <MatchRow key={m.id} m={m} />)}
+        </div>
+      ))}
+
+      {/* ── Finished ── */}
+      {finished.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ padding: '5px 12px', background: '#12161B', borderBottom: '1px solid #1C2128' }}>
+            <span style={{ fontSize: 10, color: '#4B5563', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Completed</span>
+          </div>
+          {finished.map(m => (
+            <div key={m.id} style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '8px 12px',
+              borderBottom: '1px solid #1C2128',
+              opacity: 0.45,
+            }}>
+              <span style={{ fontSize: 11 }}>{m.flag}</span>
+              <span style={{ fontSize: 12, color: '#94a3b8', flex: 1 }}>{m.homeTeam}</span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#F0B90B' }}>{m.homeScore} – {m.awayScore}</span>
+              <span style={{ fontSize: 12, color: '#94a3b8', flex: 1, textAlign: 'right' }}>{m.awayTeam}</span>
+              <span style={{ fontSize: 10, color: '#4B5563', fontWeight: 700, marginLeft: 6 }}>FT</span>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Footer note */}
-      <p className="text-center text-[10px] text-gray-600 mt-6 px-6">
-        Basonce Sports · Simulated League Events · For entertainment purposes only
+      <p style={{ textAlign: 'center', fontSize: 10, color: '#1C2128', marginTop: 20, padding: '0 16px' }}>
+        Basonce Sports · Simulated Events · Entertainment only
       </p>
     </div>
   );
