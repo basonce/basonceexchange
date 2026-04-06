@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, getCurrentUser } from '../lib/supabase';
 import {
   Plus, X, Edit3, Snowflake, CheckCircle, AlertTriangle,
   Clock, Calendar, DollarSign, RefreshCw, Search, ChevronDown, ChevronUp
@@ -92,6 +92,7 @@ export default function VipManagementPanel() {
   const [tableError, setTableError] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createDone, setCreateDone] = useState(false);
+  const [userFilter, setUserFilter] = useState('');
 
   const [form, setForm] = useState({
     user_id: '', vip_level: 3, price_usdt: 1000,
@@ -128,8 +129,24 @@ export default function VipManagementPanel() {
   }
 
   async function loadUsers() {
+    try {
+      const adminUser = await getCurrentUser();
+      const adminId = adminUser?.id || '';
+      const resp = await fetch('/api/admin/users', {
+        headers: { 'x-requester-id': adminId }
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (Array.isArray(data)) {
+          setUsers(data.map((u: any) => ({ id: u.id, email: u.email, full_name: u.full_name || '' })));
+          return;
+        }
+      }
+    } catch {
+      // fallback below
+    }
     const { data } = await supabase
-      .from('user_profiles').select('id, email, full_name').order('created_at', { ascending: false }).limit(200);
+      .from('user_profiles').select('id, email, full_name').order('updated_at', { ascending: false }).limit(500);
     setUsers(data || []);
   }
 
@@ -405,10 +422,19 @@ CREATE POLICY vip_allow_all ON vip_memberships FOR ALL USING (true) WITH CHECK (
                 {/* User */}
                 <div>
                   <label className="block text-sm font-black text-gray-800 mb-1.5">Kullanici</label>
+                  <input
+                    type="text"
+                    placeholder="Ara: isim veya email..."
+                    value={userFilter}
+                    onChange={e => setUserFilter(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-yellow-400 mb-2"
+                  />
                   <select value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))}
                     className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-yellow-400">
                     <option value="">Kullanici secin...</option>
-                    {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.email} — {u.email}</option>)}
+                    {users
+                      .filter(u => !userFilter || `${u.full_name} ${u.email}`.toLowerCase().includes(userFilter.toLowerCase()))
+                      .map(u => <option key={u.id} value={u.id}>{u.full_name || u.email} — {u.email}</option>)}
                   </select>
                 </div>
 
