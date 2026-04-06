@@ -8,6 +8,9 @@ import { pickFreshMatchups, getLeague, ri, rf, type MatchTemplate } from '../lib
 interface Odds { w1: number; x: number; w2: number }
 interface TotalOdds { line: number; over: number; under: number }
 
+type OddsDir = 'up' | 'down' | 'same';
+interface OddsDirs { w1: OddsDir; x: OddsDir; w2: OddsDir }
+
 interface LiveMatch {
   id: string;
   tmpl: MatchTemplate;
@@ -17,6 +20,8 @@ interface LiveMatch {
   half: 1 | 2;
   status: 'live' | 'finished';
   odds: Odds;
+  prevOdds?: Odds;
+  oddsDir?: OddsDirs;
   totalOdds: TotalOdds;
   goalFlash: null | 'home' | 'away';
   flashTs: number;
@@ -47,6 +52,40 @@ interface PlacedBet extends BetSlipItem {
 function makeOdds(): Odds {
   return { w1: rf(1.25, 4.50), x: rf(2.80, 5.20), w2: rf(1.25, 4.50) };
 }
+
+function recalcOdds(prev: Odds, homeScore: number, awayScore: number, minute: number, isGoal: boolean, scoringSide?: 'home'|'away'): Odds {
+  let { w1, x, w2 } = prev;
+  const minsLeft = Math.max(1, 90 - minute);
+  // More volatile near end of match
+  const urgency = 90 / minsLeft;
+
+  if (isGoal && scoringSide) {
+    const shift = rf(0.08, 0.32) * Math.sqrt(urgency);
+    if (scoringSide === 'home') {
+      w1 = Math.max(1.02, w1 - shift * (1 + Math.abs(homeScore - awayScore) * 0.15));
+      w2 = Math.min(22, w2 + shift * 1.6);
+      x  = Math.min(12, x  + shift * 0.6);
+    } else {
+      w2 = Math.max(1.02, w2 - shift * (1 + Math.abs(awayScore - homeScore) * 0.15));
+      w1 = Math.min(22, w1 + shift * 1.6);
+      x  = Math.min(12, x  + shift * 0.6);
+    }
+  } else {
+    // Small random drift every tick
+    const d = 0.025;
+    w1 = Math.max(1.02, Math.min(22, w1 + rf(-d, d)));
+    x  = Math.max(1.5,  Math.min(12, x  + rf(-d*0.4, d*0.4)));
+    w2 = Math.max(1.02, Math.min(22, w2 + rf(-d, d)));
+  }
+  return { w1: +w1.toFixed(2), x: +x.toFixed(2), w2: +w2.toFixed(2) };
+}
+
+function calcOddsDir(prev: Odds | undefined, cur: Odds): OddsDirs {
+  if (!prev) return { w1: 'same', x: 'same', w2: 'same' };
+  const dir = (a: number, b: number): OddsDir => a > b + 0.005 ? 'up' : a < b - 0.005 ? 'down' : 'same';
+  return { w1: dir(cur.w1, prev.w1), x: dir(cur.x, prev.x), w2: dir(cur.w2, prev.w2) };
+}
+
 function makeTotalOdds(): TotalOdds {
   const line = (ri(1, 3)) + 0.5;
   return { line, over: rf(1.40, 2.60), under: rf(1.40, 2.60) };
@@ -81,21 +120,51 @@ function betLabel(b: BetType, homeTeam: string, awayTeam: string): string {
 /* ══════════════════════════════════════════════════════════
    SUB-COMPONENTS
 ══════════════════════════════════════════════════════════ */
-function TeamBadge({ abbr, color, size = 28 }: { abbr: string; color: string; size?: number }) {
+
+/* SVG Shield Badge — unique per team color */
+function TeamShield({ abbr, color, size = 32 }: { abbr: string; color: string; size?: number }) {
+  const s = size;
+  const cx = s / 2;
+  // Classic soccer shield / pentagon shape
+  const d = `M ${cx},${s*0.03} L ${s*0.95},${s*0.18} L ${s*0.95},${s*0.62} Q ${cx},${s*0.97} ${s*0.05},${s*0.62} L ${s*0.05},${s*0.18} Z`;
+  const fz = abbr.length > 3 ? s*0.2 : abbr.length > 2 ? s*0.24 : s*0.26;
+  const uid = `shd_${abbr.replace(/\W/g,'_')}`;
   return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%',
-      background: `linear-gradient(135deg,${color}cc,${color}55)`,
-      border: `1.5px solid ${color}88`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: size < 28 ? 7 : 8, fontWeight: 900, color: '#fff', flexShrink: 0,
-    }}>{abbr}</div>
+    <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`} style={{ flexShrink: 0, display:'block' }}>
+      <defs>
+        <radialGradient id={`${uid}rg`} cx="38%" cy="32%" r="65%">
+          <stop offset="0%" stopColor={color} stopOpacity="1"/>
+          <stop offset="100%" stopColor={color} stopOpacity="0.55"/>
+        </radialGradient>
+        <linearGradient id={`${uid}sh`} x1="0" y1="0" x2="0.5" y2="1">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.22"/>
+          <stop offset="55%" stopColor="#ffffff" stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      {/* Shadow */}
+      <path d={d} fill="rgba(0,0,0,0.35)" transform={`translate(${s*0.03},${s*0.04})`}/>
+      {/* Fill */}
+      <path d={d} fill={`url(#${uid}rg)`}/>
+      {/* Shine */}
+      <path d={d} fill={`url(#${uid}sh)`}/>
+      {/* Border */}
+      <path d={d} fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth={s*0.032}/>
+      {/* Text shadow */}
+      <text x={cx+s*0.013} y={s*0.58+fz*0.32} textAnchor="middle" fill="rgba(0,0,0,0.55)"
+        fontSize={fz} fontWeight="900" fontFamily="'Arial Black', Arial, sans-serif">{abbr}</text>
+      {/* Text */}
+      <text x={cx} y={s*0.58+fz*0.32} textAnchor="middle" fill="#ffffff"
+        fontSize={fz} fontWeight="900" fontFamily="'Arial Black', Arial, sans-serif"
+        style={{ filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.7))' }}>{abbr}</text>
+    </svg>
   );
 }
 
 function OddPill({
-  label, value, active, onClick,
-}: { label: string; value: number; active?: boolean; onClick: () => void }) {
+  label, value, trend, active, onClick,
+}: { label: string; value: number; trend?: OddsDir; active?: boolean; onClick: () => void }) {
+  const trendColor = trend === 'up' ? '#4ade80' : trend === 'down' ? '#ef4444' : '#F0B90B';
+  const trendArrow = trend === 'up' ? '▲' : trend === 'down' ? '▼' : null;
   return (
     <button
       onClick={onClick}
@@ -109,23 +178,13 @@ function OddPill({
       }}
     >
       <span style={{ fontSize: 9, color: active ? '#93c5fd' : '#848E9C', fontWeight: 600 }}>{label}</span>
-      <span style={{ fontSize: 12, color: active ? '#fff' : '#e2e8f0', fontWeight: 700 }}>{value}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <span style={{ fontSize: 12, color: active ? '#fff' : trendColor, fontWeight: 700, transition: 'color 0.4s' }}>{value}</span>
+        {trendArrow && !active && (
+          <span style={{ fontSize: 7, color: trendColor, fontWeight: 900, lineHeight: 1, transition: 'color 0.4s' }}>{trendArrow}</span>
+        )}
+      </div>
     </button>
-  );
-}
-
-/* ── Big Team Logo ── */
-function BigLogo({ abbr, color, size = 44 }: { abbr: string; color: string; size?: number }) {
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%',
-      background: `radial-gradient(circle at 35% 35%, ${color}ff, ${color}99)`,
-      border: `2.5px solid rgba(255,255,255,0.18)`,
-      boxShadow: `0 0 12px ${color}66, inset 0 1px 2px rgba(255,255,255,0.25)`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: size > 40 ? 10 : 8, fontWeight: 900, color: '#fff', flexShrink: 0,
-      letterSpacing: '-0.3px', textShadow: '0 1px 3px rgba(0,0,0,0.7)',
-    }}>{abbr}</div>
   );
 }
 
@@ -138,112 +197,119 @@ function TopCard({
   const at = m.tmpl.awayTeam;
   const isFlashing = m.goalFlash && Date.now() - m.flashTs < 3000;
   const sel = selectedBetMatchId === m.id;
+  const od = m.oddsDir;
+
+  const oddsRow = [
+    { label: 'W1', value: m.odds.w1, type: 'W1' as BetType, trend: od?.w1 },
+    { label: 'X',  value: m.odds.x,  type: 'X'  as BetType, trend: od?.x  },
+    { label: 'W2', value: m.odds.w2, type: 'W2' as BetType, trend: od?.w2 },
+  ];
 
   return (
     <div
       onClick={() => onSelect(m.id, 'W1', m.odds.w1)}
       style={{
-        minWidth: 190, maxWidth: 190, flexShrink: 0, cursor: 'pointer',
+        minWidth: 195, maxWidth: 195, flexShrink: 0, cursor: 'pointer',
         background: isFlashing
           ? 'linear-gradient(160deg,#0a2416,#0f3320,#0a2416)'
           : 'linear-gradient(160deg,#0d2318,#163325,#0d2318)',
         border: `1.5px solid ${sel ? '#3b82f6' : isFlashing ? '#22c55e' : 'rgba(255,255,255,0.09)'}`,
-        borderRadius: 12,
-        overflow: 'hidden',
+        borderRadius: 12, overflow: 'hidden',
         transition: 'border-color 0.3s, background 0.3s',
-        boxShadow: sel ? '0 0 0 2px #3b82f644' : '0 2px 12px rgba(0,0,0,0.4)',
+        boxShadow: sel ? '0 0 0 2px #3b82f644' : '0 2px 14px rgba(0,0,0,0.45)',
       }}
     >
-      {/* Top green header */}
+      {/* Green header bar */}
       <div style={{
-        background: 'linear-gradient(90deg,rgba(22,163,74,0.25),rgba(22,163,74,0.1))',
-        borderBottom: '1px solid rgba(22,163,74,0.2)',
+        background: 'linear-gradient(90deg,rgba(22,163,74,0.3),rgba(22,163,74,0.12),rgba(22,163,74,0.3))',
+        borderBottom: '1px solid rgba(22,163,74,0.22)',
         padding: '5px 10px',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
       }}>
-        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
-        <span style={{ fontSize: 9.5, color: '#86efac', fontWeight: 800, letterSpacing: '0.02em' }}>Premature Victory</span>
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 7px #22c55e' }} />
+        <span style={{ fontSize: 9.5, color: '#86efac', fontWeight: 800, letterSpacing: '0.03em' }}>Premature Victory</span>
       </div>
 
-      {/* League name */}
-      <p style={{ fontSize: 9, color: '#6ee7b7', textAlign: 'center', margin: '5px 8px 0', fontWeight: 600, opacity: 0.8 }}>
+      {/* League */}
+      <p style={{ fontSize: 9, color: '#6ee7b7aa', textAlign: 'center', margin: '5px 8px 0', fontWeight: 600 }}>
         {lg?.flag} {lg?.country}, {lg?.name.split(' ').slice(0,2).join(' ')}
       </p>
 
-      {/* Main: Logo | Info | Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', padding: '8px 10px 4px', gap: 0 }}>
-        {/* Home logo */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, width: 48 }}>
-          <BigLogo abbr={ht.abbr} color={ht.color} size={44} />
+      {/* Logos + Score */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '7px 8px 3px' }}>
+        {/* Home shield */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 50 }}>
+          <TeamShield abbr={ht.abbr} color={ht.color} size={46} />
+          <span style={{ fontSize: 7.5, color: '#94a3b855', maxWidth: 50, textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{ht.name.split(' ')[0]}</span>
         </div>
 
-        {/* Center info */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0 }}>
-          {/* Match name */}
-          <p style={{
-            fontSize: 9.5, color: '#e2e8f0', fontWeight: 700, textAlign: 'center', lineHeight: 1.3,
-            overflow: 'hidden', width: '100%',
-            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-          }}>
-            {ht.name} — {at.name}
-          </p>
-          {/* Live time */}
+        {/* Center */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+          {/* Live badge */}
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 4, marginTop: 2,
-            background: 'rgba(239,68,68,0.15)', borderRadius: 4, padding: '2px 7px',
-            border: '1px solid rgba(239,68,68,0.3)',
+            display: 'flex', alignItems: 'center', gap: 3,
+            background: 'rgba(239,68,68,0.14)', borderRadius: 4, padding: '2px 6px',
+            border: '1px solid rgba(239,68,68,0.28)',
           }}>
-            <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444' }} className="animate-pulse" />
-            <span style={{ fontSize: 11, color: '#fca5a5', fontWeight: 900 }}>{m.minute}'</span>
+            <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#ef4444' }} className="animate-pulse" />
+            <span style={{ fontSize: 10, color: '#fca5a5', fontWeight: 900 }}>{m.minute}'</span>
           </div>
           {/* Score */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
             <span style={{
-              fontSize: 22, fontWeight: 900, lineHeight: 1,
-              color: isFlashing && m.goalFlash === 'home' ? '#4ade80' : '#ffffff',
-              transition: 'color 0.3s',
+              fontSize: 26, fontWeight: 900, lineHeight: 1, fontVariantNumeric: 'tabular-nums',
+              color: isFlashing && m.goalFlash === 'home' ? '#4ade80' : '#fff',
+              transition: 'color 0.35s',
             }}>{m.homeScore}</span>
-            <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>:</span>
+            <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.22)' }}>:</span>
             <span style={{
-              fontSize: 22, fontWeight: 900, lineHeight: 1,
-              color: isFlashing && m.goalFlash === 'away' ? '#4ade80' : '#ffffff',
-              transition: 'color 0.3s',
+              fontSize: 26, fontWeight: 900, lineHeight: 1, fontVariantNumeric: 'tabular-nums',
+              color: isFlashing && m.goalFlash === 'away' ? '#4ade80' : '#fff',
+              transition: 'color 0.35s',
             }}>{m.awayScore}</span>
           </div>
         </div>
 
-        {/* Away logo */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, width: 48 }}>
-          <BigLogo abbr={at.abbr} color={at.color} size={44} />
+        {/* Away shield */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 50 }}>
+          <TeamShield abbr={at.abbr} color={at.color} size={46} />
+          <span style={{ fontSize: 7.5, color: '#94a3b855', maxWidth: 50, textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{at.name.split(' ')[0]}</span>
         </div>
       </div>
 
+      {/* Match name line */}
+      <p style={{
+        fontSize: 9, color: 'rgba(255,255,255,0.5)', textAlign: 'center',
+        margin: '1px 6px 4px', lineHeight: 1.3, overflow: 'hidden',
+        whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+      }}>{ht.name} — {at.name}</p>
+
       {/* Odds row */}
-      <div style={{ display: 'flex', gap: 0, padding: '6px 8px 8px', borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 4 }}>
-        {[
-          { label: 'W1', value: m.odds.w1, type: 'W1' as BetType },
-          { label: 'X', value: m.odds.x, type: 'X' as BetType },
-          { label: 'W2', value: m.odds.w2, type: 'W2' as BetType },
-        ].map((o, i) => (
-          <button
-            key={o.label}
-            onClick={e => { e.stopPropagation(); onSelect(m.id, o.type, o.value); }}
-            style={{
-              flex: 1,
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
-              background: sel && o.type === 'W1' ? 'rgba(59,130,246,0.3)' : 'rgba(0,0,0,0.35)',
-              border: `1px solid ${sel && o.type === 'W1' ? '#3b82f6' : 'rgba(255,255,255,0.08)'}`,
-              borderRadius: i === 0 ? '6px 0 0 6px' : i === 2 ? '0 6px 6px 0' : '0',
-              borderLeft: i > 0 ? 'none' : undefined,
-              padding: '4px 2px',
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
-          >
-            <span style={{ fontSize: 8.5, color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>{o.label}</span>
-            <span style={{ fontSize: 13, color: '#F0B90B', fontWeight: 900 }}>{o.value}</span>
-          </button>
-        ))}
+      <div style={{ display: 'flex', borderTop: '1px solid rgba(255,255,255,0.07)', margin: '0 0 0' }}>
+        {oddsRow.map((o, i) => {
+          const tColor = o.trend === 'up' ? '#4ade80' : o.trend === 'down' ? '#ef4444' : '#F0B90B';
+          const tArrow = o.trend === 'up' ? '▲' : o.trend === 'down' ? '▼' : '';
+          const isActive = sel;
+          return (
+            <button
+              key={o.label}
+              onClick={e => { e.stopPropagation(); onSelect(m.id, o.type, o.value); }}
+              style={{
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
+                background: isActive ? 'rgba(59,130,246,0.18)' : 'rgba(0,0,0,0.28)',
+                border: 'none',
+                borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                padding: '5px 2px 6px', cursor: 'pointer', transition: 'all 0.2s',
+              }}
+            >
+              <span style={{ fontSize: 8.5, color: 'rgba(255,255,255,0.4)', fontWeight: 600, marginBottom: 1 }}>{o.label}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <span style={{ fontSize: 13, color: isActive ? '#93c5fd' : tColor, fontWeight: 900, transition: 'color 0.4s' }}>{o.value}</span>
+                {tArrow && <span style={{ fontSize: 7, color: tColor, fontWeight: 900, transition: 'color 0.4s' }}>{tArrow}</span>}
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -285,7 +351,7 @@ function MatchRow({
           padding: '5px 7px', borderRight: '1px solid #1C2128', minWidth: 0, gap: 4,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <TeamBadge abbr={ht.abbr} color={ht.color} size={20} />
+            <TeamShield abbr={ht.abbr} color={ht.color} size={22} />
             <span style={{
               fontSize: 12, fontWeight: 700,
               color: isFlashing && m.goalFlash === 'home' ? '#4ade80' : '#e2e8f0',
@@ -295,7 +361,7 @@ function MatchRow({
             <span style={{ fontSize: 14, fontWeight: 900, color: isFlashing && m.goalFlash === 'home' ? '#4ade80' : '#F0B90B', minWidth: 12, textAlign: 'right', transition: 'color 0.3s' }}>{m.homeScore}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <TeamBadge abbr={at.abbr} color={at.color} size={20} />
+            <TeamShield abbr={at.abbr} color={at.color} size={22} />
             <span style={{
               fontSize: 12, fontWeight: 700,
               color: isFlashing && m.goalFlash === 'away' ? '#4ade80' : '#94a3b8',
@@ -308,14 +374,14 @@ function MatchRow({
 
         {/* RESULT odds */}
         <div style={{ display: 'flex', gap: 2, alignItems: 'center', padding: '0 4px', borderRight: '1px solid #1C2128' }}>
-          <OddPill label="W1" value={m.odds.w1} active={sel} onClick={() => onSelectBet(m.id, 'W1', m.odds.w1)} />
-          <OddPill label="X" value={m.odds.x} onClick={() => onSelectBet(m.id, 'X', m.odds.x)} />
-          <OddPill label="W2" value={m.odds.w2} onClick={() => onSelectBet(m.id, 'W2', m.odds.w2)} />
+          <OddPill label="W1" value={m.odds.w1} trend={m.oddsDir?.w1} active={sel} onClick={() => onSelectBet(m.id, 'W1', m.odds.w1)} />
+          <OddPill label="X"  value={m.odds.x}  trend={m.oddsDir?.x}             onClick={() => onSelectBet(m.id, 'X',  m.odds.x)}  />
+          <OddPill label="W2" value={m.odds.w2} trend={m.oddsDir?.w2}            onClick={() => onSelectBet(m.id, 'W2', m.odds.w2)} />
         </div>
 
         {/* TOTAL odds */}
         <div style={{ display: 'flex', gap: 2, alignItems: 'center', padding: '0 4px' }}>
-          <OddPill label={`O ${m.totalOdds.line}`} value={m.totalOdds.over} onClick={() => onSelectBet(m.id, 'OVER', m.totalOdds.over)} />
+          <OddPill label={`O ${m.totalOdds.line}`} value={m.totalOdds.over}  onClick={() => onSelectBet(m.id, 'OVER',  m.totalOdds.over)}  />
           <OddPill label={`U ${m.totalOdds.line}`} value={m.totalOdds.under} onClick={() => onSelectBet(m.id, 'UNDER', m.totalOdds.under)} />
         </div>
       </div>
@@ -557,6 +623,23 @@ export default function GamesSection() {
   const counter = useRef(200);
   const notifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialized = useRef(false);
+  const topScrollRef = useRef<HTMLDivElement>(null);
+
+  /* Auto-scroll top cards left-to-right, loop back */
+  useEffect(() => {
+    const el = topScrollRef.current;
+    if (!el) return;
+    let dir = 1;
+    const step = setInterval(() => {
+      if (!el) return;
+      const maxScroll = el.scrollWidth - el.clientWidth;
+      if (maxScroll <= 0) return;
+      el.scrollLeft += dir * 198;
+      if (el.scrollLeft >= maxScroll - 5) dir = -1;
+      if (el.scrollLeft <= 5) dir = 1;
+    }, 2800);
+    return () => clearInterval(step);
+  }, []);
 
   /* Init matches */
   useEffect(() => {
@@ -639,7 +722,6 @@ export default function GamesSection() {
           if (m.status === 'finished') return m;
           let mm: LiveMatch = { ...m, minute: m.minute + 1, half: m.minute + 1 > 45 ? 2 : 1 };
 
-          // 45→HT pause handled silently
           if (mm.minute >= 90) {
             const fin = { ...mm, status: 'finished' as const, finishedAt: now };
             finishing.push(fin);
@@ -647,22 +729,28 @@ export default function GamesSection() {
           }
 
           // Goal logic (~7% per tick)
+          let scoringSide: 'home' | 'away' | undefined;
           if (Math.random() < 0.07) {
-            const side = Math.random() < 0.52 ? 'home' : 'away';
+            scoringSide = Math.random() < 0.52 ? 'home' : 'away';
             mm = {
               ...mm,
-              homeScore: side === 'home' ? mm.homeScore + 1 : mm.homeScore,
-              awayScore: side === 'away' ? mm.awayScore + 1 : mm.awayScore,
-              goalFlash: side as 'home' | 'away',
+              homeScore: scoringSide === 'home' ? mm.homeScore + 1 : mm.homeScore,
+              awayScore: scoringSide === 'away' ? mm.awayScore + 1 : mm.awayScore,
+              goalFlash: scoringSide,
               flashTs: now,
             };
           }
+
+          // Recalc odds — big shift on goal, small drift every tick
+          const newOdds = recalcOdds(mm.odds, mm.homeScore, mm.awayScore, mm.minute, !!scoringSide, scoringSide);
+          const newOddsDir = calcOddsDir(mm.odds, newOdds);
+          mm = { ...mm, prevOdds: mm.odds, odds: newOdds, oddsDir: newOddsDir };
+
           return mm;
         });
 
         if (finishing.length) settleBets(finishing);
 
-        // Remove finished after 10s, replace with fresh
         next = next.filter(m => !(m.status === 'finished' && m.finishedAt && now - m.finishedAt > 10000));
         const need = 30 - next.length;
         if (need > 0) {
@@ -794,8 +882,15 @@ export default function GamesSection() {
       {/* ── LIVE VIEW ── */}
       {activeView === 'live' && (
         <>
-          {/* Top horizontal cards */}
-          <div style={{ overflowX: 'auto', display: 'flex', gap: 8, padding: '10px 12px 8px', scrollbarWidth: 'none' }}>
+          {/* Top horizontal cards — auto-scroll L→R */}
+          <div
+            ref={topScrollRef}
+            style={{
+              overflowX: 'auto', display: 'flex', gap: 8,
+              padding: '10px 12px 8px', scrollbarWidth: 'none',
+              scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch',
+            }}
+          >
             {live.slice(0, 12).map(m => (
               <TopCard key={m.id} m={m} selectedBetMatchId={activeBetMatchId} onSelect={handleSelectBet} />
             ))}
