@@ -993,6 +993,21 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
   };
 
   const loadUsers = async () => {
+    try {
+      const adminUser = await getCurrentUser();
+      const adminId = adminUser?.id || '';
+      const resp = await fetch('/api/admin/users', {
+        headers: { 'x-requester-id': adminId }
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        setUsers(Array.isArray(data) ? data : []);
+        return;
+      }
+    } catch {
+      // fallback below
+    }
+    // Fallback: direct Supabase query (may be limited by RLS)
     const { data } = await supabase
       .from('user_profiles')
       .select('*')
