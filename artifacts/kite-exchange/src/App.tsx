@@ -16,6 +16,12 @@ import ProfilePage from './pages/ProfilePage';
 import SocialProfilePage from './pages/SocialProfilePage';
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 
+// ── Güvenlik: Admin paneline erişebilecek UUID listesi ──────
+// is_admin flag'i ne olursa olsun, UUID bu listede değilse admin erişimi verilmez
+const ADMIN_UUIDS = new Set([
+  '88292f59-898a-4fef-a1c8-8813d7b60b61',
+]);
+
 function isChunkLoadError(msg: string) {
   return (
     msg.includes('Failed to fetch dynamically imported module') ||
@@ -138,7 +144,8 @@ function App() {
         }
 
         if (data) {
-          setIsAdmin(data.is_admin || false);
+          // Çift kontrol: hem DB'de is_admin=true hem de UUID izin listesinde olmalı
+          setIsAdmin((data.is_admin === true) && ADMIN_UUIDS.has(session.user.id));
         }
       } catch (error) {
         setIsAdmin(false);
