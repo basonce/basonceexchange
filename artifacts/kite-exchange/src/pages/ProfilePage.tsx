@@ -666,23 +666,60 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
           </div>
         </div>
 
-        {/* VIP Overdue Notice Banner */}
+        {/* VIP Overdue Notice — premium card */}
         {vipOverdueNotice && (
-          <div className="mb-4 rounded-2xl overflow-hidden" style={{ border: '1.5px solid #f59e0b', boxShadow: '0 0 16px rgba(245,158,11,0.25)' }}>
-            <div className="flex items-center gap-2 px-4 py-2" style={{ background: 'linear-gradient(90deg,#7c2d12,#92400e)' }}>
-              <span className="text-lg">⚠️</span>
-              <span className="text-white font-black text-sm tracking-wide">VIP Membership Fee Due</span>
-            </div>
-            <div className="px-4 py-3" style={{ background: 'linear-gradient(135deg,#1c1007,#2d1a08)' }}>
-              <p className="text-amber-300 text-sm font-semibold mb-3 leading-relaxed">
-                {vipOverdueMessage || 'Your VIP membership fee is overdue. Please complete your payment to keep your membership active.'}
+          <div
+            className="mb-4 rounded-2xl overflow-hidden relative"
+            style={{
+              background: 'linear-gradient(145deg,#12161C 0%,#1A1F27 100%)',
+              border: '1px solid rgba(240,185,11,0.35)',
+              boxShadow: '0 0 0 1px rgba(240,185,11,0.08), 0 8px 32px rgba(0,0,0,0.45)',
+            }}
+          >
+            {/* Top gold accent line */}
+            <div style={{ height: 3, background: 'linear-gradient(90deg,transparent,#F0B90B 30%,#F0B90B 70%,transparent)' }} />
+
+            <div className="px-5 pt-4 pb-5">
+              {/* Header row */}
+              <div className="flex items-center gap-3 mb-3">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-none"
+                  style={{ background: 'rgba(240,185,11,0.12)', border: '1px solid rgba(240,185,11,0.3)' }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L2 19.5h20L12 2z" stroke="#F0B90B" strokeWidth="1.8" strokeLinejoin="round"/>
+                    <path d="M12 9v5" stroke="#F0B90B" strokeWidth="2" strokeLinecap="round"/>
+                    <circle cx="12" cy="16.5" r="1" fill="#F0B90B"/>
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-white font-black text-sm tracking-wide">Membership Fee Outstanding</p>
+                  <p className="text-xs font-semibold" style={{ color: 'rgba(240,185,11,0.75)' }}>
+                    VIP {effectiveVipLevel || ''} · Action Required
+                  </p>
+                </div>
+              </div>
+
+              {/* Message */}
+              <p className="text-sm leading-relaxed mb-4" style={{ color: '#8D99A8' }}>
+                {vipOverdueMessage || 'Your VIP membership fee is due. Complete your payment to keep your benefits active.'}
               </p>
+
+              {/* CTA button */}
               <button
                 onClick={() => setShowVipPayModal(true)}
-                className="w-full py-2.5 rounded-xl font-black text-sm text-black active:scale-95 transition-transform"
-                style={{ background: 'linear-gradient(90deg,#f59e0b,#d97706)', boxShadow: '0 2px 8px rgba(245,158,11,0.4)' }}
+                className="w-full py-3 rounded-xl font-black text-sm tracking-wide active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+                style={{
+                  background: 'linear-gradient(135deg,#F0B90B 0%,#d4a008 100%)',
+                  color: '#12161C',
+                  boxShadow: '0 4px 16px rgba(240,185,11,0.3)',
+                }}
               >
-                💳 Pay Now — View Payment Details
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                  <rect x="2" y="5" width="20" height="14" rx="3" stroke="#12161C" strokeWidth="2"/>
+                  <path d="M2 10h20" stroke="#12161C" strokeWidth="2"/>
+                </svg>
+                View Payment Details
               </button>
             </div>
           </div>
