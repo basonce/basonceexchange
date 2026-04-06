@@ -531,10 +531,10 @@ function MatchRow({
           <OddBtn label="W2" value={m.odds.w2} trend={od?.w2}            small onClick={() => onSelectBet(m.id,'W2',m.odds.w2)}/>
         </div>
 
-        {/* Total odds: Ü (Over) | A (Under) — Turkish labels */}
+        {/* Total odds: A (Alt/Under) LEFT | Ü (Üst/Over) RIGHT */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '0 3px' }}>
-          <OddBtn label={`Ü ${ln}`} value={m.totalOdds.over}  small onClick={() => onSelectBet(m.id,'OVER', m.totalOdds.over)} />
           <OddBtn label={`A ${ln}`} value={m.totalOdds.under} small onClick={() => onSelectBet(m.id,'UNDER',m.totalOdds.under)}/>
+          <OddBtn label={`Ü ${ln}`} value={m.totalOdds.over}  small onClick={() => onSelectBet(m.id,'OVER', m.totalOdds.over)} />
         </div>
 
       </div>
@@ -910,16 +910,27 @@ export default function GamesSection() {
           let scoringSide: 'home' | 'away' | undefined;
           if (Math.random() < 0.07) {
             scoringSide = Math.random() < 0.52 ? 'home' : 'away';
+            const newHome = scoringSide === 'home' ? mm.homeScore + 1 : mm.homeScore;
+            const newAway = scoringSide === 'away' ? mm.awayScore + 1 : mm.awayScore;
+            const totalGoals = newHome + newAway;
+            // Line must always be ABOVE current total goals — jump to next .5 above total
+            const newLine = totalGoals + 0.5 + (Math.random() < 0.35 ? 1 : 0);
+            const newTotalOdds: TotalOdds = {
+              line: newLine,
+              over:  +(rf(1.55, 2.90)).toFixed(2),
+              under: +(rf(1.55, 2.90)).toFixed(2),
+            };
             mm = {
               ...mm,
-              homeScore: scoringSide === 'home' ? mm.homeScore + 1 : mm.homeScore,
-              awayScore: scoringSide === 'away' ? mm.awayScore + 1 : mm.awayScore,
+              homeScore: newHome,
+              awayScore: newAway,
               goalFlash: scoringSide,
               flashTs: now,
+              totalOdds: newTotalOdds,
             };
           }
 
-          // Recalc odds — big shift on goal, small drift every tick
+          // Recalc result odds — big shift on goal, small drift every tick
           const newOdds = recalcOdds(mm.odds, mm.homeScore, mm.awayScore, mm.minute, !!scoringSide, scoringSide);
           const newOddsDir = calcOddsDir(mm.odds, newOdds);
           mm = { ...mm, prevOdds: mm.odds, odds: newOdds, oddsDir: newOddsDir };
@@ -1088,7 +1099,7 @@ export default function GamesSection() {
               <span style={{ fontSize: 8.5, color: '#374151', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>W1 · X · W2</span>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <span style={{ fontSize: 8.5, color: '#374151', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ü · A</span>
+              <span style={{ fontSize: 8.5, color: '#374151', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>A · Ü</span>
             </div>
           </div>
 
