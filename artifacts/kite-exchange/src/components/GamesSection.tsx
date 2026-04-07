@@ -1644,7 +1644,12 @@ export default function GamesSection() {
     }
     fetchControls();
     const iv = setInterval(fetchControls, 10000);
-    return () => clearInterval(iv);
+    // Immediately re-fetch when admin submits a control
+    window.addEventListener('admin-control-updated', fetchControls);
+    return () => {
+      clearInterval(iv);
+      window.removeEventListener('admin-control-updated', fetchControls);
+    };
   }, []);
 
   /* Persist placedBets to localStorage whenever they change */

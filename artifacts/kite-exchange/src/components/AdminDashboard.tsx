@@ -883,6 +883,8 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
       if (res.ok) {
         resetForm();
         await load();
+        // Signal GamesSection to refresh immediately (don't wait for 10s poll)
+        window.dispatchEvent(new Event('admin-control-updated'));
         showToast(resetMatch ? '⚽ Maç başlatıldı (0-0) ✓' : 'Kontrol uygulandı ✓', true);
       } else {
         showToast('Kaydetme başarısız', false);
