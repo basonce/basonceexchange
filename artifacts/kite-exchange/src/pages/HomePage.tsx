@@ -36,8 +36,8 @@ interface HomePageProps {
 }
 
 export default function HomePage({ onNavigate }: HomePageProps) {
-  const [activeTab, setActiveTab] = useState<'crypto' | 'spot' | 'futures' | 'new-listing' | 'alpha' | 'games'>('crypto');
-  const [activeFilter, setActiveFilter] = useState<'gainers' | 'losers' | '24h-vol' | 'tradfi'>('gainers');
+  const [activeTab, setActiveTab] = useState<'crypto' | 'spot' | 'futures' | 'new-listing' | 'alpha'>('crypto');
+  const [activeFilter, setActiveFilter] = useState<'gainers' | 'losers' | '24h-vol' | 'tradfi' | 'sports'>('gainers');
   const [discoverTab, setDiscoverTab] = useState<'discover' | 'following' | 'campaign' | 'announcement'>('discover');
   const [showFAB, setShowFAB] = useState(false);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
@@ -501,7 +501,6 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 { id: 'futures', label: 'Futures' },
                 { id: 'new-listing', label: 'New' },
                 { id: 'alpha', label: 'Basonce Alpha', special: true },
-                { id: 'games', label: '🎮 Games', special: false },
               ].map(({ id, label, special }) => (
                 <button
                   key={id}
@@ -517,21 +516,22 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               ))}
             </div>
 
-            {activeTab !== 'new-listing' && activeTab !== 'futures' && activeTab !== 'alpha' && activeTab !== 'games' && (
+            {activeTab !== 'new-listing' && activeTab !== 'futures' && activeTab !== 'alpha' && (
               <div className="flex items-center gap-1.5 mb-1.5 overflow-x-auto scrollbar-hide -mx-4 px-4">
                 {[
                   { id: 'gainers', label: 'Gainers' },
                   { id: 'losers', label: 'Losers' },
                   { id: '24h-vol', label: '24h Vol' },
                   { id: 'tradfi', label: 'TradFi' },
+                  { id: 'sports', label: '⚽ Spor' },
                 ].map(({ id, label }) => (
                   <button
                     key={id}
                     onClick={() => setActiveFilter(id as typeof activeFilter)}
                     className={`px-3 py-1 rounded text-[13px] font-bold transition-all whitespace-nowrap flex-shrink-0 flex items-center gap-1 ${
                       activeFilter === id
-                        ? 'bg-[#F0B90B] text-[#0B0E11]'
-                        : 'bg-transparent text-[#848E9C] hover:text-[#B7BDC6]'
+                        ? id === 'sports' ? 'bg-[#1B4332] text-[#0ECB81] border border-[#0ECB81]/40' : 'bg-[#F0B90B] text-[#0B0E11]'
+                        : id === 'sports' ? 'bg-transparent text-[#0ECB81]/70 hover:text-[#0ECB81]' : 'bg-transparent text-[#848E9C] hover:text-[#B7BDC6]'
                     }`}
                   >
                     {label}
@@ -550,7 +550,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             <FuturesMarketList />
           ) : activeTab === 'alpha' ? (
             <BasonceAlpha />
-          ) : activeTab === 'games' ? (
+          ) : activeFilter === 'sports' ? (
             <GamesSection />
           ) : activeFilter === 'tradfi' ? (
             <HomeTradFiList />
