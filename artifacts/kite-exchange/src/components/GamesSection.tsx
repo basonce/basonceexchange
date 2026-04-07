@@ -1322,11 +1322,13 @@ function MyBets({ bets, matches }: { bets: PlacedBet[]; matches: LiveMatch[] }) 
                   </span>
                   {isOpen && liveMinute !== null && (
                     <span style={{
-                      fontSize: 11, fontWeight: 800, color: '#93c5fd',
-                      background: 'rgba(0,0,0,0.25)',
-                      padding: '1px 6px', borderRadius: 4,
+                      fontSize: 13, fontWeight: 900, color: '#fff',
+                      background: '#ef4444',
+                      padding: '2px 8px', borderRadius: 5,
+                      letterSpacing: '0.02em',
+                      boxShadow: '0 0 6px rgba(239,68,68,0.6)',
                     }}>
-                      {liveMinute}'{liveHalf === 2 ? ' (2H)' : ''}
+                      {liveMinute}'{liveHalf === 2 ? ' 2Y' : ''}
                     </span>
                   )}
                 </div>
