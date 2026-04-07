@@ -736,6 +736,17 @@ function timeAgoMC(ts: number) {
   return `${Math.floor(s / 3600)}sa önce`;
 }
 
+const EXPOSURE_API = '/api-server/api/admin/bet-exposure';
+
+interface BetExposure {
+  homeTeam: string;
+  awayTeam: string;
+  bets: Record<string, { count: number; totalStake: number }>;
+  totalStake: number;
+  totalBets: number;
+  uniqueUsers: number;
+}
+
 function MatchControlsPanel({ adminId }: { adminId: string }) {
   const [controls, setControls]     = useState<MatchCtrl[]>([]);
   const [loading, setLoading]       = useState(true);
@@ -744,6 +755,40 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [toast, setToast]           = useState<{ msg: string; ok: boolean } | null>(null);
   const toastRef = useRef<number | null>(null);
+
+  // ── Panel view toggle ───────────────────────────────────────
+  const [panelView, setPanelView] = useState<'controls' | 'exposure'>('controls');
+
+  // ── Exposure state ──────────────────────────────────────────
+  const [exposure, setExposure]           = useState<BetExposure[]>([]);
+  const [exposureLoading, setExposureLoading] = useState(false);
+  const [applyingExposure, setApplyingExposure] = useState<string | null>(null);
+
+  async function loadExposure() {
+    setExposureLoading(true);
+    try {
+      const aid = adminId || FALLBACK_ADMIN;
+      const res = await fetch(EXPOSURE_API, { cache: 'no-store', headers: { 'x-requester-id': aid } });
+      if (res.ok) setExposure(await res.json());
+    } catch {}
+    setExposureLoading(false);
+  }
+
+  async function applyExposureControl(homeTeam: string, awayTeam: string, targetResult: '1' | 'X' | '2') {
+    const key = `${homeTeam}:${awayTeam}:${targetResult}`;
+    setApplyingExposure(key);
+    try {
+      const aid = adminId || FALLBACK_ADMIN;
+      await fetch(MATCH_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-requester-id': aid },
+        body: JSON.stringify({ homeTeam, awayTeam, pinned: false, targetResult }),
+      });
+      await load();
+      showToast(`Kontrol eklendi: ${homeTeam} vs ${awayTeam}`, true);
+    } catch { showToast('Hata', false); }
+    setApplyingExposure(null);
+  }
 
   // ── Form state ─────────────────────────────────────────────
   const [showForm, setShowForm]         = useState(false);
@@ -777,6 +822,14 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
     const iv = setInterval(() => load(), 15000);
     return () => clearInterval(iv);
   }, []);
+
+  useEffect(() => {
+    if (panelView === 'exposure') {
+      loadExposure();
+      const iv = setInterval(() => loadExposure(), 20000);
+      return () => clearInterval(iv);
+    }
+  }, [panelView]);
 
   function resetForm() {
     setHomeTeam(''); setAwayTeam(''); setPinned(false); setMode('result');
@@ -870,23 +923,187 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => load(true)} disabled={refreshing} title="Yenile" style={{
+          <button onClick={() => panelView === 'controls' ? load(true) : loadExposure()} disabled={refreshing || exposureLoading} title="Yenile" style={{
             width: 34, height: 34, borderRadius: 9, border: '1px solid #E5E7EB',
             background: '#F9FAFB', cursor: 'pointer', fontSize: 15, color: '#374151',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            opacity: refreshing ? 0.5 : 1,
+            opacity: (refreshing || exposureLoading) ? 0.5 : 1,
           }}>↻</button>
-          <button onClick={() => { setShowForm(v => !v); resetForm(); }} style={{
-            padding: '0 14px', height: 34, borderRadius: 9, cursor: 'pointer',
-            fontWeight: 800, fontSize: 12,
-            background: showForm ? '#FEE2E2' : 'linear-gradient(135deg,#F0B90B,#d97706)',
-            border: `1px solid ${showForm ? '#FCA5A5' : '#d97706'}`,
-            color: showForm ? '#DC2626' : '#000',
-          }}>
-            {showForm ? '✕ İptal' : '+ Yeni Kontrol'}
-          </button>
+          {panelView === 'controls' && (
+            <button onClick={() => { setShowForm(v => !v); resetForm(); }} style={{
+              padding: '0 14px', height: 34, borderRadius: 9, cursor: 'pointer',
+              fontWeight: 800, fontSize: 12,
+              background: showForm ? '#FEE2E2' : 'linear-gradient(135deg,#F0B90B,#d97706)',
+              border: `1px solid ${showForm ? '#FCA5A5' : '#d97706'}`,
+              color: showForm ? '#DC2626' : '#000',
+            }}>
+              {showForm ? '✕ İptal' : '+ Yeni Kontrol'}
+            </button>
+          )}
         </div>
       </div>
+
+      {/* ── View Toggle Tabs ── */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: '#F3F4F6', borderRadius: 10, padding: 4 }}>
+        {([
+          { id: 'controls' as const, label: '🎮 Kontroller', badge: controls.length },
+          { id: 'exposure' as const, label: '📊 Bahis Ekzpozu', badge: exposure.length },
+        ] as { id: 'controls' | 'exposure'; label: string; badge: number }[]).map(tab => (
+          <button key={tab.id} onClick={() => { setPanelView(tab.id); if (tab.id === 'exposure') loadExposure(); }} style={{
+            flex: 1, padding: '8px 10px', borderRadius: 8, border: 'none', cursor: 'pointer',
+            fontWeight: 800, fontSize: 12, transition: 'all .15s',
+            background: panelView === tab.id ? '#fff' : 'transparent',
+            color: panelView === tab.id ? '#111827' : '#6B7280',
+            boxShadow: panelView === tab.id ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          }}>
+            {tab.label}
+            {tab.badge > 0 && (
+              <span style={{ background: panelView === tab.id ? '#F0B90B' : '#D1D5DB', color: panelView === tab.id ? '#000' : '#374151', borderRadius: 20, padding: '0 6px', fontSize: 10, fontWeight: 900, minWidth: 18, textAlign: 'center' }}>
+                {tab.badge}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {panelView === 'exposure' ? (
+        /* ════════════════════════════════════════════════════
+           BAHİS EKZPOZU PANEL
+        ════════════════════════════════════════════════════ */
+        <div>
+          {exposureLoading && exposure.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#374151' }}>
+              <RefreshCw style={{ width: 22, height: 22, margin: '0 auto 8px', animation: 'spin 1s linear infinite' }} />
+              <p style={{ fontSize: 13, fontWeight: 600 }}>Bahis verileri yükleniyor…</p>
+            </div>
+          ) : exposure.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '48px 0', background: '#F9FAFB', borderRadius: 14, border: '1px dashed #E5E7EB' }}>
+              <div style={{ fontSize: 36, marginBottom: 10 }}>📊</div>
+              <p style={{ fontSize: 14, fontWeight: 800, color: '#111827', marginBottom: 4 }}>Henüz Açık Bahis Yok</p>
+              <p style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>Kullanıcılar bahis oynadıkça burada görünür</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <p style={{ fontSize: 10, fontWeight: 800, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>
+                Açık Bahis Dağılımı — {exposure.length} maç
+              </p>
+              {exposure.map(ex => {
+                const betTypes = ['W1', 'X', 'W2', 'OVER', 'UNDER'] as const;
+                const btColors: Record<string, string> = { W1: '#3B82F6', X: '#6B7280', W2: '#F6465D', OVER: '#0ECB81', UNDER: '#F0B90B' };
+                const btLabels: Record<string, string> = { W1: '1 (Ev)', X: 'X', W2: '2 (Dep)', OVER: 'Üst', UNDER: 'Alt' };
+                const totalStake = ex.totalStake || 0;
+                const homeLogo = TEAM_LOGOS[ex.homeTeam];
+                const awayLogo = TEAM_LOGOS[ex.awayTeam];
+                const existingCtrl = controls.find(c => c.homeTeam === ex.homeTeam && c.awayTeam === ex.awayTeam);
+
+                return (
+                  <div key={`${ex.homeTeam}:${ex.awayTeam}`} style={{
+                    background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB',
+                    overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                  }}>
+                    {/* Top accent */}
+                    <div style={{ height: 3, background: 'linear-gradient(90deg,#3B82F6,#F6465D)' }} />
+                    <div style={{ padding: '12px 14px' }}>
+
+                      {/* Teams + total */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {homeLogo
+                            ? <img src={homeLogo} alt="" style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }} />
+                            : <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#3B82F6', fontSize: 7, color: '#fff', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{ex.homeTeam.slice(0,2).toUpperCase()}</div>
+                          }
+                          <span style={{ fontSize: 11, fontWeight: 800, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ex.homeTeam}</span>
+                        </div>
+                        <div style={{ textAlign: 'center', flexShrink: 0 }}>
+                          <div style={{ fontSize: 10, fontWeight: 900, color: '#111827' }}>{totalStake.toFixed(2)} <span style={{ color: '#F0B90B' }}>USDT</span></div>
+                          <div style={{ fontSize: 9, color: '#374151', fontWeight: 600 }}>{ex.totalBets} bahis · {ex.uniqueUsers} kullanıcı</div>
+                        </div>
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>{ex.awayTeam}</span>
+                          {awayLogo
+                            ? <img src={awayLogo} alt="" style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }} />
+                            : <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#F6465D', fontSize: 7, color: '#fff', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{ex.awayTeam.slice(0,2).toUpperCase()}</div>
+                          }
+                        </div>
+                      </div>
+
+                      {/* Stake distribution bar */}
+                      {totalStake > 0 && (
+                        <div style={{ marginBottom: 10 }}>
+                          <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', height: 8, marginBottom: 6 }}>
+                            {betTypes.map(bt => {
+                              const stake = ex.bets[bt]?.totalStake || 0;
+                              const pct = totalStake > 0 ? (stake / totalStake) * 100 : 0;
+                              if (pct < 0.5) return null;
+                              return <div key={bt} style={{ width: `${pct}%`, background: btColors[bt], transition: 'width .3s' }} title={`${btLabels[bt]}: ${stake.toFixed(2)} USDT`} />;
+                            })}
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                            {betTypes.map(bt => {
+                              const d = ex.bets[bt];
+                              if (!d || d.totalStake === 0) return null;
+                              const pct = totalStake > 0 ? (d.totalStake / totalStake * 100).toFixed(0) : '0';
+                              return (
+                                <div key={bt} style={{
+                                  display: 'flex', alignItems: 'center', gap: 4,
+                                  background: `${btColors[bt]}15`, border: `1px solid ${btColors[bt]}40`,
+                                  borderRadius: 6, padding: '3px 7px',
+                                }}>
+                                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: btColors[bt], flexShrink: 0 }} />
+                                  <span style={{ fontSize: 10, fontWeight: 800, color: btColors[bt] }}>{btLabels[bt]}</span>
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: '#374151' }}>{d.totalStake.toFixed(1)} USDT ({pct}%)</span>
+                                  <span style={{ fontSize: 9, color: '#6B7280' }}>×{d.count}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Existing control badge */}
+                      {existingCtrl && (
+                        <div style={{ marginBottom: 8, padding: '5px 10px', background: '#FEF9C3', borderRadius: 8, border: '1px solid #FDE68A', fontSize: 11, fontWeight: 700, color: '#d97706' }}>
+                          ✅ Aktif Kontrol: {existingCtrl.targetScore ? `${existingCtrl.targetScore.h}–${existingCtrl.targetScore.a}` : MC_RESULT_LABELS[existingCtrl.targetResult || ''] || '—'}
+                        </div>
+                      )}
+
+                      {/* Quick control buttons */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                        {([
+                          { result: '1' as const, label: '🔵 Ev Kazansın', bg: '#EFF6FF', border: '#BFDBFE', color: '#1D4ED8', stake: ex.bets['W1']?.totalStake || 0 },
+                          { result: 'X' as const, label: '⚪ Beraberlik', bg: '#F9FAFB', border: '#E5E7EB', color: '#374151', stake: ex.bets['X']?.totalStake || 0 },
+                          { result: '2' as const, label: '🔴 Dep Kazansın', bg: '#FEF2F2', border: '#FECACA', color: '#DC2626', stake: ex.bets['W2']?.totalStake || 0 },
+                        ]).map(({ result, label, bg, border, color, stake }) => {
+                          const key = `${ex.homeTeam}:${ex.awayTeam}:${result}`;
+                          const isApplying = applyingExposure === key;
+                          return (
+                            <button key={result} onClick={() => applyExposureControl(ex.homeTeam, ex.awayTeam, result)} disabled={!!applyingExposure} style={{
+                              padding: '7px 4px', borderRadius: 8, border: `1px solid ${border}`,
+                              background: isApplying ? '#F3F4F6' : bg,
+                              color: isApplying ? '#9CA3AF' : color,
+                              fontWeight: 800, fontSize: 10, cursor: 'pointer',
+                              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                              opacity: !!applyingExposure && !isApplying ? 0.6 : 1,
+                            }}>
+                              <span>{isApplying ? '⏳' : label}</span>
+                              {stake > 0 && <span style={{ fontSize: 9, fontWeight: 700, opacity: 0.8 }}>{stake.toFixed(0)} USDT risk</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+      /* ════════════════════════════════════════════════════
+         KONTROLLER PANEL
+      ════════════════════════════════════════════════════ */
+        <>
 
       {/* ── Stats Row ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
@@ -1184,6 +1401,8 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
             })}
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );

@@ -1443,6 +1443,13 @@ export default function GamesSection() {
           status = 'won';
         }
         changed = true;
+        // Update status in API server
+        fetch(`/api-server/api/sport-bets/${bet.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status }),
+        }).catch(e => console.warn('[sport-bets] settle error', e.message));
+
         if (status === 'won') {
           // Credit winnings to Supabase
           setUsdtBalance(b => {
@@ -1643,6 +1650,25 @@ export default function GamesSection() {
       potentialWin: +(amount * betSlip.odds).toFixed(2),
       status: 'open',
     };
+
+    // Report bet to API server for admin exposure tracking
+    fetch('/api-server/api/sport-bets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: placed.id,
+        userId,
+        matchId: placed.matchId,
+        homeTeam: placed.homeTeam,
+        awayTeam: placed.awayTeam,
+        betType: placed.betType,
+        odds: placed.odds,
+        stake: amount,
+        potentialWin: placed.potentialWin,
+        ouLine: placed.ouLine ?? undefined,
+      }),
+    }).catch(e => console.warn('[sport-bets] report error', e.message));
+
     setPlacedBets(prev => [...prev, placed]);
     setBetSlip(null);
     setActiveBetMatchId(null);
