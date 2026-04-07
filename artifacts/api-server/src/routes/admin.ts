@@ -1,4 +1,6 @@
 import { Router, type IRouter } from "express";
+import { db, sportBetsTable } from "@workspace/db";
+import { eq, and, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -141,97 +143,99 @@ router.get('/admin/users', async (req, res) => {
 });
 
 /* ══════════════════════════════════════════════════════════
-   SPORT BETS — in-memory store (per server session)
-   Cleared when server restarts (fine: matches are short-lived)
+   SPORT BETS — PostgreSQL (shared across all server instances)
 ══════════════════════════════════════════════════════════ */
-interface SportBet {
-  id: string;
-  userId: string;
-  matchId: string;
-  homeTeam: string;
-  awayTeam: string;
-  betType: string;
-  odds: number;
-  stake: number;
-  potentialWin: number;
-  ouLine?: number;
-  status: 'open' | 'won' | 'lost';
-  createdAt: number;
-}
 
-const sportBets = new Map<string, SportBet>();
-
-/* POST /sport-bets — any authenticated user can record their bet */
-router.post('/sport-bets', (req, res) => {
-  const { id, userId, matchId, homeTeam, awayTeam, betType, odds, stake, potentialWin, ouLine } = req.body;
-  if (!id || !userId || !matchId || !homeTeam || !awayTeam || !betType) {
-    return res.status(400).json({ error: 'Missing required fields' });
+/* POST /sport-bets — any user can record their bet */
+router.post('/sport-bets', async (req, res) => {
+  try {
+    const { id, userId, matchId, homeTeam, awayTeam, betType, odds, stake, potentialWin, ouLine } = req.body;
+    if (!id || !userId || !matchId || !homeTeam || !awayTeam || !betType) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    await db.insert(sportBetsTable).values({
+      id,
+      userId,
+      matchId,
+      homeTeam,
+      awayTeam,
+      betType,
+      odds: String(odds),
+      stake: String(stake),
+      potentialWin: String(potentialWin),
+      ouLine: ouLine != null ? String(ouLine) : null,
+      status: 'open',
+    }).onConflictDoNothing();
+    return res.json({ ok: true });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
   }
-  const bet: SportBet = {
-    id, userId, matchId, homeTeam, awayTeam, betType,
-    odds: Number(odds), stake: Number(stake),
-    potentialWin: Number(potentialWin),
-    ouLine: ouLine ? Number(ouLine) : undefined,
-    status: 'open', createdAt: Date.now(),
-  };
-  sportBets.set(id, bet);
-  return res.json({ ok: true });
 });
 
 /* PATCH /sport-bets/:id — update bet status */
-router.patch('/sport-bets/:id', (req, res) => {
-  const { id } = req.params;
-  const bet = sportBets.get(id);
-  if (!bet) return res.status(404).json({ error: 'Not found' });
-  const { status } = req.body;
-  if (status === 'won' || status === 'lost') {
-    bet.status = status;
-    sportBets.set(id, bet);
+router.patch('/sport-bets/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (status !== 'won' && status !== 'lost') {
+      return res.status(400).json({ error: 'status must be won or lost' });
+    }
+    await db.update(sportBetsTable)
+      .set({ status, settledAt: new Date() })
+      .where(eq(sportBetsTable.id, id));
+    return res.json({ ok: true });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
   }
-  return res.json({ ok: true });
 });
 
 /* GET /admin/bet-exposure — aggregate open bets per match */
-router.get('/admin/bet-exposure', (req, res) => {
-  const requesterId = req.headers['x-requester-id'] as string;
-  if (!requesterId || !ADMIN_UUIDS.has(requesterId)) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-
-  const openBets = Array.from(sportBets.values()).filter(b => b.status === 'open');
-
-  const map = new Map<string, {
-    homeTeam: string; awayTeam: string;
-    bets: Record<string, { count: number; totalStake: number }>;
-    totalStake: number; totalBets: number; uniqueUsers: Set<string>;
-  }>();
-
-  for (const bet of openBets) {
-    const key = `${bet.homeTeam}:${bet.awayTeam}`;
-    if (!map.has(key)) {
-      map.set(key, { homeTeam: bet.homeTeam, awayTeam: bet.awayTeam, bets: {}, totalStake: 0, totalBets: 0, uniqueUsers: new Set() });
+router.get('/admin/bet-exposure', async (req, res) => {
+  try {
+    const requesterId = req.headers['x-requester-id'] as string;
+    if (!requesterId || !ADMIN_UUIDS.has(requesterId)) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
-    const entry = map.get(key)!;
-    if (!entry.bets[bet.betType]) entry.bets[bet.betType] = { count: 0, totalStake: 0 };
-    entry.bets[bet.betType].count++;
-    entry.bets[bet.betType].totalStake += bet.stake;
-    entry.totalStake += bet.stake;
-    entry.totalBets++;
-    entry.uniqueUsers.add(bet.userId);
+
+    const openBets = await db.select()
+      .from(sportBetsTable)
+      .where(eq(sportBetsTable.status, 'open'));
+
+    const map = new Map<string, {
+      homeTeam: string; awayTeam: string;
+      bets: Record<string, { count: number; totalStake: number }>;
+      totalStake: number; totalBets: number; uniqueUsers: Set<string>;
+    }>();
+
+    for (const bet of openBets) {
+      const key = `${bet.homeTeam}:${bet.awayTeam}`;
+      if (!map.has(key)) {
+        map.set(key, { homeTeam: bet.homeTeam, awayTeam: bet.awayTeam, bets: {}, totalStake: 0, totalBets: 0, uniqueUsers: new Set() });
+      }
+      const entry = map.get(key)!;
+      if (!entry.bets[bet.betType]) entry.bets[bet.betType] = { count: 0, totalStake: 0 };
+      entry.bets[bet.betType].count++;
+      entry.bets[bet.betType].totalStake += Number(bet.stake);
+      entry.totalStake += Number(bet.stake);
+      entry.totalBets++;
+      entry.uniqueUsers.add(bet.userId);
+    }
+
+    const result = Array.from(map.values())
+      .sort((a, b) => b.totalStake - a.totalStake)
+      .map(e => ({
+        homeTeam: e.homeTeam,
+        awayTeam: e.awayTeam,
+        bets: e.bets,
+        totalStake: +e.totalStake.toFixed(2),
+        totalBets: e.totalBets,
+        uniqueUsers: e.uniqueUsers.size,
+      }));
+
+    return res.json(result);
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
   }
-
-  const result = Array.from(map.values())
-    .sort((a, b) => b.totalStake - a.totalStake)
-    .map(e => ({
-      homeTeam: e.homeTeam,
-      awayTeam: e.awayTeam,
-      bets: e.bets,
-      totalStake: +e.totalStake.toFixed(2),
-      totalBets: e.totalBets,
-      uniqueUsers: e.uniqueUsers.size,
-    }));
-
-  return res.json(result);
 });
 
 export default router;
