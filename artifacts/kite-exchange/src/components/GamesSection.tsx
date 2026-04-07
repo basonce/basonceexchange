@@ -1575,6 +1575,23 @@ export default function GamesSection() {
             next = [injectedMatch, ...next];
           }
 
+          // Step 2.5: Remove random matches where either team is already in an admin-controlled match
+          // (prevents duplicate teams appearing in two different matches simultaneously)
+          const adminTeams = new Set<string>();
+          for (const m of next) {
+            if (m.adminCtrl) {
+              adminTeams.add(m.tmpl.homeTeam.name);
+              adminTeams.add(m.tmpl.awayTeam.name);
+            }
+          }
+          if (adminTeams.size > 0) {
+            next = next.filter(m => {
+              if (m.adminCtrl) return true; // always keep admin matches
+              // Remove random match if either team is in an admin match
+              return !adminTeams.has(m.tmpl.homeTeam.name) && !adminTeams.has(m.tmpl.awayTeam.name);
+            });
+          }
+
           // Step 3: pinned always at top
           next.sort((a, b) => {
             const ap = a.adminCtrl?.pinned ? 1 : 0;

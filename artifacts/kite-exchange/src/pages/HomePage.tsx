@@ -523,7 +523,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                   { id: 'losers', label: 'Losers' },
                   { id: '24h-vol', label: '24h Vol' },
                   { id: 'tradfi', label: 'TradFi' },
-                  { id: 'sports', label: '⚽ Spor' },
+                  { id: 'sports', label: '⚽ Sports' },
                 ].map(({ id, label }) => (
                   <button
                     key={id}
