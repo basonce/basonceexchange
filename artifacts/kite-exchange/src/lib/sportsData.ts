@@ -71,22 +71,25 @@ export const TEAM_LOGOS: Record<string, string> = {
   'Sekhukhune United':     '/logos/sekhukhune_united.png',
   'Golden Arrows':         '/logos/golden_arrows.png',
   'Maritzburg United':     '/logos/maritzburg_united.png',
-  // Egypt — 8/10
+  // Egypt — 10/10
   'Al Ahly SC':            '/logos/al_ahly_sc.png',
   'Zamalek SC':            '/logos/zamalek_sc.png',
   'Pyramids FC':           '/logos/pyramids_fc.png',
   'Ismaily SC':            '/logos/ismaily_sc.png',
+  'Future FC':             '/logos/future_fc.png',
   'Ceramica Cleopatra':    '/logos/ceramica_cleopatra.png',
   'Smouha SC':             '/logos/smouha_sc.png',
+  'National Bank of Egypt':'/logos/national_bank_of_egypt.png',
   'El Entag El Harby':     '/logos/el_entag_el_harby.png',
   'El Gouna FC':           '/logos/el_gouna_fc.png',
-  // Morocco — 9/10
+  // Morocco — 10/10
   'Wydad AC':              '/logos/wydad_ac.png',
   'Raja Casablanca':       '/logos/raja_casablanca.png',
   'FUS Rabat':             '/logos/fus_rabat.png',
   'RS Berkane':            '/logos/rs_berkane.png',
   'Mouloudia Oujda':       '/logos/mouloudia_oujda.png',
   'Hassania Agadir':       '/logos/hassania_agadir.png',
+  'Renaissance Berkane':   '/logos/renaissance_berkane.png',
   'Difaa El Jadidi':       '/logos/difaa_el_jadidi.png',
   'Moghreb Tetouan':       '/logos/moghreb_tetouan.png',
   'Ittihad Tanger':        '/logos/ittihad_tanger.png',
@@ -153,52 +156,67 @@ export const TEAM_LOGOS: Record<string, string> = {
   'Chicken Inn FC':        '/logos/chicken_inn_fc.png',
   'Bulawayo Chiefs':       '/logos/bulawayo_chiefs.png',
   'Herentals FC':          '/logos/herentals_fc.png',
-  // Malawi — 6/10
+  // Malawi — 8/10
+  'Be Forward Wanderers':  '/logos/be_forward_wanderers.png',
   'Nyasa Big Bullets':     '/logos/nyasa_big_bullets.png',
   'Silver Strikers':       '/logos/silver_strikers.png',
   'Mighty Wanderers':      '/logos/mighty_wanderers.png',
+  'Blue Eagles':           '/logos/blue_eagles.png',
   'Kamuzu Barracks':       '/logos/kamuzu_barracks.png',
   'Rumphi United':         '/logos/rumphi_united.png',
   'Karonga United':        '/logos/karonga_united.png',
-  // Angola — 8/10
+  // Angola — 10/10
   'Petro de Luanda':       '/logos/petro_de_luanda.png',
   'Primeiro de Agosto':    '/logos/primeiro_de_agosto.png',
   'Sagrada Esperança':     '/logos/sagrada_esperanca.png',
   'Recreativo do Libolo':  '/logos/recreativo_do_libolo.png',
   'Interclube FC':         '/logos/interclube_fc.png',
+  '1º de Maio':            '/logos/1_de_maio.png',
   'Santa Rita de Cássia':  '/logos/santa_rita_de_cassia.png',
   'Desportivo da Huíla':   '/logos/desportivo_da_huila.png',
   'Kabuscorp SC':          '/logos/kabuscorp_sc.png',
-  // DR Congo — 6/10
+  'Wiliete FC':            '/logos/wiliete_fc.png',
+  // DR Congo — 9/10
   'TP Mazembe':            '/logos/tp_mazembe.png',
   'AS Vita Club':          '/logos/as_vita_club.png',
   'DC Motema Pembe':       '/logos/dc_motema_pembe.png',
+  'CS Don Bosco':          '/logos/cs_don_bosco.png',
   'Saint-Eloi Lupopo':     '/logos/saint_eloi_lupopo.png',
+  'OC Bukavu Dawa':        '/logos/oc_bukavu_dawa.png',
+  'AS Nyuki':              '/logos/as_nyuki.png',
   'Sanga Balende':         '/logos/sanga_balende.png',
   'Renaissance du Congo':  '/logos/renaissance_du_congo.png',
-  // Burundi — 5/10
+  // Burundi — 7/10
   'Vital-O FC':            '/logos/vital_o_fc.png',
   'Le Messager Ngozi':     '/logos/le_messager_ngozi.png',
   'Aigle Noir':            '/logos/aigle_noir.png',
+  'Inter Star':            '/logos/inter_star.png',
   'Bujumbura City FC':     '/logos/bujumbura_city_fc.png',
   'Flambeau du Centre':    '/logos/flambeau_du_centre.png',
-  // Rwanda — 6/10
+  'LLB Athletic':          '/logos/llb_athletic.png',
+  // Rwanda — 10/10
   'APR FC':                '/logos/apr_fc.png',
   'Rayon Sports FC':       '/logos/rayon_sports_fc.png',
   'AS Kigali':             '/logos/as_kigali.png',
   'Police FC Rwanda':      '/logos/police_fc_rwanda.png',
+  'Espoir FC':             '/logos/espoir_fc.png',
   'Bugesera FC':           '/logos/bugesera_fc.png',
+  'Gorilla FC':            '/logos/gorilla_fc.png',
+  'Marines FC':            '/logos/marines_fc.png',
   'Etincelles FC':         '/logos/etincelles_fc.png',
-  // Uganda — 8/10
+  'Sunrise FC':            '/logos/sunrise_fc.png',
+  // Uganda — 10/10
   'KCCA FC':               '/logos/kcca_fc.png',
   'SC Villa':              '/logos/sc_villa.png',
   'Vipers SC':             '/logos/vipers_sc.png',
+  'Express FC':            '/logos/express_fc.png',
   'Wakiso Giants':         '/logos/wakiso_giants.png',
   'Police FC':             '/logos/police_fc_uganda.png',
   'Maroons FC':            '/logos/maroons_fc.png',
+  'BUL FC':                '/logos/bul_fc.png',
   'Mbarara City':          '/logos/mbarara_city.png',
   'MYDA FC':               '/logos/myda_fc.png',
-  // Tanzania — 9/10
+  // Tanzania — 10/10
   'Simba SC':              '/logos/simba_sc.png',
   'Young Africans SC':     '/logos/young_africans_sc.png',
   'Azam FC':               '/logos/azam_fc.png',
@@ -206,16 +224,22 @@ export const TEAM_LOGOS: Record<string, string> = {
   'Biashara United':       '/logos/biashara_united.png',
   'Singida United':        '/logos/singida_united.png',
   'Mtibwa Sugar':          '/logos/mtibwa_sugar.png',
+  'Ihefu FC':              '/logos/ihefu_fc.png',
   'Mbeya City':            '/logos/mbeya_city.png',
-  // Ethiopia — 8/10
+  'Alliance FC':           '/logos/alliance_fc.png',
+  // Ethiopia — 9/10
   'Ethiopian Coffee SC':   '/logos/ethiopian_coffee_sc.png',
   'St. George SC':         '/logos/st_george_sc.png',
   'Fasil Kenema':          '/logos/fasil_kenema.png',
   'Adama City FC':         '/logos/adama_city_fc.png',
+  'Dire Dawa Ketema':      '/logos/dire_dawa_ketema.png',
   'Wolaitta Dicha':        '/logos/wolaitta_dicha.png',
   'Sebeta Ketema':         '/logos/sebeta_ketema.png',
   'Hawassa Ketema':        '/logos/hawassa_ketema.png',
   'Dedebit FC':            '/logos/dedebit_fc.png',
+  // Mozambique — 9/10
+  'Costa do Sol':          '/logos/costa_do_sol.png',
+  'Black Bulls':           '/logos/black_bulls.png',
 };
 
 // ── 20 African Leagues (all real, active competitions) ───
