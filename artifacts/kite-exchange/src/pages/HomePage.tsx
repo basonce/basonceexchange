@@ -217,19 +217,17 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       onClick: () => setActiveFilter('sports'),
       icon: (
         <div style={{ position: 'relative', width: 28, height: 28 }}>
-          {/* Goal net behind — Binance yellow */}
+          {/* Goal net — upper/back area, small like in the distance behind the player */}
           <svg width="28" height="28" viewBox="0 0 28 28" fill="none" style={{ position: 'absolute', top: 0, left: 0 }}>
-            {/* Posts + crossbar */}
-            <rect x="2" y="11" width="24" height="15" stroke="#F0B90B" strokeWidth="1.6" fill="none"/>
+            {/* Posts + crossbar — top-center, small */}
+            <rect x="7" y="1" width="14" height="9" stroke="#F0B90B" strokeWidth="1.5" fill="none"/>
             {/* Vertical net lines */}
-            <line x1="7"  y1="11" x2="7"  y2="26" stroke="#F0B90B" strokeWidth="0.55" opacity="0.75"/>
-            <line x1="12" y1="11" x2="12" y2="26" stroke="#F0B90B" strokeWidth="0.55" opacity="0.75"/>
-            <line x1="17" y1="11" x2="17" y2="26" stroke="#F0B90B" strokeWidth="0.55" opacity="0.75"/>
-            <line x1="22" y1="11" x2="22" y2="26" stroke="#F0B90B" strokeWidth="0.55" opacity="0.75"/>
+            <line x1="11" y1="2" x2="11" y2="10" stroke="#F0B90B" strokeWidth="0.6" opacity="0.8"/>
+            <line x1="15" y1="2" x2="15" y2="10" stroke="#F0B90B" strokeWidth="0.6" opacity="0.8"/>
+            <line x1="19" y1="2" x2="19" y2="10" stroke="#F0B90B" strokeWidth="0.6" opacity="0.8"/>
             {/* Horizontal net lines */}
-            <line x1="2" y1="15.5" x2="26" y2="15.5" stroke="#F0B90B" strokeWidth="0.55" opacity="0.75"/>
-            <line x1="2" y1="20"   x2="26" y2="20"   stroke="#F0B90B" strokeWidth="0.55" opacity="0.75"/>
-            <line x1="2" y1="24.5" x2="26" y2="24.5" stroke="#F0B90B" strokeWidth="0.55" opacity="0.75"/>
+            <line x1="7" y1="4" x2="21" y2="4" stroke="#F0B90B" strokeWidth="0.6" opacity="0.8"/>
+            <line x1="7" y1="7" x2="21" y2="7" stroke="#F0B90B" strokeWidth="0.6" opacity="0.8"/>
           </svg>
           {/* Player silhouette on top */}
           <img
