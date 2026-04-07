@@ -1746,6 +1746,62 @@ export default function GamesSection() {
   }, []);
 
   /* Settlement helper */
+  /* ── Early settlement: Over/Under settled mid-match when condition already decided ── */
+  const earlySettleOUBets = useCallback((liveMatches: LiveMatch[]) => {
+    setPlacedBets(prev => {
+      let changed = false;
+      const updated = prev.map(bet => {
+        if (bet.status !== 'open') return bet;
+        const m = liveMatches.find(lm => lm.id === bet.matchId && lm.status === 'live');
+        if (!m) return bet;
+
+        const btParts = bet.betType.split('_');
+        const btBase = btParts[0];
+        if (btBase !== 'OVER' && btBase !== 'UNDER') return bet;
+
+        const btLine = btParts.length > 1 && !isNaN(parseFloat(btParts[1]))
+          ? parseFloat(btParts[1])
+          : (bet.ouLine ?? m.totalOdds.line);
+
+        const totalGoals = m.homeScore + m.awayScore;
+
+        // OVER already cleared → guaranteed win now
+        if (btBase === 'OVER' && totalGoals > btLine) {
+          changed = true;
+          fetch(`/api-server/api/sport-bets/${bet.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'won' }),
+          }).catch(() => {});
+          setUsdtBalance(b => {
+            const newBal = b + bet.potentialWin;
+            if (balanceId) {
+              supabase.from('user_balances').update({ balance: newBal, updated_at: new Date().toISOString() }).eq('id', balanceId);
+            }
+            return newBal;
+          });
+          notify(`🏆 Kazandın! +${bet.potentialWin.toFixed(2)} USDT — ${bet.homeTeam} vs ${bet.awayTeam}`, 'win');
+          return { ...bet, status: 'won' as const, result: `${m.homeScore}–${m.awayScore}` };
+        }
+
+        // UNDER already busted → guaranteed loss now
+        if (btBase === 'UNDER' && totalGoals >= btLine) {
+          changed = true;
+          fetch(`/api-server/api/sport-bets/${bet.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'lost' }),
+          }).catch(() => {});
+          notify(`❌ Bahis kaybedildi — ${bet.homeTeam} vs ${bet.awayTeam}`, 'loss');
+          return { ...bet, status: 'lost' as const, result: `${m.homeScore}–${m.awayScore}` };
+        }
+
+        return bet;
+      });
+      return changed ? updated : prev;
+    });
+  }, [balanceId, notify]);
+
   const settleBets = useCallback((finished: LiveMatch[]) => {
     // Persist finished match IDs so cross-session orphan check never refunds settled bets
     try {
@@ -1937,6 +1993,8 @@ export default function GamesSection() {
         });
 
         if (finishing.length) settleBets(finishing);
+        // Settle OVER bets immediately when total goals already exceed the line (mid-match)
+        earlySettleOUBets(next.filter(m => m.status === 'live'));
 
         next = next.filter(m => !(m.status === 'finished' && m.finishedAt && now - m.finishedAt > 10000));
         const need = 30 - next.length;
@@ -1966,7 +2024,7 @@ export default function GamesSection() {
       });
     }, 10000);
     return () => clearInterval(tick);
-  }, [settleBets]);
+  }, [settleBets, earlySettleOUBets]);
 
   /* Winners feed — new entry every 15-28 seconds */
   useEffect(() => {
