@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import { supabase, getCurrentUser } from '../lib/supabase';
-import { pickFreshMatchups, getLeague, ri, rf, type MatchTemplate } from '../lib/sportsData';
+import { pickFreshMatchups, getLeague, ri, rf, ALL_MATCHUPS, type MatchTemplate } from '../lib/sportsData';
 
 /* ══════════════════════════════════════════════════════════
    TYPES
@@ -1373,7 +1373,7 @@ export default function GamesSection() {
     setMatches(templates.map((t, i) => buildMatch(t, i)));
   }, []);
 
-  /* Poll admin match controls every 30s */
+  /* Poll admin match controls every 10s */
   useEffect(() => {
     async function fetchControls() {
       try {
@@ -1385,17 +1385,50 @@ export default function GamesSection() {
           map.set(`${c.homeTeam}:${c.awayTeam}`, { targetResult: c.targetResult, targetScore: c.targetScore, pinned: c.pinned });
         }
         controlsRef.current = map;
-        // Assign/remove adminCtrl on existing matches without resetting any state
-        setMatches(prev => prev.map(m => {
-          const key = `${m.tmpl.homeTeam.name}:${m.tmpl.awayTeam.name}`;
-          const ctrl = map.get(key);
-          if (ctrl === m.adminCtrl) return m;
-          return { ...m, adminCtrl: ctrl };
-        }));
+
+        setMatches(prev => {
+          // Step 1: apply / remove adminCtrl on existing matches
+          let next = prev.map(m => {
+            const key = `${m.tmpl.homeTeam.name}:${m.tmpl.awayTeam.name}`;
+            const ctrl = map.get(key);
+            if (!ctrl) return m.adminCtrl ? { ...m, adminCtrl: undefined } : m;
+            // If targetScore changed, snap score immediately
+            const scoreSnap = ctrl.targetScore
+              ? { homeScore: ctrl.targetScore.h, awayScore: ctrl.targetScore.a }
+              : {};
+            return { ...m, ...scoreSnap, adminCtrl: ctrl };
+          });
+
+          // Step 2: inject pinned matches not already in live list
+          const liveKeys = new Set(next.filter(m => m.status === 'live').map(m => `${m.tmpl.homeTeam.name}:${m.tmpl.awayTeam.name}`));
+          for (const [key, ctrl] of map.entries()) {
+            if (!ctrl.pinned) continue;
+            if (liveKeys.has(key)) continue;
+            // Find template in ALL_MATCHUPS
+            const tmpl = ALL_MATCHUPS.find(t => `${t.homeTeam.name}:${t.awayTeam.name}` === key);
+            if (!tmpl) continue;
+            counter.current++;
+            const nm = buildMatch(tmpl, counter.current);
+            // Snap to targetScore immediately if set
+            const snapped: LiveMatch = ctrl.targetScore
+              ? { ...nm, homeScore: ctrl.targetScore.h, awayScore: ctrl.targetScore.a, adminCtrl: ctrl }
+              : { ...nm, adminCtrl: ctrl };
+            next = [snapped, ...next];
+          }
+
+          // Step 3: pinned always at top
+          next.sort((a, b) => {
+            const ap = a.adminCtrl?.pinned ? 1 : 0;
+            const bp = b.adminCtrl?.pinned ? 1 : 0;
+            return bp - ap;
+          });
+
+          return next;
+        });
       } catch {}
     }
     fetchControls();
-    const iv = setInterval(fetchControls, 30000);
+    const iv = setInterval(fetchControls, 10000);
     return () => clearInterval(iv);
   }, []);
 
@@ -1517,26 +1550,8 @@ export default function GamesSection() {
             const minsLeft = 90 - mm.minute;
             if (ctrl.targetScore !== undefined) {
               const ts = ctrl.targetScore;
-              if (minsLeft <= 3) {
-                // Final minutes: snap to exact target
-                mm = { ...mm, homeScore: ts.h, awayScore: ts.a };
-              } else {
-                // Prevent going over target (cancel excess goals)
-                if (mm.homeScore > ts.h) mm = { ...mm, homeScore: mm.homeScore - 1 };
-                if (mm.awayScore > ts.a) mm = { ...mm, awayScore: mm.awayScore - 1 };
-                // Urgently nudge toward target
-                const need = Math.abs(ts.h - mm.homeScore) + Math.abs(ts.a - mm.awayScore);
-                const urgency = need / (minsLeft / 8 + 1);
-                if (urgency > 0.4) {
-                  if (mm.homeScore < ts.h) {
-                    scoringSide = 'home';
-                    mm = { ...mm, homeScore: mm.homeScore + 1, goalFlash: 'home', flashTs: now };
-                  } else if (mm.awayScore < ts.a) {
-                    scoringSide = 'away';
-                    mm = { ...mm, awayScore: mm.awayScore + 1, goalFlash: 'away', flashTs: now };
-                  }
-                }
-              }
+              // Always snap to exact target score immediately
+              mm = { ...mm, homeScore: ts.h, awayScore: ts.a };
             } else if (ctrl.targetResult && minsLeft <= 3) {
               // Result-only: force minimal score adjustment at end
               const h = mm.homeScore, a = mm.awayScore;
