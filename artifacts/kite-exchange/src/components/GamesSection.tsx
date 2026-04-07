@@ -1045,206 +1045,246 @@ function MyBets({ bets }: { bets: PlacedBet[] }) {
     filter === 'all' ? true : b.status === filter
   );
 
-  const TABS: { key: typeof filter; label: string; count: number; color: string }[] = [
-    { key: 'all',  label: 'All',  count: bets.length, color: '#F0B90B' },
-    { key: 'open', label: 'Open', count: openCount,   color: '#60a5fa' },
-    { key: 'won',  label: 'Won',  count: wonCount,    color: '#4ade80' },
-    { key: 'lost', label: 'Lost', count: lostCount,   color: '#f87171' },
+  const FILTERS: { key: typeof filter; label: string; count: number }[] = [
+    { key: 'all',  label: 'All',  count: bets.length },
+    { key: 'open', label: 'Open', count: openCount   },
+    { key: 'won',  label: 'Won',  count: wonCount    },
+    { key: 'lost', label: 'Lost', count: lostCount   },
   ];
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+  const FILTER_COLOR: Record<string, string> = {
+    all: '#F0B90B', open: '#3B82F6', won: '#0ECB81', lost: '#F6465D',
+  };
 
-      {/* ── PnL Summary Bar ── */}
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', background: '#0B0E11', minHeight: '100%' }}>
+
+      {/* ═══ PnL SUMMARY ═══ */}
       {bets.length > 0 && (
-        <div style={{
-          margin: '8px 12px 4px',
-          background: 'linear-gradient(135deg, #1a1f2e 0%, #0f1118 100%)',
-          border: '1px solid #2B3139',
-          borderRadius: 12,
-          padding: '12px 14px',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <span style={{ fontSize: 11, color: '#848E9C', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Bet Summary</span>
-            <span style={{
-              fontSize: 13, fontWeight: 900,
-              color: netPnl >= 0 ? '#4ade80' : '#f87171',
+        <div style={{ padding: '12px 14px 0' }}>
+          <div style={{
+            background: '#161A1E',
+            border: '1px solid #2B3139',
+            borderRadius: 12,
+            overflow: 'hidden',
+          }}>
+            {/* Header row */}
+            <div style={{
+              padding: '10px 14px',
+              borderBottom: '1px solid #2B3139',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
-              {netPnl >= 0 ? '+' : ''}{netPnl.toFixed(2)} USDT
-            </span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
-            {[
-              { label: 'Total Staked', val: `${totalStaked.toFixed(2)}`, color: '#94a3b8' },
-              { label: 'Winnings',    val: `+${totalWon.toFixed(2)}`,   color: '#4ade80' },
-              { label: 'Losses',      val: `-${totalLost.toFixed(2)}`,  color: '#f87171' },
-            ].map(({ label, val, color }) => (
-              <div key={label} style={{
-                background: '#0B0E11', borderRadius: 8, padding: '7px 8px', textAlign: 'center',
+              <span style={{ fontSize: 11, color: '#848E9C', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Total P&amp;L</span>
+              <span style={{
+                fontSize: 18, fontWeight: 900, letterSpacing: '-0.02em',
+                color: netPnl >= 0 ? '#0ECB81' : '#F6465D',
               }}>
-                <div style={{ fontSize: 9, color: '#848E9C', marginBottom: 2 }}>{label}</div>
-                <div style={{ fontSize: 12, color, fontWeight: 800 }}>{val}</div>
-              </div>
-            ))}
+                {netPnl >= 0 ? '+' : ''}{netPnl.toFixed(2)}
+                <span style={{ fontSize: 10, fontWeight: 600, color: '#848E9C', marginLeft: 4 }}>USDT</span>
+              </span>
+            </div>
+            {/* Stats row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
+              {[
+                { label: 'Staked',   val: totalStaked.toFixed(2), color: '#C7CACD' },
+                { label: 'Won',      val: `+${totalWon.toFixed(2)}`,   color: '#0ECB81' },
+                { label: 'Lost',     val: `-${totalLost.toFixed(2)}`,  color: '#F6465D' },
+              ].map(({ label, val, color }, i) => (
+                <div key={label} style={{
+                  padding: '8px 0', textAlign: 'center',
+                  borderRight: i < 2 ? '1px solid #2B3139' : 'none',
+                }}>
+                  <div style={{ fontSize: 9, color: '#848E9C', marginBottom: 3, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+                  <div style={{ fontSize: 12, color, fontWeight: 800 }}>{val}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      {/* ── Filter Tabs ── */}
-      <div style={{ display: 'flex', gap: 6, padding: '6px 12px 4px', overflowX: 'auto' }}>
-        {TABS.map(t => (
-          <button key={t.key} onClick={() => setFilter(t.key)} style={{
-            flex: '0 0 auto',
-            padding: '5px 12px',
-            borderRadius: 20,
-            border: filter === t.key ? `1px solid ${t.color}` : '1px solid #2B3139',
-            background: filter === t.key ? `${t.color}18` : 'transparent',
-            color: filter === t.key ? t.color : '#848E9C',
-            fontSize: 11, fontWeight: 700, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 4,
-          }}>
-            {t.label}
-            {t.count > 0 && (
-              <span style={{
-                background: filter === t.key ? t.color : '#2B3139',
-                color: filter === t.key ? '#000' : '#94a3b8',
-                borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 800,
-              }}>{t.count}</span>
-            )}
-          </button>
-        ))}
+      {/* ═══ FILTER TABS ═══ */}
+      <div style={{ display: 'flex', padding: '10px 14px 6px', gap: 8 }}>
+        {FILTERS.map(f => {
+          const active = filter === f.key;
+          const col = FILTER_COLOR[f.key];
+          return (
+            <button key={f.key} onClick={() => setFilter(f.key)} style={{
+              flex: 1,
+              padding: '6px 4px',
+              borderRadius: 8,
+              border: active ? `1px solid ${col}` : '1px solid #2B3139',
+              background: active ? `${col}15` : '#161A1E',
+              color: active ? col : '#5E6673',
+              fontSize: 11, fontWeight: 700, cursor: 'pointer',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+            }}>
+              <span>{f.label}</span>
+              {f.count > 0 && (
+                <span style={{
+                  fontSize: 10, fontWeight: 900,
+                  color: active ? col : '#848E9C',
+                }}>{f.count}</span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {/* ── Empty State ── */}
+      {/* ═══ EMPTY STATE ═══ */}
       {filtered.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '32px 16px', color: '#4B5563' }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>{bets.length === 0 ? '🎟️' : '🔍'}</div>
-          <p style={{ fontSize: 13, color: '#4B5563' }}>
-            {bets.length === 0 ? 'No bets placed yet' : 'No bets match this filter'}
+        <div style={{ textAlign: 'center', padding: '48px 16px' }}>
+          <div style={{ fontSize: 40, marginBottom: 10, opacity: 0.4 }}>🎟️</div>
+          <p style={{ fontSize: 14, color: '#4B5563', fontWeight: 600 }}>
+            {bets.length === 0 ? 'No bets placed yet' : 'No bets in this category'}
           </p>
-          {bets.length === 0 && (
-            <p style={{ fontSize: 11, marginTop: 4, color: '#374151' }}>Pick a match and place your first bet</p>
-          )}
         </div>
       )}
 
-      {/* ── Bet Cards ── */}
-      <div style={{ padding: '4px 12px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {/* ═══ BET CARDS ═══ */}
+      <div style={{ padding: '2px 14px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {filtered.map(bet => {
-          const isWon      = bet.status === 'won';
-          const isLost     = bet.status === 'lost';
-          const isOpen     = bet.status === 'open';
-          const isRefunded = bet.status === 'refunded';
+          const isWon  = bet.status === 'won';
+          const isLost = bet.status === 'lost';
+          const isOpen = bet.status === 'open';
 
-          const accent = isWon ? '#4ade80' : isLost ? '#f87171' : isOpen ? '#60a5fa' : '#F0B90B';
-          const bgGrad  = isWon
-            ? 'linear-gradient(135deg, #0a1a0f 0%, #0d1117 100%)'
+          /* ── per-status config ── */
+          const cfg = isWon
+            ? {
+                headerBg:    '#0ECB81',
+                headerText:  '#fff',
+                icon:        '✓',
+                label:       'WON',
+                pnlColor:    '#fff',
+                pnl:         `+${bet.potentialWin.toFixed(2)} USDT`,
+                cardBorder:  '#0ECB8140',
+                cardBg:      '#0B0E11',
+                returnLabel: 'PROFIT',
+                returnVal:   `+${bet.potentialWin.toFixed(2)}`,
+                returnColor: '#0ECB81',
+              }
             : isLost
-              ? 'linear-gradient(135deg, #1a0a0a 0%, #0d1117 100%)'
-              : isOpen
-                ? 'linear-gradient(135deg, #0a1020 0%, #0d1117 100%)'
-                : 'linear-gradient(135deg, #1a160a 0%, #0d1117 100%)';
-
-          const statusBadge = isWon
-            ? { bg: '#14532d', color: '#4ade80', text: '▲ WON' }
-            : isLost
-              ? { bg: '#450a0a', color: '#f87171', text: '▼ LOST' }
-              : isOpen
-                ? { bg: '#1e3a5f', color: '#60a5fa', text: '● LIVE' }
-                : { bg: '#3b2e00', color: '#F0B90B', text: '↩ REFUND' };
-
-          const returnAmt = isWon
-            ? `+${bet.potentialWin.toFixed(2)}`
-            : isLost
-              ? `-${bet.amount.toFixed(2)}`
-              : isRefunded
-                ? `${bet.amount.toFixed(2)}`
-                : `~${bet.potentialWin.toFixed(2)}`;
-
-          const returnColor = isWon ? '#4ade80' : isLost ? '#f87171' : '#94a3b8';
+            ? {
+                headerBg:    '#F6465D',
+                headerText:  '#fff',
+                icon:        '✕',
+                label:       'LOST',
+                pnlColor:    '#fff',
+                pnl:         `-${bet.amount.toFixed(2)} USDT`,
+                cardBorder:  '#F6465D40',
+                cardBg:      '#0B0E11',
+                returnLabel: 'LOSS',
+                returnVal:   `-${bet.amount.toFixed(2)}`,
+                returnColor: '#F6465D',
+              }
+            : {
+                headerBg:    '#1E3A5F',
+                headerText:  '#60a5fa',
+                icon:        '●',
+                label:       'LIVE',
+                pnlColor:    '#60a5fa',
+                pnl:         `~${bet.potentialWin.toFixed(2)} USDT`,
+                cardBorder:  '#3B82F640',
+                cardBg:      '#0B0E11',
+                returnLabel: 'POTENTIAL',
+                returnVal:   `~${bet.potentialWin.toFixed(2)}`,
+                returnColor: '#60a5fa',
+              };
 
           return (
             <div key={bet.id} style={{
-              background: bgGrad,
-              border: `1px solid ${accent}30`,
-              borderRadius: 14,
+              border: `1px solid ${cfg.cardBorder}`,
+              borderRadius: 12,
               overflow: 'hidden',
-              boxShadow: isWon
-                ? '0 0 16px rgba(74,222,128,0.08)'
-                : isLost
-                  ? '0 0 16px rgba(248,113,113,0.06)'
-                  : '0 2px 8px rgba(0,0,0,0.3)',
+              background: cfg.cardBg,
             }}>
-              {/* Top accent line */}
-              <div style={{ height: 2, background: `linear-gradient(90deg, ${accent}, transparent)` }} />
 
-              {/* Card body */}
-              <div style={{ padding: '10px 13px' }}>
-
-                {/* Row 1: League + Status Badge */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
-                  <span style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>{bet.league}</span>
+              {/* ── STATUS HEADER STRIP ── */}
+              <div style={{
+                background: cfg.headerBg,
+                padding: '8px 14px',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{
-                    fontSize: 9, fontWeight: 800, letterSpacing: '0.06em',
-                    padding: '3px 8px', borderRadius: 20,
-                    background: statusBadge.bg, color: statusBadge.color,
-                  }}>{statusBadge.text}</span>
-                </div>
-
-                {/* Row 2: Teams */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 9 }}>
-                  <span style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 800, flex: 1 }}>{bet.homeTeam}</span>
-                  <span style={{
-                    fontSize: 9, color: '#4B5563', fontWeight: 700,
-                    padding: '2px 6px', border: '1px solid #2B3139', borderRadius: 4,
-                  }}>VS</span>
-                  <span style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 800, flex: 1, textAlign: 'right' }}>{bet.awayTeam}</span>
-                </div>
-
-                {/* Row 3: Bet type chip + Odds + Divider */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 9 }}>
-                  <span style={{
-                    fontSize: 10, fontWeight: 700, padding: '3px 9px',
-                    background: '#1a1f2e', border: `1px solid ${accent}50`,
-                    borderRadius: 20, color: accent,
-                  }}>
-                    {betLabel(bet.betType, bet.homeTeam, bet.awayTeam, bet.ouLine)}
+                    width: 20, height: 20, borderRadius: '50%',
+                    background: 'rgba(0,0,0,0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 11, color: cfg.headerText, fontWeight: 900,
+                  }}>{cfg.icon}</span>
+                  <span style={{ fontSize: 12, fontWeight: 900, color: cfg.headerText, letterSpacing: '0.06em' }}>
+                    {cfg.label}
                   </span>
-                  <span style={{
-                    fontSize: 11, fontWeight: 900, color: '#F0B90B',
-                    background: '#F0B90B11', border: '1px solid #F0B90B33',
-                    padding: '2px 8px', borderRadius: 20,
-                  }}>× {bet.odds}</span>
+                </div>
+                <span style={{ fontSize: 15, fontWeight: 900, color: cfg.pnlColor, letterSpacing: '-0.01em' }}>
+                  {cfg.pnl}
+                </span>
+              </div>
+
+              {/* ── CARD BODY ── */}
+              <div style={{ padding: '10px 14px 12px' }}>
+
+                {/* League */}
+                <div style={{ fontSize: 10, color: '#5E6673', fontWeight: 600, marginBottom: 6, letterSpacing: '0.04em' }}>
+                  {bet.league}
                   {bet.result && (
                     <span style={{
-                      fontSize: 10, color: '#94a3b8', marginLeft: 'auto',
-                      background: '#1a1f2e', padding: '2px 8px', borderRadius: 6,
-                      border: '1px solid #2B3139',
-                    }}>⚽ {bet.result}</span>
+                      marginLeft: 8, fontSize: 10, color: '#848E9C',
+                      background: '#1E2026', padding: '1px 7px', borderRadius: 4, border: '1px solid #2B3139',
+                    }}>Final {bet.result}</span>
                   )}
                 </div>
 
-                {/* Row 4: Stake | Return */}
+                {/* Teams */}
                 <div style={{
-                  display: 'grid', gridTemplateColumns: '1fr 1px 1fr',
-                  background: '#0B0E11', borderRadius: 8, overflow: 'hidden',
-                  border: '1px solid #1a1f2e',
+                  display: 'grid', gridTemplateColumns: '1fr auto 1fr',
+                  alignItems: 'center', gap: 8, marginBottom: 10,
                 }}>
-                  <div style={{ padding: '8px 10px' }}>
-                    <div style={{ fontSize: 9, color: '#4B5563', marginBottom: 2, fontWeight: 600 }}>STAKE</div>
-                    <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 800 }}>
-                      {bet.amount.toFixed(2)} <span style={{ fontSize: 9, color: '#4B5563' }}>USDT</span>
+                  <span style={{ fontSize: 13, color: '#EAECEF', fontWeight: 700, lineHeight: 1.2 }}>{bet.homeTeam}</span>
+                  <span style={{
+                    fontSize: 10, color: '#848E9C', fontWeight: 700, padding: '2px 7px',
+                    border: '1px solid #2B3139', borderRadius: 4,
+                  }}>VS</span>
+                  <span style={{ fontSize: 13, color: '#EAECEF', fontWeight: 700, textAlign: 'right', lineHeight: 1.2 }}>{bet.awayTeam}</span>
+                </div>
+
+                {/* Divider */}
+                <div style={{ height: 1, background: '#1E2026', marginBottom: 10 }} />
+
+                {/* Bet details row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
+                  <div>
+                    <div style={{ fontSize: 9, color: '#5E6673', fontWeight: 600, marginBottom: 3, textTransform: 'uppercase' }}>Selection</div>
+                    <div style={{ fontSize: 11, color: '#EAECEF', fontWeight: 700, lineHeight: 1.3 }}>
+                      {betLabel(bet.betType, bet.homeTeam, bet.awayTeam, bet.ouLine)}
                     </div>
                   </div>
-                  <div style={{ background: '#1a1f2e' }} />
-                  <div style={{ padding: '8px 10px', textAlign: 'right' }}>
-                    <div style={{ fontSize: 9, color: '#4B5563', marginBottom: 2, fontWeight: 600 }}>
-                      {isOpen ? 'EST. RETURN' : 'RETURN'}
-                    </div>
-                    <div style={{ fontSize: 13, color: returnColor, fontWeight: 800 }}>
-                      {returnAmt} <span style={{ fontSize: 9, color: '#4B5563' }}>USDT</span>
-                    </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 9, color: '#5E6673', fontWeight: 600, marginBottom: 3, textTransform: 'uppercase' }}>Odds</div>
+                    <div style={{ fontSize: 12, color: '#F0B90B', fontWeight: 900 }}>× {bet.odds}</div>
                   </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 9, color: '#5E6673', fontWeight: 600, marginBottom: 3, textTransform: 'uppercase' }}>Stake</div>
+                    <div style={{ fontSize: 11, color: '#848E9C', fontWeight: 700 }}>{bet.amount.toFixed(2)} USDT</div>
+                  </div>
+                </div>
+
+                {/* Return bar — only for settled or highlighted for open */}
+                <div style={{
+                  marginTop: 10,
+                  background: '#161A1E',
+                  border: `1px solid ${cfg.cardBorder}`,
+                  borderRadius: 8,
+                  padding: '8px 12px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}>
+                  <span style={{ fontSize: 10, color: '#848E9C', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {cfg.returnLabel}
+                  </span>
+                  <span style={{ fontSize: 16, color: cfg.returnColor, fontWeight: 900, letterSpacing: '-0.02em' }}>
+                    {cfg.returnVal}
+                    <span style={{ fontSize: 10, color: '#5E6673', fontWeight: 600, marginLeft: 4 }}>USDT</span>
+                  </span>
                 </div>
 
               </div>
