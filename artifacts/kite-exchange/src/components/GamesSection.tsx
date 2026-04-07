@@ -1031,61 +1031,227 @@ function BetSlipModal({ item, usdtBalance, onPlace, onCancel }: BetSlipProps) {
    MY BETS PANEL
 ══════════════════════════════════════════════════════════ */
 function MyBets({ bets }: { bets: PlacedBet[] }) {
-  if (!bets.length) {
-    return (
-      <div style={{ textAlign: 'center', padding: '32px 16px', color: '#4B5563' }}>
-        <div style={{ fontSize: 36, marginBottom: 8 }}>📋</div>
-        <p style={{ fontSize: 13 }}>No bets placed yet</p>
-        <p style={{ fontSize: 11, marginTop: 4 }}>Select a match and place your first bet</p>
-      </div>
-    );
-  }
+  const [filter, setFilter] = useState<'all' | 'open' | 'won' | 'lost'>('all');
+
+  const totalStaked = bets.reduce((s, b) => s + b.amount, 0);
+  const totalWon    = bets.filter(b => b.status === 'won').reduce((s, b) => s + b.potentialWin, 0);
+  const totalLost   = bets.filter(b => b.status === 'lost').reduce((s, b) => s + b.amount, 0);
+  const netPnl      = totalWon - totalLost;
+  const wonCount    = bets.filter(b => b.status === 'won').length;
+  const lostCount   = bets.filter(b => b.status === 'lost').length;
+  const openCount   = bets.filter(b => b.status === 'open').length;
+
+  const filtered = bets.slice().reverse().filter(b =>
+    filter === 'all' ? true : b.status === filter
+  );
+
+  const TABS: { key: typeof filter; label: string; count: number; color: string }[] = [
+    { key: 'all',  label: 'Tümü',    count: bets.length, color: '#F0B90B' },
+    { key: 'open', label: 'Açık',    count: openCount,   color: '#60a5fa' },
+    { key: 'won',  label: 'Kazandı', count: wonCount,    color: '#4ade80' },
+    { key: 'lost', label: 'Kaybetti',count: lostCount,   color: '#f87171' },
+  ];
 
   return (
-    <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {bets.slice().reverse().map(bet => {
-        const statusColor = bet.status === 'won' ? '#4ade80' : bet.status === 'lost' ? '#ef4444' : bet.status === 'refunded' ? '#F0B90B' : '#94a3b8';
-        const statusLabel = bet.status === 'won' ? '✅ Won' : bet.status === 'lost' ? '❌ Lost' : bet.status === 'refunded' ? '↩ Refunded' : '🔄 Open';
-        return (
-          <div key={bet.id} style={{
-            background: '#161B22', border: `1px solid ${bet.status === 'open' ? '#2B3139' : statusColor + '44'}`,
-            borderRadius: 10, padding: '10px 12px',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ fontSize: 10, color: '#848E9C' }}>{bet.league}</span>
-              <span style={{ fontSize: 10, color: statusColor, fontWeight: 700 }}>{statusLabel}</span>
-            </div>
-            <p style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 700, marginBottom: 5 }}>
-              {bet.homeTeam} — {bet.awayTeam}
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <span style={{ fontSize: 11, color: '#94a3b8' }}>{betLabel(bet.betType, bet.homeTeam, bet.awayTeam, bet.ouLine)}</span>
-                <span style={{ fontSize: 12, color: '#F0B90B', fontWeight: 700, marginLeft: 8 }}>× {bet.odds}</span>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ fontSize: 10, color: '#848E9C' }}>Stake</p>
-                <p style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 700 }}>{bet.amount} USDT</p>
-              </div>
-            </div>
-            {bet.status !== 'open' && (
-              <div style={{
-                marginTop: 6, padding: '5px 8px', borderRadius: 6,
-                background: statusColor + '11', borderTop: `1px solid ${statusColor}33`,
-              }}>
-                <span style={{ fontSize: 11, color: statusColor, fontWeight: 700 }}>
-                  {bet.status === 'won'
-                    ? `+${bet.potentialWin.toFixed(2)} USDT`
-                    : bet.status === 'lost'
-                      ? `-${bet.amount} USDT`
-                      : `Refund: ${bet.amount} USDT`}
-                  {bet.result && ` · Final: ${bet.result}`}
-                </span>
-              </div>
-            )}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+
+      {/* ── PnL Summary Bar ── */}
+      {bets.length > 0 && (
+        <div style={{
+          margin: '8px 12px 4px',
+          background: 'linear-gradient(135deg, #1a1f2e 0%, #0f1118 100%)',
+          border: '1px solid #2B3139',
+          borderRadius: 12,
+          padding: '12px 14px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 11, color: '#848E9C', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Kupon Özeti</span>
+            <span style={{
+              fontSize: 13, fontWeight: 900,
+              color: netPnl >= 0 ? '#4ade80' : '#f87171',
+            }}>
+              {netPnl >= 0 ? '+' : ''}{netPnl.toFixed(2)} USDT
+            </span>
           </div>
-        );
-      })}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+            {[
+              { label: 'Toplam Risk', val: `${totalStaked.toFixed(2)}`, color: '#94a3b8' },
+              { label: 'Kazanç',      val: `+${totalWon.toFixed(2)}`,   color: '#4ade80' },
+              { label: 'Kayıp',       val: `-${totalLost.toFixed(2)}`,  color: '#f87171' },
+            ].map(({ label, val, color }) => (
+              <div key={label} style={{
+                background: '#0B0E11', borderRadius: 8, padding: '7px 8px', textAlign: 'center',
+              }}>
+                <div style={{ fontSize: 9, color: '#848E9C', marginBottom: 2 }}>{label}</div>
+                <div style={{ fontSize: 12, color, fontWeight: 800 }}>{val}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Filter Tabs ── */}
+      <div style={{ display: 'flex', gap: 6, padding: '6px 12px 4px', overflowX: 'auto' }}>
+        {TABS.map(t => (
+          <button key={t.key} onClick={() => setFilter(t.key)} style={{
+            flex: '0 0 auto',
+            padding: '5px 12px',
+            borderRadius: 20,
+            border: filter === t.key ? `1px solid ${t.color}` : '1px solid #2B3139',
+            background: filter === t.key ? `${t.color}18` : 'transparent',
+            color: filter === t.key ? t.color : '#848E9C',
+            fontSize: 11, fontWeight: 700, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 4,
+          }}>
+            {t.label}
+            {t.count > 0 && (
+              <span style={{
+                background: filter === t.key ? t.color : '#2B3139',
+                color: filter === t.key ? '#000' : '#94a3b8',
+                borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 800,
+              }}>{t.count}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Empty State ── */}
+      {filtered.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '32px 16px', color: '#4B5563' }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>{bets.length === 0 ? '🎟️' : '🔍'}</div>
+          <p style={{ fontSize: 13, color: '#4B5563' }}>
+            {bets.length === 0 ? 'Henüz kupon yok' : 'Bu filtrede kupon yok'}
+          </p>
+          {bets.length === 0 && (
+            <p style={{ fontSize: 11, marginTop: 4, color: '#374151' }}>Bir maç seçip ilk bahsini oyna</p>
+          )}
+        </div>
+      )}
+
+      {/* ── Bet Cards ── */}
+      <div style={{ padding: '4px 12px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {filtered.map(bet => {
+          const isWon      = bet.status === 'won';
+          const isLost     = bet.status === 'lost';
+          const isOpen     = bet.status === 'open';
+          const isRefunded = bet.status === 'refunded';
+
+          const accent = isWon ? '#4ade80' : isLost ? '#f87171' : isOpen ? '#60a5fa' : '#F0B90B';
+          const bgGrad  = isWon
+            ? 'linear-gradient(135deg, #0a1a0f 0%, #0d1117 100%)'
+            : isLost
+              ? 'linear-gradient(135deg, #1a0a0a 0%, #0d1117 100%)'
+              : isOpen
+                ? 'linear-gradient(135deg, #0a1020 0%, #0d1117 100%)'
+                : 'linear-gradient(135deg, #1a160a 0%, #0d1117 100%)';
+
+          const statusBadge = isWon
+            ? { bg: '#14532d', color: '#4ade80', text: '▲ KAZANDI' }
+            : isLost
+              ? { bg: '#450a0a', color: '#f87171', text: '▼ KAYBETTİ' }
+              : isOpen
+                ? { bg: '#1e3a5f', color: '#60a5fa', text: '● AÇIK' }
+                : { bg: '#3b2e00', color: '#F0B90B', text: '↩ İADE' };
+
+          const returnAmt = isWon
+            ? `+${bet.potentialWin.toFixed(2)}`
+            : isLost
+              ? `-${bet.amount.toFixed(2)}`
+              : isRefunded
+                ? `${bet.amount.toFixed(2)}`
+                : `~${bet.potentialWin.toFixed(2)}`;
+
+          const returnColor = isWon ? '#4ade80' : isLost ? '#f87171' : '#94a3b8';
+
+          return (
+            <div key={bet.id} style={{
+              background: bgGrad,
+              border: `1px solid ${accent}30`,
+              borderRadius: 14,
+              overflow: 'hidden',
+              boxShadow: isWon
+                ? '0 0 16px rgba(74,222,128,0.08)'
+                : isLost
+                  ? '0 0 16px rgba(248,113,113,0.06)'
+                  : '0 2px 8px rgba(0,0,0,0.3)',
+            }}>
+              {/* Top accent line */}
+              <div style={{ height: 2, background: `linear-gradient(90deg, ${accent}, transparent)` }} />
+
+              {/* Card body */}
+              <div style={{ padding: '10px 13px' }}>
+
+                {/* Row 1: League + Status Badge */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
+                  <span style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>{bet.league}</span>
+                  <span style={{
+                    fontSize: 9, fontWeight: 800, letterSpacing: '0.06em',
+                    padding: '3px 8px', borderRadius: 20,
+                    background: statusBadge.bg, color: statusBadge.color,
+                  }}>{statusBadge.text}</span>
+                </div>
+
+                {/* Row 2: Teams */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 9 }}>
+                  <span style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 800, flex: 1 }}>{bet.homeTeam}</span>
+                  <span style={{
+                    fontSize: 9, color: '#4B5563', fontWeight: 700,
+                    padding: '2px 6px', border: '1px solid #2B3139', borderRadius: 4,
+                  }}>VS</span>
+                  <span style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 800, flex: 1, textAlign: 'right' }}>{bet.awayTeam}</span>
+                </div>
+
+                {/* Row 3: Bet type chip + Odds + Divider */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 9 }}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: '3px 9px',
+                    background: '#1a1f2e', border: `1px solid ${accent}50`,
+                    borderRadius: 20, color: accent,
+                  }}>
+                    {betLabel(bet.betType, bet.homeTeam, bet.awayTeam, bet.ouLine)}
+                  </span>
+                  <span style={{
+                    fontSize: 11, fontWeight: 900, color: '#F0B90B',
+                    background: '#F0B90B11', border: '1px solid #F0B90B33',
+                    padding: '2px 8px', borderRadius: 20,
+                  }}>× {bet.odds}</span>
+                  {bet.result && (
+                    <span style={{
+                      fontSize: 10, color: '#94a3b8', marginLeft: 'auto',
+                      background: '#1a1f2e', padding: '2px 8px', borderRadius: 6,
+                      border: '1px solid #2B3139',
+                    }}>⚽ {bet.result}</span>
+                  )}
+                </div>
+
+                {/* Row 4: Stake | Return */}
+                <div style={{
+                  display: 'grid', gridTemplateColumns: '1fr 1px 1fr',
+                  background: '#0B0E11', borderRadius: 8, overflow: 'hidden',
+                  border: '1px solid #1a1f2e',
+                }}>
+                  <div style={{ padding: '8px 10px' }}>
+                    <div style={{ fontSize: 9, color: '#4B5563', marginBottom: 2, fontWeight: 600 }}>RİSK</div>
+                    <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 800 }}>
+                      {bet.amount.toFixed(2)} <span style={{ fontSize: 9, color: '#4B5563' }}>USDT</span>
+                    </div>
+                  </div>
+                  <div style={{ background: '#1a1f2e' }} />
+                  <div style={{ padding: '8px 10px', textAlign: 'right' }}>
+                    <div style={{ fontSize: 9, color: '#4B5563', marginBottom: 2, fontWeight: 600 }}>
+                      {isOpen ? 'KAZANÇ (TAHMİNİ)' : 'KAZANÇ'}
+                    </div>
+                    <div style={{ fontSize: 13, color: returnColor, fontWeight: 800 }}>
+                      {returnAmt} <span style={{ fontSize: 9, color: '#4B5563' }}>USDT</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
