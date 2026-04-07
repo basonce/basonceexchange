@@ -27,6 +27,8 @@ interface MarketGroup { title: string; markets: ExtMarket[] }
 
 interface GoalEvent { minute: number; side: 'home' | 'away'; score: string }
 
+interface MatchStats { shotsH: number; shotsA: number; cornersH: number; cornersA: number; possession: number }
+
 interface LiveMatch {
   id: string;
   tmpl: MatchTemplate;
@@ -46,6 +48,16 @@ interface LiveMatch {
   halfTimeScore?: { h: number; a: number };
   adminCtrl?: AdminCtrl;
   goalEvents: GoalEvent[];
+  /* Clock / phase */
+  phase: 'first_half' | 'ht_break' | 'second_half' | 'ft_stoppage';
+  stoppageMin: number;   // extra minute counter (1..stoppageHT or 1..stoppageFT)
+  stoppageHT: number;    // stoppage time at HT (assigned at min 45)
+  stoppageFT: number;    // stoppage time at FT (assigned at min 90)
+  htBreakLeft: number;   // ticks remaining in HT break
+  /* Simulation chart */
+  homeAttack: number[];  // attack intensity per minute (0–100) — max 90 entries
+  awayAttack: number[];
+  matchStats: MatchStats;
 }
 
 type BetType = string;
@@ -301,6 +313,42 @@ function generateScheduledGoals(
   });
 }
 
+/* Returns formatted clock string */
+function displayMinute(m: LiveMatch): string {
+  if (m.phase === 'ht_break') return 'HT';
+  if (m.phase === 'ft_stoppage') return `90+${m.stoppageMin}`;
+  if (m.phase === 'first_half' && m.stoppageMin > 0) return `45+${m.stoppageMin}`;
+  return `${m.minute}`;
+}
+
+/* Seed simulated stats at a given minute */
+function seedStats(minute: number, hs: number, as_: number): MatchStats {
+  const total = hs + as_;
+  const shotsH = hs * ri(3, 5) + ri(0, Math.floor(minute / 15));
+  const shotsA = as_ * ri(3, 5) + ri(0, Math.floor(minute / 15));
+  const cornersH = hs * ri(1, 3) + ri(0, 3);
+  const cornersA = as_ * ri(1, 3) + ri(0, 3);
+  const possession = total === 0 ? ri(42, 58) : Math.min(75, Math.max(25, 50 + (hs - as_) * ri(3, 7)));
+  return { shotsH, shotsA, cornersH, cornersA, possession };
+}
+
+/* Seed historical attack waves for an in-progress match */
+function seedAttackWaves(minute: number, goalEvents: GoalEvent[]): { homeAttack: number[]; awayAttack: number[] } {
+  const homeAttack: number[] = [];
+  const awayAttack: number[] = [];
+  for (let i = 0; i < minute; i++) {
+    const goalAt = goalEvents.find(g => g.minute === i);
+    if (goalAt) {
+      homeAttack.push(goalAt.side === 'home' ? ri(75, 100) : ri(10, 25));
+      awayAttack.push(goalAt.side === 'away' ? ri(75, 100) : ri(10, 25));
+    } else {
+      homeAttack.push(ri(20, 65));
+      awayAttack.push(ri(20, 65));
+    }
+  }
+  return { homeAttack, awayAttack };
+}
+
 function buildMatch(tmpl: MatchTemplate, idx: number): LiveMatch {
   const minute = ri(4, 82);
   const maxG = Math.floor(minute / 24);
@@ -309,9 +357,7 @@ function buildMatch(tmpl: MatchTemplate, idx: number): LiveMatch {
   const odds = makeOdds();
   const total = hs + as_;
   const totalOdds = makeTotalOdds();
-  // Ensure the initial line is above current score
   totalOdds.line = dynamicOULine(total, totalOdds.line);
-  // Synthesise fake historical goal events
   const goalEvents: GoalEvent[] = [];
   let fh = 0, fa = 0;
   for (let g = 0; g < total; g++) {
@@ -322,16 +368,18 @@ function buildMatch(tmpl: MatchTemplate, idx: number): LiveMatch {
     goalEvents.push({ minute: m, side, score: `${fh}–${fa}` });
   }
   goalEvents.sort((a, b) => a.minute - b.minute);
+  const phase: LiveMatch['phase'] = minute >= 45 ? 'second_half' : 'first_half';
+  const { homeAttack, awayAttack } = seedAttackWaves(minute, goalEvents);
   return {
     id: `m_${idx}_${Date.now()}_${Math.random().toString(36).slice(2)}`,
     tmpl, homeScore: hs, awayScore: as_,
     minute, half: minute > 45 ? 2 : 1,
-    status: 'live',
-    odds,
-    totalOdds,
+    status: 'live', odds, totalOdds,
     extMarkets: buildExtMarkets(hs, as_, odds.w1, odds.x, odds.w2),
-    goalFlash: null, flashTs: 0, finishedAt: null,
-    goalEvents,
+    goalFlash: null, flashTs: 0, finishedAt: null, goalEvents,
+    phase, stoppageMin: 0, stoppageHT: 0, stoppageFT: 0, htBreakLeft: 0,
+    homeAttack, awayAttack,
+    matchStats: seedStats(minute, hs, as_),
   };
 }
 
@@ -799,22 +847,24 @@ function MarketPanel({
 
 /* ── List row — perfect grid alignment ── */
 function MatchRow({
-  m, activeBetMatchId, expandedMatchId, onSelectBet, onToggleExpand, placedBets,
+  m, activeBetMatchId, expandedMatchId, onSelectBet, onToggleExpand, onOpenSim, placedBets,
 }: {
   m: LiveMatch;
   activeBetMatchId: string | null;
   expandedMatchId: string | null;
   onSelectBet: (matchId: string, type: BetType, odds: number) => void;
   onToggleExpand: (id: string) => void;
+  onOpenSim: (id: string) => void;
   placedBets: PlacedBet[];
 }) {
   const ht = m.tmpl.homeTeam;
   const at = m.tmpl.awayTeam;
   const now = Date.now();
   const isGoalFlash = !!(m.goalFlash && now - m.flashTs < 3500);
-  const halfLabel = m.half === 1 ? '1st' : '2nd';
+  const clockStr = displayMinute(m);
+  const isHT = m.phase === 'ht_break';
+  const halfLabel = isHT ? 'HT' : m.half === 1 ? '1st' : '2nd';
   const sel = activeBetMatchId === m.id;
-  const expanded = expandedMatchId === m.id;
   const homeWin = m.homeScore > m.awayScore;
   const awayWin = m.awayScore > m.homeScore;
   const od = m.oddsDir;
@@ -868,8 +918,10 @@ function MatchRow({
           borderRight: '1px solid #1C2128', padding: '5px 0', gap: 1,
         }}>
           {m.adminCtrl?.pinned && <span style={{ fontSize: 8, lineHeight: 1 }}>📌</span>}
-          <span style={{ fontSize: 10.5, color: '#ef4444', fontWeight: 900, lineHeight: 1 }}>{m.minute}'</span>
-          <span style={{ fontSize: 7.5, color: '#374151', fontWeight: 700 }}>{halfLabel}</span>
+          <span style={{ fontSize: isHT ? 8.5 : 10.5, color: isHT ? '#fbbf24' : '#ef4444', fontWeight: 900, lineHeight: 1 }}>
+            {isHT ? 'HT' : `${clockStr}'`}
+          </span>
+          {!isHT && <span style={{ fontSize: 7.5, color: '#374151', fontWeight: 700 }}>{halfLabel}</span>}
         </div>
 
         {/* Teams column — each row: [shield | name | score] perfect grid */}
@@ -962,25 +1014,21 @@ function MatchRow({
         </div>
       )}
 
-      {/* ── More markets button ── */}
+      {/* ── All markets button → opens simulation modal ── */}
       <button
-        onClick={() => onToggleExpand(m.id)}
+        onClick={() => onOpenSim(m.id)}
         style={{
-          width: '100%', background: expanded ? 'rgba(240,185,11,0.06)' : 'rgba(255,255,255,0.02)',
+          width: '100%', background: 'rgba(255,255,255,0.02)',
           border: 'none', borderTop: '1px solid rgba(255,255,255,0.05)',
-          padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+          padding: '5px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
           transition: 'background 0.15s',
         }}
       >
-        <span style={{ fontSize: 10, color: expanded ? '#F0B90B' : '#4B5563', fontWeight: 700 }}>
-          {expanded ? '▲ Show less' : '▼ All markets'}
-        </span>
+        <span style={{ fontSize: 11 }}>📊</span>
+        <span style={{ fontSize: 10, color: '#4B5563', fontWeight: 700 }}>All markets</span>
+        <span style={{ fontSize: 8, color: '#374151' }}>+{((m.extMarkets ?? []).reduce((s,g) => s + g.markets.length, 0))} odds</span>
+        <span style={{ marginLeft: 2, fontSize: 9, color: '#374151' }}>›</span>
       </button>
-
-      {/* ── Expandable market panel ── */}
-      {expanded && (
-        <MarketPanel groups={m.extMarkets} matchId={m.id} onSelectBet={onSelectBet} />
-      )}
     </div>
   );
 }
@@ -1122,6 +1170,383 @@ function BetSlipModal({ item, usdtBalance, onPlace, onCancel }: BetSlipProps) {
         >
           {num >= 0.5 && !notEnough ? `Place Bet · ${num} USDT` : 'Enter Amount'}
         </button>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════
+   MATCH SIMULATION MODAL — Binance-style live center
+══════════════════════════════════════════════════════════ */
+function AttackChart({ homeAttack, awayAttack, homeColor, awayColor, goalEvents }: {
+  homeAttack: number[];
+  awayAttack: number[];
+  homeColor: string;
+  awayColor: string;
+  goalEvents: GoalEvent[];
+}) {
+  const W = 340, H = 90;
+  const n = Math.max(homeAttack.length, awayAttack.length, 1);
+  const xScale = (i: number) => (i / Math.max(n - 1, 1)) * W;
+  const yScale = (v: number, flip?: boolean) => {
+    const pct = v / 100;
+    return flip ? H * 0.5 * pct : H * 0.5 - H * 0.5 * pct;
+  };
+
+  const buildPath = (vals: number[], flip?: boolean): string => {
+    if (vals.length === 0) return '';
+    const pts = vals.map((v, i) => `${xScale(i).toFixed(1)},${(flip ? H * 0.5 + yScale(v, true) : yScale(v)).toFixed(1)}`);
+    return `M${pts[0]} L${pts.slice(1).join(' L')}`;
+  };
+
+  const buildArea = (vals: number[], flip?: boolean): string => {
+    if (vals.length === 0) return '';
+    const baseline = flip ? 0 : H * 0.5;
+    const pts = vals.map((v, i) => `${xScale(i).toFixed(1)},${(flip ? H * 0.5 + yScale(v, true) : yScale(v)).toFixed(1)}`);
+    return `M${xScale(0).toFixed(1)},${baseline.toFixed(1)} L${pts.join(' L')} L${xScale(vals.length - 1).toFixed(1)},${baseline.toFixed(1)} Z`;
+  };
+
+  const homeColor2 = homeColor.length === 7 ? homeColor : '#3b82f6';
+  const awayColor2 = awayColor.length === 7 ? awayColor : '#ef4444';
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', overflow: 'visible' }}>
+      <defs>
+        <linearGradient id="hAtk" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={homeColor2} stopOpacity="0.55"/>
+          <stop offset="100%" stopColor={homeColor2} stopOpacity="0.04"/>
+        </linearGradient>
+        <linearGradient id="aAtk" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0%" stopColor={awayColor2} stopOpacity="0.55"/>
+          <stop offset="100%" stopColor={awayColor2} stopOpacity="0.04"/>
+        </linearGradient>
+      </defs>
+      {/* Center divider */}
+      <line x1="0" y1={H/2} x2={W} y2={H/2} stroke="rgba(255,255,255,0.08)" strokeWidth="1"/>
+      {/* Home (top area) */}
+      {homeAttack.length > 1 && (
+        <>
+          <path d={buildArea(homeAttack)} fill="url(#hAtk)"/>
+          <path d={buildPath(homeAttack)} fill="none" stroke={homeColor2} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
+        </>
+      )}
+      {/* Away (bottom area, flipped) */}
+      {awayAttack.length > 1 && (
+        <>
+          <path d={buildArea(awayAttack, true)} fill="url(#aAtk)"/>
+          <path d={buildPath(awayAttack.map(v => v), true)} fill="none" stroke={awayColor2} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
+        </>
+      )}
+      {/* Goal markers */}
+      {goalEvents.map((ev, i) => {
+        const total = Math.max(homeAttack.length, 1);
+        const x = Math.min(W - 2, (ev.minute / 90) * W);
+        const isHome = ev.side === 'home';
+        return (
+          <g key={i}>
+            <line x1={x} y1={0} x2={x} y2={H} stroke={isHome ? homeColor2 : awayColor2} strokeWidth="1" strokeDasharray="3,2" opacity="0.7"/>
+            <circle cx={x} cy={isHome ? H * 0.12 : H * 0.88} r="4" fill={isHome ? homeColor2 : awayColor2} opacity="0.9"/>
+            <text x={x} y={isHome ? H * 0.12 - 7 : H * 0.88 + 13} textAnchor="middle" fontSize="7.5" fill={isHome ? homeColor2 : awayColor2} fontWeight="800">⚽</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function StatBar({ label, homeVal, awayVal, homeColor, awayColor }: {
+  label: string; homeVal: number; awayVal: number; homeColor: string; awayColor: string;
+}) {
+  const total = homeVal + awayVal || 1;
+  const homePct = (homeVal / total) * 100;
+  const awayPct = (awayVal / total) * 100;
+  return (
+    <div style={{ marginBottom: 7 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+        <span style={{ fontSize: 11, color: '#e2e8f0', fontWeight: 800 }}>{homeVal}</span>
+        <span style={{ fontSize: 9.5, color: '#6b7280', fontWeight: 600 }}>{label}</span>
+        <span style={{ fontSize: 11, color: '#e2e8f0', fontWeight: 800 }}>{awayVal}</span>
+      </div>
+      <div style={{ display: 'flex', height: 5, borderRadius: 3, overflow: 'hidden', gap: 1 }}>
+        <div style={{ width: `${homePct}%`, background: homeColor.length === 7 ? homeColor : '#3b82f6', borderRadius: '3px 0 0 3px', transition: 'width 0.5s' }}/>
+        <div style={{ width: `${awayPct}%`, background: awayColor.length === 7 ? awayColor : '#ef4444', borderRadius: '0 3px 3px 0', transition: 'width 0.5s' }}/>
+      </div>
+    </div>
+  );
+}
+
+function MatchSimModal({ m, onClose, onSelectBet, placedBets }: {
+  m: LiveMatch;
+  onClose: () => void;
+  onSelectBet: (matchId: string, type: BetType, odds: number) => void;
+  placedBets: PlacedBet[];
+}) {
+  const lg = getLeague(m.tmpl.leagueId);
+  const ht = m.tmpl.homeTeam;
+  const at = m.tmpl.awayTeam;
+  const isFlash = !!(m.goalFlash && Date.now() - m.flashTs < 3500);
+  const clockStr = displayMinute(m);
+  const homeWin = m.homeScore > m.awayScore;
+  const awayWin = m.awayScore > m.homeScore;
+  const [activeGroup, setActiveGroup] = useState(0);
+  const group = m.extMarkets?.[Math.min(activeGroup, (m.extMarkets?.length ?? 1) - 1)];
+
+  const poss = m.matchStats?.possession ?? 50;
+  const st = m.matchStats ?? { shotsH: 0, shotsA: 0, cornersH: 0, cornersA: 0, possession: 50 };
+  const ln = m.totalOdds.line;
+  const activeBet = placedBets.find(b => b.matchId === m.id && b.status === 'open');
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', zIndex: 10000,
+        display: 'flex', flexDirection: 'column', overflowY: 'auto',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: '100%', maxWidth: 520, margin: '0 auto',
+          background: '#0B0E11', minHeight: '100%',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* ── Top bar ── */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 14px',
+          background: 'linear-gradient(90deg,#0B0E11,#131920)',
+          borderBottom: '1px solid #1C2128',
+          position: 'sticky', top: 0, zIndex: 1,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 10, color: '#848E9C' }}>{lg?.flag} {lg?.name}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              background: 'rgba(239,68,68,0.14)', borderRadius: 5, padding: '3px 8px',
+              border: '1px solid rgba(239,68,68,0.28)',
+            }}>
+              <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444' }} className="animate-pulse"/>
+              <span style={{ fontSize: 11, color: '#fca5a5', fontWeight: 900 }}>
+                {m.phase === 'ht_break' ? 'HT' : 'LIVE'}
+              </span>
+              <span style={{ fontSize: 13, color: '#f87171', fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>
+                {clockStr}{m.phase !== 'ht_break' ? "'" : ''}
+              </span>
+            </div>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#848E9C', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+          </div>
+        </div>
+
+        {/* ── Score hero ── */}
+        <div style={{
+          padding: '20px 16px 14px',
+          background: isFlash
+            ? 'linear-gradient(180deg,rgba(5,46,22,0.6),#0B0E11)'
+            : 'linear-gradient(180deg,#131920,#0B0E11)',
+          borderBottom: '1px solid #1C2128',
+          transition: 'background 0.5s',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            {/* Home */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flex: 1 }}>
+              <TeamShield abbr={ht.abbr} color={ht.color} size={52} logoUrl={ht.logoUrl}/>
+              <span style={{ fontSize: 12, color: homeWin ? '#e2e8f0' : '#6b7280', fontWeight: homeWin ? 800 : 600, textAlign: 'center', maxWidth: 90 }}>{ht.name}</span>
+            </div>
+            {/* Score */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{
+                  fontSize: 46, fontWeight: 900, fontVariantNumeric: 'tabular-nums', lineHeight: 1,
+                  color: isFlash && m.goalFlash === 'home' ? '#4ade80' : homeWin ? '#F0B90B' : '#e2e8f0',
+                  transition: 'color 0.35s',
+                }}>{m.homeScore}</span>
+                <span style={{ fontSize: 20, color: '#374151', fontWeight: 900 }}>:</span>
+                <span style={{
+                  fontSize: 46, fontWeight: 900, fontVariantNumeric: 'tabular-nums', lineHeight: 1,
+                  color: isFlash && m.goalFlash === 'away' ? '#4ade80' : awayWin ? '#F0B90B' : '#e2e8f0',
+                  transition: 'color 0.35s',
+                }}>{m.awayScore}</span>
+              </div>
+              {m.halfTimeScore && m.phase === 'second_half' && (
+                <span style={{ fontSize: 9, color: '#4b5563' }}>
+                  HT {m.halfTimeScore.h}–{m.halfTimeScore.a}
+                </span>
+              )}
+            </div>
+            {/* Away */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flex: 1 }}>
+              <TeamShield abbr={at.abbr} color={at.color} size={52} logoUrl={at.logoUrl}/>
+              <span style={{ fontSize: 12, color: awayWin ? '#e2e8f0' : '#6b7280', fontWeight: awayWin ? 800 : 600, textAlign: 'center', maxWidth: 90 }}>{at.name}</span>
+            </div>
+          </div>
+          {/* Goal flash banner */}
+          {isFlash && m.goalFlash && (
+            <div style={{
+              marginTop: 12, padding: '7px 12px',
+              background: 'linear-gradient(90deg,rgba(5,46,22,0.9),rgba(20,83,45,0.95),rgba(5,46,22,0.9))',
+              borderRadius: 8, border: '1px solid rgba(34,197,94,0.35)',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <span style={{ fontSize: 18 }}>⚽</span>
+              <div>
+                <span style={{ fontSize: 13, color: '#4ade80', fontWeight: 900 }}>GOAL! </span>
+                <span style={{ fontSize: 12, color: '#86efac', fontWeight: 700 }}>{m.goalFlash === 'home' ? ht.name : at.name}</span>
+              </div>
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6ee7b7' }}>{m.homeScore}–{m.awayScore}</span>
+            </div>
+          )}
+        </div>
+
+        {/* ── Quick bet row ── */}
+        <div style={{ display: 'flex', gap: 6, padding: '10px 12px', borderBottom: '1px solid #1C2128', background: '#0D1117' }}>
+          {[
+            { label: 'W1', val: m.odds.w1, type: 'W1' as BetType },
+            { label: 'X',  val: m.odds.x,  type: 'X'  as BetType },
+            { label: 'W2', val: m.odds.w2, type: 'W2' as BetType },
+            { label: `O ${ln}`, val: m.totalOdds.over,  type: 'OVER'  as BetType },
+            { label: `U ${ln}`, val: m.totalOdds.under, type: 'UNDER' as BetType },
+          ].map(o => (
+            <button key={o.type}
+              onClick={() => onSelectBet(m.id, o.type, o.val)}
+              style={{
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+                background: '#1C2128', border: '1px solid #2B3139', borderRadius: 6,
+                padding: '5px 2px', cursor: 'pointer',
+              }}
+            >
+              <span style={{ fontSize: 8.5, color: '#848E9C', fontWeight: 600 }}>{o.label}</span>
+              <span style={{ fontSize: 13, color: '#F0B90B', fontWeight: 900 }}>{o.val}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* ── Attack chart ── */}
+        <div style={{ padding: '12px 14px 4px', borderBottom: '1px solid #1C2128' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <span style={{ fontSize: 9.5, color: '#848E9C', fontWeight: 700, letterSpacing: '0.05em' }}>MATCH INTENSITY</span>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <div style={{ width: 10, height: 3, borderRadius: 2, background: ht.color.length === 7 ? ht.color : '#3b82f6' }}/>
+                <span style={{ fontSize: 8.5, color: '#848E9C' }}>{ht.abbr}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <div style={{ width: 10, height: 3, borderRadius: 2, background: at.color.length === 7 ? at.color : '#ef4444' }}/>
+                <span style={{ fontSize: 8.5, color: '#848E9C' }}>{at.abbr}</span>
+              </div>
+            </div>
+          </div>
+          <div style={{ background: '#060A0D', borderRadius: 8, padding: '8px 6px' }}>
+            <AttackChart
+              homeAttack={m.homeAttack ?? []}
+              awayAttack={m.awayAttack ?? []}
+              homeColor={ht.color}
+              awayColor={at.color}
+              goalEvents={m.goalEvents ?? []}
+            />
+          </div>
+          {/* Minute axis */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+            {['1', '15', '30', '45', '60', '75', '90'].map(t => (
+              <span key={t} style={{ fontSize: 7.5, color: '#374151' }}>{t}'</span>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Possession bar ── */}
+        <div style={{ padding: '10px 14px', borderBottom: '1px solid #1C2128' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 800 }}>{poss}%</span>
+            <span style={{ fontSize: 9.5, color: '#6b7280', fontWeight: 600 }}>Possession</span>
+            <span style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 800 }}>{100 - poss}%</span>
+          </div>
+          <div style={{ display: 'flex', height: 7, borderRadius: 4, overflow: 'hidden', gap: 1 }}>
+            <div style={{ width: `${poss}%`, background: ht.color.length === 7 ? ht.color : '#3b82f6', transition: 'width 0.5s' }}/>
+            <div style={{ width: `${100 - poss}%`, background: at.color.length === 7 ? at.color : '#ef4444', transition: 'width 0.5s' }}/>
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <StatBar label="Shots" homeVal={st.shotsH} awayVal={st.shotsA} homeColor={ht.color} awayColor={at.color}/>
+            <StatBar label="Corners" homeVal={st.cornersH} awayVal={st.cornersA} homeColor={ht.color} awayColor={at.color}/>
+          </div>
+        </div>
+
+        {/* ── Goal events ── */}
+        {m.goalEvents && m.goalEvents.length > 0 && (
+          <div style={{ padding: '8px 14px', borderBottom: '1px solid #1C2128', background: '#060A0D' }}>
+            <span style={{ fontSize: 9, color: '#4b5563', fontWeight: 700, letterSpacing: '0.05em' }}>GOALS</span>
+            <div style={{ marginTop: 5, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {m.goalEvents.map((ev, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 9, color: '#374151', fontWeight: 700, width: 28, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{ev.minute}'</span>
+                  <span style={{ fontSize: 11 }}>⚽</span>
+                  <span style={{ fontSize: 11, color: ev.side === 'home' ? (ht.color.length === 7 ? ht.color : '#60a5fa') : (at.color.length === 7 ? at.color : '#f87171'), fontWeight: 700 }}>
+                    {ev.side === 'home' ? ht.name : at.name}
+                  </span>
+                  <span style={{ marginLeft: 'auto', fontSize: 10, color: '#374151' }}>({ev.score})</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Active bet badge ── */}
+        {activeBet && (
+          <div style={{
+            margin: '8px 12px 0', padding: '8px 12px', borderRadius: 8,
+            background: 'linear-gradient(90deg,rgba(59,130,246,0.14),rgba(37,99,235,0.22))',
+            border: '1px solid rgba(59,130,246,0.28)',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            <span style={{ fontSize: 13 }}>🎟️</span>
+            <span style={{ fontSize: 11, color: '#93c5fd', fontWeight: 700 }}>Active Bet</span>
+            <span style={{ fontSize: 11, color: '#60a5fa' }}>
+              {activeBet.betType === 'W1' ? `1 – ${activeBet.homeTeam}` :
+               activeBet.betType === 'W2' ? `2 – ${activeBet.awayTeam}` :
+               activeBet.betType === 'X' ? 'Draw' :
+               activeBet.betType === 'OVER' ? `Over ${ln}` :
+               activeBet.betType === 'UNDER' ? `Under ${ln}` :
+               activeBet.betType}
+            </span>
+            <span style={{ marginLeft: 'auto', color: '#fbbf24', fontWeight: 900, fontSize: 13 }}>×{activeBet.odds}</span>
+          </div>
+        )}
+
+        {/* ── Extended markets ── */}
+        <div style={{ padding: '10px 0 0' }}>
+          <div style={{ padding: '0 12px 6px' }}>
+            <span style={{ fontSize: 9.5, color: '#848E9C', fontWeight: 700, letterSpacing: '0.05em' }}>ALL MARKETS</span>
+          </div>
+          {/* Category tabs */}
+          <div style={{ display: 'flex', gap: 0, overflowX: 'auto', borderBottom: '1px solid #1C2128', scrollbarWidth: 'none' }}>
+            {(m.extMarkets ?? []).map((g, i) => (
+              <button key={i} onClick={() => setActiveGroup(i)} style={{
+                flexShrink: 0, padding: '7px 11px', whiteSpace: 'nowrap', background: 'none', border: 'none',
+                cursor: 'pointer', fontSize: 11, fontWeight: 700,
+                color: activeGroup === i ? '#F0B90B' : '#6B7280',
+                borderBottom: activeGroup === i ? '2px solid #F0B90B' : '2px solid transparent',
+                transition: 'all 0.15s',
+              }}>{g.title}</button>
+            ))}
+          </div>
+          {/* Markets grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 5, padding: '10px 10px 24px' }}>
+            {group?.markets.map(mkt => (
+              <button key={mkt.key}
+                onClick={() => onSelectBet(m.id, mkt.key, mkt.odd)}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                  background: '#131920', border: '1px solid #1C2128', borderRadius: 7,
+                  padding: '7px 4px', cursor: 'pointer',
+                }}
+              >
+                <span style={{ fontSize: 9.5, color: '#848E9C', lineHeight: 1.2, textAlign: 'center' }}>{mkt.label}</span>
+                <span style={{ fontSize: 14, color: '#F0B90B', fontWeight: 900 }}>{mkt.odd}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1431,6 +1856,7 @@ export default function GamesSection() {
   const [betSlip, setBetSlip] = useState<BetSlipItem | null>(null);
   const [activeBetMatchId, setActiveBetMatchId] = useState<string | null>(null);
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
+  const [simMatchId, setSimMatchId] = useState<string | null>(null);
   const [placedBets, setPlacedBets] = useState<PlacedBet[]>(() => {
     try {
       const raw = localStorage.getItem('sport_placed_bets');
@@ -1904,12 +2330,58 @@ export default function GamesSection() {
         const finishing: LiveMatch[] = [];
         let next = prev.map(m => {
           if (m.status === 'finished') return m;
-          let mm: LiveMatch = { ...m, minute: m.minute + 1, half: m.minute + 1 > 45 ? 2 : 1 };
 
-          if (mm.minute >= 90) {
-            const fin = { ...mm, status: 'finished' as const, finishedAt: now };
-            finishing.push(fin);
-            return fin;
+          // ── Phase-aware clock tick ──────────────────────────
+          let mm: LiveMatch = { ...m };
+
+          // HT break: freeze clock, no goals
+          if (mm.phase === 'ht_break') {
+            const left = mm.htBreakLeft - 1;
+            if (left <= 0) {
+              mm = { ...mm, phase: 'second_half', htBreakLeft: 0, half: 2 };
+            } else {
+              mm = { ...mm, htBreakLeft: left };
+            }
+            return mm;
+          }
+
+          // FT stoppage
+          if (mm.phase === 'ft_stoppage') {
+            const nextStopMin = mm.stoppageMin + 1;
+            if (nextStopMin > mm.stoppageFT) {
+              const fin = { ...mm, status: 'finished' as const, finishedAt: now };
+              finishing.push(fin);
+              return fin;
+            }
+            mm = { ...mm, stoppageMin: nextStopMin };
+            // Allow goals in FT stoppage (result-control can fire here)
+          }
+
+          // First-half / second-half minute advance
+          if (mm.phase === 'first_half' || mm.phase === 'second_half') {
+            // Advance minute
+            mm = { ...mm, minute: mm.minute + 1, half: mm.minute + 1 > 45 ? 2 : 1 };
+
+            // End of first half — enter HT stoppage ticks then break
+            if (mm.phase === 'first_half' && mm.minute >= 45) {
+              if (mm.stoppageHT === 0) {
+                // Assign HT stoppage time
+                const shtMin = ri(1, 4);
+                mm = { ...mm, minute: 45, stoppageHT: shtMin, stoppageMin: 1, halfTimeScore: { h: mm.homeScore, a: mm.awayScore } };
+              } else if (mm.stoppageMin < mm.stoppageHT) {
+                mm = { ...mm, minute: 45, stoppageMin: mm.stoppageMin + 1 };
+              } else {
+                // HT break starts
+                mm = { ...mm, minute: 45, stoppageMin: 0, htBreakLeft: 3, phase: 'ht_break' };
+                return mm;
+              }
+            }
+
+            // End of second half — enter FT stoppage
+            if (mm.phase === 'second_half' && mm.minute >= 90) {
+              const sftMin = ri(2, 6);
+              mm = { ...mm, minute: 90, stoppageFT: sftMin, stoppageMin: 1, phase: 'ft_stoppage' };
+            }
           }
 
           // Goal logic (~7% per tick)
@@ -1985,6 +2457,28 @@ export default function GamesSection() {
           if (scoringSide) {
             const ev: GoalEvent = { minute: mm.minute, side: scoringSide, score: `${mm.homeScore}–${mm.awayScore}` };
             mm = { ...mm, goalEvents: [...(mm.goalEvents || []), ev] };
+          }
+
+          // ── Attack wave tracking (simulation chart) ──
+          {
+            const hAtk = scoringSide === 'home' ? ri(80, 100) : scoringSide === 'away' ? ri(5, 18) : ri(20, 68);
+            const aAtk = scoringSide === 'away' ? ri(80, 100) : scoringSide === 'home' ? ri(5, 18) : ri(20, 68);
+            const newHA = [...mm.homeAttack, hAtk].slice(-90);
+            const newAA = [...mm.awayAttack, aAtk].slice(-90);
+            // Drift possession slightly towards scoring team
+            const newPoss = scoringSide === 'home'
+              ? Math.min(78, mm.matchStats.possession + ri(1, 3))
+              : scoringSide === 'away'
+                ? Math.max(22, mm.matchStats.possession - ri(1, 3))
+                : mm.matchStats.possession + (Math.random() < 0.5 ? 1 : -1);
+            const newStats: MatchStats = {
+              shotsH: mm.matchStats.shotsH + (scoringSide === 'home' ? ri(1, 3) : Math.random() < 0.18 ? 1 : 0),
+              shotsA: mm.matchStats.shotsA + (scoringSide === 'away' ? ri(1, 3) : Math.random() < 0.18 ? 1 : 0),
+              cornersH: mm.matchStats.cornersH + (Math.random() < 0.12 ? 1 : 0),
+              cornersA: mm.matchStats.cornersA + (Math.random() < 0.12 ? 1 : 0),
+              possession: Math.min(79, Math.max(21, newPoss)),
+            };
+            mm = { ...mm, homeAttack: newHA, awayAttack: newAA, matchStats: newStats };
           }
 
           // Recalculate O/U odds:
@@ -2071,6 +2565,11 @@ export default function GamesSection() {
   /* Toggle expanded match markets */
   const handleToggleExpand = useCallback((id: string) => {
     setExpandedMatchId(prev => prev === id ? null : id);
+  }, []);
+
+  /* Open sim modal */
+  const handleOpenSim = useCallback((id: string) => {
+    setSimMatchId(id);
   }, []);
 
   /* Select bet */
@@ -2265,7 +2764,7 @@ export default function GamesSection() {
                   </span>
                 </div>
                 {ms.map(m => (
-                  <MatchRow key={m.id} m={m} activeBetMatchId={activeBetMatchId} expandedMatchId={expandedMatchId} onSelectBet={handleSelectBet} onToggleExpand={handleToggleExpand} placedBets={placedBets} />
+                  <MatchRow key={m.id} m={m} activeBetMatchId={activeBetMatchId} expandedMatchId={expandedMatchId} onSelectBet={handleSelectBet} onToggleExpand={handleToggleExpand} onOpenSim={handleOpenSim} placedBets={placedBets} />
                 ))}
               </div>
             );
@@ -2307,6 +2806,23 @@ export default function GamesSection() {
           onCancel={() => { setBetSlip(null); setActiveBetMatchId(null); }}
         />
       )}
+
+      {/* ── MATCH SIMULATION MODAL ── */}
+      {simMatchId && (() => {
+        const simMatch = matches.find(x => x.id === simMatchId);
+        if (!simMatch) return null;
+        return (
+          <MatchSimModal
+            m={simMatch}
+            onClose={() => setSimMatchId(null)}
+            onSelectBet={(mId, type, odds) => {
+              setSimMatchId(null);
+              handleSelectBet(mId, type, odds);
+            }}
+            placedBets={placedBets}
+          />
+        );
+      })()}
     </div>
   );
 }

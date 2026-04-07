@@ -100,6 +100,12 @@ Full-featured crypto exchange platform (BASONCE Exchange). Built with React + Vi
 - Live admin panel: `artifacts/kite-exchange/src/components/LiveActivityPanel.tsx` + `artifacts/admin-monitor/src/components/LiveActivityPanel.tsx`
 - Admin PIN: `1332`
 
+### Games Section (GamesSection.tsx) — Key Features
+- **Realistic match clock**: 45+X'/90+X' stoppage time format. Phases: `first_half → ht_break (3 ticks) → second_half → ft_stoppage → finished`. HT break freezes clock at "HT", FT stoppage shows "90+3'" etc.
+- **Match simulation stats**: Each match tracks `homeAttack[]`, `awayAttack[]` (intensity 0–100 per minute), `matchStats` (shots, corners, possession) — all updated live on each tick.
+- **Binance-style "All markets" modal**: Clicking the "All markets" row opens `MatchSimModal` — full-screen overlay with SVG attack-intensity chart (home up / away down mirrored area chart), possession bar, shots/corners stats, goal timeline, quick-bet row, and full extended markets grid.
+- Storage read: Supabase public URL (CTRL_PUBLIC_URL). Storage write: `PUT /api-server/api/sport/controls` with `x-requester-id` header (service-role on server side to bypass RLS).
+
 ### Tech Stack
 - React 18 + TypeScript
 - Vite 7 with @tailwindcss/vite (Tailwind v4)
