@@ -246,6 +246,31 @@ function ouLineFromTarget(targetTot: number): number {
   return Math.max(0.5, targetTot - 0.5);
 }
 
+/**
+ * Calculates Over/Under odds for admin-rigged matches.
+ * Uses a simple probability model: each remaining minute has ~7% chance of a goal.
+ * As goals accumulate or time runs out, odds tighten naturally.
+ */
+function adminTotalOdds(targetTot: number, currentTot: number, minute: number): TotalOdds {
+  const line = ouLineFromTarget(targetTot);
+  const remaining = targetTot - currentTot;  // goals still needed
+  const minsLeft = Math.max(1, 90 - minute);
+
+  if (remaining <= 0) {
+    // Target already reached — over is a lock
+    return { line, over: 1.01, under: 50.0 };
+  }
+
+  // Expected goals in remaining time at 7% per minute
+  const expected = minsLeft * 0.07;
+  const surplus = expected - remaining;          // positive = over likely, negative = unlikely
+  const pOver = 1 / (1 + Math.exp(-surplus * 1.3));
+  const overOdds  = Math.max(1.01, Math.min(9.5, 1 / Math.max(0.02, pOver)));
+  const underOdds = Math.max(1.01, Math.min(50.0, 1 / Math.max(0.02, 1 - pOver)));
+
+  return { line, over: +overOdds.toFixed(2), under: +underOdds.toFixed(2) };
+}
+
 /* Distributes goals across the remaining minutes for admin-controlled matches */
 function generateScheduledGoals(
   target: { h: number; a: number },
@@ -1477,23 +1502,24 @@ export default function GamesSection() {
               const ts = ctrl.targetScore;
               const schedKey = `${ts.h}-${ts.a}-${ctrl.startedAt}`;
               const scheduled = generateScheduledGoals(ts, 0, 0, 1);
-              const ouLine = ouLineFromTarget(ts.h + ts.a);
+              const newTotalOdds = adminTotalOdds(ts.h + ts.a, 0, 1);
               return {
                 ...m,
                 homeScore: 0, awayScore: 0, minute: 1, half: 1, goalEvents: [],
                 status: 'live' as const,
-                totalOdds: { ...m.totalOdds, line: ouLine },
+                totalOdds: newTotalOdds,
                 adminCtrl: { ...ctrl, scheduledGoals: scheduled, scheduleKey: schedKey },
               };
             }
 
-            // Fix O/U line to match target if not yet correct
+            // Recalc O/U odds based on target (every poll, so it stays accurate)
             let updatedTotalOdds = m.totalOdds;
             if (ctrl.targetScore) {
-              const ouLine = ouLineFromTarget(ctrl.targetScore.h + ctrl.targetScore.a);
-              if (m.totalOdds.line !== ouLine) {
-                updatedTotalOdds = { ...m.totalOdds, line: ouLine };
-              }
+              updatedTotalOdds = adminTotalOdds(
+                ctrl.targetScore.h + ctrl.targetScore.a,
+                m.homeScore + m.awayScore,
+                m.minute,
+              );
             }
 
             // Preserve existing scheduledGoals unless adminCtrl changed
@@ -1523,21 +1549,23 @@ export default function GamesSection() {
             let injectedMatch: LiveMatch;
             if (ctrl.targetScore) {
               const ts = ctrl.targetScore;
-              const ouLine = ouLineFromTarget(ts.h + ts.a);
+              const targetTot = ts.h + ts.a;
               if (ctrl.startedAt) {
                 // Fresh start: 0-0 at minute 1 with goal schedule
                 const schedKey = `${ts.h}-${ts.a}-${ctrl.startedAt}`;
                 const scheduled = generateScheduledGoals(ts, 0, 0, 1);
+                const newTotalOdds = adminTotalOdds(targetTot, 0, 1);
                 injectedMatch = {
                   ...nm, homeScore: 0, awayScore: 0, minute: 1, half: 1, goalEvents: [],
-                  totalOdds: { ...nm.totalOdds, line: ouLine },
+                  totalOdds: newTotalOdds,
                   adminCtrl: { ...ctrl, scheduledGoals: scheduled, scheduleKey: schedKey },
                 };
               } else {
                 // Legacy: snap to target score immediately
+                const newTotalOdds = adminTotalOdds(targetTot, targetTot, 45);
                 injectedMatch = {
                   ...nm, homeScore: ts.h, awayScore: ts.a,
-                  totalOdds: { ...nm.totalOdds, line: ouLine },
+                  totalOdds: newTotalOdds,
                   adminCtrl: ctrl,
                 };
               }
@@ -1737,15 +1765,27 @@ export default function GamesSection() {
             }
           }
 
-          // Record goal event + update dynamic O/U line
+          // Record goal event + update O/U odds
           if (scoringSide) {
+            const ev: GoalEvent = { minute: mm.minute, side: scoringSide, score: `${mm.homeScore}–${mm.awayScore}` };
+            mm = { ...mm, goalEvents: [...(mm.goalEvents || []), ev] };
+          }
+
+          // Recalculate O/U odds:
+          //   • Admin-controlled matches → deterministic model based on remaining goals & time
+          //   • Normal matches → random drift
+          if (mm.adminCtrl?.targetScore) {
+            const ts = mm.adminCtrl.targetScore;
+            mm = { ...mm, totalOdds: adminTotalOdds(ts.h + ts.a, mm.homeScore + mm.awayScore, mm.minute) };
+          } else if (scoringSide) {
             const newTotal = mm.homeScore + mm.awayScore;
             const newLine = dynamicOULine(newTotal, mm.totalOdds.line);
-            const newTotalOdds: TotalOdds = newLine !== mm.totalOdds.line
-              ? { line: newLine, over: +(rf(1.55, 2.90)).toFixed(2), under: +(rf(1.55, 2.90)).toFixed(2) }
-              : { ...mm.totalOdds, over: +(rf(1.55, 2.90)).toFixed(2), under: +(rf(1.55, 2.90)).toFixed(2) };
-            const ev: GoalEvent = { minute: mm.minute, side: scoringSide, score: `${mm.homeScore}–${mm.awayScore}` };
-            mm = { ...mm, totalOdds: newTotalOdds, goalEvents: [...(mm.goalEvents || []), ev] };
+            const newTotalOdds: TotalOdds = {
+              line: newLine,
+              over:  +(rf(1.55, 2.90)).toFixed(2),
+              under: +(rf(1.55, 2.90)).toFixed(2),
+            };
+            mm = { ...mm, totalOdds: newTotalOdds };
           }
 
           // Recalc result odds — big shift on goal, small drift every tick
