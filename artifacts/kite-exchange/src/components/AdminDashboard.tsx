@@ -726,13 +726,13 @@ interface MatchCtrl {
 const MATCH_API = '/api-server/api/admin/match-controls';
 const FALLBACK_ADMIN = '88292f59-898a-4fef-a1c8-8813d7b60b61';
 const MC_RESULT_COLORS: Record<string, string> = { '1': '#3B82F6', 'X': '#0ECB81', '2': '#F6465D' };
-const MC_RESULT_LABELS: Record<string, string> = { '1': 'Home Win', 'X': 'Draw', '2': 'Away Win' };
+const MC_RESULT_LABELS: Record<string, string> = { '1': 'Ev Galibi', 'X': 'Beraberlik', '2': 'Deplasman' };
 
 function timeAgoMC(ts: number) {
   const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  return `${Math.floor(s / 3600)}h ago`;
+  if (s < 60) return `${s}sn önce`;
+  if (s < 3600) return `${Math.floor(s / 60)}dk önce`;
+  return `${Math.floor(s / 3600)}sa önce`;
 }
 
 function MatchControlsPanel({ adminId }: { adminId: string }) {
@@ -796,11 +796,11 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
         setShowForm(false);
         setHomeTeam(''); setAwayTeam(''); setPinned(false); setMode('result');
         await load();
-        showToast('Control applied ✓', true);
+        showToast('Kontrol uygulandı ✓', true);
       } else {
-        showToast('Failed to save', false);
+        showToast('Kaydetme başarısız', false);
       }
-    } catch { showToast('Network error', false); }
+    } catch { showToast('Ağ hatası', false); }
     setSaving(false);
   }
 
@@ -810,7 +810,7 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
       const aid = adminId || FALLBACK_ADMIN;
       await fetch(`${MATCH_API}/${id}`, { method: 'DELETE', headers: { 'x-requester-id': aid } });
       await load();
-      showToast('Removed', true);
+      showToast('Silindi', true);
     } catch {}
     setDeletingId(null);
   }
@@ -839,14 +839,14 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
             <Gamepad2 style={{ width: 18, height: 18, color: '#000' }} />
           </div>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 900, color: '#111827' }}>Match Controls</div>
-            <div style={{ fontSize: 11, color: '#6B7280' }}>{controls.length} active · auto-refresh 15s</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: '#111827' }}>Maç Kontrolleri</div>
+            <div style={{ fontSize: 11, color: '#374151', fontWeight: 600 }}>{controls.length} aktif · otomatik yenile 15s</div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => load(true)} disabled={refreshing} style={{
             width: 34, height: 34, borderRadius: 9, border: '1px solid #E5E7EB',
-            background: '#F9FAFB', cursor: 'pointer', fontSize: 15, color: '#6B7280',
+            background: '#F9FAFB', cursor: 'pointer', fontSize: 15, color: '#374151',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             opacity: refreshing ? 0.5 : 1,
           }}>↻</button>
@@ -857,7 +857,7 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
             border: `1px solid ${showForm ? '#FCA5A5' : '#FDE68A'}`,
             color: showForm ? '#DC2626' : '#92400E',
           }}>
-            {showForm ? '✕ Cancel' : '+ Add Control'}
+            {showForm ? '✕ İptal' : '+ Kontrol Ekle'}
           </button>
         </div>
       </div>
@@ -865,10 +865,10 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
       {/* ── Stats ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
         {[
-          { label: 'Total',  val: controls.length, color: '#d97706', icon: '🎮' },
-          { label: 'Pinned', val: pinnedCount,      color: '#d97706', icon: '📌' },
-          { label: 'Result', val: resultCount,      color: '#3B82F6', icon: '🏆' },
-          { label: 'Score',  val: scoreCount,       color: '#0ECB81', icon: '⚽' },
+          { label: 'Toplam',    val: controls.length, color: '#d97706', icon: '🎮' },
+          { label: 'Sabitli',   val: pinnedCount,      color: '#d97706', icon: '📌' },
+          { label: 'Sonuç',     val: resultCount,      color: '#3B82F6', icon: '🏆' },
+          { label: 'Skor',      val: scoreCount,       color: '#0ECB81', icon: '⚽' },
         ].map(({ label, val, color, icon }) => (
           <div key={label} style={{
             background: '#fff', border: '1px solid #E5E7EB', borderRadius: 10,
@@ -876,7 +876,7 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
           }}>
             <div style={{ fontSize: 14, marginBottom: 2 }}>{icon}</div>
             <div style={{ fontSize: 17, fontWeight: 900, color }}>{val}</div>
-            <div style={{ fontSize: 9, color: '#9CA3AF', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+            <div style={{ fontSize: 9, color: '#374151', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
           </div>
         ))}
       </div>
@@ -888,24 +888,26 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
           padding: 16, marginBottom: 14, boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
         }}>
           <p style={{ fontSize: 10, fontWeight: 800, color: '#F0B90B', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 12 }}>
-            New Match Control
+            Yeni Maç Kontrolü
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
             <input
               value={homeTeam} onChange={e => setHomeTeam(e.target.value)}
-              placeholder="Home Team — exact name (e.g. Kaizer Chiefs)"
+              placeholder="Ev Sahibi — tam isim (örn. Kaizer Chiefs)"
               style={{
                 border: '1px solid #E5E7EB', borderRadius: 10, padding: '10px 12px',
                 fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box',
+                color: '#111827',
               }}
             />
             <input
               value={awayTeam} onChange={e => setAwayTeam(e.target.value)}
-              placeholder="Away Team — exact name (e.g. Mamelodi Sundowns)"
+              placeholder="Deplasman — tam isim (örn. Mamelodi Sundowns)"
               style={{
                 border: '1px solid #E5E7EB', borderRadius: 10, padding: '10px 12px',
                 fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box',
+                color: '#111827',
               }}
             />
           </div>
@@ -917,9 +919,9 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
                 padding: '9px', borderRadius: 9, cursor: 'pointer', fontWeight: 700, fontSize: 12,
                 background: mode === m ? '#FEF9C3' : '#F9FAFB',
                 border: `1px solid ${mode === m ? '#FDE68A' : '#E5E7EB'}`,
-                color: mode === m ? '#92400E' : '#6B7280',
+                color: mode === m ? '#92400E' : '#374151',
               }}>
-                {m === 'result' ? '🏆 Result (1 / X / 2)' : '⚽ Exact Score'}
+                {m === 'result' ? '🏆 Sonuç (1 / X / 2)' : '⚽ Kesin Skor'}
               </button>
             ))}
           </div>
@@ -969,8 +971,8 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
           }}>
             <Pin style={{ width: 16, height: 16, color: pinned ? '#d97706' : '#9CA3AF', flexShrink: 0 }} />
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>Pin to Top</div>
-              <div style={{ fontSize: 11, color: '#6B7280' }}>Match will appear at top of everyone's list</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>Üste Sabitle</div>
+              <div style={{ fontSize: 11, color: '#374151', fontWeight: 600 }}>Maç herkesin listesinin en üstünde görünür</div>
             </div>
             <div style={{
               width: 40, height: 22, borderRadius: 11, padding: '2px',
@@ -991,9 +993,9 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
             background: '#EFF6FF', border: '1px solid #BFDBFE',
             borderRadius: 10, padding: '10px 12px', marginBottom: 12,
           }}>
-            <p style={{ fontSize: 11, color: '#1D4ED8', fontWeight: 600, marginBottom: 3 }}>ℹ️ How it works</p>
-            <p style={{ fontSize: 11, color: '#3B82F6', lineHeight: 1.5 }}>
-              Enter exact team names. When that match is generated, this control activates automatically. Score is guided toward target; locked in the final 3 minutes of the match.
+            <p style={{ fontSize: 11, color: '#1D4ED8', fontWeight: 700, marginBottom: 3 }}>ℹ️ Nasıl çalışır</p>
+            <p style={{ fontSize: 11, color: '#1D4ED8', lineHeight: 1.5, fontWeight: 600 }}>
+              Tam takım isimlerini girin. Maç oluşturulduğunda kontrol otomatik devreye girer. Skor hedefe yönlendirilir; maçın son 3 dakikasında kilitlenir.
             </p>
           </div>
 
@@ -1004,27 +1006,27 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
               ? '#E5E7EB' : 'linear-gradient(135deg,#F0B90B,#d97706)',
             color: saving || !homeTeam.trim() || !awayTeam.trim() ? '#9CA3AF' : '#000',
           }}>
-            {saving ? 'Saving…' : '✓ Apply Control'}
+            {saving ? 'Kaydediliyor…' : '✓ Kontrolü Uygula'}
           </button>
         </div>
       )}
 
       {/* ── Controls List ── */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '48px 0', color: '#9CA3AF' }}>
+        <div style={{ textAlign: 'center', padding: '48px 0', color: '#374151' }}>
           <RefreshCw style={{ width: 24, height: 24, margin: '0 auto 8px', animation: 'spin 1s linear infinite' }} />
-          <p style={{ fontSize: 13 }}>Loading…</p>
+          <p style={{ fontSize: 13, fontWeight: 600 }}>Yükleniyor…</p>
         </div>
       ) : controls.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '56px 0' }}>
-          <Gamepad2 style={{ width: 48, height: 48, color: '#D1D5DB', margin: '0 auto 12px' }} />
-          <p style={{ fontSize: 15, fontWeight: 700, color: '#374151', marginBottom: 6 }}>No Active Controls</p>
-          <p style={{ fontSize: 12, color: '#9CA3AF' }}>Use "+ Add Control" to steer a match outcome or exact score</p>
+          <Gamepad2 style={{ width: 48, height: 48, color: '#9CA3AF', margin: '0 auto 12px' }} />
+          <p style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 6 }}>Aktif Kontrol Yok</p>
+          <p style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>"+ Kontrol Ekle" ile maç sonucunu veya skoru yönlendir</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <p style={{ fontSize: 10, fontWeight: 800, color: '#9CA3AF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 2 }}>
-            Active Controls ({controls.length})
+          <p style={{ fontSize: 10, fontWeight: 800, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 2 }}>
+            Aktif Kontroller ({controls.length})
           </p>
           {controls.map(ctrl => {
             const hasScore = ctrl.targetScore !== undefined;
@@ -1047,22 +1049,22 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
                       <span style={{
                         fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 20,
                         background: '#FEF9C3', color: '#d97706', border: '1px solid #FDE68A', letterSpacing: '0.06em',
-                      }}>📌 PINNED</span>
+                      }}>📌 SABİTLENDİ</span>
                     )}
                     <span style={{
                       fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 20,
                       background: `${typeColor}18`, color: typeColor, border: `1px solid ${typeColor}40`,
                     }}>
-                      {hasScore ? 'EXACT SCORE' : 'RESULT'}
+                      {hasScore ? 'KESİN SKOR' : 'SONUÇ'}
                     </span>
-                    <span style={{ fontSize: 10, color: '#9CA3AF', marginLeft: 'auto' }}>{timeAgoMC(ctrl.createdAt)}</span>
+                    <span style={{ fontSize: 10, color: '#374151', fontWeight: 600, marginLeft: 'auto' }}>{timeAgoMC(ctrl.createdAt)}</span>
                   </div>
                   {/* teams */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                     <span style={{ fontSize: 13, fontWeight: 800, color: '#111827', flex: 1 }}>{ctrl.homeTeam}</span>
                     <span style={{
-                      fontSize: 9, color: '#9CA3AF', padding: '2px 6px',
-                      border: '1px solid #E5E7EB', borderRadius: 4, fontWeight: 700,
+                      fontSize: 9, color: '#374151', padding: '2px 6px',
+                      border: '1px solid #D1D5DB', borderRadius: 4, fontWeight: 800,
                     }}>VS</span>
                     <span style={{ fontSize: 13, fontWeight: 800, color: '#111827', flex: 1, textAlign: 'right' }}>{ctrl.awayTeam}</span>
                   </div>
@@ -1073,7 +1075,7 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
                       borderRadius: 8, padding: '7px 12px',
                       display: 'flex', alignItems: 'center', gap: 6,
                     }}>
-                      <span style={{ fontSize: 9, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase' }}>Target:</span>
+                      <span style={{ fontSize: 9, color: '#374151', fontWeight: 700, textTransform: 'uppercase' }}>Hedef:</span>
                       <span style={{ fontSize: 15, fontWeight: 900, color: typeColor }}>{typeLabel}</span>
                     </div>
                     <button onClick={() => handleDelete(ctrl.id)} disabled={deletingId === ctrl.id} style={{
