@@ -9,6 +9,78 @@ const ADMIN_UUIDS = new Set([
   '88292f59-898a-4fef-a1c8-8813d7b60b61',
 ]);
 
+/* ══════════════════════════════════════════════════════════
+   MATCH CONTROLS — in-memory store
+══════════════════════════════════════════════════════════ */
+interface MatchControl {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
+  targetResult?: '1' | 'X' | '2';
+  targetScore?: { h: number; a: number };
+  pinned: boolean;
+  createdAt: number;
+}
+
+const matchControls = new Map<string, MatchControl>();
+
+function genId() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+/* GET /admin/match-controls — public (kite-exchange reads this) */
+router.get('/admin/match-controls', (_req, res) => {
+  return res.json(Array.from(matchControls.values()));
+});
+
+/* POST /admin/match-controls — admin only */
+router.post('/admin/match-controls', (req, res) => {
+  const requesterId = req.headers['x-requester-id'] as string;
+  if (!requesterId || !ADMIN_UUIDS.has(requesterId)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const { homeTeam, awayTeam, targetResult, targetScore, pinned } = req.body;
+  if (!homeTeam || !awayTeam) {
+    return res.status(400).json({ error: 'homeTeam and awayTeam required' });
+  }
+
+  const key = `${homeTeam.trim()}:${awayTeam.trim()}`;
+  const existing = matchControls.get(key);
+  const ctrl: MatchControl = {
+    id: existing?.id || genId(),
+    homeTeam: homeTeam.trim(),
+    awayTeam: awayTeam.trim(),
+    targetResult: targetResult || undefined,
+    targetScore: targetScore || undefined,
+    pinned: !!pinned,
+    createdAt: existing?.createdAt || Date.now(),
+  };
+  matchControls.set(key, ctrl);
+  return res.json({ ok: true, ctrl });
+});
+
+/* DELETE /admin/match-controls/:id — admin only */
+router.delete('/admin/match-controls/:id', (req, res) => {
+  const requesterId = req.headers['x-requester-id'] as string;
+  if (!requesterId || !ADMIN_UUIDS.has(requesterId)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  const { id } = req.params;
+  let deleted = false;
+  for (const [key, ctrl] of matchControls.entries()) {
+    if (ctrl.id === id) {
+      matchControls.delete(key);
+      deleted = true;
+      break;
+    }
+  }
+  return res.json({ ok: deleted });
+});
+
+/* ══════════════════════════════════════════════════════════
+   USER LEVEL
+══════════════════════════════════════════════════════════ */
 router.post('/admin/set-user-level', async (req, res) => {
   try {
     const requesterId = req.headers['x-requester-id'] as string;

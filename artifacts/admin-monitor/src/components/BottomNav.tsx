@@ -9,6 +9,7 @@ const TABS = [
   { path: '/finance',   icon: '💰', label: 'Finans' },
   { path: '/support',   icon: '💬', label: 'Destek' },
   { path: '/tools',     icon: '🔧', label: 'Araçlar' },
+  { path: '/matches',   icon: '⚽', label: 'Maçlar' },
 ];
 
 export default function BottomNav() {

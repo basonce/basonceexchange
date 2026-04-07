@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useLocation } from 'wouter';
-import { RefreshCw, Users, DollarSign, AlertTriangle, Activity, Zap, Snowflake, Eye, Globe, TrendingUp } from 'lucide-react';
+import { RefreshCw, Users, DollarSign, AlertTriangle, Activity, Zap, Snowflake, Eye, Globe, TrendingUp, Gamepad2 } from 'lucide-react';
 import { fetchPlatformStats, fetchFinancialStatus, fetchRiskMetrics, fetchVIPUsers, fetchExchangeMode, setExchangeMode, fetchOnlineUsers, fetchAnalyticsSummary } from '../lib/admin-api';
 import { useStore } from '../lib/store';
 import { supabase } from '../lib/supabase';
@@ -335,6 +335,24 @@ export default function Command() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Matches Control */}
+      <div>
+        <Label>MAÇLAR</Label>
+        <button onClick={() => nav('/matches')}
+          className="w-full rounded-2xl p-4 flex items-center gap-4 active:scale-[0.98] transition-transform text-left"
+          style={{ background: 'linear-gradient(135deg,rgba(240,185,11,0.1),rgba(255,152,0,0.06))', border: '1px solid rgba(240,185,11,0.22)' }}>
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-none"
+            style={{ background: 'rgba(240,185,11,0.18)', color: '#F0B90B' }}>
+            <Gamepad2 size={22} />
+          </div>
+          <div className="flex-1">
+            <p className="text-base font-black text-white">Maç Kontrolü</p>
+            <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>Sonuç, skor belirle · Maçı üste sabitle</p>
+          </div>
+          <span style={{ color: 'rgba(240,185,11,0.5)', fontSize: 22, fontWeight: 700 }}>›</span>
+        </button>
       </div>
 
       {/* VIP users */}
