@@ -350,18 +350,48 @@ function matchKey(t: MatchTemplate): string {
 }
 
 // ── Pick N fresh matchups ────────────────────────────────
-export function pickFreshMatchups(n: number): MatchTemplate[] {
+// busyTeamNames: teams already in active matches — never reuse them
+export function pickFreshMatchups(n: number, busyTeamNames?: Set<string>): MatchTemplate[] {
+  // Teams that must not appear: already active + already chosen in this batch
+  const excluded = new Set<string>(busyTeamNames ?? []);
+
+  const notBusy = (t: MatchTemplate) =>
+    !excluded.has(t.homeTeam.name) && !excluded.has(t.awayTeam.name);
+
+  const reserveTeams = (t: MatchTemplate) => {
+    excluded.add(t.homeTeam.name);
+    excluded.add(t.awayTeam.name);
+  };
+
   const shuffled = shuffle(ALL_MATCHUPS);
-  const fresh = shuffled.filter(t => !isOnCooldown(matchKey(t)));
-  const picked = fresh.slice(0, n);
+  const picked: MatchTemplate[] = [];
+
+  // First pass: cooldown-free matches
+  for (const t of shuffled) {
+    if (picked.length >= n) break;
+    if (!isOnCooldown(matchKey(t)) && notBusy(t)) {
+      picked.push(t);
+      reserveTeams(t);
+    }
+  }
+
+  // Second pass: cooldown matches if still short (oldest first)
   if (picked.length < n) {
     const map = getPlayedMap();
-    const stale = shuffled.filter(t => isOnCooldown(matchKey(t)))
+    const stale = shuffled
+      .filter(t => isOnCooldown(matchKey(t)) && notBusy(t))
       .sort((a, b) => (map[matchKey(a)] || 0) - (map[matchKey(b)] || 0));
-    picked.push(...stale.slice(0, n - picked.length));
+    for (const t of stale) {
+      if (picked.length >= n) break;
+      if (notBusy(t)) {
+        picked.push(t);
+        reserveTeams(t);
+      }
+    }
   }
+
   picked.forEach(t => markPlayed(matchKey(t)));
-  return picked.slice(0, n);
+  return picked;
 }
 
 export function getLeague(id: string): League | undefined {

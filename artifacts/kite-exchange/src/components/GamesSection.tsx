@@ -1189,9 +1189,8 @@ export default function GamesSection() {
           // Recalc result odds — big shift on goal, small drift every tick
           const newOdds = recalcOdds(mm.odds, mm.homeScore, mm.awayScore, mm.minute, !!scoringSide, scoringSide);
           const newOddsDir = calcOddsDir(mm.odds, newOdds);
-          const newExtMarkets = scoringSide
-            ? buildExtMarkets(mm.homeScore, mm.awayScore, newOdds.w1, newOdds.x, newOdds.w2)
-            : mm.extMarkets;
+          // Always rebuild extended markets so the panel reflects live state
+          const newExtMarkets = buildExtMarkets(mm.homeScore, mm.awayScore, newOdds.w1, newOdds.x, newOdds.w2);
           mm = { ...mm, prevOdds: mm.odds, odds: newOdds, oddsDir: newOddsDir, extMarkets: newExtMarkets };
 
           return mm;
@@ -1202,7 +1201,13 @@ export default function GamesSection() {
         next = next.filter(m => !(m.status === 'finished' && m.finishedAt && now - m.finishedAt > 10000));
         const need = 30 - next.length;
         if (need > 0) {
-          const fresh = pickFreshMatchups(need);
+          // Collect all teams already in active matches so no team appears twice
+          const busyTeams = new Set<string>(
+            next
+              .filter(m => m.status === 'live')
+              .flatMap(m => [m.tmpl.homeTeam.name, m.tmpl.awayTeam.name])
+          );
+          const fresh = pickFreshMatchups(need, busyTeams);
           fresh.forEach(t => {
             counter.current++;
             next.push(buildMatch(t, counter.current));
