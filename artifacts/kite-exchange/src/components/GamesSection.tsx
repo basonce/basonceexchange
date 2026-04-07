@@ -1046,10 +1046,10 @@ function MyBets({ bets }: { bets: PlacedBet[] }) {
   );
 
   const FILTERS: { key: typeof filter; label: string; count: number }[] = [
-    { key: 'all',  label: 'Tümü',   count: bets.length },
-    { key: 'open', label: 'Açık',   count: openCount   },
-    { key: 'won',  label: 'Kazandı', count: wonCount    },
-    { key: 'lost', label: 'Kaybetti', count: lostCount   },
+    { key: 'all',  label: 'All',  count: bets.length },
+    { key: 'open', label: 'Open', count: openCount   },
+    { key: 'won',  label: 'Won',  count: wonCount    },
+    { key: 'lost', label: 'Lost', count: lostCount   },
   ];
 
   const FILTER_COLOR: Record<string, string> = {
@@ -1074,7 +1074,7 @@ function MyBets({ bets }: { bets: PlacedBet[] }) {
               borderBottom: '1px solid #2B3139',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
-              <span style={{ fontSize: 11, color: '#848E9C', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Toplam Kâr/Zarar</span>
+              <span style={{ fontSize: 11, color: '#848E9C', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Total P&amp;L</span>
               <span style={{
                 fontSize: 18, fontWeight: 900, letterSpacing: '-0.02em',
                 color: netPnl >= 0 ? '#0ECB81' : '#F6465D',
@@ -1086,9 +1086,9 @@ function MyBets({ bets }: { bets: PlacedBet[] }) {
             {/* Stats row */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
               {[
-                { label: 'Yatırılan', val: totalStaked.toFixed(2), color: '#C7CACD' },
-                { label: 'Kazanılan', val: `+${totalWon.toFixed(2)}`,  color: '#0ECB81' },
-                { label: 'Kaybedilen', val: `-${totalLost.toFixed(2)}`, color: '#F6465D' },
+                { label: 'Staked', val: totalStaked.toFixed(2), color: '#C7CACD' },
+                { label: 'Won',    val: `+${totalWon.toFixed(2)}`,  color: '#0ECB81' },
+                { label: 'Lost',   val: `-${totalLost.toFixed(2)}`, color: '#F6465D' },
               ].map(({ label, val, color }, i) => (
                 <div key={label} style={{
                   padding: '8px 0', textAlign: 'center',
@@ -1136,7 +1136,7 @@ function MyBets({ bets }: { bets: PlacedBet[] }) {
         <div style={{ textAlign: 'center', padding: '48px 16px' }}>
           <div style={{ fontSize: 40, marginBottom: 10, opacity: 0.4 }}>🎟️</div>
           <p style={{ fontSize: 14, color: '#4B5563', fontWeight: 600 }}>
-            {bets.length === 0 ? 'Henüz bahis yapılmadı' : 'Bu kategoride bahis yok'}
+            {bets.length === 0 ? 'No bets placed yet' : 'No bets in this category'}
           </p>
         </div>
       )}
@@ -1754,7 +1754,7 @@ export default function GamesSection() {
     setBetSlip(null);
     setActiveBetMatchId(null);
     setActiveView('bets');
-    notify(`✅ Bahis kaydedildi! ${amount} USDT — ${betLabel(betSlip.betType, betSlip.homeTeam, betSlip.awayTeam, betSlip.ouLine)} @ ${betSlip.odds}`, 'info');
+    notify(`Bet placed! ${amount} USDT on ${betLabel(betSlip.betType, betSlip.homeTeam, betSlip.awayTeam, betSlip.ouLine)} @ ${betSlip.odds}`, 'info');
   }, [betSlip, userId, usdtBalance, balanceId, notify]);
 
   /* Group by league */
@@ -1809,8 +1809,8 @@ export default function GamesSection() {
       {/* ── Tabs: Live | My Bets ── */}
       <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #1C2128', margin: '8px 12px 0' }}>
         {[
-          { id: 'live', label: '🔴 Canlı Maçlar' },
-          { id: 'bets', label: `📋 Bahislerim${openBets > 0 ? ` (${openBets})` : ''}` },
+          { id: 'live', label: '🔴 Live Matches' },
+          { id: 'bets', label: `📋 My Bets${openBets > 0 ? ` (${openBets})` : ''}` },
         ].map(tab => (
           <button
             key={tab.id}
