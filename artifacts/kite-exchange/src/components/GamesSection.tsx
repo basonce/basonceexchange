@@ -58,6 +58,12 @@ interface LiveMatch {
   homeAttack: number[];  // attack intensity per minute (0–100) — max 90 entries
   awayAttack: number[];
   matchStats: MatchStats;
+  /* Live pitch event */
+  pitchEvent?: {
+    type: 'attack' | 'dangerous_attack' | 'ball_play' | 'throw_in' | 'corner' | 'shot' | 'save' | 'foul' | 'offside';
+    team: 'home' | 'away';
+    ts: number;
+  };
 }
 
 type BetType = string;
@@ -1176,6 +1182,227 @@ function BetSlipModal({ item, usdtBalance, onPlace, onCancel }: BetSlipProps) {
 }
 
 /* ══════════════════════════════════════════════════════════
+   FOOTBALL PITCH LIVE VISUALIZATION (Mackolik-style)
+══════════════════════════════════════════════════════════ */
+const PITCH_EVENTS: Record<
+  NonNullable<LiveMatch['pitchEvent']>['type'],
+  { label: string; color: string; icon: string }
+> = {
+  attack:           { label: 'Atak',           color: '#f97316', icon: '→' },
+  dangerous_attack: { label: 'Tehlikeli Atak', color: '#ef4444', icon: '⚡' },
+  ball_play:        { label: 'Topla Oynama',   color: '#22c55e', icon: '⚽' },
+  throw_in:         { label: 'Taç',            color: '#6b7280', icon: '↑' },
+  corner:           { label: 'Korner',         color: '#eab308', icon: '↗' },
+  shot:             { label: 'Şut',            color: '#dc2626', icon: '🎯' },
+  save:             { label: 'Kurtarış',       color: '#3b82f6', icon: '🧤' },
+  foul:             { label: 'Faul',           color: '#8b5cf6', icon: '⛔' },
+  offside:          { label: 'Ofsayt',         color: '#f59e0b', icon: '🚩' },
+};
+
+function FootballPitchViz({ match }: { match: LiveMatch }) {
+  const [animKey, setAnimKey] = React.useState(0);
+  const ev = match.pitchEvent;
+  const meta = ev ? PITCH_EVENTS[ev.type] : null;
+  const isHome = ev?.team === 'home';
+  const homeName = match.tmpl.homeTeam.name;
+  const awayName = match.tmpl.awayTeam.name;
+
+  React.useEffect(() => {
+    if (ev?.ts) setAnimKey(k => k + 1);
+  }, [ev?.ts]);
+
+  const W = 380, H = 220;
+  const cx = W / 2, cy = H / 2;
+
+  const arrowX1 = isHome ? cx - 80 : cx + 80;
+  const arrowX2 = isHome ? cx + 40 : cx - 40;
+  const arrowY  = cy;
+
+  const hasBall = ev?.type === 'ball_play';
+  const hasArrow = ev && !['ball_play', 'save', 'foul', 'offside'].includes(ev.type);
+  const sideX = isHome ? cx - 20 : cx + 20;
+
+  return (
+    <div style={{ position: 'relative', width: '100%', borderRadius: 10, overflow: 'hidden', background: '#166534' }}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', width: '100%' }}>
+        {/* Grass gradient */}
+        <defs>
+          <linearGradient id="grassGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#166534"/>
+            <stop offset="50%"  stopColor="#15803d"/>
+            <stop offset="100%" stopColor="#166534"/>
+          </linearGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <style>{`
+            @keyframes slideInLeft {
+              from { opacity:0; transform: translateX(-30px); }
+              to   { opacity:1; transform: translateX(0); }
+            }
+            @keyframes slideInRight {
+              from { opacity:0; transform: translateX(30px); }
+              to   { opacity:1; transform: translateX(0); }
+            }
+            @keyframes pulse {
+              0%,100% { transform: scale(1); opacity:1; }
+              50%      { transform: scale(1.08); opacity:0.85; }
+            }
+            @keyframes arrowDash {
+              from { stroke-dashoffset: 120; opacity:0; }
+              to   { stroke-dashoffset: 0;   opacity:1; }
+            }
+            @keyframes ballPop {
+              0%   { r:0; opacity:0; }
+              60%  { r:16; opacity:1; }
+              100% { r:13; opacity:1; }
+            }
+            @keyframes flashBg {
+              0%,100% { opacity:0; }
+              30%     { opacity:0.18; }
+            }
+            .ev-anim-l { animation: slideInLeft  0.55s ease-out both; }
+            .ev-anim-r { animation: slideInRight 0.55s ease-out both; }
+            .ev-pulse  { animation: pulse 1.8s ease-in-out infinite; }
+            .ev-arrow  { animation: arrowDash 0.6s ease-out both; stroke-dasharray: 120; }
+            .ev-ball   { animation: ballPop 0.5s ease-out both; }
+            .ev-flash  { animation: flashBg 0.8s ease-out both; }
+          `}</style>
+        </defs>
+
+        {/* Field */}
+        <rect x="0" y="0" width={W} height={H} fill="url(#grassGrad)"/>
+
+        {/* Grass stripes */}
+        {[0,1,2,3,4,5].map(i => (
+          <rect key={i} x={i*(W/6)} y="0" width={W/12} height={H} fill="rgba(0,0,0,0.06)"/>
+        ))}
+
+        {/* Pitch outline */}
+        <rect x="12" y="12" width={W-24} height={H-24} fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5"/>
+
+        {/* Center line */}
+        <line x1={cx} y1="12" x2={cx} y2={H-12} stroke="rgba(255,255,255,0.7)" strokeWidth="1.5"/>
+
+        {/* Center circle */}
+        <circle cx={cx} cy={cy} r="28" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5"/>
+        <circle cx={cx} cy={cy} r="2.5" fill="white"/>
+
+        {/* Home penalty area */}
+        <rect x="12" y={cy-30} width="40" height="60" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.2"/>
+        <rect x="12" y={cy-16} width="16" height="32" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.2"/>
+        {/* Home goal */}
+        <rect x="4" y={cy-12} width="8" height="24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.2"/>
+
+        {/* Away penalty area */}
+        <rect x={W-52} y={cy-30} width="40" height="60" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.2"/>
+        <rect x={W-28} y={cy-16} width="16" height="32" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.2"/>
+        {/* Away goal */}
+        <rect x={W-12} y={cy-12} width="8" height="24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.2"/>
+
+        {/* Corner arcs */}
+        {[[12,12],[W-12,12],[12,H-12],[W-12,H-12]].map(([px,py],i) => {
+          const sr = Math.sign(px - cx) * 6;
+          const sy = Math.sign(py - cy) * 6;
+          return <path key={i} d={`M ${px+sr} ${py} A 6 6 0 0 ${px<cx?1:0} ${px} ${py+sy}`} fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.2"/>;
+        })}
+
+        {/* Event flash background */}
+        {meta && (
+          <rect key={`flash-${animKey}`} className="ev-flash" x="0" y="0" width={W} height={H} fill={meta.color}/>
+        )}
+
+        {/* Event: arrow */}
+        {hasArrow && meta && (
+          <g key={`arrow-${animKey}`}>
+            <defs>
+              <marker id="ah" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+                <polygon points="0 0,7 3.5,0 7" fill={meta.color}/>
+              </marker>
+            </defs>
+            <line
+              className="ev-arrow"
+              x1={arrowX1} y1={arrowY}
+              x2={arrowX2} y2={arrowY}
+              stroke={meta.color}
+              strokeWidth="5"
+              strokeLinecap="round"
+              markerEnd="url(#ah)"
+              filter="url(#glow)"
+            />
+          </g>
+        )}
+
+        {/* Event: ball play circle */}
+        {hasBall && meta && (
+          <g key={`ball-${animKey}`}>
+            <circle className="ev-ball" cx={sideX} cy={cy} r="13" fill={meta.color} opacity="0.35"/>
+            <text x={sideX} y={cy+5} textAnchor="middle" fontSize="14" fill="white">⚽</text>
+          </g>
+        )}
+
+        {/* Throw-in / corner etc: ball dot */}
+        {ev && ['throw_in','corner','foul','offside','save'].includes(ev.type) && meta && (
+          <g key={`dot-${animKey}`}>
+            <circle className="ev-ball" cx={sideX} cy={cy} r="10" fill={meta.color} opacity="0.4"/>
+            <text x={sideX} y={cy+5} textAnchor="middle" fontSize="12" fill="white">{meta.icon}</text>
+          </g>
+        )}
+
+        {/* Event label box */}
+        {meta && ev && (
+          <g key={`label-${animKey}`} className={isHome ? 'ev-anim-l ev-pulse' : 'ev-anim-r ev-pulse'}>
+            {/* Box */}
+            <rect
+              x={isHome ? cx - 110 : cx + 10}
+              y={cy - 32}
+              width="100" height="40" rx="5"
+              fill={meta.color}
+              opacity="0.92"
+            />
+            {/* Event label */}
+            <text
+              x={isHome ? cx - 60 : cx + 60}
+              y={cy - 12}
+              textAnchor="middle"
+              fontSize="11"
+              fontWeight="700"
+              fill="white"
+              letterSpacing="0.5"
+            >{meta.icon} {meta.label}</text>
+            {/* Team name */}
+            <text
+              x={isHome ? cx - 60 : cx + 60}
+              y={cy + 4}
+              textAnchor="middle"
+              fontSize="10"
+              fill="rgba(255,255,255,0.88)"
+            >{ev.team === 'home' ? homeName : awayName}</text>
+          </g>
+        )}
+      </svg>
+
+      {/* Bottom bar: team abbreviations + minute */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        background: 'rgba(0,0,0,0.55)', padding: '4px 12px',
+      }}>
+        <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, opacity: 0.9 }}>
+          {homeName.slice(0,3).toUpperCase()}
+        </span>
+        <span style={{ color: '#facc15', fontSize: 11, fontWeight: 800 }}>
+          {match.homeScore} – {match.awayScore}
+        </span>
+        <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, opacity: 0.9 }}>
+          {awayName.slice(0,3).toUpperCase()}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════
    MATCH SIMULATION MODAL — Binance-style live center
 ══════════════════════════════════════════════════════════ */
 function AttackChart({ homeAttack, awayAttack, homeColor, awayColor, goalEvents }: {
@@ -1438,6 +1665,11 @@ function MatchSimModal({ m, onClose, onSelectBet, placedBets }: {
               </div>
             </div>
           </div>
+          {/* Live pitch visualization */}
+          <div style={{ marginBottom: 10 }}>
+            <FootballPitchViz match={m} />
+          </div>
+
           <div style={{ background: '#060A0D', borderRadius: 8, padding: '8px 6px' }}>
             <AttackChart
               homeAttack={m.homeAttack ?? []}
@@ -2516,6 +2748,31 @@ export default function GamesSection() {
           // Always rebuild extended markets so the panel reflects live state
           const newExtMarkets = buildExtMarkets(mm.homeScore, mm.awayScore, newOdds.w1, newOdds.x, newOdds.w2);
           mm = { ...mm, prevOdds: mm.odds, odds: newOdds, oddsDir: newOddsDir, extMarkets: newExtMarkets };
+
+          // ── Generate live pitch event ────────────────────────
+          {
+            const pitchEvents: Array<LiveMatch['pitchEvent']> = [];
+            const addEv = (type: NonNullable<LiveMatch['pitchEvent']>['type'], team: 'home' | 'away', w: number) => {
+              for (let i = 0; i < w; i++) pitchEvents.push({ type, team, ts: now });
+            };
+            const t: 'home' | 'away' = scoringSide ?? (Math.random() < 0.52 ? 'home' : 'away');
+            if (scoringSide) {
+              addEv('shot', scoringSide, 6);
+              addEv('dangerous_attack', scoringSide, 4);
+            } else {
+              addEv('ball_play', t, 8);
+              addEv('attack', t, 7);
+              addEv('dangerous_attack', t, 4);
+              addEv('throw_in', Math.random() < 0.5 ? 'home' : 'away', 4);
+              addEv('corner', Math.random() < 0.5 ? 'home' : 'away', 2);
+              addEv('foul', Math.random() < 0.5 ? 'home' : 'away', 3);
+              addEv('offside', Math.random() < 0.5 ? 'home' : 'away', 2);
+              addEv('save', Math.random() < 0.5 ? 'home' : 'away', 2);
+              addEv('shot', t, 3);
+            }
+            const chosen = pitchEvents[Math.floor(Math.random() * pitchEvents.length)];
+            mm = { ...mm, pitchEvent: chosen };
+          }
 
           return mm;
         });
