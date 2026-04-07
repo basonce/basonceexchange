@@ -1439,29 +1439,68 @@ export default function GamesSection() {
     };
   }, []);
 
-  /* Init matches */
+  /* Init matches — restore from localStorage or generate fresh */
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    const templates = pickFreshMatchups(30);
-    const initMatches = templates.map((t, i) => buildMatch(t, i));
+
+    let initMatches: LiveMatch[] | null = null;
+
+    // Try to restore saved match state (< 2 hours old)
+    try {
+      const raw = localStorage.getItem('sport_matches_v2');
+      if (raw) {
+        const parsed = JSON.parse(raw) as { ts: number; matches: LiveMatch[] };
+        const age = Date.now() - parsed.ts;
+        if (age < 2 * 3600 * 1000 && Array.isArray(parsed.matches) && parsed.matches.length > 0) {
+          // Keep only live matches (drop finished ones already removed from list)
+          const liveOnly = parsed.matches.filter(m => m.status === 'live');
+          if (liveOnly.length > 0) {
+            initMatches = liveOnly;
+            // Advance counter past existing IDs to avoid collisions
+            const maxIdx = Math.max(...liveOnly.map(m => parseInt(m.id.split('_')[1] || '0', 10)));
+            counter.current = Math.max(counter.current, maxIdx + 1);
+          }
+        }
+      }
+    } catch {}
+
+    // No valid saved state → generate fresh
+    if (!initMatches) {
+      const templates = pickFreshMatchups(30);
+      initMatches = templates.map((t, i) => buildMatch(t, i));
+    }
+
     setMatches(initMatches);
 
-    // Auto-refund any open bets whose match is no longer in the live list
-    // (happens when user leaves the page and comes back)
+    // Load finished match IDs so we don't refund already-settled bets
+    const finishedIds = new Set<string>();
+    try {
+      const fRaw = localStorage.getItem('sport_finished_matches');
+      if (fRaw) {
+        for (const id of Object.keys(JSON.parse(fRaw) as Record<string, unknown>)) {
+          finishedIds.add(id);
+        }
+      }
+    } catch {}
+
     const liveIds = new Set(initMatches.map(m => m.id));
+
+    // Only auto-refund open bets whose match is truly unknown (not live, not finished)
+    // NEVER touch bets that are already won / lost / refunded
     setPlacedBets(prev => {
-      const orphaned = prev.filter(b => b.status === 'open' && !liveIds.has(b.matchId));
-      if (orphaned.length === 0) return prev;
+      const needsRefund = prev.filter(
+        b => b.status === 'open' && !liveIds.has(b.matchId) && !finishedIds.has(b.matchId)
+      );
+      if (needsRefund.length === 0) return prev;
       return prev.map(b => {
-        if (b.status === 'open' && !liveIds.has(b.matchId)) {
-          // Auto-refund via API
+        if (b.status === 'open' && !liveIds.has(b.matchId) && !finishedIds.has(b.matchId)) {
           fetch(`/api-server/api/sport-bets/${b.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'refunded' }),
           }).catch(() => {});
-          return { ...b, status: 'refunded' as const, result: 'Maç bitti' };
+          return { ...b, status: 'refunded' as const, result: 'Match not found' };
         }
         return b;
       });
@@ -1613,6 +1652,14 @@ export default function GamesSection() {
     try { localStorage.setItem('sport_placed_bets', JSON.stringify(placedBets)); } catch {}
   }, [placedBets]);
 
+  /* Persist live match state so refreshes restore the same matches */
+  useEffect(() => {
+    if (matches.length === 0) return;
+    try {
+      localStorage.setItem('sport_matches_v2', JSON.stringify({ ts: Date.now(), matches }));
+    } catch {}
+  }, [matches]);
+
   /* Load USDT balance */
   useEffect(() => {
     async function load() {
@@ -1641,6 +1688,21 @@ export default function GamesSection() {
 
   /* Settlement helper */
   const settleBets = useCallback((finished: LiveMatch[]) => {
+    // Persist finished match IDs so cross-session orphan check never refunds settled bets
+    try {
+      const fRaw = localStorage.getItem('sport_finished_matches');
+      const existing: Record<string, { homeScore: number; awayScore: number; finishedAt: number }> = fRaw ? JSON.parse(fRaw) : {};
+      const cutoff = Date.now() - 24 * 3600 * 1000;
+      // Prune old entries
+      for (const id of Object.keys(existing)) {
+        if (existing[id].finishedAt < cutoff) delete existing[id];
+      }
+      for (const f of finished) {
+        existing[f.id] = { homeScore: f.homeScore, awayScore: f.awayScore, finishedAt: Date.now() };
+      }
+      localStorage.setItem('sport_finished_matches', JSON.stringify(existing));
+    } catch {}
+
     setPlacedBets(prev => {
       let changed = false;
       const updated = prev.map(bet => {
