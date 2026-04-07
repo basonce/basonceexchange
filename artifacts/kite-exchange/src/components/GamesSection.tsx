@@ -1942,7 +1942,7 @@ export default function GamesSection() {
 
     // Try to restore saved match state (< 2 hours old)
     try {
-      const raw = localStorage.getItem('sport_matches_v2');
+      const raw = localStorage.getItem('sport_matches_v3');
       if (raw) {
         const parsed = JSON.parse(raw) as { ts: number; matches: LiveMatch[] };
         const age = Date.now() - parsed.ts;
@@ -2154,7 +2154,7 @@ export default function GamesSection() {
   useEffect(() => {
     if (matches.length === 0) return;
     try {
-      localStorage.setItem('sport_matches_v2', JSON.stringify({ ts: Date.now(), matches }));
+      localStorage.setItem('sport_matches_v3', JSON.stringify({ ts: Date.now(), matches }));
     } catch {}
   }, [matches]);
 
@@ -2332,7 +2332,18 @@ export default function GamesSection() {
           if (m.status === 'finished') return m;
 
           // ── Phase-aware clock tick ──────────────────────────
-          let mm: LiveMatch = { ...m };
+          // Guard: old cached matches may not have new fields — backfill defaults
+          let mm: LiveMatch = {
+            ...m,
+            phase: m.phase ?? (m.minute > 45 ? 'second_half' : 'first_half'),
+            stoppageMin: m.stoppageMin ?? 0,
+            stoppageHT: m.stoppageHT ?? 0,
+            stoppageFT: m.stoppageFT ?? 0,
+            htBreakLeft: m.htBreakLeft ?? 0,
+            homeAttack: m.homeAttack ?? [],
+            awayAttack: m.awayAttack ?? [],
+            matchStats: m.matchStats ?? { shotsH: 0, shotsA: 0, cornersH: 0, cornersA: 0, possession: 50 },
+          };
 
           // HT break: freeze clock, no goals
           if (mm.phase === 'ht_break') {
@@ -2463,19 +2474,20 @@ export default function GamesSection() {
           {
             const hAtk = scoringSide === 'home' ? ri(80, 100) : scoringSide === 'away' ? ri(5, 18) : ri(20, 68);
             const aAtk = scoringSide === 'away' ? ri(80, 100) : scoringSide === 'home' ? ri(5, 18) : ri(20, 68);
-            const newHA = [...mm.homeAttack, hAtk].slice(-90);
-            const newAA = [...mm.awayAttack, aAtk].slice(-90);
+            const newHA = [...(mm.homeAttack ?? []), hAtk].slice(-90);
+            const newAA = [...(mm.awayAttack ?? []), aAtk].slice(-90);
             // Drift possession slightly towards scoring team
+            const curStats: MatchStats = mm.matchStats ?? { shotsH: 0, shotsA: 0, cornersH: 0, cornersA: 0, possession: 50 };
             const newPoss = scoringSide === 'home'
-              ? Math.min(78, mm.matchStats.possession + ri(1, 3))
+              ? Math.min(78, curStats.possession + ri(1, 3))
               : scoringSide === 'away'
-                ? Math.max(22, mm.matchStats.possession - ri(1, 3))
-                : mm.matchStats.possession + (Math.random() < 0.5 ? 1 : -1);
+                ? Math.max(22, curStats.possession - ri(1, 3))
+                : curStats.possession + (Math.random() < 0.5 ? 1 : -1);
             const newStats: MatchStats = {
-              shotsH: mm.matchStats.shotsH + (scoringSide === 'home' ? ri(1, 3) : Math.random() < 0.18 ? 1 : 0),
-              shotsA: mm.matchStats.shotsA + (scoringSide === 'away' ? ri(1, 3) : Math.random() < 0.18 ? 1 : 0),
-              cornersH: mm.matchStats.cornersH + (Math.random() < 0.12 ? 1 : 0),
-              cornersA: mm.matchStats.cornersA + (Math.random() < 0.12 ? 1 : 0),
+              shotsH: curStats.shotsH + (scoringSide === 'home' ? ri(1, 3) : Math.random() < 0.18 ? 1 : 0),
+              shotsA: curStats.shotsA + (scoringSide === 'away' ? ri(1, 3) : Math.random() < 0.18 ? 1 : 0),
+              cornersH: curStats.cornersH + (Math.random() < 0.12 ? 1 : 0),
+              cornersA: curStats.cornersA + (Math.random() < 0.12 ? 1 : 0),
               possession: Math.min(79, Math.max(21, newPoss)),
             };
             mm = { ...mm, homeAttack: newHA, awayAttack: newAA, matchStats: newStats };
