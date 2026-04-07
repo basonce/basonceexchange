@@ -1928,25 +1928,34 @@ export default function GamesSection() {
                 const scheduled = generateScheduledGoals(ts, mm.homeScore, mm.awayScore, mm.minute);
                 mm = { ...mm, adminCtrl: { ...ctrl, scheduledGoals: scheduled, scheduleKey } };
               } else {
-                const goalsLeft = (ts.h - mm.homeScore) + (ts.a - mm.awayScore);
+                const homeStillNeeds = mm.homeScore < ts.h;
+                const awayStillNeeds = mm.awayScore < ts.a;
+                const goalsLeft = Math.max(0, ts.h - mm.homeScore) + Math.max(0, ts.a - mm.awayScore);
                 const due = ctrl.scheduledGoals.find(g => g.minute === mm.minute);
                 if (due && goalsLeft > 0) {
-                  // Use scheduled side, but fall back if that team already met quota
-                  const finalSide: 'home' | 'away' =
-                    (due.side === 'home' && mm.homeScore < ts.h) ? 'home' :
-                    (due.side === 'away' && mm.awayScore < ts.a) ? 'away' :
-                    mm.homeScore < ts.h ? 'home' : 'away';
-                  scoringSide = finalSide;
-                  mm = {
-                    ...mm,
-                    homeScore: finalSide === 'home' ? mm.homeScore + 1 : mm.homeScore,
-                    awayScore: finalSide === 'away' ? mm.awayScore + 1 : mm.awayScore,
-                    goalFlash: finalSide, flashTs: now,
-                  };
+                  // Use scheduled side — only redirect if that team already met quota
+                  let finalSide: 'home' | 'away' | null = null;
+                  if (due.side === 'home' && homeStillNeeds) finalSide = 'home';
+                  else if (due.side === 'away' && awayStillNeeds) finalSide = 'away';
+                  else if (due.side === 'home' && awayStillNeeds) finalSide = 'away'; // redirect
+                  else if (due.side === 'away' && homeStillNeeds) finalSide = 'home'; // redirect
+                  if (finalSide) {
+                    scoringSide = finalSide;
+                    mm = {
+                      ...mm,
+                      homeScore: finalSide === 'home' ? mm.homeScore + 1 : mm.homeScore,
+                      awayScore: finalSide === 'away' ? mm.awayScore + 1 : mm.awayScore,
+                      goalFlash: finalSide, flashTs: now,
+                    };
+                  }
                 }
-                // Hard guarantee: force remaining goals by minute 88
-                if (mm.minute >= 88 && (mm.homeScore !== ts.h || mm.awayScore !== ts.a)) {
-                  mm = { ...mm, homeScore: ts.h, awayScore: ts.a };
+                // Hard guarantee at min 88: only ADD missing goals, never reduce
+                if (mm.minute >= 88) {
+                  const finalH = Math.max(mm.homeScore, ts.h);
+                  const finalA = Math.max(mm.awayScore, ts.a);
+                  if (mm.homeScore !== finalH || mm.awayScore !== finalA) {
+                    mm = { ...mm, homeScore: finalH, awayScore: finalA };
+                  }
                 }
               }
             } else if (ctrl.targetResult && minsLeft <= 3) {
