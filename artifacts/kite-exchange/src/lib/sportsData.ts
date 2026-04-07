@@ -305,7 +305,7 @@ function buildTeam(name: string, abbr: string, idx: number): Team {
   return { name, abbr, color: COLORS[idx % COLORS.length], logoUrl: TEAM_LOGOS[name] };
 }
 
-const LEAGUE_TEAMS: Record<string, Team[]> = {};
+export const LEAGUE_TEAMS: Record<string, Team[]> = {};
 Object.entries(RAW_TEAMS).forEach(([lid, raw]) => {
   LEAGUE_TEAMS[lid] = raw.map(([name, abbr], idx) => buildTeam(name, abbr, idx));
 });

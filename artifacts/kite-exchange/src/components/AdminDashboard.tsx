@@ -34,6 +34,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
+import { LEAGUES, LEAGUE_TEAMS, TEAM_LOGOS } from '../lib/sportsData';
 import { fetchUserRestrictions, saveUserRestrictions } from '../lib/user-restrictions';
 import type { UserRestrictions } from '../lib/user-restrictions';
 import GlobalAIToggle from './GlobalAIToggle';
@@ -736,27 +737,29 @@ function timeAgoMC(ts: number) {
 }
 
 function MatchControlsPanel({ adminId }: { adminId: string }) {
-  const [controls, setControls] = useState<MatchCtrl[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [controls, setControls]     = useState<MatchCtrl[]>([]);
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving]         = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
-  const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [toast, setToast]           = useState<{ msg: string; ok: boolean } | null>(null);
+  const toastRef = useRef<number | null>(null);
 
-  const [homeTeam, setHomeTeam] = useState('');
-  const [awayTeam, setAwayTeam] = useState('');
-  const [mode, setMode] = useState<'result' | 'score'>('result');
+  // ── Form state ─────────────────────────────────────────────
+  const [showForm, setShowForm]         = useState(false);
+  const [selLeague, setSelLeague]       = useState(LEAGUES[0].id);
+  const [homeTeam, setHomeTeam]         = useState('');
+  const [awayTeam, setAwayTeam]         = useState('');
+  const [mode, setMode]                 = useState<'result' | 'score'>('result');
   const [targetResult, setTargetResult] = useState<'1' | 'X' | '2'>('1');
-  const [scoreH, setScoreH] = useState('2');
-  const [scoreA, setScoreA] = useState('1');
-  const [pinned, setPinned] = useState(false);
+  const [scoreH, setScoreH]             = useState('2');
+  const [scoreA, setScoreA]             = useState('1');
+  const [pinned, setPinned]             = useState(false);
 
   function showToast(msg: string, ok: boolean) {
     setToast({ msg, ok });
     if (toastRef.current) clearTimeout(toastRef.current);
-    toastRef.current = setTimeout(() => setToast(null), 3000);
+    toastRef.current = setTimeout(() => setToast(null), 3000) as unknown as number;
   }
 
   async function load(manual = false) {
@@ -775,12 +778,32 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
     return () => clearInterval(iv);
   }, []);
 
+  function resetForm() {
+    setHomeTeam(''); setAwayTeam(''); setPinned(false); setMode('result');
+    setTargetResult('1'); setScoreH('2'); setScoreA('1');
+  }
+
+  function handleTeamClick(name: string) {
+    if (!homeTeam) {
+      setHomeTeam(name);
+    } else if (name === homeTeam) {
+      setHomeTeam('');
+    } else if (!awayTeam) {
+      setAwayTeam(name);
+    } else if (name === awayTeam) {
+      setAwayTeam('');
+    } else {
+      // replace away
+      setAwayTeam(name);
+    }
+  }
+
   async function handleSave() {
-    if (!homeTeam.trim() || !awayTeam.trim()) return;
+    if (!homeTeam || !awayTeam) return;
     setSaving(true);
     try {
       const aid = adminId || FALLBACK_ADMIN;
-      const body: Record<string, unknown> = { homeTeam: homeTeam.trim(), awayTeam: awayTeam.trim(), pinned };
+      const body: Record<string, unknown> = { homeTeam, awayTeam, pinned };
       if (mode === 'result') {
         body.targetResult = targetResult;
       } else {
@@ -793,10 +816,10 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
         body: JSON.stringify(body),
       });
       if (res.ok) {
-        setShowForm(false);
-        setHomeTeam(''); setAwayTeam(''); setPinned(false); setMode('result');
+        resetForm();
         await load();
         showToast('Kontrol uygulandı ✓', true);
+        // Keep form open for quick next entry — don't close
       } else {
         showToast('Kaydetme başarısız', false);
       }
@@ -815,9 +838,12 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
     setDeletingId(null);
   }
 
+  const leagueTeams  = LEAGUE_TEAMS[selLeague] || [];
   const pinnedCount  = controls.filter(c => c.pinned).length;
   const resultCount  = controls.filter(c => c.targetResult).length;
   const scoreCount   = controls.filter(c => c.targetScore !== undefined).length;
+  const pairReady    = !!(homeTeam && awayTeam);
+  const curLeague    = LEAGUES.find(l => l.id === selLeague);
 
   return (
     <div style={{ position: 'relative' }}>
@@ -826,275 +852,337 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
       {toast && (
         <div style={{
           position: 'fixed', top: 70, left: '50%', transform: 'translateX(-50%)',
-          zIndex: 9999, padding: '9px 18px', borderRadius: 10, fontWeight: 700, fontSize: 13,
+          zIndex: 9999, padding: '9px 20px', borderRadius: 10, fontWeight: 700, fontSize: 13,
           background: toast.ok ? '#0ECB81' : '#F6465D', color: '#fff',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.25)', pointerEvents: 'none',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.25)', pointerEvents: 'none', whiteSpace: 'nowrap',
         }}>{toast.msg}</div>
       )}
 
       {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: '#F0B90B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Gamepad2 style={{ width: 18, height: 18, color: '#000' }} />
           </div>
           <div>
             <div style={{ fontSize: 16, fontWeight: 900, color: '#111827' }}>Maç Kontrolleri</div>
-            <div style={{ fontSize: 11, color: '#374151', fontWeight: 600 }}>{controls.length} aktif · otomatik yenile 15s</div>
+            <div style={{ fontSize: 11, color: '#374151', fontWeight: 600 }}>{controls.length} aktif · 15s otomatik yenile</div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => load(true)} disabled={refreshing} style={{
+          <button onClick={() => load(true)} disabled={refreshing} title="Yenile" style={{
             width: 34, height: 34, borderRadius: 9, border: '1px solid #E5E7EB',
             background: '#F9FAFB', cursor: 'pointer', fontSize: 15, color: '#374151',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             opacity: refreshing ? 0.5 : 1,
           }}>↻</button>
-          <button onClick={() => setShowForm(v => !v)} style={{
+          <button onClick={() => { setShowForm(v => !v); resetForm(); }} style={{
             padding: '0 14px', height: 34, borderRadius: 9, cursor: 'pointer',
             fontWeight: 800, fontSize: 12,
-            background: showForm ? '#FEE2E2' : '#FEF9C3',
-            border: `1px solid ${showForm ? '#FCA5A5' : '#FDE68A'}`,
-            color: showForm ? '#DC2626' : '#92400E',
+            background: showForm ? '#FEE2E2' : 'linear-gradient(135deg,#F0B90B,#d97706)',
+            border: `1px solid ${showForm ? '#FCA5A5' : '#d97706'}`,
+            color: showForm ? '#DC2626' : '#000',
           }}>
-            {showForm ? '✕ İptal' : '+ Kontrol Ekle'}
+            {showForm ? '✕ İptal' : '+ Yeni Kontrol'}
           </button>
         </div>
       </div>
 
-      {/* ── Stats ── */}
+      {/* ── Stats Row ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
         {[
-          { label: 'Toplam',    val: controls.length, color: '#d97706', icon: '🎮' },
-          { label: 'Sabitli',   val: pinnedCount,      color: '#d97706', icon: '📌' },
-          { label: 'Sonuç',     val: resultCount,      color: '#3B82F6', icon: '🏆' },
-          { label: 'Skor',      val: scoreCount,       color: '#0ECB81', icon: '⚽' },
+          { label: 'Toplam',  val: controls.length, color: '#d97706', icon: '🎮' },
+          { label: 'Sabitli', val: pinnedCount,      color: '#d97706', icon: '📌' },
+          { label: 'Sonuç',   val: resultCount,      color: '#3B82F6', icon: '🏆' },
+          { label: 'Skor',    val: scoreCount,       color: '#0ECB81', icon: '⚽' },
         ].map(({ label, val, color, icon }) => (
           <div key={label} style={{
             background: '#fff', border: '1px solid #E5E7EB', borderRadius: 10,
-            padding: '9px 0', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            padding: '9px 0', textAlign: 'center',
           }}>
-            <div style={{ fontSize: 14, marginBottom: 2 }}>{icon}</div>
-            <div style={{ fontSize: 17, fontWeight: 900, color }}>{val}</div>
+            <div style={{ fontSize: 14 }}>{icon}</div>
+            <div style={{ fontSize: 18, fontWeight: 900, color, lineHeight: 1.2 }}>{val}</div>
             <div style={{ fontSize: 9, color: '#374151', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
           </div>
         ))}
       </div>
 
-      {/* ── Add Form ── */}
+      {/* ── ADD FORM ── */}
       {showForm && (
         <div style={{
-          background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14,
-          padding: 16, marginBottom: 14, boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+          background: '#FAFAFA', border: '2px solid #F0B90B', borderRadius: 16,
+          padding: 16, marginBottom: 16,
         }}>
-          <p style={{ fontSize: 10, fontWeight: 800, color: '#F0B90B', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 12 }}>
-            Yeni Maç Kontrolü
+          <p style={{ fontSize: 10, fontWeight: 900, color: '#F0B90B', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 12 }}>
+            🆕 Yeni Maç Kontrolü
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
-            <input
-              value={homeTeam} onChange={e => setHomeTeam(e.target.value)}
-              placeholder="Ev Sahibi — tam isim (örn. Kaizer Chiefs)"
-              style={{
-                border: '1px solid #E5E7EB', borderRadius: 10, padding: '10px 12px',
-                fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box',
-                color: '#111827',
-              }}
-            />
-            <input
-              value={awayTeam} onChange={e => setAwayTeam(e.target.value)}
-              placeholder="Deplasman — tam isim (örn. Mamelodi Sundowns)"
-              style={{
-                border: '1px solid #E5E7EB', borderRadius: 10, padding: '10px 12px',
-                fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box',
-                color: '#111827',
-              }}
-            />
-          </div>
-
-          {/* Mode */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
-            {(['result', 'score'] as const).map(m => (
-              <button key={m} onClick={() => setMode(m)} style={{
-                padding: '9px', borderRadius: 9, cursor: 'pointer', fontWeight: 700, fontSize: 12,
-                background: mode === m ? '#FEF9C3' : '#F9FAFB',
-                border: `1px solid ${mode === m ? '#FDE68A' : '#E5E7EB'}`,
-                color: mode === m ? '#92400E' : '#374151',
+          {/* ── LİG SEÇİCİ ── */}
+          <p style={{ fontSize: 10, fontWeight: 800, color: '#374151', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+            1. Ligi Seç
+          </p>
+          <div style={{
+            display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 6, marginBottom: 12,
+            scrollbarWidth: 'none',
+          }}>
+            {LEAGUES.map(lg => (
+              <button key={lg.id} onClick={() => { setSelLeague(lg.id); setHomeTeam(''); setAwayTeam(''); }} style={{
+                flexShrink: 0, padding: '5px 10px', borderRadius: 20, cursor: 'pointer',
+                fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap',
+                background: selLeague === lg.id ? '#111827' : '#fff',
+                border: `1px solid ${selLeague === lg.id ? '#111827' : '#D1D5DB'}`,
+                color: selLeague === lg.id ? '#F0B90B' : '#374151',
               }}>
-                {m === 'result' ? '🏆 Sonuç (1 / X / 2)' : '⚽ Kesin Skor'}
+                {lg.flag} {lg.country}
               </button>
             ))}
           </div>
 
-          {mode === 'result' ? (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
-              {(['1', 'X', '2'] as const).map(r => (
-                <button key={r} onClick={() => setTargetResult(r)} style={{
-                  padding: '12px 4px', borderRadius: 10, cursor: 'pointer',
-                  fontWeight: 900, fontSize: 20,
-                  background: targetResult === r ? `${MC_RESULT_COLORS[r]}18` : '#F9FAFB',
-                  border: `2px solid ${targetResult === r ? MC_RESULT_COLORS[r] : '#E5E7EB'}`,
-                  color: targetResult === r ? MC_RESULT_COLORS[r] : '#9CA3AF',
+          {/* ── TAKIM SEÇİCİ ── */}
+          <p style={{ fontSize: 10, fontWeight: 800, color: '#374151', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+            2. Takımları Seç &nbsp;
+            <span style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, textTransform: 'none' }}>
+              (1. tıklama = Ev Sahibi, 2. tıklama = Deplasman)
+            </span>
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 12 }}>
+            {leagueTeams.map(team => {
+              const isHome = team.name === homeTeam;
+              const isAway = team.name === awayTeam;
+              const logo = TEAM_LOGOS[team.name];
+              return (
+                <button key={team.name} onClick={() => handleTeamClick(team.name)} style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '8px 10px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                  background: isHome ? '#EFF6FF' : isAway ? '#FFF1F2' : '#fff',
+                  border: `2px solid ${isHome ? '#3B82F6' : isAway ? '#F6465D' : '#E5E7EB'}`,
+                  transition: 'all 0.1s',
                 }}>
-                  {r}
-                  <div style={{ fontSize: 9, fontWeight: 600, marginTop: 2, color: targetResult === r ? MC_RESULT_COLORS[r] : '#9CA3AF' }}>
-                    {MC_RESULT_LABELS[r]}
+                  {logo
+                    ? <img src={logo} alt={team.name} style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }} />
+                    : <div style={{ width: 22, height: 22, borderRadius: '50%', background: team.color, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: '#fff', fontWeight: 900 }}>{team.abbr.slice(0,2)}</div>
+                  }
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: isHome ? '#1D4ED8' : isAway ? '#DC2626' : '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.name}</div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: isHome ? '#3B82F6' : isAway ? '#F6465D' : '#9CA3AF' }}>
+                      {isHome ? '🔵 EV SAHİBİ' : isAway ? '🔴 DEPLASMAN' : team.abbr}
+                    </div>
                   </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* ── SEÇİLEN ÇİFT PREVİEW ── */}
+          <div style={{
+            background: '#fff', border: `1px solid ${pairReady ? '#F0B90B' : '#E5E7EB'}`,
+            borderRadius: 12, padding: '10px 14px', marginBottom: 12,
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <div style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#3B82F6', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Ev Sahibi</div>
+              <div style={{ fontSize: 13, fontWeight: 900, color: homeTeam ? '#111827' : '#D1D5DB' }}>{homeTeam || '— seçilmedi —'}</div>
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 900, color: '#9CA3AF', padding: '4px 8px', background: '#F3F4F6', borderRadius: 6 }}>VS</div>
+            <div style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#F6465D', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Deplasman</div>
+              <div style={{ fontSize: 13, fontWeight: 900, color: awayTeam ? '#111827' : '#D1D5DB' }}>{awayTeam || '— seçilmedi —'}</div>
+            </div>
+          </div>
+
+          {/* ── HEDEF MOD ── */}
+          {pairReady && (<>
+            <p style={{ fontSize: 10, fontWeight: 800, color: '#374151', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
+              3. Hedef Belirle
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+              {(['result', 'score'] as const).map(m => (
+                <button key={m} onClick={() => setMode(m)} style={{
+                  padding: '10px', borderRadius: 9, cursor: 'pointer', fontWeight: 800, fontSize: 12,
+                  background: mode === m ? '#111827' : '#fff',
+                  border: `1px solid ${mode === m ? '#111827' : '#D1D5DB'}`,
+                  color: mode === m ? '#F0B90B' : '#374151',
+                }}>
+                  {m === 'result' ? '🏆 Sonuç (1/X/2)' : '⚽ Kesin Skor'}
                 </button>
               ))}
             </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-              <input value={scoreH} onChange={e => setScoreH(e.target.value)} type="number" min="0" max="9"
-                style={{
-                  flex: 1, textAlign: 'center', border: '2px solid #3B82F6',
-                  borderRadius: 10, padding: '12px', color: '#3B82F6', fontSize: 28, fontWeight: 900, outline: 'none',
-                }}
-              />
-              <span style={{ fontSize: 22, fontWeight: 900, color: '#9CA3AF' }}>–</span>
-              <input value={scoreA} onChange={e => setScoreA(e.target.value)} type="number" min="0" max="9"
-                style={{
-                  flex: 1, textAlign: 'center', border: '2px solid #F6465D',
-                  borderRadius: 10, padding: '12px', color: '#F6465D', fontSize: 28, fontWeight: 900, outline: 'none',
-                }}
-              />
-            </div>
-          )}
 
-          {/* Pin toggle */}
-          <button onClick={() => setPinned(v => !v)} style={{
-            width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-            padding: '10px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
-            background: pinned ? '#FEF9C3' : '#F9FAFB',
-            border: `1px solid ${pinned ? '#FDE68A' : '#E5E7EB'}`,
-            marginBottom: 12,
-          }}>
-            <Pin style={{ width: 16, height: 16, color: pinned ? '#d97706' : '#9CA3AF', flexShrink: 0 }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>Üste Sabitle</div>
-              <div style={{ fontSize: 11, color: '#374151', fontWeight: 600 }}>Maç herkesin listesinin en üstünde görünür</div>
-            </div>
-            <div style={{
-              width: 40, height: 22, borderRadius: 11, padding: '2px',
-              background: pinned ? '#F0B90B' : '#E5E7EB', transition: 'background 0.2s',
-              display: 'flex', alignItems: 'center', flexShrink: 0,
+            {mode === 'result' ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
+                {(['1', 'X', '2'] as const).map(r => (
+                  <button key={r} onClick={() => setTargetResult(r)} style={{
+                    padding: '14px 4px', borderRadius: 12, cursor: 'pointer', fontWeight: 900,
+                    background: targetResult === r ? MC_RESULT_COLORS[r] : '#F9FAFB',
+                    border: `2px solid ${targetResult === r ? MC_RESULT_COLORS[r] : '#E5E7EB'}`,
+                    color: targetResult === r ? '#fff' : '#374151',
+                  }}>
+                    <div style={{ fontSize: 22 }}>{r}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, marginTop: 3 }}>{MC_RESULT_LABELS[r]}</div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <div style={{ flex: 1, textAlign: 'center' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#3B82F6', marginBottom: 4 }}>{homeTeam}</div>
+                    <input value={scoreH} onChange={e => setScoreH(e.target.value)} type="number" min="0" max="9"
+                      style={{
+                        width: '100%', textAlign: 'center', border: '2px solid #3B82F6',
+                        borderRadius: 10, padding: '14px 4px', color: '#1D4ED8', fontSize: 32, fontWeight: 900, outline: 'none', boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: '#374151', paddingTop: 20 }}>–</div>
+                  <div style={{ flex: 1, textAlign: 'center' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#F6465D', marginBottom: 4 }}>{awayTeam}</div>
+                    <input value={scoreA} onChange={e => setScoreA(e.target.value)} type="number" min="0" max="9"
+                      style={{
+                        width: '100%', textAlign: 'center', border: '2px solid #F6465D',
+                        borderRadius: 10, padding: '14px 4px', color: '#DC2626', fontSize: 32, fontWeight: 900, outline: 'none', boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 4 }}>
+                  {['0-0','1-0','0-1','1-1','2-0','0-2','2-1','1-2','2-2','3-0'].map(sc => {
+                    const [h, a] = sc.split('-');
+                    const active = scoreH === h && scoreA === a;
+                    return (
+                      <button key={sc} onClick={() => { setScoreH(h); setScoreA(a); }} style={{
+                        padding: '6px 4px', borderRadius: 7, cursor: 'pointer',
+                        fontWeight: 800, fontSize: 11,
+                        background: active ? '#111827' : '#fff',
+                        border: `1px solid ${active ? '#111827' : '#E5E7EB'}`,
+                        color: active ? '#F0B90B' : '#374151',
+                      }}>{sc}</button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Pin toggle */}
+            <button onClick={() => setPinned(v => !v)} style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+              background: pinned ? '#FEF9C3' : '#fff', border: `1px solid ${pinned ? '#FDE68A' : '#E5E7EB'}`,
+              marginBottom: 12,
             }}>
-              <div style={{
-                width: 18, height: 18, borderRadius: '50%', background: '#fff',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                transform: pinned ? 'translateX(18px)' : 'translateX(0)',
-                transition: 'transform 0.2s',
-              }} />
-            </div>
-          </button>
+              <Pin style={{ width: 16, height: 16, color: pinned ? '#d97706' : '#9CA3AF', flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>Üste Sabitle</div>
+                <div style={{ fontSize: 11, color: '#374151', fontWeight: 600 }}>Maç herkesin listesinde en üstte görünür</div>
+              </div>
+              <div style={{ width: 40, height: 22, borderRadius: 11, padding: '2px', background: pinned ? '#F0B90B' : '#E5E7EB', transition: 'background 0.2s', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transform: pinned ? 'translateX(18px)' : 'translateX(0)', transition: 'transform 0.2s' }} />
+              </div>
+            </button>
 
-          {/* Info */}
-          <div style={{
-            background: '#EFF6FF', border: '1px solid #BFDBFE',
-            borderRadius: 10, padding: '10px 12px', marginBottom: 12,
-          }}>
-            <p style={{ fontSize: 11, color: '#1D4ED8', fontWeight: 700, marginBottom: 3 }}>ℹ️ Nasıl çalışır</p>
-            <p style={{ fontSize: 11, color: '#1D4ED8', lineHeight: 1.5, fontWeight: 600 }}>
-              Tam takım isimlerini girin. Maç oluşturulduğunda kontrol otomatik devreye girer. Skor hedefe yönlendirilir; maçın son 3 dakikasında kilitlenir.
-            </p>
-          </div>
+            {/* Lig bilgisi */}
+            {curLeague && (
+              <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 10, background: '#F9FAFB', borderRadius: 8, padding: '7px 10px', fontWeight: 600 }}>
+                {curLeague.flag} {curLeague.name} · Skor son 3 dakikada kilitlenir
+              </div>
+            )}
 
-          <button onClick={handleSave} disabled={saving || !homeTeam.trim() || !awayTeam.trim()} style={{
-            width: '100%', padding: '13px', borderRadius: 11, cursor: 'pointer',
-            fontWeight: 900, fontSize: 14, border: 'none',
-            background: saving || !homeTeam.trim() || !awayTeam.trim()
-              ? '#E5E7EB' : 'linear-gradient(135deg,#F0B90B,#d97706)',
-            color: saving || !homeTeam.trim() || !awayTeam.trim() ? '#9CA3AF' : '#000',
-          }}>
-            {saving ? 'Kaydediliyor…' : '✓ Kontrolü Uygula'}
-          </button>
+            <button onClick={handleSave} disabled={saving} style={{
+              width: '100%', padding: '14px', borderRadius: 12, cursor: saving ? 'not-allowed' : 'pointer',
+              fontWeight: 900, fontSize: 14, border: 'none',
+              background: saving ? '#E5E7EB' : 'linear-gradient(135deg,#F0B90B,#d97706)',
+              color: saving ? '#9CA3AF' : '#000',
+              opacity: saving ? 0.7 : 1,
+            }}>
+              {saving ? 'Kaydediliyor…' : `✓ Kontrolü Uygula · ${homeTeam} vs ${awayTeam}`}
+            </button>
+          </>)}
         </div>
       )}
 
-      {/* ── Controls List ── */}
+      {/* ── Aktif Kontroller ── */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '48px 0', color: '#374151' }}>
-          <RefreshCw style={{ width: 24, height: 24, margin: '0 auto 8px', animation: 'spin 1s linear infinite' }} />
+        <div style={{ textAlign: 'center', padding: '40px 0', color: '#374151' }}>
+          <RefreshCw style={{ width: 22, height: 22, margin: '0 auto 8px' }} />
           <p style={{ fontSize: 13, fontWeight: 600 }}>Yükleniyor…</p>
         </div>
       ) : controls.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '56px 0' }}>
-          <Gamepad2 style={{ width: 48, height: 48, color: '#9CA3AF', margin: '0 auto 12px' }} />
-          <p style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 6 }}>Aktif Kontrol Yok</p>
-          <p style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>"+ Kontrol Ekle" ile maç sonucunu veya skoru yönlendir</p>
+        <div style={{ textAlign: 'center', padding: '48px 0', background: '#F9FAFB', borderRadius: 14, border: '1px dashed #E5E7EB' }}>
+          <Gamepad2 style={{ width: 44, height: 44, color: '#D1D5DB', margin: '0 auto 10px' }} />
+          <p style={{ fontSize: 14, fontWeight: 800, color: '#111827', marginBottom: 4 }}>Aktif Kontrol Yok</p>
+          <p style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>Yukarıdan lig ve takım seçerek kontrol ekle</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <p style={{ fontSize: 10, fontWeight: 800, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 2 }}>
+        <div>
+          <p style={{ fontSize: 10, fontWeight: 800, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>
             Aktif Kontroller ({controls.length})
           </p>
-          {controls.map(ctrl => {
-            const hasScore = ctrl.targetScore !== undefined;
-            const typeColor = hasScore ? '#d97706' : MC_RESULT_COLORS[ctrl.targetResult || ''] || '#6B7280';
-            const typeLabel = hasScore
-              ? `⚽  ${ctrl.targetScore!.h} – ${ctrl.targetScore!.a}`
-              : MC_RESULT_LABELS[ctrl.targetResult || ''] || '—';
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {controls.map(ctrl => {
+              const hasScore  = ctrl.targetScore !== undefined;
+              const typeColor = hasScore ? '#d97706' : MC_RESULT_COLORS[ctrl.targetResult || ''] || '#6B7280';
+              const typeLabel = hasScore
+                ? `${ctrl.targetScore!.h} – ${ctrl.targetScore!.a}`
+                : MC_RESULT_LABELS[ctrl.targetResult || ''] || '—';
+              const homeLogo  = TEAM_LOGOS[ctrl.homeTeam];
+              const awayLogo  = TEAM_LOGOS[ctrl.awayTeam];
 
-            return (
-              <div key={ctrl.id} style={{
-                background: '#fff', border: `1px solid ${ctrl.pinned ? '#FDE68A' : '#E5E7EB'}`,
-                borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-              }}>
-                {/* top color bar */}
-                <div style={{ height: 2, background: `linear-gradient(90deg,${typeColor},transparent)` }} />
-                <div style={{ padding: '12px 14px' }}>
-                  {/* badges */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    {ctrl.pinned && (
-                      <span style={{
-                        fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 20,
-                        background: '#FEF9C3', color: '#d97706', border: '1px solid #FDE68A', letterSpacing: '0.06em',
-                      }}>📌 SABİTLENDİ</span>
-                    )}
-                    <span style={{
-                      fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 20,
-                      background: `${typeColor}18`, color: typeColor, border: `1px solid ${typeColor}40`,
-                    }}>
-                      {hasScore ? 'KESİN SKOR' : 'SONUÇ'}
-                    </span>
-                    <span style={{ fontSize: 10, color: '#374151', fontWeight: 600, marginLeft: 'auto' }}>{timeAgoMC(ctrl.createdAt)}</span>
-                  </div>
-                  {/* teams */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: '#111827', flex: 1 }}>{ctrl.homeTeam}</span>
-                    <span style={{
-                      fontSize: 9, color: '#374151', padding: '2px 6px',
-                      border: '1px solid #D1D5DB', borderRadius: 4, fontWeight: 800,
-                    }}>VS</span>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: '#111827', flex: 1, textAlign: 'right' }}>{ctrl.awayTeam}</span>
-                  </div>
-                  {/* target + delete */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{
-                      background: '#F9FAFB', border: `1px solid ${typeColor}40`,
-                      borderRadius: 8, padding: '7px 12px',
-                      display: 'flex', alignItems: 'center', gap: 6,
-                    }}>
-                      <span style={{ fontSize: 9, color: '#374151', fontWeight: 700, textTransform: 'uppercase' }}>Hedef:</span>
-                      <span style={{ fontSize: 15, fontWeight: 900, color: typeColor }}>{typeLabel}</span>
+              return (
+                <div key={ctrl.id} style={{
+                  background: '#fff', border: `1px solid ${ctrl.pinned ? '#FDE68A' : '#E5E7EB'}`,
+                  borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                }}>
+                  <div style={{ height: 3, background: `linear-gradient(90deg,${typeColor},transparent)` }} />
+                  <div style={{ padding: '12px 14px' }}>
+                    {/* Badges + time */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 9, flexWrap: 'wrap' }}>
+                      {ctrl.pinned && (
+                        <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 20, background: '#FEF9C3', color: '#d97706', border: '1px solid #FDE68A' }}>📌 SABİTLENDİ</span>
+                      )}
+                      <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 20, background: `${typeColor}18`, color: typeColor, border: `1px solid ${typeColor}40` }}>
+                        {hasScore ? '⚽ KESİN SKOR' : '🏆 SONUÇ'}
+                      </span>
+                      <span style={{ fontSize: 10, color: '#6B7280', marginLeft: 'auto', fontWeight: 600 }}>{timeAgoMC(ctrl.createdAt)}</span>
                     </div>
+
+                    {/* Teams row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {homeLogo
+                          ? <img src={homeLogo} alt="" style={{ width: 24, height: 24, objectFit: 'contain' }} />
+                          : <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: '#fff', fontWeight: 900, flexShrink: 0 }}>{ctrl.homeTeam.slice(0,2).toUpperCase()}</div>
+                        }
+                        <span style={{ fontSize: 12, fontWeight: 800, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ctrl.homeTeam}</span>
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 900, color: typeColor, background: `${typeColor}15`, padding: '4px 10px', borderRadius: 8, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                        {hasScore ? `⚽ ${typeLabel}` : typeLabel}
+                      </div>
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: '#111827', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ctrl.awayTeam}</span>
+                        {awayLogo
+                          ? <img src={awayLogo} alt="" style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }} />
+                          : <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#F6465D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: '#fff', fontWeight: 900, flexShrink: 0 }}>{ctrl.awayTeam.slice(0,2).toUpperCase()}</div>
+                        }
+                      </div>
+                    </div>
+
+                    {/* Delete */}
                     <button onClick={() => handleDelete(ctrl.id)} disabled={deletingId === ctrl.id} style={{
-                      width: 34, height: 34, borderRadius: 9, cursor: 'pointer',
-                      background: '#FEE2E2', border: '1px solid #FECACA', color: '#DC2626',
-                      fontWeight: 900, fontSize: 14,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: '100%', padding: '8px', borderRadius: 8, cursor: 'pointer',
+                      background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626',
+                      fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                       opacity: deletingId === ctrl.id ? 0.4 : 1,
                     }}>
                       {deletingId === ctrl.id
-                        ? <RefreshCw style={{ width: 12, height: 12 }} />
-                        : <Trash2 style={{ width: 14, height: 14 }} />
+                        ? <><RefreshCw style={{ width: 12, height: 12 }} /> Siliniyor…</>
+                        : <><Trash2 style={{ width: 13, height: 13 }} /> Kontrolü Kaldır</>
                       }
                     </button>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
