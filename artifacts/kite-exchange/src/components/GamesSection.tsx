@@ -1690,7 +1690,12 @@ export default function GamesSection() {
         potentialWin: placed.potentialWin,
         ouLine: placed.ouLine ?? undefined,
       }),
-    }).catch(e => console.warn('[sport-bets] report error', e.message));
+    }).then(async r => {
+      if (!r.ok) {
+        const txt = await r.text().catch(() => '');
+        console.error('[sport-bets] POST hata', r.status, txt);
+      }
+    }).catch(e => console.error('[sport-bets] ağ hatası', e.message));
 
     setPlacedBets(prev => [...prev, placed]);
     setBetSlip(null);

@@ -1,6 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, sportBetsTable } from "@workspace/db";
-import { eq, gte } from "drizzle-orm";
+import pg from "pg";
 
 const router: IRouter = Router();
 
@@ -10,6 +9,44 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const ADMIN_UUIDS = new Set([
   '88292f59-898a-4fef-a1c8-8813d7b60b61',
 ]);
+
+/* ══════════════════════════════════════════════════════════
+   DB pool — lazy init so server doesn't crash if DB unavailable
+══════════════════════════════════════════════════════════ */
+let _pool: pg.Pool | null = null;
+function getPool(): pg.Pool {
+  if (!_pool) {
+    const url = process.env.DATABASE_URL;
+    if (!url) throw new Error('DATABASE_URL not set');
+    _pool = new pg.Pool({ connectionString: url, max: 5 });
+    _pool.on('error', (err) => console.error('[pool] idle error', err.message));
+  }
+  return _pool;
+}
+
+/* Ensure sport_bets table exists — run once on first use */
+let tableReady = false;
+async function ensureTable() {
+  if (tableReady) return;
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS sport_bets (
+      id           TEXT PRIMARY KEY,
+      user_id      TEXT NOT NULL,
+      match_id     TEXT NOT NULL,
+      home_team    TEXT NOT NULL,
+      away_team    TEXT NOT NULL,
+      bet_type     TEXT NOT NULL,
+      odds         NUMERIC NOT NULL,
+      stake        NUMERIC NOT NULL,
+      potential_win NUMERIC NOT NULL,
+      ou_line      NUMERIC,
+      status       TEXT NOT NULL DEFAULT 'open',
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+      settled_at   TIMESTAMPTZ
+    )
+  `);
+  tableReady = true;
+}
 
 /* ══════════════════════════════════════════════════════════
    MATCH CONTROLS — in-memory store
@@ -143,53 +180,53 @@ router.get('/admin/users', async (req, res) => {
 });
 
 /* ══════════════════════════════════════════════════════════
-   SPORT BETS — PostgreSQL (shared across all server instances)
+   SPORT BETS — Raw SQL via pg (works on any instance)
 ══════════════════════════════════════════════════════════ */
 
-/* POST /sport-bets — any user can record their bet */
+/* POST /sport-bets — record a bet */
 router.post('/sport-bets', async (req, res) => {
   try {
+    await ensureTable();
     const { id, userId, matchId, homeTeam, awayTeam, betType, odds, stake, potentialWin, ouLine } = req.body;
     if (!id || !userId || !matchId || !homeTeam || !awayTeam || !betType) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    await db.insert(sportBetsTable).values({
-      id,
-      userId,
-      matchId,
-      homeTeam,
-      awayTeam,
-      betType,
-      odds: String(odds),
-      stake: String(stake),
-      potentialWin: String(potentialWin),
-      ouLine: ouLine != null ? String(ouLine) : null,
-      status: 'open',
-    }).onConflictDoNothing();
+    await getPool().query(
+      `INSERT INTO sport_bets (id, user_id, match_id, home_team, away_team, bet_type, odds, stake, potential_win, ou_line, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'open')
+       ON CONFLICT (id) DO NOTHING`,
+      [id, userId, matchId, homeTeam, awayTeam, betType,
+       Number(odds), Number(stake), Number(potentialWin),
+       ouLine != null ? Number(ouLine) : null]
+    );
     return res.json({ ok: true });
   } catch (e: any) {
+    console.error('[sport-bets POST]', e.message);
     return res.status(500).json({ error: e.message });
   }
 });
 
-/* PATCH /sport-bets/:id — update bet status */
+/* PATCH /sport-bets/:id — settle a bet */
 router.patch('/sport-bets/:id', async (req, res) => {
   try {
+    await ensureTable();
     const { id } = req.params;
     const { status } = req.body;
     if (!['won', 'lost', 'refunded'].includes(status)) {
       return res.status(400).json({ error: 'status must be won, lost, or refunded' });
     }
-    await db.update(sportBetsTable)
-      .set({ status, settledAt: new Date() })
-      .where(eq(sportBetsTable.id, id));
+    await getPool().query(
+      `UPDATE sport_bets SET status=$1, settled_at=now() WHERE id=$2`,
+      [status, id]
+    );
     return res.json({ ok: true });
   } catch (e: any) {
+    console.error('[sport-bets PATCH]', e.message);
     return res.status(500).json({ error: e.message });
   }
 });
 
-/* GET /admin/bet-exposure — aggregate last-2h bets per match (all statuses) */
+/* GET /admin/bet-exposure — all bets from last 2 hours */
 router.get('/admin/bet-exposure', async (req, res) => {
   try {
     const requesterId = req.headers['x-requester-id'] as string;
@@ -197,11 +234,17 @@ router.get('/admin/bet-exposure', async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    // Show ALL bets from the last 2 hours — regardless of status
-    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-    const recentBets = await db.select()
-      .from(sportBetsTable)
-      .where(gte(sportBetsTable.createdAt, twoHoursAgo));
+    await ensureTable();
+
+    const { rows } = await getPool().query<{
+      id: string; user_id: string; match_id: string;
+      home_team: string; away_team: string;
+      bet_type: string; odds: string; stake: string;
+      potential_win: string; ou_line: string | null;
+      status: string; created_at: Date;
+    }>(
+      `SELECT * FROM sport_bets WHERE created_at >= now() - INTERVAL '2 hours' ORDER BY created_at DESC`
+    );
 
     const map = new Map<string, {
       homeTeam: string; awayTeam: string;
@@ -210,30 +253,29 @@ router.get('/admin/bet-exposure', async (req, res) => {
       openCount: number; wonCount: number; lostCount: number; refundedCount: number;
     }>();
 
-    for (const bet of recentBets) {
-      const key = `${bet.homeTeam}:${bet.awayTeam}`;
+    for (const row of rows) {
+      const key = `${row.home_team}:${row.away_team}`;
       if (!map.has(key)) {
         map.set(key, {
-          homeTeam: bet.homeTeam, awayTeam: bet.awayTeam,
+          homeTeam: row.home_team, awayTeam: row.away_team,
           bets: {}, totalStake: 0, totalBets: 0, uniqueUsers: new Set(),
           openCount: 0, wonCount: 0, lostCount: 0, refundedCount: 0,
         });
       }
       const entry = map.get(key)!;
 
-      // Only count stake distribution for OPEN bets (for admin decision purposes)
-      if (bet.status === 'open') {
-        if (!entry.bets[bet.betType]) entry.bets[bet.betType] = { count: 0, totalStake: 0 };
-        entry.bets[bet.betType].count++;
-        entry.bets[bet.betType].totalStake += Number(bet.stake);
-        entry.totalStake += Number(bet.stake);
+      if (row.status === 'open') {
+        if (!entry.bets[row.bet_type]) entry.bets[row.bet_type] = { count: 0, totalStake: 0 };
+        entry.bets[row.bet_type].count++;
+        entry.bets[row.bet_type].totalStake += Number(row.stake);
+        entry.totalStake += Number(row.stake);
       }
 
       entry.totalBets++;
-      entry.uniqueUsers.add(bet.userId);
-      if (bet.status === 'open') entry.openCount++;
-      else if (bet.status === 'won') entry.wonCount++;
-      else if (bet.status === 'lost') entry.lostCount++;
+      entry.uniqueUsers.add(row.user_id);
+      if (row.status === 'open') entry.openCount++;
+      else if (row.status === 'won') entry.wonCount++;
+      else if (row.status === 'lost') entry.lostCount++;
       else entry.refundedCount++;
     }
 
@@ -254,6 +296,7 @@ router.get('/admin/bet-exposure', async (req, res) => {
 
     return res.json(result);
   } catch (e: any) {
+    console.error('[bet-exposure GET]', e.message);
     return res.status(500).json({ error: e.message });
   }
 });
