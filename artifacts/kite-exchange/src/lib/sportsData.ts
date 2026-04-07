@@ -156,15 +156,17 @@ export const TEAM_LOGOS: Record<string, string> = {
   'Chicken Inn FC':        '/logos/chicken_inn_fc.png',
   'Bulawayo Chiefs':       '/logos/bulawayo_chiefs.png',
   'Herentals FC':          '/logos/herentals_fc.png',
-  // Malawi — 8/10
+  // Malawi — 10/10
   'Be Forward Wanderers':  '/logos/be_forward_wanderers.png',
   'Nyasa Big Bullets':     '/logos/nyasa_big_bullets.png',
   'Silver Strikers':       '/logos/silver_strikers.png',
   'Mighty Wanderers':      '/logos/mighty_wanderers.png',
+  'Blantyre United':       '/logos/blantyre_united.png',
   'Blue Eagles':           '/logos/blue_eagles.png',
   'Kamuzu Barracks':       '/logos/kamuzu_barracks.png',
   'Rumphi United':         '/logos/rumphi_united.png',
   'Karonga United':        '/logos/karonga_united.png',
+  'Total Stars':           '/logos/total_stars.png',
   // Angola — 10/10
   'Petro de Luanda':       '/logos/petro_de_luanda.png',
   'Primeiro de Agosto':    '/logos/primeiro_de_agosto.png',
@@ -176,9 +178,10 @@ export const TEAM_LOGOS: Record<string, string> = {
   'Desportivo da Huíla':   '/logos/desportivo_da_huila.png',
   'Kabuscorp SC':          '/logos/kabuscorp_sc.png',
   'Wiliete FC':            '/logos/wiliete_fc.png',
-  // DR Congo — 9/10
+  // DR Congo — 10/10
   'TP Mazembe':            '/logos/tp_mazembe.png',
   'AS Vita Club':          '/logos/as_vita_club.png',
+  'AS Dragons':            '/logos/as_dragons.png',
   'DC Motema Pembe':       '/logos/dc_motema_pembe.png',
   'CS Don Bosco':          '/logos/cs_don_bosco.png',
   'Saint-Eloi Lupopo':     '/logos/saint_eloi_lupopo.png',
@@ -186,13 +189,16 @@ export const TEAM_LOGOS: Record<string, string> = {
   'AS Nyuki':              '/logos/as_nyuki.png',
   'Sanga Balende':         '/logos/sanga_balende.png',
   'Renaissance du Congo':  '/logos/renaissance_du_congo.png',
-  // Burundi — 7/10
+  // Burundi — 10/10
   'Vital-O FC':            '/logos/vital_o_fc.png',
   'Le Messager Ngozi':     '/logos/le_messager_ngozi.png',
+  'Athletic Club Gitega':  '/logos/athletic_club_gitega.png',
   'Aigle Noir':            '/logos/aigle_noir.png',
   'Inter Star':            '/logos/inter_star.png',
+  'Prince Louis':          '/logos/prince_louis.png',
   'Bujumbura City FC':     '/logos/bujumbura_city_fc.png',
   'Flambeau du Centre':    '/logos/flambeau_du_centre.png',
+  'KAC Kiremba':           '/logos/kac_kiremba.png',
   'LLB Athletic':          '/logos/llb_athletic.png',
   // Rwanda — 10/10
   'APR FC':                '/logos/apr_fc.png',
@@ -227,19 +233,21 @@ export const TEAM_LOGOS: Record<string, string> = {
   'Ihefu FC':              '/logos/ihefu_fc.png',
   'Mbeya City':            '/logos/mbeya_city.png',
   'Alliance FC':           '/logos/alliance_fc.png',
-  // Ethiopia — 9/10
+  // Ethiopia — 10/10
   'Ethiopian Coffee SC':   '/logos/ethiopian_coffee_sc.png',
   'St. George SC':         '/logos/st_george_sc.png',
   'Fasil Kenema':          '/logos/fasil_kenema.png',
   'Adama City FC':         '/logos/adama_city_fc.png',
   'Dire Dawa Ketema':      '/logos/dire_dawa_ketema.png',
   'Wolaitta Dicha':        '/logos/wolaitta_dicha.png',
+  'Jimma AbaJifar':        '/logos/jimma_abajifar.png',
   'Sebeta Ketema':         '/logos/sebeta_ketema.png',
   'Hawassa Ketema':        '/logos/hawassa_ketema.png',
   'Dedebit FC':            '/logos/dedebit_fc.png',
-  // Mozambique — 9/10
+  // Mozambique — 10/10
   'Costa do Sol':          '/logos/costa_do_sol.png',
   'Black Bulls':           '/logos/black_bulls.png',
+  'Tete FC':               '/logos/tete_fc.png',
 };
 
 // ── 20 African Leagues (all real, active competitions) ───

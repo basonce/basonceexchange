@@ -18,3 +18,39 @@ id = "k5yJ8OF7ChCzxU5L_5PLr"
 uri = "file://artifacts/kite-exchange/public/powerai-logo.png"
 type = "image"
 title = "powerai crypto token logo"
+
+[[generated]]
+id = "NFldliYX-K56NMrMZVomA"
+uri = "file://artifacts/kite-exchange/public/logos/tete_fc.png"
+type = "image"
+title = "Tete FC Mozambique football crest"
+
+[[generated]]
+id = "axzZTgaQKA-mGW2F_gMX5"
+uri = "file://artifacts/kite-exchange/public/logos/blantyre_united.png"
+type = "image"
+title = "Blantyre United Malawi football crest"
+
+[[generated]]
+id = "rHUckDI_Q1h7Qpvq8qRj2"
+uri = "file://artifacts/kite-exchange/public/logos/total_stars.png"
+type = "image"
+title = "Total Stars Malawi football crest"
+
+[[generated]]
+id = "GlTJcWARxuxUboQuka4ZO"
+uri = "file://artifacts/kite-exchange/public/logos/as_dragons.png"
+type = "image"
+title = "AS Dragons Kinshasa Congo football crest"
+
+[[generated]]
+id = "yd7X_IuNvjfLUYXl_OeMt"
+uri = "file://artifacts/kite-exchange/public/logos/athletic_club_gitega.png"
+type = "image"
+title = "Athletic Club Gitega Burundi football crest"
+
+[[generated]]
+id = "pZV45tk0C0Z1lqTs0Xk7v"
+uri = "file://artifacts/kite-exchange/public/logos/kac_kiremba.png"
+type = "image"
+title = "KAC Kiremba Burundi football crest"
