@@ -1130,7 +1130,7 @@ function BetSlipModal({ item, usdtBalance, onPlace, onCancel }: BetSlipProps) {
 /* ══════════════════════════════════════════════════════════
    MY BETS PANEL
 ══════════════════════════════════════════════════════════ */
-function MyBets({ bets }: { bets: PlacedBet[] }) {
+function MyBets({ bets, matches }: { bets: PlacedBet[]; matches: LiveMatch[] }) {
   const [filter, setFilter] = useState<'all' | 'open' | 'won' | 'lost'>('all');
 
   const totalStaked = bets.reduce((s, b) => s + b.amount, 0);
@@ -1248,6 +1248,11 @@ function MyBets({ bets }: { bets: PlacedBet[] }) {
           const isLost = bet.status === 'lost';
           const isOpen = bet.status === 'open';
 
+          /* Find current match minute for open bets */
+          const liveMatch = isOpen ? matches.find(m => m.id === bet.matchId) : undefined;
+          const liveMinute = liveMatch ? liveMatch.minute : null;
+          const liveHalf   = liveMatch ? liveMatch.half : null;
+
           /* ── per-status config ── */
           const cfg = isWon
             ? {
@@ -1315,6 +1320,15 @@ function MyBets({ bets }: { bets: PlacedBet[] }) {
                   <span style={{ fontSize: 12, fontWeight: 900, color: cfg.headerText, letterSpacing: '0.06em' }}>
                     {cfg.label}
                   </span>
+                  {isOpen && liveMinute !== null && (
+                    <span style={{
+                      fontSize: 11, fontWeight: 800, color: '#93c5fd',
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '1px 6px', borderRadius: 4,
+                    }}>
+                      {liveMinute}'{liveHalf === 2 ? ' (2H)' : ''}
+                    </span>
+                  )}
                 </div>
                 <span style={{ fontSize: 15, fontWeight: 900, color: cfg.pnlColor, letterSpacing: '-0.01em' }}>
                   {cfg.pnl}
@@ -2116,7 +2130,7 @@ export default function GamesSection() {
       </div>
 
       {/* ── MY BETS VIEW ── */}
-      {activeView === 'bets' && <MyBets bets={placedBets} />}
+      {activeView === 'bets' && <MyBets bets={placedBets} matches={matches} />}
 
       {/* ── LIVE VIEW ── */}
       {activeView === 'live' && (
