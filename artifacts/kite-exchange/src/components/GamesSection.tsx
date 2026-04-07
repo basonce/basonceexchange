@@ -1200,203 +1200,129 @@ const PITCH_EVENTS: Record<
 };
 
 function FootballPitchViz({ match }: { match: LiveMatch }) {
-  const [animKey, setAnimKey] = React.useState(0);
-  const ev = match.pitchEvent;
+  const ev   = match.pitchEvent;
   const meta = ev ? PITCH_EVENTS[ev.type] : null;
-  const isHome = ev?.team === 'home';
+  const ak   = ev?.ts ?? 0;          // animation key — changes on each new event
+  const isHome   = ev?.team === 'home';
   const homeName = match.tmpl.homeTeam.name;
   const awayName = match.tmpl.awayTeam.name;
-
-  React.useEffect(() => {
-    if (ev?.ts) setAnimKey(k => k + 1);
-  }, [ev?.ts]);
 
   const W = 380, H = 220;
   const cx = W / 2, cy = H / 2;
 
   const arrowX1 = isHome ? cx - 80 : cx + 80;
   const arrowX2 = isHome ? cx + 40 : cx - 40;
-  const arrowY  = cy;
 
-  const hasBall = ev?.type === 'ball_play';
+  const hasBall  = ev?.type === 'ball_play';
   const hasArrow = ev && !['ball_play', 'save', 'foul', 'offside'].includes(ev.type);
-  const sideX = isHome ? cx - 20 : cx + 20;
+  const hasDot   = ev && ['throw_in','corner','foul','offside','save'].includes(ev.type);
+  const sideX    = isHome ? cx - 24 : cx + 24;
+  const labelX   = isHome ? cx - 60 : cx + 60;
+  const boxX     = isHome ? cx - 112 : cx + 12;
 
   return (
-    <div style={{ position: 'relative', width: '100%', borderRadius: 10, overflow: 'hidden', background: '#166534' }}>
+    <div style={{ width: '100%', borderRadius: 10, overflow: 'hidden' }}>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', width: '100%' }}>
-        {/* Grass gradient */}
         <defs>
-          <linearGradient id="grassGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#166534"/>
-            <stop offset="50%"  stopColor="#15803d"/>
-            <stop offset="100%" stopColor="#166534"/>
+          <linearGradient id="pvGrass" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#145a2e"/>
+            <stop offset="50%"  stopColor="#166534"/>
+            <stop offset="100%" stopColor="#145a2e"/>
           </linearGradient>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="3" result="blur"/>
-            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          <filter id="pvGlow">
+            <feGaussianBlur stdDeviation="2.5" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
           </filter>
-          <style>{`
-            @keyframes slideInLeft {
-              from { opacity:0; transform: translateX(-30px); }
-              to   { opacity:1; transform: translateX(0); }
-            }
-            @keyframes slideInRight {
-              from { opacity:0; transform: translateX(30px); }
-              to   { opacity:1; transform: translateX(0); }
-            }
-            @keyframes pulse {
-              0%,100% { transform: scale(1); opacity:1; }
-              50%      { transform: scale(1.08); opacity:0.85; }
-            }
-            @keyframes arrowDash {
-              from { stroke-dashoffset: 120; opacity:0; }
-              to   { stroke-dashoffset: 0;   opacity:1; }
-            }
-            @keyframes ballPop {
-              0%   { r:0; opacity:0; }
-              60%  { r:16; opacity:1; }
-              100% { r:13; opacity:1; }
-            }
-            @keyframes flashBg {
-              0%,100% { opacity:0; }
-              30%     { opacity:0.18; }
-            }
-            .ev-anim-l { animation: slideInLeft  0.55s ease-out both; }
-            .ev-anim-r { animation: slideInRight 0.55s ease-out both; }
-            .ev-pulse  { animation: pulse 1.8s ease-in-out infinite; }
-            .ev-arrow  { animation: arrowDash 0.6s ease-out both; stroke-dasharray: 120; }
-            .ev-ball   { animation: ballPop 0.5s ease-out both; }
-            .ev-flash  { animation: flashBg 0.8s ease-out both; }
-          `}</style>
+          <marker id={`pvArrow-${ak}`} markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+            <polygon points="0 0,7 3.5,0 7" fill={meta?.color ?? '#f97316'}/>
+          </marker>
         </defs>
 
-        {/* Field */}
-        <rect x="0" y="0" width={W} height={H} fill="url(#grassGrad)"/>
-
-        {/* Grass stripes */}
+        {/* Grass */}
+        <rect x="0" y="0" width={W} height={H} fill="url(#pvGrass)"/>
         {[0,1,2,3,4,5].map(i => (
-          <rect key={i} x={i*(W/6)} y="0" width={W/12} height={H} fill="rgba(0,0,0,0.06)"/>
+          <rect key={i} x={i*(W/6)} y="0" width={W/12} height={H} fill="rgba(0,0,0,0.05)"/>
         ))}
 
-        {/* Pitch outline */}
-        <rect x="12" y="12" width={W-24} height={H-24} fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5"/>
-
-        {/* Center line */}
-        <line x1={cx} y1="12" x2={cx} y2={H-12} stroke="rgba(255,255,255,0.7)" strokeWidth="1.5"/>
-
-        {/* Center circle */}
-        <circle cx={cx} cy={cy} r="28" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5"/>
+        {/* Lines */}
+        <rect x="12" y="12" width={W-24} height={H-24} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="1.5"/>
+        <line x1={cx} y1="12" x2={cx} y2={H-12} stroke="rgba(255,255,255,0.65)" strokeWidth="1.5"/>
+        <circle cx={cx} cy={cy} r="28" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="1.5"/>
         <circle cx={cx} cy={cy} r="2.5" fill="white"/>
 
-        {/* Home penalty area */}
-        <rect x="12" y={cy-30} width="40" height="60" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.2"/>
-        <rect x="12" y={cy-16} width="16" height="32" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.2"/>
-        {/* Home goal */}
-        <rect x="4" y={cy-12} width="8" height="24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.2"/>
+        {/* Home penalty + goal */}
+        <rect x="12" y={cy-30} width="42" height="60" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="1.2"/>
+        <rect x="12" y={cy-16} width="16" height="32" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="1.2"/>
+        <rect x="4"  y={cy-11} width="8"  height="22" fill="none" stroke="rgba(255,255,255,0.4)"  strokeWidth="1.2"/>
 
-        {/* Away penalty area */}
-        <rect x={W-52} y={cy-30} width="40" height="60" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.2"/>
-        <rect x={W-28} y={cy-16} width="16" height="32" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.2"/>
-        {/* Away goal */}
-        <rect x={W-12} y={cy-12} width="8" height="24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.2"/>
+        {/* Away penalty + goal */}
+        <rect x={W-54} y={cy-30} width="42" height="60" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="1.2"/>
+        <rect x={W-28} y={cy-16} width="16" height="32" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="1.2"/>
+        <rect x={W-12} y={cy-11} width="8"  height="22" fill="none" stroke="rgba(255,255,255,0.4)"  strokeWidth="1.2"/>
 
         {/* Corner arcs */}
         {[[12,12],[W-12,12],[12,H-12],[W-12,H-12]].map(([px,py],i) => {
-          const sr = Math.sign(px - cx) * 6;
+          const sx = Math.sign(px - cx) * 6;
           const sy = Math.sign(py - cy) * 6;
-          return <path key={i} d={`M ${px+sr} ${py} A 6 6 0 0 ${px<cx?1:0} ${px} ${py+sy}`} fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.2"/>;
+          return <path key={i} d={`M ${px+sx} ${py} A 6 6 0 0 ${px<cx?1:0} ${px} ${py+sy}`} fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="1.2"/>;
         })}
 
-        {/* Event flash background */}
-        {meta && (
-          <rect key={`flash-${animKey}`} className="ev-flash" x="0" y="0" width={W} height={H} fill={meta.color}/>
-        )}
+        {/* Flash overlay — re-mounts when ts changes */}
+        {meta && <rect key={`pf-${ak}`} className="pv-flash" x="0" y="0" width={W} height={H} fill={meta.color}/>}
 
-        {/* Event: arrow */}
+        {/* Arrow */}
         {hasArrow && meta && (
-          <g key={`arrow-${animKey}`}>
-            <defs>
-              <marker id="ah" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
-                <polygon points="0 0,7 3.5,0 7" fill={meta.color}/>
-              </marker>
-            </defs>
-            <line
-              className="ev-arrow"
-              x1={arrowX1} y1={arrowY}
-              x2={arrowX2} y2={arrowY}
-              stroke={meta.color}
-              strokeWidth="5"
-              strokeLinecap="round"
-              markerEnd="url(#ah)"
-              filter="url(#glow)"
-            />
-          </g>
+          <line
+            key={`pa-${ak}`}
+            className="pv-arrow"
+            x1={arrowX1} y1={cy}
+            x2={arrowX2} y2={cy}
+            stroke={meta.color}
+            strokeWidth="5.5"
+            strokeLinecap="round"
+            markerEnd={`url(#pvArrow-${ak})`}
+            filter="url(#pvGlow)"
+          />
         )}
 
-        {/* Event: ball play circle */}
+        {/* Ball circle (ball_play) */}
         {hasBall && meta && (
-          <g key={`ball-${animKey}`}>
-            <circle className="ev-ball" cx={sideX} cy={cy} r="13" fill={meta.color} opacity="0.35"/>
-            <text x={sideX} y={cy+5} textAnchor="middle" fontSize="14" fill="white">⚽</text>
+          <g key={`pb-${ak}`} className="pv-ball">
+            <circle cx={sideX} cy={cy} r="14" fill={meta.color} opacity="0.4"/>
+            <text x={sideX} y={cy+5} textAnchor="middle" fontSize="14">⚽</text>
           </g>
         )}
 
-        {/* Throw-in / corner etc: ball dot */}
-        {ev && ['throw_in','corner','foul','offside','save'].includes(ev.type) && meta && (
-          <g key={`dot-${animKey}`}>
-            <circle className="ev-ball" cx={sideX} cy={cy} r="10" fill={meta.color} opacity="0.4"/>
-            <text x={sideX} y={cy+5} textAnchor="middle" fontSize="12" fill="white">{meta.icon}</text>
+        {/* Dot (throw_in / corner / etc) */}
+        {hasDot && meta && (
+          <g key={`pd-${ak}`} className="pv-ball">
+            <circle cx={sideX} cy={cy} r="11" fill={meta.color} opacity="0.45"/>
+            <text x={sideX} y={cy+5} textAnchor="middle" fontSize="12">{meta.icon}</text>
           </g>
         )}
 
-        {/* Event label box */}
+        {/* Label box — slides in from team's side */}
         {meta && ev && (
-          <g key={`label-${animKey}`} className={isHome ? 'ev-anim-l ev-pulse' : 'ev-anim-r ev-pulse'}>
-            {/* Box */}
-            <rect
-              x={isHome ? cx - 110 : cx + 10}
-              y={cy - 32}
-              width="100" height="40" rx="5"
-              fill={meta.color}
-              opacity="0.92"
-            />
-            {/* Event label */}
-            <text
-              x={isHome ? cx - 60 : cx + 60}
-              y={cy - 12}
-              textAnchor="middle"
-              fontSize="11"
-              fontWeight="700"
-              fill="white"
-              letterSpacing="0.5"
-            >{meta.icon} {meta.label}</text>
-            {/* Team name */}
-            <text
-              x={isHome ? cx - 60 : cx + 60}
-              y={cy + 4}
-              textAnchor="middle"
-              fontSize="10"
-              fill="rgba(255,255,255,0.88)"
-            >{ev.team === 'home' ? homeName : awayName}</text>
+          <g key={`pl-${ak}`} className={`${isHome ? 'pv-slide-l' : 'pv-slide-r'} pv-pulse`}>
+            <rect x={boxX} y={cy-33} width="100" height="42" rx="6" fill={meta.color} opacity="0.93"/>
+            <text x={labelX} y={cy-14} textAnchor="middle" fontSize="11" fontWeight="800" fill="white">
+              {meta.icon} {meta.label}
+            </text>
+            <text x={labelX} y={cy+4} textAnchor="middle" fontSize="9.5" fill="rgba(255,255,255,0.9)">
+              {ev.team === 'home' ? homeName : awayName}
+            </text>
           </g>
         )}
       </svg>
 
-      {/* Bottom bar: team abbreviations + minute */}
+      {/* Score bar */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        background: 'rgba(0,0,0,0.55)', padding: '4px 12px',
+        background: 'rgba(0,0,0,0.6)', padding: '4px 14px',
       }}>
-        <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, opacity: 0.9 }}>
-          {homeName.slice(0,3).toUpperCase()}
-        </span>
-        <span style={{ color: '#facc15', fontSize: 11, fontWeight: 800 }}>
-          {match.homeScore} – {match.awayScore}
-        </span>
-        <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, opacity: 0.9 }}>
-          {awayName.slice(0,3).toUpperCase()}
-        </span>
+        <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>{homeName.slice(0,3).toUpperCase()}</span>
+        <span style={{ color: '#facc15', fontSize: 12, fontWeight: 800 }}>{match.homeScore} – {match.awayScore}</span>
+        <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>{awayName.slice(0,3).toUpperCase()}</span>
       </div>
     </div>
   );
