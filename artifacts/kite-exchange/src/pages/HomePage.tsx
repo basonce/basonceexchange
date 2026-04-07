@@ -213,17 +213,16 @@ export default function HomePage({ onNavigate }: HomePageProps) {
 
   const quickActions = [
     {
-      label: 'Alpha\nEvents',
-      onClick: () => setShowAlphaEvents(true),
+      label: 'Alpha\nSports',
+      onClick: () => setActiveFilter('sports'),
       icon: (
-        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-          <rect x="3" y="4" width="22" height="20" rx="3" stroke="white" strokeWidth="1.8"/>
-          <line x1="3" y1="10" x2="25" y2="10" stroke="white" strokeWidth="1.8"/>
-          <line x1="9" y1="2" x2="9" y2="7" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-          <line x1="19" y1="2" x2="19" y2="7" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-          <rect x="8" y="13" width="5" height="4" rx="1" fill="#F0B90B"/>
-          <text x="9.5" y="17.2" fontSize="4.5" fill="#1A1200" fontWeight="bold" fontFamily="serif">a</text>
-        </svg>
+        <img
+          src="/football-player.png"
+          alt="Sports"
+          width={28}
+          height={28}
+          style={{ filter: 'invert(1)', objectFit: 'contain', mixBlendMode: 'screen' }}
+        />
       ),
     },
     {
@@ -523,15 +522,14 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                   { id: 'losers', label: 'Losers' },
                   { id: '24h-vol', label: '24h Vol' },
                   { id: 'tradfi', label: 'TradFi' },
-                  { id: 'sports', label: '⚽ Sports' },
                 ].map(({ id, label }) => (
                   <button
                     key={id}
                     onClick={() => setActiveFilter(id as typeof activeFilter)}
                     className={`px-3 py-1 rounded text-[13px] font-bold transition-all whitespace-nowrap flex-shrink-0 flex items-center gap-1 ${
                       activeFilter === id
-                        ? id === 'sports' ? 'bg-[#1B4332] text-[#0ECB81] border border-[#0ECB81]/40' : 'bg-[#F0B90B] text-[#0B0E11]'
-                        : id === 'sports' ? 'bg-transparent text-[#0ECB81]/70 hover:text-[#0ECB81]' : 'bg-transparent text-[#848E9C] hover:text-[#B7BDC6]'
+                        ? 'bg-[#F0B90B] text-[#0B0E11]'
+                        : 'bg-transparent text-[#848E9C] hover:text-[#B7BDC6]'
                     }`}
                   >
                     {label}
