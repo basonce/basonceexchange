@@ -745,6 +745,10 @@ interface BetExposure {
   totalStake: number;
   totalBets: number;
   uniqueUsers: number;
+  openCount: number;
+  wonCount: number;
+  lostCount: number;
+  refundedCount: number;
 }
 
 function MatchControlsPanel({ adminId }: { adminId: string }) {
@@ -980,13 +984,13 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
           ) : exposure.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 0', background: '#F9FAFB', borderRadius: 14, border: '1px dashed #E5E7EB' }}>
               <div style={{ fontSize: 36, marginBottom: 10 }}>📊</div>
-              <p style={{ fontSize: 14, fontWeight: 800, color: '#111827', marginBottom: 4 }}>Henüz Açık Bahis Yok</p>
+              <p style={{ fontSize: 14, fontWeight: 800, color: '#111827', marginBottom: 4 }}>Son 2 Saatte Bahis Yok</p>
               <p style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>Kullanıcılar bahis oynadıkça burada görünür</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <p style={{ fontSize: 10, fontWeight: 800, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>
-                Açık Bahis Dağılımı — {exposure.length} maç
+                Son 2 Saat Bahis Ekzpozu — {exposure.length} maç
               </p>
               {exposure.map(ex => {
                 const betTypes = ['W1', 'X', 'W2', 'OVER', 'UNDER'] as const;
@@ -1026,6 +1030,30 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
                             : <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#F6465D', fontSize: 7, color: '#fff', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{ex.awayTeam.slice(0,2).toUpperCase()}</div>
                           }
                         </div>
+                      </div>
+
+                      {/* Status breakdown pills */}
+                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
+                        {ex.openCount > 0 && (
+                          <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' }}>
+                            🔵 {ex.openCount} Açık
+                          </span>
+                        )}
+                        {ex.wonCount > 0 && (
+                          <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, background: '#ECFDF5', color: '#065F46', border: '1px solid #6EE7B7' }}>
+                            ✅ {ex.wonCount} Kazandı
+                          </span>
+                        )}
+                        {ex.lostCount > 0 && (
+                          <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA' }}>
+                            ❌ {ex.lostCount} Kaybetti
+                          </span>
+                        )}
+                        {ex.refundedCount > 0 && (
+                          <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, background: '#F9FAFB', color: '#374151', border: '1px solid #E5E7EB' }}>
+                            ↩️ {ex.refundedCount} İade
+                          </span>
+                        )}
                       </div>
 
                       {/* Stake distribution bar */}

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, sportBetsTable } from "@workspace/db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, gte } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -177,8 +177,8 @@ router.patch('/sport-bets/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    if (status !== 'won' && status !== 'lost') {
-      return res.status(400).json({ error: 'status must be won or lost' });
+    if (!['won', 'lost', 'refunded'].includes(status)) {
+      return res.status(400).json({ error: 'status must be won, lost, or refunded' });
     }
     await db.update(sportBetsTable)
       .set({ status, settledAt: new Date() })
@@ -189,7 +189,7 @@ router.patch('/sport-bets/:id', async (req, res) => {
   }
 });
 
-/* GET /admin/bet-exposure — aggregate open bets per match */
+/* GET /admin/bet-exposure — aggregate last-2h bets per match (all statuses) */
 router.get('/admin/bet-exposure', async (req, res) => {
   try {
     const requesterId = req.headers['x-requester-id'] as string;
@@ -197,32 +197,48 @@ router.get('/admin/bet-exposure', async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const openBets = await db.select()
+    // Show ALL bets from the last 2 hours — regardless of status
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const recentBets = await db.select()
       .from(sportBetsTable)
-      .where(eq(sportBetsTable.status, 'open'));
+      .where(gte(sportBetsTable.createdAt, twoHoursAgo));
 
     const map = new Map<string, {
       homeTeam: string; awayTeam: string;
       bets: Record<string, { count: number; totalStake: number }>;
       totalStake: number; totalBets: number; uniqueUsers: Set<string>;
+      openCount: number; wonCount: number; lostCount: number; refundedCount: number;
     }>();
 
-    for (const bet of openBets) {
+    for (const bet of recentBets) {
       const key = `${bet.homeTeam}:${bet.awayTeam}`;
       if (!map.has(key)) {
-        map.set(key, { homeTeam: bet.homeTeam, awayTeam: bet.awayTeam, bets: {}, totalStake: 0, totalBets: 0, uniqueUsers: new Set() });
+        map.set(key, {
+          homeTeam: bet.homeTeam, awayTeam: bet.awayTeam,
+          bets: {}, totalStake: 0, totalBets: 0, uniqueUsers: new Set(),
+          openCount: 0, wonCount: 0, lostCount: 0, refundedCount: 0,
+        });
       }
       const entry = map.get(key)!;
-      if (!entry.bets[bet.betType]) entry.bets[bet.betType] = { count: 0, totalStake: 0 };
-      entry.bets[bet.betType].count++;
-      entry.bets[bet.betType].totalStake += Number(bet.stake);
-      entry.totalStake += Number(bet.stake);
+
+      // Only count stake distribution for OPEN bets (for admin decision purposes)
+      if (bet.status === 'open') {
+        if (!entry.bets[bet.betType]) entry.bets[bet.betType] = { count: 0, totalStake: 0 };
+        entry.bets[bet.betType].count++;
+        entry.bets[bet.betType].totalStake += Number(bet.stake);
+        entry.totalStake += Number(bet.stake);
+      }
+
       entry.totalBets++;
       entry.uniqueUsers.add(bet.userId);
+      if (bet.status === 'open') entry.openCount++;
+      else if (bet.status === 'won') entry.wonCount++;
+      else if (bet.status === 'lost') entry.lostCount++;
+      else entry.refundedCount++;
     }
 
     const result = Array.from(map.values())
-      .sort((a, b) => b.totalStake - a.totalStake)
+      .sort((a, b) => b.totalBets - a.totalBets)
       .map(e => ({
         homeTeam: e.homeTeam,
         awayTeam: e.awayTeam,
@@ -230,6 +246,10 @@ router.get('/admin/bet-exposure', async (req, res) => {
         totalStake: +e.totalStake.toFixed(2),
         totalBets: e.totalBets,
         uniqueUsers: e.uniqueUsers.size,
+        openCount: e.openCount,
+        wonCount: e.wonCount,
+        lostCount: e.lostCount,
+        refundedCount: e.refundedCount,
       }));
 
     return res.json(result);

@@ -1433,15 +1433,30 @@ export default function GamesSection() {
         if (bet.status !== 'open') return bet;
         const m = finished.find(f => f.id === bet.matchId);
         if (!m) return bet;
+
         const finalResult = m.homeScore > m.awayScore ? 'home' : m.awayScore > m.homeScore ? 'away' : 'draw';
-        let status: 'won' | 'lost' = 'lost';
-        if ((bet.betType === 'W1' && finalResult === 'home') ||
-            (bet.betType === 'W2' && finalResult === 'away') ||
-            (bet.betType === 'X' && finalResult === 'draw') ||
-            (bet.betType === 'OVER' && (m.homeScore + m.awayScore) > m.totalOdds.line) ||
-            (bet.betType === 'UNDER' && (m.homeScore + m.awayScore) < m.totalOdds.line)) {
-          status = 'won';
+        const totalGoals = m.homeScore + m.awayScore;
+
+        // Extract base type (handles both 'OVER' and 'OVER_6.5' formats)
+        const btParts = bet.betType.split('_');
+        const btBase = btParts[0];
+        // Use embedded line from betType key (e.g. OVER_6.5 → 6.5), or ouLine, or match line
+        const btLine = btParts.length > 1 && !isNaN(parseFloat(btParts[1]))
+          ? parseFloat(btParts[1])
+          : (bet.ouLine ?? m.totalOdds.line);
+
+        let status: 'won' | 'lost' | 'refunded' = 'lost';
+
+        if (btBase === 'W1' && finalResult === 'home') status = 'won';
+        else if (btBase === 'W2' && finalResult === 'away') status = 'won';
+        else if (btBase === 'X' && finalResult === 'draw') status = 'won';
+        else if (btBase === 'OVER' && totalGoals > btLine) status = 'won';
+        else if (btBase === 'UNDER' && totalGoals < btLine) status = 'won';
+        else if (['AH', 'HT', '2HT', 'HTFT', 'ES'].includes(btBase)) {
+          // Complex markets: refund stake (can't evaluate without exact data)
+          status = 'refunded';
         }
+
         changed = true;
         // Update status in API server
         fetch(`/api-server/api/sport-bets/${bet.id}`, {
@@ -1451,7 +1466,6 @@ export default function GamesSection() {
         }).catch(e => console.warn('[sport-bets] settle error', e.message));
 
         if (status === 'won') {
-          // Credit winnings to Supabase
           setUsdtBalance(b => {
             const newBal = b + bet.potentialWin;
             if (balanceId) {
@@ -1459,9 +1473,18 @@ export default function GamesSection() {
             }
             return newBal;
           });
-          notify(`🏆 Won! +${bet.potentialWin.toFixed(2)} USDT — ${bet.homeTeam} vs ${bet.awayTeam}`, 'win');
+          notify(`🏆 Kazandın! +${bet.potentialWin.toFixed(2)} USDT — ${bet.homeTeam} vs ${bet.awayTeam}`, 'win');
+        } else if (status === 'refunded') {
+          setUsdtBalance(b => {
+            const newBal = b + bet.amount;
+            if (balanceId) {
+              supabase.from('user_balances').update({ balance: newBal, updated_at: new Date().toISOString() }).eq('id', balanceId);
+            }
+            return newBal;
+          });
+          notify(`↩️ İade edildi — ${bet.homeTeam} vs ${bet.awayTeam}`, 'info');
         } else {
-          notify(`❌ Lost bet — ${bet.homeTeam} vs ${bet.awayTeam}`, 'loss');
+          notify(`❌ Bahis kaybedildi — ${bet.homeTeam} vs ${bet.awayTeam}`, 'loss');
         }
         return { ...bet, status, result: `${m.homeScore}–${m.awayScore}` };
       });
