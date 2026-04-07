@@ -216,13 +216,28 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       label: 'Alpha\nSports',
       onClick: () => setActiveFilter('sports'),
       icon: (
-        <img
-          src="/football-player.png"
-          alt="Sports"
-          width={28}
-          height={28}
-          style={{ filter: 'invert(1)', objectFit: 'contain', mixBlendMode: 'screen' }}
-        />
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          {/* Head */}
+          <circle cx="19" cy="3.5" r="2.3" fill="white"/>
+          {/* Torso */}
+          <path d="M18 5.8 C17 8 16.2 10.5 15.5 13" stroke="white" strokeWidth="2.4" strokeLinecap="round"/>
+          {/* Left arm — extended toward ball */}
+          <path d="M16.8 8.5 C14 8.5 10.5 8 7.5 7.5" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+          {/* Right arm — back */}
+          <path d="M17.5 8 C20 9 22.5 11 23.5 12.5" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+          {/* Right leg — standing */}
+          <path d="M15.5 13 C15 16 15 19 15.5 22" stroke="white" strokeWidth="2.4" strokeLinecap="round"/>
+          {/* Right foot */}
+          <path d="M15.5 22 C17 22.5 19 22.5 20 22" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+          {/* Left thigh — kicking back */}
+          <path d="M15.5 13 C13 15 10.5 17.5 9 20" stroke="white" strokeWidth="2.4" strokeLinecap="round"/>
+          {/* Left shin — horizontal kick */}
+          <path d="M9 20 C7.5 21 5.5 21.5 4 21.5" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+          {/* Ball — Binance yellow */}
+          <circle cx="6" cy="24.5" r="3" fill="#F0B90B"/>
+          {/* Ball seam */}
+          <path d="M4 24 Q6 23 8 24.5 Q6 26 4 25 Z" fill="#1A1200" opacity="0.3"/>
+        </svg>
       ),
     },
     {
