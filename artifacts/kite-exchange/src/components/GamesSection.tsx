@@ -1188,15 +1188,15 @@ const PITCH_EVENTS: Record<
   NonNullable<LiveMatch['pitchEvent']>['type'],
   { label: string; color: string; icon: string }
 > = {
-  attack:           { label: 'Atak',           color: '#f97316', icon: '→' },
-  dangerous_attack: { label: 'Tehlikeli Atak', color: '#ef4444', icon: '⚡' },
-  ball_play:        { label: 'Topla Oynama',   color: '#22c55e', icon: '⚽' },
-  throw_in:         { label: 'Taç',            color: '#6b7280', icon: '↑' },
-  corner:           { label: 'Korner',         color: '#eab308', icon: '↗' },
-  shot:             { label: 'Şut',            color: '#dc2626', icon: '🎯' },
-  save:             { label: 'Kurtarış',       color: '#3b82f6', icon: '🧤' },
-  foul:             { label: 'Faul',           color: '#8b5cf6', icon: '⛔' },
-  offside:          { label: 'Ofsayt',         color: '#f59e0b', icon: '🚩' },
+  attack:           { label: 'Attack',           color: '#f97316', icon: '→' },
+  dangerous_attack: { label: 'Dangerous Attack', color: '#ef4444', icon: '⚡' },
+  ball_play:        { label: 'Ball Play',         color: '#22c55e', icon: '⚽' },
+  throw_in:         { label: 'Throw-in',          color: '#6b7280', icon: '↑' },
+  corner:           { label: 'Corner',            color: '#eab308', icon: '↗' },
+  shot:             { label: 'Shot',              color: '#dc2626', icon: '🎯' },
+  save:             { label: 'Save',              color: '#3b82f6', icon: '🧤' },
+  foul:             { label: 'Foul',              color: '#8b5cf6', icon: '⛔' },
+  offside:          { label: 'Offside',           color: '#f59e0b', icon: '🚩' },
 };
 
 function FootballPitchViz({ match }: { match: LiveMatch }) {
