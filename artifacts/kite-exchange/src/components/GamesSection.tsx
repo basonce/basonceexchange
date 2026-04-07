@@ -1575,10 +1575,9 @@ export default function GamesSection() {
             };
           });
 
-          // Step 2: inject pinned matches not already in live list
+          // Step 2: inject admin-controlled matches not already in live list (pinned or not)
           const liveKeys = new Set(next.filter(m => m.status === 'live').map(m => `${m.tmpl.homeTeam.name}:${m.tmpl.awayTeam.name}`));
           for (const [key, ctrl] of map.entries()) {
-            if (!ctrl.pinned) continue;
             if (liveKeys.has(key)) continue;
             const tmpl = ALL_MATCHUPS.find(t => `${t.homeTeam.name}:${t.awayTeam.name}` === key);
             if (!tmpl) continue;
@@ -1631,11 +1630,11 @@ export default function GamesSection() {
             });
           }
 
-          // Step 3: pinned always at top
+          // Step 3: admin-controlled matches always at top (pinned first, then other admin, then random)
           next.sort((a, b) => {
-            const ap = a.adminCtrl?.pinned ? 1 : 0;
-            const bp = b.adminCtrl?.pinned ? 1 : 0;
-            return bp - ap;
+            const aScore = a.adminCtrl?.pinned ? 2 : a.adminCtrl ? 1 : 0;
+            const bScore = b.adminCtrl?.pinned ? 2 : b.adminCtrl ? 1 : 0;
+            return bScore - aScore;
           });
 
           return next;
