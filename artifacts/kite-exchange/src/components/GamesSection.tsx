@@ -1357,10 +1357,21 @@ function MyBets({ bets, matches }: { bets: PlacedBet[]; matches: LiveMatch[] }) 
                   alignItems: 'center', gap: 8, marginBottom: 10,
                 }}>
                   <span style={{ fontSize: 13, color: '#EAECEF', fontWeight: 700, lineHeight: 1.2 }}>{bet.homeTeam}</span>
-                  <span style={{
-                    fontSize: 10, color: '#848E9C', fontWeight: 700, padding: '2px 7px',
-                    border: '1px solid #2B3139', borderRadius: 4,
-                  }}>VS</span>
+                  {isOpen && liveMatch ? (
+                    <span style={{
+                      fontSize: 15, color: '#fff', fontWeight: 900, padding: '3px 10px',
+                      background: '#1a2a1a', border: '1px solid #22c55e',
+                      borderRadius: 6, textAlign: 'center', letterSpacing: '0.05em',
+                      lineHeight: 1.2,
+                    }}>
+                      {liveMatch.homeScore}–{liveMatch.awayScore}
+                    </span>
+                  ) : (
+                    <span style={{
+                      fontSize: 10, color: '#848E9C', fontWeight: 700, padding: '2px 7px',
+                      border: '1px solid #2B3139', borderRadius: 4,
+                    }}>VS</span>
+                  )}
                   <span style={{ fontSize: 13, color: '#EAECEF', fontWeight: 700, textAlign: 'right', lineHeight: 1.2 }}>{bet.awayTeam}</span>
                 </div>
 
