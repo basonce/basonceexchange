@@ -216,13 +216,30 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       label: 'Alpha\nSports',
       onClick: () => setActiveFilter('sports'),
       icon: (
-        <img
-          src="/football-player.png"
-          alt="Sports"
-          width={28}
-          height={28}
-          style={{ filter: 'invert(1)', objectFit: 'contain', mixBlendMode: 'screen' }}
-        />
+        <div style={{ position: 'relative', width: 28, height: 28 }}>
+          {/* Goal net behind — Binance yellow */}
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" style={{ position: 'absolute', top: 0, left: 0 }}>
+            {/* Posts + crossbar */}
+            <rect x="2" y="11" width="24" height="15" stroke="#F0B90B" strokeWidth="1.6" fill="none"/>
+            {/* Vertical net lines */}
+            <line x1="7"  y1="11" x2="7"  y2="26" stroke="#F0B90B" strokeWidth="0.55" opacity="0.75"/>
+            <line x1="12" y1="11" x2="12" y2="26" stroke="#F0B90B" strokeWidth="0.55" opacity="0.75"/>
+            <line x1="17" y1="11" x2="17" y2="26" stroke="#F0B90B" strokeWidth="0.55" opacity="0.75"/>
+            <line x1="22" y1="11" x2="22" y2="26" stroke="#F0B90B" strokeWidth="0.55" opacity="0.75"/>
+            {/* Horizontal net lines */}
+            <line x1="2" y1="15.5" x2="26" y2="15.5" stroke="#F0B90B" strokeWidth="0.55" opacity="0.75"/>
+            <line x1="2" y1="20"   x2="26" y2="20"   stroke="#F0B90B" strokeWidth="0.55" opacity="0.75"/>
+            <line x1="2" y1="24.5" x2="26" y2="24.5" stroke="#F0B90B" strokeWidth="0.55" opacity="0.75"/>
+          </svg>
+          {/* Player silhouette on top */}
+          <img
+            src="/football-player.png"
+            alt="Sports"
+            width={28}
+            height={28}
+            style={{ filter: 'invert(1)', objectFit: 'contain', mixBlendMode: 'screen', position: 'relative' }}
+          />
+        </div>
       ),
     },
     {
