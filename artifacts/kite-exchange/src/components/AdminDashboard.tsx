@@ -2084,7 +2084,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         )}
 
         {activeTab === 'matches' && (
-          <MatchControlsPanel adminId={currentUser?.id || ''} />
+          <MatchControlsPanel adminId={FALLBACK_ADMIN} />
         )}
 
         {activeTab === 'analytics' && (
