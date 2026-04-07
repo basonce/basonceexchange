@@ -1046,10 +1046,10 @@ function MyBets({ bets }: { bets: PlacedBet[] }) {
   );
 
   const TABS: { key: typeof filter; label: string; count: number; color: string }[] = [
-    { key: 'all',  label: 'Tümü',    count: bets.length, color: '#F0B90B' },
-    { key: 'open', label: 'Açık',    count: openCount,   color: '#60a5fa' },
-    { key: 'won',  label: 'Kazandı', count: wonCount,    color: '#4ade80' },
-    { key: 'lost', label: 'Kaybetti',count: lostCount,   color: '#f87171' },
+    { key: 'all',  label: 'All',  count: bets.length, color: '#F0B90B' },
+    { key: 'open', label: 'Open', count: openCount,   color: '#60a5fa' },
+    { key: 'won',  label: 'Won',  count: wonCount,    color: '#4ade80' },
+    { key: 'lost', label: 'Lost', count: lostCount,   color: '#f87171' },
   ];
 
   return (
@@ -1065,7 +1065,7 @@ function MyBets({ bets }: { bets: PlacedBet[] }) {
           padding: '12px 14px',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <span style={{ fontSize: 11, color: '#848E9C', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Kupon Özeti</span>
+            <span style={{ fontSize: 11, color: '#848E9C', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Bet Summary</span>
             <span style={{
               fontSize: 13, fontWeight: 900,
               color: netPnl >= 0 ? '#4ade80' : '#f87171',
@@ -1075,9 +1075,9 @@ function MyBets({ bets }: { bets: PlacedBet[] }) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
             {[
-              { label: 'Toplam Risk', val: `${totalStaked.toFixed(2)}`, color: '#94a3b8' },
-              { label: 'Kazanç',      val: `+${totalWon.toFixed(2)}`,   color: '#4ade80' },
-              { label: 'Kayıp',       val: `-${totalLost.toFixed(2)}`,  color: '#f87171' },
+              { label: 'Total Staked', val: `${totalStaked.toFixed(2)}`, color: '#94a3b8' },
+              { label: 'Winnings',    val: `+${totalWon.toFixed(2)}`,   color: '#4ade80' },
+              { label: 'Losses',      val: `-${totalLost.toFixed(2)}`,  color: '#f87171' },
             ].map(({ label, val, color }) => (
               <div key={label} style={{
                 background: '#0B0E11', borderRadius: 8, padding: '7px 8px', textAlign: 'center',
@@ -1120,10 +1120,10 @@ function MyBets({ bets }: { bets: PlacedBet[] }) {
         <div style={{ textAlign: 'center', padding: '32px 16px', color: '#4B5563' }}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>{bets.length === 0 ? '🎟️' : '🔍'}</div>
           <p style={{ fontSize: 13, color: '#4B5563' }}>
-            {bets.length === 0 ? 'Henüz kupon yok' : 'Bu filtrede kupon yok'}
+            {bets.length === 0 ? 'No bets placed yet' : 'No bets match this filter'}
           </p>
           {bets.length === 0 && (
-            <p style={{ fontSize: 11, marginTop: 4, color: '#374151' }}>Bir maç seçip ilk bahsini oyna</p>
+            <p style={{ fontSize: 11, marginTop: 4, color: '#374151' }}>Pick a match and place your first bet</p>
           )}
         </div>
       )}
@@ -1146,12 +1146,12 @@ function MyBets({ bets }: { bets: PlacedBet[] }) {
                 : 'linear-gradient(135deg, #1a160a 0%, #0d1117 100%)';
 
           const statusBadge = isWon
-            ? { bg: '#14532d', color: '#4ade80', text: '▲ KAZANDI' }
+            ? { bg: '#14532d', color: '#4ade80', text: '▲ WON' }
             : isLost
-              ? { bg: '#450a0a', color: '#f87171', text: '▼ KAYBETTİ' }
+              ? { bg: '#450a0a', color: '#f87171', text: '▼ LOST' }
               : isOpen
-                ? { bg: '#1e3a5f', color: '#60a5fa', text: '● AÇIK' }
-                : { bg: '#3b2e00', color: '#F0B90B', text: '↩ İADE' };
+                ? { bg: '#1e3a5f', color: '#60a5fa', text: '● LIVE' }
+                : { bg: '#3b2e00', color: '#F0B90B', text: '↩ REFUND' };
 
           const returnAmt = isWon
             ? `+${bet.potentialWin.toFixed(2)}`
@@ -1231,7 +1231,7 @@ function MyBets({ bets }: { bets: PlacedBet[] }) {
                   border: '1px solid #1a1f2e',
                 }}>
                   <div style={{ padding: '8px 10px' }}>
-                    <div style={{ fontSize: 9, color: '#4B5563', marginBottom: 2, fontWeight: 600 }}>RİSK</div>
+                    <div style={{ fontSize: 9, color: '#4B5563', marginBottom: 2, fontWeight: 600 }}>STAKE</div>
                     <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 800 }}>
                       {bet.amount.toFixed(2)} <span style={{ fontSize: 9, color: '#4B5563' }}>USDT</span>
                     </div>
@@ -1239,7 +1239,7 @@ function MyBets({ bets }: { bets: PlacedBet[] }) {
                   <div style={{ background: '#1a1f2e' }} />
                   <div style={{ padding: '8px 10px', textAlign: 'right' }}>
                     <div style={{ fontSize: 9, color: '#4B5563', marginBottom: 2, fontWeight: 600 }}>
-                      {isOpen ? 'KAZANÇ (TAHMİNİ)' : 'KAZANÇ'}
+                      {isOpen ? 'EST. RETURN' : 'RETURN'}
                     </div>
                     <div style={{ fontSize: 13, color: returnColor, fontWeight: 800 }}>
                       {returnAmt} <span style={{ fontSize: 9, color: '#4B5563' }}>USDT</span>
