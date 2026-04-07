@@ -57,6 +57,8 @@ interface MatchControl {
   awayTeam: string;
   targetResult?: '1' | 'X' | '2';
   targetScore?: { h: number; a: number };
+  targetTotal?: number;
+  startedAt?: number;
   pinned: boolean;
   createdAt: number;
 }
@@ -79,19 +81,39 @@ router.post('/admin/match-controls', (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  const { homeTeam, awayTeam, targetResult, targetScore, pinned } = req.body;
+  const { homeTeam, awayTeam, targetResult, targetScore, targetTotal, pinned, resetMatch } = req.body;
   if (!homeTeam || !awayTeam) {
     return res.status(400).json({ error: 'homeTeam and awayTeam required' });
   }
 
   const key = `${homeTeam.trim()}:${awayTeam.trim()}`;
   const existing = matchControls.get(key);
+
+  // Compute targetScore from targetTotal + targetResult if targetTotal supplied
+  let computedScore: { h: number; a: number } | undefined = targetScore || undefined;
+  if (targetTotal && Number(targetTotal) > 0) {
+    const tot = Number(targetTotal);
+    const res2 = targetResult || 'X';
+    if (res2 === 'X') {
+      const half = Math.floor(tot / 2);
+      computedScore = { h: half, a: half };
+    } else if (res2 === '1') {
+      const a = Math.max(0, Math.floor((tot - 1) / 2));
+      computedScore = { h: tot - a, a };
+    } else {
+      const h = Math.max(0, Math.floor((tot - 1) / 2));
+      computedScore = { h, a: tot - h };
+    }
+  }
+
   const ctrl: MatchControl = {
     id: existing?.id || genId(),
     homeTeam: homeTeam.trim(),
     awayTeam: awayTeam.trim(),
     targetResult: targetResult || undefined,
-    targetScore: targetScore || undefined,
+    targetScore: computedScore,
+    targetTotal: targetTotal ? Number(targetTotal) : undefined,
+    startedAt: resetMatch ? Date.now() : (existing?.startedAt),
     pinned: !!pinned,
     createdAt: existing?.createdAt || Date.now(),
   };

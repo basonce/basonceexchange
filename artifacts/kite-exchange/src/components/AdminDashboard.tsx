@@ -804,6 +804,8 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
   const [scoreH, setScoreH]             = useState('2');
   const [scoreA, setScoreA]             = useState('1');
   const [pinned, setPinned]             = useState(false);
+  const [totalTarget, setTotalTarget]   = useState(0);   // 0 = kapalı
+  const [resetMatch, setResetMatch]     = useState(false);
 
   function showToast(msg: string, ok: boolean) {
     setToast({ msg, ok });
@@ -838,6 +840,7 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
   function resetForm() {
     setHomeTeam(''); setAwayTeam(''); setPinned(false); setMode('result');
     setTargetResult('1'); setScoreH('2'); setScoreA('1');
+    setTotalTarget(0); setResetMatch(false);
   }
 
   function handleTeamClick(name: string) {
@@ -867,6 +870,11 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
         const h = parseInt(scoreH, 10), a = parseInt(scoreA, 10);
         if (!isNaN(h) && !isNaN(a)) body.targetScore = { h, a };
       }
+      if (totalTarget > 0) {
+        body.targetTotal = totalTarget;
+        if (mode === 'result') body.targetResult = targetResult;
+      }
+      if (resetMatch) body.resetMatch = true;
       const res = await fetch(MATCH_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-requester-id': aid },
@@ -875,8 +883,7 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
       if (res.ok) {
         resetForm();
         await load();
-        showToast('Kontrol uygulandı ✓', true);
-        // Keep form open for quick next entry — don't close
+        showToast(resetMatch ? '⚽ Maç başlatıldı (0-0) ✓' : 'Kontrol uygulandı ✓', true);
       } else {
         showToast('Kaydetme başarısız', false);
       }
@@ -1307,6 +1314,61 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
                 </div>
               </div>
             )}
+
+            {/* ── ALT/ÜST HEDEFİ ── */}
+            <p style={{ fontSize: 10, fontWeight: 800, color: '#374151', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6, marginTop: 4 }}>
+              4. Alt/Üst Hedefi &nbsp;<span style={{ fontSize: 10, color: '#6B7280', textTransform: 'none', fontWeight: 600 }}>(opsiyonel — 0-0'dan kademeli ilerleme)</span>
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 8 }}>
+              <button onClick={() => setTotalTarget(0)} style={{
+                padding: '7px 2px', borderRadius: 7, cursor: 'pointer', fontWeight: 800, fontSize: 10,
+                background: totalTarget === 0 ? '#E5E7EB' : '#fff',
+                border: `1px solid ${totalTarget === 0 ? '#9CA3AF' : '#E5E7EB'}`,
+                color: totalTarget === 0 ? '#374151' : '#9CA3AF',
+              }}>Kapalı</button>
+              {[2, 3, 4, 5, 6, 7].map(goals => {
+                const line = goals - 0.5;
+                const active = totalTarget === goals;
+                return (
+                  <button key={goals} onClick={() => setTotalTarget(goals)} style={{
+                    padding: '7px 2px', borderRadius: 7, cursor: 'pointer', fontWeight: 800, fontSize: 10,
+                    background: active ? '#111827' : '#fff',
+                    border: `2px solid ${active ? '#F0B90B' : '#E5E7EB'}`,
+                    color: active ? '#F0B90B' : '#374151',
+                  }}>O {line}</button>
+                );
+              })}
+            </div>
+            {totalTarget > 0 && (
+              <div style={{
+                background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8,
+                padding: '7px 10px', marginBottom: 10, fontSize: 11, fontWeight: 700, color: '#166534',
+              }}>
+                ⚽ Hedef: {totalTarget} gol toplam · {
+                  mode === 'result'
+                    ? `${MC_RESULT_LABELS[targetResult]} sonucu ile`
+                    : `${scoreH}–${scoreA} final skoru`
+                } → Skor 0-0'dan kademeli ilerleyecek
+              </div>
+            )}
+
+            {/* ── MAÇI SIFIRLA (0-0 BAŞLAT) ── */}
+            <button onClick={() => setResetMatch(v => !v)} style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+              background: resetMatch ? '#F0FDF4' : '#fff',
+              border: `1px solid ${resetMatch ? '#86EFAC' : '#E5E7EB'}`,
+              marginBottom: 10,
+            }}>
+              <span style={{ fontSize: 18, flexShrink: 0 }}>🟢</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>Maçı 0-0 Başlat</div>
+                <div style={{ fontSize: 11, color: '#374151', fontWeight: 600 }}>Skor sıfırlanır, maç 1. dakikadan başlar ve belirlenen hedefe kademe kademe ilerler</div>
+              </div>
+              <div style={{ width: 40, height: 22, borderRadius: 11, padding: '2px', background: resetMatch ? '#16a34a' : '#E5E7EB', transition: 'background 0.2s', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transform: resetMatch ? 'translateX(18px)' : 'translateX(0)', transition: 'transform 0.2s' }} />
+              </div>
+            </button>
 
             {/* Pin toggle */}
             <button onClick={() => setPinned(v => !v)} style={{

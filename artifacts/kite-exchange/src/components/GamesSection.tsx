@@ -11,7 +11,11 @@ interface TotalOdds { line: number; over: number; under: number }
 interface AdminCtrl {
   targetResult?: '1' | 'X' | '2';
   targetScore?: { h: number; a: number };
+  targetTotal?: number;
+  startedAt?: number;
   pinned: boolean;
+  scheduledGoals?: Array<{ minute: number; side: 'home' | 'away' }>;
+  scheduleKey?: string;
 }
 
 type OddsDir = 'up' | 'down' | 'same';
@@ -232,11 +236,44 @@ function buildExtMarkets(hs: number, as_: number, w1: number, xo: number, w2: nu
 }
 
 function dynamicOULine(total: number, baseLine: number): number {
-  // Line should always be above current total goals + 0.5 (meaningful bet)
-  // but keep it natural-looking: jump in 0.5 steps
   const minLine = total + 0.5;
-  const candidate = Math.ceil(minLine * 2) / 2; // round up to next 0.5
+  const candidate = Math.ceil(minLine * 2) / 2;
   return Math.max(candidate, baseLine);
+}
+
+/* Returns the O/U display line for a given target total goals */
+function ouLineFromTarget(targetTot: number): number {
+  return Math.max(0.5, targetTot - 0.5);
+}
+
+/* Distributes goals across the remaining minutes for admin-controlled matches */
+function generateScheduledGoals(
+  target: { h: number; a: number },
+  currentH: number,
+  currentA: number,
+  fromMinute: number,
+): Array<{ minute: number; side: 'home' | 'away' }> {
+  const homeNeeded = Math.max(0, target.h - currentH);
+  const awayNeeded = Math.max(0, target.a - currentA);
+  const total = homeNeeded + awayNeeded;
+  if (total === 0) return [];
+
+  const sides: Array<'home' | 'away'> = [
+    ...Array(homeNeeded).fill('home' as const),
+    ...Array(awayNeeded).fill('away' as const),
+  ].sort(() => Math.random() - 0.5);
+
+  const window = Math.max(total * 2, 88 - fromMinute);
+  const interval = window / (total + 1);
+  const used = new Set<number>();
+
+  return sides.map((side, i) => {
+    let min = Math.round(fromMinute + interval * (i + 1) + (Math.random() - 0.5) * interval * 0.7);
+    min = Math.max(fromMinute + 1, Math.min(88, min));
+    while (used.has(min) && min < 88) min++;
+    used.add(min);
+    return { minute: min, side };
+  });
 }
 
 function buildMatch(tmpl: MatchTemplate, idx: number): LiveMatch {
@@ -1412,10 +1449,16 @@ export default function GamesSection() {
       try {
         const res = await fetch('/api-server/api/admin/match-controls', { cache: 'no-store' });
         if (!res.ok) return;
-        const data: Array<{ homeTeam: string; awayTeam: string; targetResult?: '1'|'X'|'2'; targetScore?: {h:number;a:number}; pinned: boolean }> = await res.json();
+        const data: Array<{ homeTeam: string; awayTeam: string; targetResult?: '1'|'X'|'2'; targetScore?: {h:number;a:number}; targetTotal?: number; startedAt?: number; pinned: boolean }> = await res.json();
         const map = new Map<string, AdminCtrl>();
         for (const c of data) {
-          map.set(`${c.homeTeam}:${c.awayTeam}`, { targetResult: c.targetResult, targetScore: c.targetScore, pinned: c.pinned });
+          map.set(`${c.homeTeam}:${c.awayTeam}`, {
+            targetResult: c.targetResult,
+            targetScore: c.targetScore,
+            targetTotal: c.targetTotal,
+            startedAt: c.startedAt,
+            pinned: c.pinned,
+          });
         }
         controlsRef.current = map;
 
@@ -1425,11 +1468,46 @@ export default function GamesSection() {
             const key = `${m.tmpl.homeTeam.name}:${m.tmpl.awayTeam.name}`;
             const ctrl = map.get(key);
             if (!ctrl) return m.adminCtrl ? { ...m, adminCtrl: undefined } : m;
-            // If targetScore changed, snap score immediately
-            const scoreSnap = ctrl.targetScore
-              ? { homeScore: ctrl.targetScore.h, awayScore: ctrl.targetScore.a }
-              : {};
-            return { ...m, ...scoreSnap, adminCtrl: ctrl };
+
+            const prevStartedAt = m.adminCtrl?.startedAt;
+            const startedAtChanged = ctrl.startedAt && ctrl.startedAt !== prevStartedAt;
+
+            // If startedAt changed → hard reset match to 0-0 at minute 1 with fresh schedule
+            if (startedAtChanged && ctrl.targetScore) {
+              const ts = ctrl.targetScore;
+              const schedKey = `${ts.h}-${ts.a}-${ctrl.startedAt}`;
+              const scheduled = generateScheduledGoals(ts, 0, 0, 1);
+              const ouLine = ouLineFromTarget(ts.h + ts.a);
+              return {
+                ...m,
+                homeScore: 0, awayScore: 0, minute: 1, half: 1, goalEvents: [],
+                status: 'live' as const,
+                totalOdds: { ...m.totalOdds, line: ouLine },
+                adminCtrl: { ...ctrl, scheduledGoals: scheduled, scheduleKey: schedKey },
+              };
+            }
+
+            // Fix O/U line to match target if not yet correct
+            let updatedTotalOdds = m.totalOdds;
+            if (ctrl.targetScore) {
+              const ouLine = ouLineFromTarget(ctrl.targetScore.h + ctrl.targetScore.a);
+              if (m.totalOdds.line !== ouLine) {
+                updatedTotalOdds = { ...m.totalOdds, line: ouLine };
+              }
+            }
+
+            // Preserve existing scheduledGoals unless adminCtrl changed
+            const existingSchedule = m.adminCtrl?.scheduledGoals;
+            const existingScheduleKey = m.adminCtrl?.scheduleKey;
+            return {
+              ...m,
+              totalOdds: updatedTotalOdds,
+              adminCtrl: {
+                ...ctrl,
+                scheduledGoals: existingSchedule,
+                scheduleKey: existingScheduleKey,
+              },
+            };
           });
 
           // Step 2: inject pinned matches not already in live list
@@ -1437,16 +1515,36 @@ export default function GamesSection() {
           for (const [key, ctrl] of map.entries()) {
             if (!ctrl.pinned) continue;
             if (liveKeys.has(key)) continue;
-            // Find template in ALL_MATCHUPS
             const tmpl = ALL_MATCHUPS.find(t => `${t.homeTeam.name}:${t.awayTeam.name}` === key);
             if (!tmpl) continue;
             counter.current++;
             const nm = buildMatch(tmpl, counter.current);
-            // Snap to targetScore immediately if set
-            const snapped: LiveMatch = ctrl.targetScore
-              ? { ...nm, homeScore: ctrl.targetScore.h, awayScore: ctrl.targetScore.a, adminCtrl: ctrl }
-              : { ...nm, adminCtrl: ctrl };
-            next = [snapped, ...next];
+
+            let injectedMatch: LiveMatch;
+            if (ctrl.targetScore) {
+              const ts = ctrl.targetScore;
+              const ouLine = ouLineFromTarget(ts.h + ts.a);
+              if (ctrl.startedAt) {
+                // Fresh start: 0-0 at minute 1 with goal schedule
+                const schedKey = `${ts.h}-${ts.a}-${ctrl.startedAt}`;
+                const scheduled = generateScheduledGoals(ts, 0, 0, 1);
+                injectedMatch = {
+                  ...nm, homeScore: 0, awayScore: 0, minute: 1, half: 1, goalEvents: [],
+                  totalOdds: { ...nm.totalOdds, line: ouLine },
+                  adminCtrl: { ...ctrl, scheduledGoals: scheduled, scheduleKey: schedKey },
+                };
+              } else {
+                // Legacy: snap to target score immediately
+                injectedMatch = {
+                  ...nm, homeScore: ts.h, awayScore: ts.a,
+                  totalOdds: { ...nm.totalOdds, line: ouLine },
+                  adminCtrl: ctrl,
+                };
+              }
+            } else {
+              injectedMatch = { ...nm, adminCtrl: ctrl };
+            }
+            next = [injectedMatch, ...next];
           }
 
           // Step 3: pinned always at top
@@ -1588,8 +1686,34 @@ export default function GamesSection() {
             const minsLeft = 90 - mm.minute;
             if (ctrl.targetScore !== undefined) {
               const ts = ctrl.targetScore;
-              // Always snap to exact target score immediately
-              mm = { ...mm, homeScore: ts.h, awayScore: ts.a };
+              const schedKey = `${ts.h}-${ts.a}-${ctrl.startedAt ?? 'x'}`;
+
+              if (!ctrl.scheduledGoals || ctrl.scheduleKey !== schedKey) {
+                // Lazy-init: generate goal schedule on first tick
+                const scheduled = generateScheduledGoals(ts, mm.homeScore, mm.awayScore, mm.minute);
+                mm = { ...mm, adminCtrl: { ...ctrl, scheduledGoals: scheduled, scheduleKey } };
+              } else {
+                const goalsLeft = (ts.h - mm.homeScore) + (ts.a - mm.awayScore);
+                const due = ctrl.scheduledGoals.find(g => g.minute === mm.minute);
+                if (due && goalsLeft > 0) {
+                  // Use scheduled side, but fall back if that team already met quota
+                  const finalSide: 'home' | 'away' =
+                    (due.side === 'home' && mm.homeScore < ts.h) ? 'home' :
+                    (due.side === 'away' && mm.awayScore < ts.a) ? 'away' :
+                    mm.homeScore < ts.h ? 'home' : 'away';
+                  scoringSide = finalSide;
+                  mm = {
+                    ...mm,
+                    homeScore: finalSide === 'home' ? mm.homeScore + 1 : mm.homeScore,
+                    awayScore: finalSide === 'away' ? mm.awayScore + 1 : mm.awayScore,
+                    goalFlash: finalSide, flashTs: now,
+                  };
+                }
+                // Hard guarantee: force remaining goals by minute 88
+                if (mm.minute >= 88 && (mm.homeScore !== ts.h || mm.awayScore !== ts.a)) {
+                  mm = { ...mm, homeScore: ts.h, awayScore: ts.a };
+                }
+              }
             } else if (ctrl.targetResult && minsLeft <= 3) {
               // Result-only: force minimal score adjustment at end
               const h = mm.homeScore, a = mm.awayScore;
