@@ -60,6 +60,46 @@ async function ensureTable() {
       created_at    BIGINT NOT NULL
     )
   `);
+  // Grant anon/authenticated access so Supabase REST API works from frontend
+  await pool.query(`GRANT ALL ON TABLE sport_match_controls TO anon, authenticated`).catch(() => {});
+  await pool.query(`ALTER TABLE sport_match_controls ENABLE ROW LEVEL SECURITY`).catch(() => {});
+  await pool.query(`
+    DO $$ BEGIN
+      BEGIN
+        CREATE POLICY "smc_select_all" ON sport_match_controls FOR SELECT USING (true);
+      EXCEPTION WHEN duplicate_object THEN NULL; END;
+      BEGIN
+        CREATE POLICY "smc_all_admin" ON sport_match_controls FOR ALL USING (true) WITH CHECK (true);
+      EXCEPTION WHEN duplicate_object THEN NULL; END;
+    END $$
+  `).catch(() => {});
+  // Notify PostgREST to reload schema so Supabase REST API can see the table
+  await pool.query(`NOTIFY pgrst, 'reload schema'`).catch(() => {});
+  // Set up storage policies for sport-controls bucket (allow authenticated writes, public reads)
+  await pool.query(`
+    DO $$ BEGIN
+      BEGIN
+        CREATE POLICY "sport_controls_read" ON storage.objects
+          FOR SELECT USING (bucket_id = 'sport-controls');
+      EXCEPTION WHEN duplicate_object THEN NULL; END;
+      BEGIN
+        CREATE POLICY "sport_controls_write" ON storage.objects
+          FOR INSERT TO authenticated
+          WITH CHECK (bucket_id = 'sport-controls');
+      EXCEPTION WHEN duplicate_object THEN NULL; END;
+      BEGIN
+        CREATE POLICY "sport_controls_update" ON storage.objects
+          FOR UPDATE TO authenticated
+          USING (bucket_id = 'sport-controls')
+          WITH CHECK (bucket_id = 'sport-controls');
+      EXCEPTION WHEN duplicate_object THEN NULL; END;
+      BEGIN
+        CREATE POLICY "sport_controls_delete" ON storage.objects
+          FOR DELETE TO authenticated
+          USING (bucket_id = 'sport-controls');
+      EXCEPTION WHEN duplicate_object THEN NULL; END;
+    END $$
+  `).catch(() => {});
   tableReady = true;
 }
 

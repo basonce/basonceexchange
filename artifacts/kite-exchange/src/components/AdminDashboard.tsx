@@ -720,12 +720,32 @@ interface MatchCtrl {
   awayTeam: string;
   targetResult?: '1' | 'X' | '2';
   targetScore?: { h: number; a: number };
+  targetTotal?: number;
+  startedAt?: number;
   pinned: boolean;
   createdAt: number;
 }
 
-const MATCH_API = '/api-server/api/admin/match-controls';
 const FALLBACK_ADMIN = '88292f59-898a-4fef-a1c8-8813d7b60b61';
+const CTRL_BUCKET = 'sport-controls';
+const CTRL_FILE = 'controls.json';
+const CTRL_PUBLIC_URL = `https://jfjjymprvjfltpvmfptj.supabase.co/storage/v1/object/public/${CTRL_BUCKET}/${CTRL_FILE}`;
+
+async function readStorageControls(): Promise<MatchCtrl[]> {
+  try {
+    const res = await fetch(`${CTRL_PUBLIC_URL}?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch { return []; }
+}
+
+async function writeStorageControls(controls: MatchCtrl[]) {
+  const blob = new Blob([JSON.stringify(controls)], { type: 'application/json' });
+  const { error } = await supabase.storage.from(CTRL_BUCKET).upload(CTRL_FILE, blob, {
+    contentType: 'application/json', upsert: true,
+  });
+  if (error) throw new Error(error.message);
+}
 const MC_RESULT_COLORS: Record<string, string> = { '1': '#3B82F6', 'X': '#0ECB81', '2': '#F6465D' };
 const MC_RESULT_LABELS: Record<string, string> = { '1': 'Ev Galibi', 'X': 'Beraberlik', '2': 'Deplasman' };
 
@@ -782,15 +802,18 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
     const key = `${homeTeam}:${awayTeam}:${targetResult}`;
     setApplyingExposure(key);
     try {
-      const aid = adminId || FALLBACK_ADMIN;
-      await fetch(MATCH_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-requester-id': aid },
-        body: JSON.stringify({ homeTeam, awayTeam, pinned: false, targetResult }),
-      });
+      const existing = await readStorageControls();
+      const matchKey = `${homeTeam}:${awayTeam}`;
+      const prev = existing.find(c => `${c.homeTeam}:${c.awayTeam}` === matchKey);
+      const ctrl: MatchCtrl = {
+        id: prev?.id || Math.random().toString(36).slice(2, 10),
+        homeTeam, awayTeam, pinned: false, targetResult,
+        createdAt: prev?.createdAt || Date.now(),
+      };
+      await writeStorageControls([...existing.filter(c => `${c.homeTeam}:${c.awayTeam}` !== matchKey), ctrl]);
       await load();
       showToast(`Kontrol eklendi: ${homeTeam} vs ${awayTeam}`, true);
-    } catch { showToast('Hata', false); }
+    } catch (e: any) { showToast('Hata: ' + e.message, false); }
     setApplyingExposure(null);
   }
 
@@ -816,8 +839,8 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
   async function load(manual = false) {
     if (manual) setRefreshing(true);
     try {
-      const res = await fetch(MATCH_API, { cache: 'no-store' });
-      if (res.ok) setControls(await res.json());
+      const ctrls = await readStorageControls();
+      setControls(ctrls);
     } catch {}
     setLoading(false);
     setRefreshing(false);
@@ -862,42 +885,36 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
     if (!homeTeam || !awayTeam) return;
     setSaving(true);
     try {
-      const aid = adminId || FALLBACK_ADMIN;
-      const body: Record<string, unknown> = { homeTeam, awayTeam, pinned };
-      if (mode === 'result') {
-        body.targetResult = targetResult;
-      } else {
+      const existing = await readStorageControls();
+      const matchKey = `${homeTeam}:${awayTeam}`;
+      const now = Date.now();
+      const prev = existing.find(c => `${c.homeTeam}:${c.awayTeam}` === matchKey);
+      const ctrl: MatchCtrl = {
+        id: prev?.id || Math.random().toString(36).slice(2, 10),
+        homeTeam, awayTeam, pinned,
+        createdAt: prev?.createdAt || now,
+      };
+      if (mode === 'result') ctrl.targetResult = targetResult;
+      else {
         const h = parseInt(scoreH, 10), a = parseInt(scoreA, 10);
-        if (!isNaN(h) && !isNaN(a)) body.targetScore = { h, a };
+        if (!isNaN(h) && !isNaN(a)) ctrl.targetScore = { h, a };
       }
-      if (totalTarget > 0) {
-        body.targetTotal = totalTarget;
-        if (mode === 'result') body.targetResult = targetResult;
-      }
-      if (resetMatch) body.resetMatch = true;
-      const res = await fetch(MATCH_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-requester-id': aid },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) {
-        resetForm();
-        await load();
-        // Signal GamesSection to refresh immediately (don't wait for 10s poll)
-        window.dispatchEvent(new Event('admin-control-updated'));
-        showToast(resetMatch ? '⚽ Maç başlatıldı (0-0) ✓' : 'Kontrol uygulandı ✓', true);
-      } else {
-        showToast('Kaydetme başarısız', false);
-      }
-    } catch { showToast('Ağ hatası', false); }
+      if (totalTarget > 0) { ctrl.targetTotal = totalTarget; if (mode === 'result') ctrl.targetResult = targetResult; }
+      if (resetMatch) ctrl.startedAt = now;
+      await writeStorageControls([...existing.filter(c => `${c.homeTeam}:${c.awayTeam}` !== matchKey), ctrl]);
+      resetForm();
+      await load();
+      window.dispatchEvent(new Event('admin-control-updated'));
+      showToast(resetMatch ? '⚽ Maç başlatıldı (0-0) ✓' : 'Kontrol uygulandı ✓', true);
+    } catch (e: any) { showToast('Hata: ' + e.message, false); }
     setSaving(false);
   }
 
   async function handleDelete(id: string) {
     setDeletingId(id);
     try {
-      const aid = adminId || FALLBACK_ADMIN;
-      await fetch(`${MATCH_API}/${id}`, { method: 'DELETE', headers: { 'x-requester-id': aid } });
+      const existing = await readStorageControls();
+      await writeStorageControls(existing.filter(c => c.id !== id));
       await load();
       showToast('Silindi', true);
     } catch {}

@@ -1579,9 +1579,9 @@ export default function GamesSection() {
   useEffect(() => {
     async function fetchControls() {
       try {
-        const res = await fetch('/api-server/api/admin/match-controls', { cache: 'no-store' });
-        if (!res.ok) return;
-        const data: Array<{ homeTeam: string; awayTeam: string; targetResult?: '1'|'X'|'2'; targetScore?: {h:number;a:number}; targetTotal?: number; startedAt?: number; pinned: boolean }> = await res.json();
+        const CTRL_URL = 'https://jfjjymprvjfltpvmfptj.supabase.co/storage/v1/object/public/sport-controls/controls.json';
+        const res = await fetch(`${CTRL_URL}?t=${Date.now()}`, { cache: 'no-store' });
+        const data: Array<{ homeTeam: string; awayTeam: string; targetResult?: '1'|'X'|'2'; targetScore?: {h:number;a:number}; targetTotal?: number; startedAt?: number; pinned: boolean }> = res.ok ? await res.json() : [];
         const map = new Map<string, AdminCtrl>();
         for (const c of data) {
           map.set(`${c.homeTeam}:${c.awayTeam}`, {

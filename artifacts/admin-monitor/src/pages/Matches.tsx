@@ -1,9 +1,27 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'wouter';
-import { supabase } from '../lib/supabase';
+import { supabase, ensureAdminAuth } from '../lib/supabase';
 
 const ADMIN_ID = '88292f59-898a-4fef-a1c8-8813d7b60b61';
-const API = '/api-server/api/admin/match-controls';
+const CTRL_BUCKET = 'sport-controls';
+const CTRL_FILE = 'controls.json';
+const CTRL_PUBLIC_URL = `https://jfjjymprvjfltpvmfptj.supabase.co/storage/v1/object/public/${CTRL_BUCKET}/${CTRL_FILE}`;
+
+async function readStorageControls(): Promise<MatchControl[]> {
+  try {
+    const res = await fetch(`${CTRL_PUBLIC_URL}?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch { return []; }
+}
+
+async function writeStorageControls(supabaseClient: typeof supabase, controls: MatchControl[]) {
+  const blob = new Blob([JSON.stringify(controls)], { type: 'application/json' });
+  const { error } = await supabaseClient.storage.from(CTRL_BUCKET).upload(CTRL_FILE, blob, {
+    contentType: 'application/json', upsert: true,
+  });
+  if (error) throw new Error(error.message);
+}
 
 interface MatchControl {
   id: string;
@@ -69,11 +87,9 @@ export default function Matches() {
   const load = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
     try {
-      const res = await fetch(API, { cache: 'no-store' });
-      if (res.ok) {
-        setControls(await res.json());
-        setLastRefresh(Date.now());
-      }
+      const ctrls = await readStorageControls();
+      setControls(ctrls);
+      setLastRefresh(Date.now());
     } catch {}
     setLoading(false);
     setRefreshing(false);
@@ -89,48 +105,36 @@ export default function Matches() {
     if (!homeTeam.trim() || !awayTeam.trim()) return;
     setSaving(true);
     try {
-      const adminId = await getAdminId();
-      const body: Record<string, unknown> = {
-        homeTeam: homeTeam.trim(),
-        awayTeam: awayTeam.trim(),
-        pinned,
+      await ensureAdminAuth();
+      const existing = await readStorageControls();
+      const matchKey = `${homeTeam.trim()}:${awayTeam.trim()}`;
+      const now = Date.now();
+      const prev = existing.find(c => `${c.homeTeam}:${c.awayTeam}` === matchKey);
+      const h = parseInt(scoreH, 10), a = parseInt(scoreA, 10);
+      const ctrl: MatchControl = {
+        id: prev?.id || Math.random().toString(36).slice(2, 10),
+        homeTeam: homeTeam.trim(), awayTeam: awayTeam.trim(), pinned,
+        targetResult: mode === 'result' ? targetResult : undefined,
+        targetScore: mode === 'score' && !isNaN(h) && !isNaN(a) ? { h, a } : undefined,
+        createdAt: prev?.createdAt || now,
       };
-      if (mode === 'result') {
-        body.targetResult = targetResult;
-      } else {
-        const h = parseInt(scoreH, 10);
-        const a = parseInt(scoreA, 10);
-        if (!isNaN(h) && !isNaN(a)) body.targetScore = { h, a };
-      }
-      const res = await fetch(API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-requester-id': adminId },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) {
-        setShowForm(false);
-        setHomeTeam(''); setAwayTeam(''); setPinned(false); setMode('result');
-        await load();
-        showToast('Match control applied ✓', 'ok');
-      } else {
-        showToast('Failed to save control', 'err');
-      }
-    } catch { showToast('Network error', 'err'); }
+      await writeStorageControls(supabase, [...existing.filter(c => `${c.homeTeam}:${c.awayTeam}` !== matchKey), ctrl]);
+      setShowForm(false);
+      setHomeTeam(''); setAwayTeam(''); setPinned(false); setMode('result');
+      await load();
+      showToast('Match control applied ✓', 'ok');
+    } catch (e: any) { showToast('Error: ' + e.message, 'err'); }
     setSaving(false);
   }
 
   async function handleDelete(id: string) {
     setDeletingId(id);
     try {
-      const adminId = await getAdminId();
-      const res = await fetch(`${API}/${id}`, {
-        method: 'DELETE',
-        headers: { 'x-requester-id': adminId },
-      });
-      if (res.ok) {
-        await load();
-        showToast('Control removed', 'ok');
-      }
+      await ensureAdminAuth();
+      const existing = await readStorageControls();
+      await writeStorageControls(supabase, existing.filter(c => c.id !== id));
+      await load();
+      showToast('Control removed', 'ok');
     } catch {}
     setDeletingId(null);
   }
