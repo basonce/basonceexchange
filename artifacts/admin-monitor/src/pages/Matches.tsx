@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'wouter';
-import { supabase, ensureAdminAuth } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 const ADMIN_ID = '88292f59-898a-4fef-a1c8-8813d7b60b61';
 const CTRL_BUCKET = 'sport-controls';
@@ -15,12 +15,16 @@ async function readStorageControls(): Promise<MatchControl[]> {
   } catch { return []; }
 }
 
-async function writeStorageControls(supabaseClient: typeof supabase, controls: MatchControl[]) {
-  const blob = new Blob([JSON.stringify(controls)], { type: 'application/json' });
-  const { error } = await supabaseClient.storage.from(CTRL_BUCKET).upload(CTRL_FILE, blob, {
-    contentType: 'application/json', upsert: true,
+async function writeStorageControls(controls: MatchControl[], adminId: string) {
+  const res = await fetch('/api-server/api/sport/controls', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'x-requester-id': adminId },
+    body: JSON.stringify(controls),
   });
-  if (error) throw new Error(error.message);
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(text);
+  }
 }
 
 interface MatchControl {
@@ -105,7 +109,6 @@ export default function Matches() {
     if (!homeTeam.trim() || !awayTeam.trim()) return;
     setSaving(true);
     try {
-      await ensureAdminAuth();
       const existing = await readStorageControls();
       const matchKey = `${homeTeam.trim()}:${awayTeam.trim()}`;
       const now = Date.now();
@@ -118,7 +121,7 @@ export default function Matches() {
         targetScore: mode === 'score' && !isNaN(h) && !isNaN(a) ? { h, a } : undefined,
         createdAt: prev?.createdAt || now,
       };
-      await writeStorageControls(supabase, [...existing.filter(c => `${c.homeTeam}:${c.awayTeam}` !== matchKey), ctrl]);
+      await writeStorageControls([...existing.filter(c => `${c.homeTeam}:${c.awayTeam}` !== matchKey), ctrl], ADMIN_ID);
       setShowForm(false);
       setHomeTeam(''); setAwayTeam(''); setPinned(false); setMode('result');
       await load();
@@ -130,9 +133,8 @@ export default function Matches() {
   async function handleDelete(id: string) {
     setDeletingId(id);
     try {
-      await ensureAdminAuth();
       const existing = await readStorageControls();
-      await writeStorageControls(supabase, existing.filter(c => c.id !== id));
+      await writeStorageControls(existing.filter(c => c.id !== id), ADMIN_ID);
       await load();
       showToast('Control removed', 'ok');
     } catch {}

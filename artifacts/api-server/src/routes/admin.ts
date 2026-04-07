@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import pg from "pg";
+import { createClient } from '@supabase/supabase-js';
 
 const router: IRouter = Router();
 
@@ -185,6 +186,44 @@ async function deleteControlFromDB(key: string) {
 function genId() {
   return Math.random().toString(36).slice(2, 10);
 }
+
+/* ══════════════════════════════════════════════════════════
+   STORAGE CONTROLS — read/write controls.json via service role
+══════════════════════════════════════════════════════════ */
+const CTRL_BUCKET = 'sport-controls';
+const CTRL_FILE = 'controls.json';
+
+function getAdminSupabase() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY not configured');
+  return createClient(SUPABASE_URL, key, { auth: { persistSession: false } });
+}
+
+async function writeStorageWithServiceRole(controls: MatchControl[]) {
+  const client = getAdminSupabase();
+  const blob = new Blob([JSON.stringify(controls)], { type: 'application/json' });
+  const { error } = await client.storage.from(CTRL_BUCKET).upload(CTRL_FILE, blob, {
+    contentType: 'application/json', upsert: true,
+  });
+  if (error) throw new Error(`Storage write failed: ${error.message}`);
+}
+
+/* PUT /sport/controls — admin writes full controls list to storage */
+router.put('/sport/controls', async (req, res) => {
+  const requesterId = req.headers['x-requester-id'] as string;
+  if (!requesterId || !ADMIN_UUIDS.has(requesterId)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  try {
+    const controls: MatchControl[] = req.body;
+    if (!Array.isArray(controls)) return res.status(400).json({ error: 'body must be array' });
+    await writeStorageWithServiceRole(controls);
+    return res.json({ ok: true });
+  } catch (e: any) {
+    console.error('[sport/controls PUT]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
 
 /* GET /admin/match-controls — public (kite-exchange reads this) */
 router.get('/admin/match-controls', async (_req, res) => {

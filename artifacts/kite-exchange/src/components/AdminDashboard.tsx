@@ -739,12 +739,17 @@ async function readStorageControls(): Promise<MatchCtrl[]> {
   } catch { return []; }
 }
 
-async function writeStorageControls(controls: MatchCtrl[]) {
-  const blob = new Blob([JSON.stringify(controls)], { type: 'application/json' });
-  const { error } = await supabase.storage.from(CTRL_BUCKET).upload(CTRL_FILE, blob, {
-    contentType: 'application/json', upsert: true,
+async function writeStorageControls(controls: MatchCtrl[], adminId?: string) {
+  const aid = adminId || FALLBACK_ADMIN;
+  const res = await fetch('/api-server/api/sport/controls', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'x-requester-id': aid },
+    body: JSON.stringify(controls),
   });
-  if (error) throw new Error(error.message);
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(text);
+  }
 }
 const MC_RESULT_COLORS: Record<string, string> = { '1': '#3B82F6', 'X': '#0ECB81', '2': '#F6465D' };
 const MC_RESULT_LABELS: Record<string, string> = { '1': 'Ev Galibi', 'X': 'Beraberlik', '2': 'Deplasman' };
@@ -810,7 +815,7 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
         homeTeam, awayTeam, pinned: false, targetResult,
         createdAt: prev?.createdAt || Date.now(),
       };
-      await writeStorageControls([...existing.filter(c => `${c.homeTeam}:${c.awayTeam}` !== matchKey), ctrl]);
+      await writeStorageControls([...existing.filter(c => `${c.homeTeam}:${c.awayTeam}` !== matchKey), ctrl], adminId);
       await load();
       showToast(`Kontrol eklendi: ${homeTeam} vs ${awayTeam}`, true);
     } catch (e: any) { showToast('Hata: ' + e.message, false); }
@@ -901,7 +906,7 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
       }
       if (totalTarget > 0) { ctrl.targetTotal = totalTarget; if (mode === 'result') ctrl.targetResult = targetResult; }
       if (resetMatch) ctrl.startedAt = now;
-      await writeStorageControls([...existing.filter(c => `${c.homeTeam}:${c.awayTeam}` !== matchKey), ctrl]);
+      await writeStorageControls([...existing.filter(c => `${c.homeTeam}:${c.awayTeam}` !== matchKey), ctrl], adminId);
       resetForm();
       await load();
       window.dispatchEvent(new Event('admin-control-updated'));
@@ -914,7 +919,7 @@ function MatchControlsPanel({ adminId }: { adminId: string }) {
     setDeletingId(id);
     try {
       const existing = await readStorageControls();
-      await writeStorageControls(existing.filter(c => c.id !== id));
+      await writeStorageControls(existing.filter(c => c.id !== id), adminId);
       await load();
       showToast('Silindi', true);
     } catch {}
