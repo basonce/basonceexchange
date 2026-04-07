@@ -671,17 +671,55 @@ function OddBtn({
 }
 
 /* ── Winners ticker bar ── */
-const FAKER_NAMES = [
-  'James T.','Emma L.','Luca R.','Sofia B.','Marcus K.',
-  'Olivia S.','Diego V.','Sarah J.','Ryan O.','Chloe W.',
-  'Victor P.','Isabelle F.','Nathan G.','Zara H.','Lucas M.',
-  'Elena D.','Kevin C.','Priya N.','Tyler B.','Hana S.',
-  'Owen R.','Maya K.','Ethan L.','Lily P.','Noah W.',
+/* Low-tier names (~50) — West/East African */
+const LOW_NAMES = [
+  'Kwame A.','Fatima B.','Amadou C.','Chioma D.','Yusuf E.',
+  'Zainab F.','Blessing G.','Tunde H.','Amara I.','Kofi J.',
+  'Ngozi K.','Babatunde L.','Emeka M.','Chiamaka N.','Folake O.',
+  'Adewale P.','Damilola R.','Rotimi S.','Bosede T.','Sola U.',
+  'Femi V.','Kemi W.','Yemi X.','Gbenga Y.','Dapo Z.',
+  'Kunle A.','Niyi B.','Segun C.','Wole D.','Tade E.',
+  'Dele F.','Fola G.','Bayo H.','Titi I.','Yinka J.',
+  'Lola K.','Simi L.','Nkem M.','Chidi N.','Ebuka O.',
+  'Aisha P.','Taiwo Q.','Gbemi R.','Bunmi S.','Tosin T.',
+  'Isioma U.','Adaeze V.','Morenike W.','Obiora X.','Uche Y.',
 ];
-/* Big-win amount: 70% normal (150-4500), 30% large (6000-48000) */
-function fakeWinAmt(): number {
-  if (Math.random() < 0.30) return +(rf(6000, 48000)).toFixed(2);
-  return +(rf(150, 4500)).toFixed(2);
+/* Mid-tier names (~50) — Latin / Southern European */
+const MID_NAMES = [
+  'Carlos M.','Ana F.','Pedro L.','Isabella C.','Rafael T.',
+  'Gabrielle V.','Rodrigo B.','Camila S.','Felipe P.','Beatriz N.',
+  'Lucas R.','Mariana K.','Thiago J.','Larissa H.','Gustavo G.',
+  'Fernanda E.','Diego D.','Patricia C.','Bruno B.','Juliana A.',
+  'Andrei O.','Alicia R.','Santiago G.','Valentina C.','Mateo H.',
+  'Sofia L.','Nicolas D.','Emma F.','Alejandro K.','Paula T.',
+  'Juan S.','Maria V.','Manuel B.','Lucia P.','Roberto E.',
+  'Carmen J.','Francisco N.','Ana M.','Eduardo K.','Rosa L.',
+  'Antonio F.','Elena B.','Miguel T.','Claudia S.','Alberto R.',
+  'Mercedes P.','Jorge N.','Teresa M.','Rafael E.','Monica L.',
+];
+/* High-tier names (~50) — Anglo / Central-European / Aristocratic */
+const HIGH_NAMES = [
+  'Alexander V.','Victoria K.','Sebastian W.','Anastasia M.','Maximilian R.',
+  'Katherine L.','Christopher T.','Elizabeth P.','Jonathan N.','Margaret H.',
+  'Benjamin F.','Eleanor D.','Theodore G.','Frederick S.','Arabella C.',
+  'Leonard J.','Rosalind K.','Reginald T.','Genevieve M.','Montgomery H.',
+  'Evangeline W.','Cornelius R.','Seraphina L.','Bartholomew P.','Theodora N.',
+  'Fitzgerald G.','Celestine B.','Wellington S.','Clarissa T.','Archibald K.',
+  'Lavinia M.','Pemberton R.','Cordelia H.','Alistair W.','Araminta L.',
+  'Desmond K.','Celestia M.','Rupert W.','Eugenia L.','Benedict T.',
+  'Olympia R.','Crispin M.','Leopold H.','Isadora W.','Millicent T.',
+  'Augustin P.','Francesca L.','Horatio M.','Cassandra R.','Beaumont S.',
+];
+/* Tiered winner: low 45%, mid 35%, high 20% — each uses its own name pool */
+function fakeWinner(): { name: string; amount: number } {
+  const r = Math.random();
+  if (r < 0.45) {
+    return { name: LOW_NAMES[ri(0, LOW_NAMES.length - 1)], amount: +(rf(150, 4500)).toFixed(2) };
+  } else if (r < 0.80) {
+    return { name: MID_NAMES[ri(0, MID_NAMES.length - 1)], amount: +(rf(5000, 45000)).toFixed(2) };
+  } else {
+    return { name: HIGH_NAMES[ri(0, HIGH_NAMES.length - 1)], amount: +(rf(60000, 1200000)).toFixed(2) };
+  }
 }
 function WinnersTickerBar({ feeds }: { feeds: WinnerFeed[] }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -1387,13 +1425,16 @@ export default function GamesSection() {
   const [winnersFeeds, setWinnersFeeds] = useState<WinnerFeed[]>(() => {
     const descOpts = ['Match Result 1','Match Result 2','Draw','Over 2.5','Under 2.5','Asian Handicap','Double Chance','BTTS Yes','Correct Score','Half-Time 1'];
     const teamOpts = ['FC Rayon','Mtibwa Sugar','Elman FC','APR FC','Nkana FC','Singida Utd','Harare Rvr','Pamplemousses'];
-    return Array.from({ length: 16 }, (_, i) => ({
-      name: FAKER_NAMES[i % FAKER_NAMES.length],
-      amount: fakeWinAmt(),
-      match: `${teamOpts[ri(0, teamOpts.length-1)]} vs ${teamOpts[ri(0, teamOpts.length-1)]}`,
-      betDesc: descOpts[ri(0, descOpts.length-1)],
-      ts: Date.now() - ri(0, 3600000),
-    }));
+    return Array.from({ length: 16 }, () => {
+      const w = fakeWinner();
+      return {
+        name: w.name,
+        amount: w.amount,
+        match: `${teamOpts[ri(0, teamOpts.length-1)]} vs ${teamOpts[ri(0, teamOpts.length-1)]}`,
+        betDesc: descOpts[ri(0, descOpts.length-1)],
+        ts: Date.now() - ri(0, 3600000),
+      };
+    });
   });
   const counter = useRef(200);
   const notifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1919,9 +1960,10 @@ export default function GamesSection() {
     const teamOpts = ['FC Rayon','Mtibwa Sugar','Elman FC','APR FC','Nkana FC','Singida Utd','Harare Rvr','Pamplemousses'];
     const iv = setInterval(() => {
       setWinnersFeeds(prev => {
+        const w = fakeWinner();
         const next: WinnerFeed = {
-          name: FAKER_NAMES[ri(0, FAKER_NAMES.length - 1)],
-          amount: fakeWinAmt(),
+          name: w.name,
+          amount: w.amount,
           match: `${teamOpts[ri(0, teamOpts.length-1)]} vs ${teamOpts[ri(0, teamOpts.length-1)]}`,
           betDesc: descOpts[ri(0, descOpts.length-1)],
           ts: Date.now(),
