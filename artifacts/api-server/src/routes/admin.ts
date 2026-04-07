@@ -24,11 +24,12 @@ function getPool(): pg.Pool {
   return _pool;
 }
 
-/* Ensure sport_bets table exists — run once on first use */
+/* Ensure tables exist — run once on first use */
 let tableReady = false;
 async function ensureTable() {
   if (tableReady) return;
-  await getPool().query(`
+  const pool = getPool();
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS sport_bets (
       id           TEXT PRIMARY KEY,
       user_id      TEXT NOT NULL,
@@ -45,11 +46,25 @@ async function ensureTable() {
       settled_at   TIMESTAMPTZ
     )
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sport_match_controls (
+      team_key     TEXT PRIMARY KEY,
+      id           TEXT NOT NULL,
+      home_team    TEXT NOT NULL,
+      away_team    TEXT NOT NULL,
+      target_result TEXT,
+      target_score  JSONB,
+      target_total  NUMERIC,
+      started_at    BIGINT,
+      pinned        BOOLEAN NOT NULL DEFAULT false,
+      created_at    BIGINT NOT NULL
+    )
+  `);
   tableReady = true;
 }
 
 /* ══════════════════════════════════════════════════════════
-   MATCH CONTROLS — in-memory store
+   MATCH CONTROLS — DB-backed store
 ══════════════════════════════════════════════════════════ */
 interface MatchControl {
   id: string;
@@ -64,18 +79,81 @@ interface MatchControl {
 }
 
 const matchControls = new Map<string, MatchControl>();
+let controlsLoaded = false;
+
+async function loadControlsFromDB() {
+  if (controlsLoaded) return;
+  try {
+    await ensureTable();
+    const { rows } = await getPool().query('SELECT * FROM sport_match_controls ORDER BY created_at ASC');
+    matchControls.clear();
+    for (const r of rows) {
+      const ctrl: MatchControl = {
+        id: r.id,
+        homeTeam: r.home_team,
+        awayTeam: r.away_team,
+        targetResult: r.target_result || undefined,
+        targetScore: r.target_score || undefined,
+        targetTotal: r.target_total ? Number(r.target_total) : undefined,
+        startedAt: r.started_at ? Number(r.started_at) : undefined,
+        pinned: !!r.pinned,
+        createdAt: Number(r.created_at),
+      };
+      matchControls.set(r.team_key, ctrl);
+    }
+    controlsLoaded = true;
+  } catch (e) {
+    console.error('[match-controls] loadFromDB error', e);
+  }
+}
+
+async function saveControlToDB(key: string, ctrl: MatchControl) {
+  try {
+    await getPool().query(`
+      INSERT INTO sport_match_controls
+        (team_key, id, home_team, away_team, target_result, target_score, target_total, started_at, pinned, created_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      ON CONFLICT (team_key) DO UPDATE SET
+        id = EXCLUDED.id,
+        target_result = EXCLUDED.target_result,
+        target_score = EXCLUDED.target_score,
+        target_total = EXCLUDED.target_total,
+        started_at = EXCLUDED.started_at,
+        pinned = EXCLUDED.pinned
+    `, [
+      key, ctrl.id, ctrl.homeTeam, ctrl.awayTeam,
+      ctrl.targetResult ?? null,
+      ctrl.targetScore ? JSON.stringify(ctrl.targetScore) : null,
+      ctrl.targetTotal ?? null,
+      ctrl.startedAt ?? null,
+      ctrl.pinned,
+      ctrl.createdAt,
+    ]);
+  } catch (e) {
+    console.error('[match-controls] saveToDB error', e);
+  }
+}
+
+async function deleteControlFromDB(key: string) {
+  try {
+    await getPool().query('DELETE FROM sport_match_controls WHERE team_key = $1', [key]);
+  } catch (e) {
+    console.error('[match-controls] deleteFromDB error', e);
+  }
+}
 
 function genId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
 /* GET /admin/match-controls — public (kite-exchange reads this) */
-router.get('/admin/match-controls', (_req, res) => {
+router.get('/admin/match-controls', async (_req, res) => {
+  await loadControlsFromDB();
   return res.json(Array.from(matchControls.values()));
 });
 
 /* POST /admin/match-controls — admin only */
-router.post('/admin/match-controls', (req, res) => {
+router.post('/admin/match-controls', async (req, res) => {
   const requesterId = req.headers['x-requester-id'] as string;
   if (!requesterId || !ADMIN_UUIDS.has(requesterId)) {
     return res.status(403).json({ error: 'Forbidden' });
@@ -86,6 +164,7 @@ router.post('/admin/match-controls', (req, res) => {
     return res.status(400).json({ error: 'homeTeam and awayTeam required' });
   }
 
+  await loadControlsFromDB();
   const key = `${homeTeam.trim()}:${awayTeam.trim()}`;
   const existing = matchControls.get(key);
 
@@ -118,20 +197,23 @@ router.post('/admin/match-controls', (req, res) => {
     createdAt: existing?.createdAt || Date.now(),
   };
   matchControls.set(key, ctrl);
+  await saveControlToDB(key, ctrl);
   return res.json({ ok: true, ctrl });
 });
 
 /* DELETE /admin/match-controls/:id — admin only */
-router.delete('/admin/match-controls/:id', (req, res) => {
+router.delete('/admin/match-controls/:id', async (req, res) => {
   const requesterId = req.headers['x-requester-id'] as string;
   if (!requesterId || !ADMIN_UUIDS.has(requesterId)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
+  await loadControlsFromDB();
   const { id } = req.params;
   let deleted = false;
   for (const [key, ctrl] of matchControls.entries()) {
     if (ctrl.id === id) {
       matchControls.delete(key);
+      await deleteControlFromDB(key);
       deleted = true;
       break;
     }
