@@ -502,19 +502,33 @@ function strHash(s: string): number {
 }
 
 /* ── Real Football Club Crest ── */
-function TeamShield({ abbr, color, size = 32, logoUrl }: { abbr: string; color: string; size?: number; logoUrl?: string }) {
+function TeamShield({ abbr, color, size = 32, logoUrl, name }: { abbr: string; color: string; size?: number; logoUrl?: string; name?: string }) {
+  const cacheKey = (name || abbr).toLowerCase().trim();
+  const [resolvedUrl, setResolvedUrl] = useState<string | null>(() => {
+    if (logoUrl) return logoUrl;
+    return _logoCache.get(cacheKey) ?? null;
+  });
   const [imgFailed, setImgFailed] = useState(false);
 
-  if (logoUrl && !imgFailed) {
+  useEffect(() => {
+    if (logoUrl) { setResolvedUrl(logoUrl); return; }
+    if (!name) return;
+    if (_logoCache.has(cacheKey)) { setResolvedUrl(_logoCache.get(cacheKey) ?? null); return; }
+    let alive = true;
+    fetchTeamLogo(name).then(url => { if (alive) setResolvedUrl(url); });
+    return () => { alive = false; };
+  }, [cacheKey, logoUrl, name]);
+
+  if (resolvedUrl && !imgFailed) {
     return (
       <div style={{ width: size, height: size, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, overflow: 'hidden', background: 'rgba(255,255,255,0.06)' }}>
         <img
-          src={logoUrl}
+          src={resolvedUrl}
           alt={abbr}
           width={size - 4}
           height={size - 4}
           style={{ objectFit: 'contain', display: 'block' }}
-          onError={() => setImgFailed(true)}
+          onError={() => { _logoCache.set(cacheKey, null); setImgFailed(true); }}
         />
       </div>
     );
@@ -708,7 +722,7 @@ function TopCard({
       <div style={{ display: 'flex', alignItems: 'center', padding: '7px 8px 3px' }}>
         {/* Home shield */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 50 }}>
-          <TeamShield abbr={ht.abbr} color={ht.color} size={46} logoUrl={ht.logoUrl} />
+          <TeamShield abbr={ht.abbr} color={ht.color} size={46} logoUrl={ht.logoUrl} name={ht.name} />
           <span style={{ fontSize: 7.5, color: '#94a3b855', maxWidth: 50, textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{ht.name.split(' ')[0]}</span>
         </div>
 
@@ -741,7 +755,7 @@ function TopCard({
 
         {/* Away shield */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 50 }}>
-          <TeamShield abbr={at.abbr} color={at.color} size={46} logoUrl={at.logoUrl} />
+          <TeamShield abbr={at.abbr} color={at.color} size={46} logoUrl={at.logoUrl} name={at.name} />
           <span style={{ fontSize: 7.5, color: '#94a3b855', maxWidth: 50, textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{at.name.split(' ')[0]}</span>
         </div>
       </div>
@@ -1024,7 +1038,7 @@ function MatchRow({
         }}>
           {/* Home row */}
           <div style={{ display: 'grid', gridTemplateColumns: '22px 1fr 16px', alignItems: 'center', gap: 4 }}>
-            <TeamShield abbr={ht.abbr} color={ht.color} size={22} logoUrl={ht.logoUrl}/>
+            <TeamShield abbr={ht.abbr} color={ht.color} size={22} logoUrl={ht.logoUrl} name={ht.name}/>
             <span style={{
               fontSize: 11.5, fontWeight: homeWin ? 800 : 600,
               color: isGoalFlash && m.goalFlash === 'home' ? '#4ade80' : homeWin ? '#e2e8f0' : '#94a3b8',
@@ -1039,7 +1053,7 @@ function MatchRow({
           </div>
           {/* Away row */}
           <div style={{ display: 'grid', gridTemplateColumns: '22px 1fr 16px', alignItems: 'center', gap: 4 }}>
-            <TeamShield abbr={at.abbr} color={at.color} size={22} logoUrl={at.logoUrl}/>
+            <TeamShield abbr={at.abbr} color={at.color} size={22} logoUrl={at.logoUrl} name={at.name}/>
             <span style={{
               fontSize: 11.5, fontWeight: awayWin ? 800 : 600,
               color: isGoalFlash && m.goalFlash === 'away' ? '#4ade80' : awayWin ? '#e2e8f0' : '#94a3b8',
@@ -1592,7 +1606,7 @@ function MatchSimModal({ m, onClose, onSelectBet, placedBets }: {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
             {/* Home */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flex: 1 }}>
-              <TeamShield abbr={ht.abbr} color={ht.color} size={52} logoUrl={ht.logoUrl}/>
+              <TeamShield abbr={ht.abbr} color={ht.color} size={52} logoUrl={ht.logoUrl} name={ht.name}/>
               <span style={{ fontSize: 12, color: homeWin ? '#e2e8f0' : '#6b7280', fontWeight: homeWin ? 800 : 600, textAlign: 'center', maxWidth: 90 }}>{ht.name}</span>
             </div>
             {/* Score */}
@@ -1618,7 +1632,7 @@ function MatchSimModal({ m, onClose, onSelectBet, placedBets }: {
             </div>
             {/* Away */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flex: 1 }}>
-              <TeamShield abbr={at.abbr} color={at.color} size={52} logoUrl={at.logoUrl}/>
+              <TeamShield abbr={at.abbr} color={at.color} size={52} logoUrl={at.logoUrl} name={at.name}/>
               <span style={{ fontSize: 12, color: awayWin ? '#e2e8f0' : '#6b7280', fontWeight: awayWin ? 800 : 600, textAlign: 'center', maxWidth: 90 }}>{at.name}</span>
             </div>
           </div>
