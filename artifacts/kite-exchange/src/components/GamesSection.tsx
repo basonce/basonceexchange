@@ -2,6 +2,10 @@ import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react'
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { pickFreshMatchups, getLeague, ri, rf, ALL_MATCHUPS, type MatchTemplate } from '../lib/sportsData';
 
+/** Format a number with thousands separator + 2 decimal places. e.g. 16261406697.97 → "16,261,406,697.97" */
+const fmt = (n: number): string =>
+  n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 /* ══════════════════════════════════════════════════════════
    TYPES
 ══════════════════════════════════════════════════════════ */
@@ -800,7 +804,7 @@ function WinnersTickerBar({ feeds }: { feeds: WinnerFeed[] }) {
           }}>
             <span style={{ fontSize: 13 }}>🏆</span>
             <span style={{ fontSize: 10, color: '#F0B90B', fontWeight: 800 }}>{f.name}</span>
-            <span style={{ fontSize: 10, color: '#4ade80', fontWeight: 900 }}>+{f.amount.toFixed(2)} USDT</span>
+            <span style={{ fontSize: 10, color: '#4ade80', fontWeight: 900 }}>+{fmt(f.amount)} USDT</span>
             <span style={{ fontSize: 9, color: '#64748b' }}>· {f.betDesc}</span>
           </div>
         ))}
@@ -1051,7 +1055,7 @@ interface BetSlipProps {
 function BetSlipModal({ item, usdtBalance, onPlace, onCancel }: BetSlipProps) {
   const [amount, setAmount] = useState('');
   const num = parseFloat(amount) || 0;
-  const potential = num > 0 ? (num * item.odds).toFixed(2) : '—';
+  const potential = num > 0 ? fmt(num * item.odds) : '—';
   const notEnough = num > usdtBalance;
 
   const presets = [5, 10, 25, 50, 100].filter(v => v <= usdtBalance + 0.01);
@@ -1097,7 +1101,7 @@ function BetSlipModal({ item, usdtBalance, onPlace, onCancel }: BetSlipProps) {
         {/* Balance */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
           <span style={{ fontSize: 11, color: '#848E9C' }}>Available Balance</span>
-          <span style={{ fontSize: 12, color: '#4ade80', fontWeight: 700 }}>{usdtBalance.toFixed(2)} USDT</span>
+          <span style={{ fontSize: 12, color: '#4ade80', fontWeight: 700 }}>{fmt(usdtBalance)} USDT</span>
         </div>
 
         {/* Preset amounts */}
@@ -1762,16 +1766,16 @@ function MyBets({ bets, matches }: { bets: PlacedBet[]; matches: LiveMatch[] }) 
                 fontSize: 18, fontWeight: 900, letterSpacing: '-0.02em',
                 color: netPnl >= 0 ? '#0ECB81' : '#F6465D',
               }}>
-                {netPnl >= 0 ? '+' : ''}{netPnl.toFixed(2)}
+                {netPnl >= 0 ? '+' : '-'}{fmt(Math.abs(netPnl))}
                 <span style={{ fontSize: 10, fontWeight: 600, color: '#848E9C', marginLeft: 4 }}>USDT</span>
               </span>
             </div>
             {/* Stats row */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
               {[
-                { label: 'Staked', val: totalStaked.toFixed(2), color: '#C7CACD' },
-                { label: 'Won',    val: `+${totalWon.toFixed(2)}`,  color: '#0ECB81' },
-                { label: 'Lost',   val: `-${totalLost.toFixed(2)}`, color: '#F6465D' },
+                { label: 'Staked', val: fmt(totalStaked),            color: '#C7CACD' },
+                { label: 'Won',    val: `+${fmt(totalWon)}`,        color: '#0ECB81' },
+                { label: 'Lost',   val: `-${fmt(totalLost)}`,       color: '#F6465D' },
               ].map(({ label, val, color }, i) => (
                 <div key={label} style={{
                   padding: '8px 0', textAlign: 'center',
@@ -1844,11 +1848,11 @@ function MyBets({ bets, matches }: { bets: PlacedBet[]; matches: LiveMatch[] }) 
                 icon:        '✓',
                 label:       'WON',
                 pnlColor:    '#fff',
-                pnl:         `+${bet.potentialWin.toFixed(2)} USDT`,
+                pnl:         `+${fmt(bet.potentialWin)} USDT`,
                 cardBorder:  '#0ECB8140',
                 cardBg:      '#0B0E11',
                 returnLabel: 'PROFIT',
-                returnVal:   `+${bet.potentialWin.toFixed(2)}`,
+                returnVal:   `+${fmt(bet.potentialWin)}`,
                 returnColor: '#0ECB81',
               }
             : isLost
@@ -1858,11 +1862,11 @@ function MyBets({ bets, matches }: { bets: PlacedBet[]; matches: LiveMatch[] }) 
                 icon:        '✕',
                 label:       'LOST',
                 pnlColor:    '#fff',
-                pnl:         `-${bet.amount.toFixed(2)} USDT`,
+                pnl:         `-${fmt(bet.amount)} USDT`,
                 cardBorder:  '#F6465D40',
                 cardBg:      '#0B0E11',
                 returnLabel: 'LOSS',
-                returnVal:   `-${bet.amount.toFixed(2)}`,
+                returnVal:   `-${fmt(bet.amount)}`,
                 returnColor: '#F6465D',
               }
             : {
@@ -1871,11 +1875,11 @@ function MyBets({ bets, matches }: { bets: PlacedBet[]; matches: LiveMatch[] }) 
                 icon:        '●',
                 label:       'LIVE',
                 pnlColor:    '#60a5fa',
-                pnl:         `~${bet.potentialWin.toFixed(2)} USDT`,
+                pnl:         `~${fmt(bet.potentialWin)} USDT`,
                 cardBorder:  '#3B82F640',
                 cardBg:      '#0B0E11',
                 returnLabel: 'POTENTIAL',
-                returnVal:   `~${bet.potentialWin.toFixed(2)}`,
+                returnVal:   `~${fmt(bet.potentialWin)}`,
                 returnColor: '#60a5fa',
               };
 
@@ -1975,7 +1979,7 @@ function MyBets({ bets, matches }: { bets: PlacedBet[]; matches: LiveMatch[] }) 
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: 9, color: '#5E6673', fontWeight: 600, marginBottom: 3, textTransform: 'uppercase' }}>Stake</div>
-                    <div style={{ fontSize: 11, color: '#848E9C', fontWeight: 700 }}>{bet.amount.toFixed(2)} USDT</div>
+                    <div style={{ fontSize: 11, color: '#848E9C', fontWeight: 700 }}>{fmt(bet.amount)} USDT</div>
                   </div>
                 </div>
 
@@ -2395,7 +2399,7 @@ export default function GamesSection() {
 
     // Balance update OUTSIDE updater — single batched write
     if (earlyCredit > 0) {
-      earlyWins.forEach(w => notify(`🏆 Kazandın! +${w.win.toFixed(2)} USDT — ${w.home} vs ${w.away}`, 'win'));
+      earlyWins.forEach(w => notify(`🏆 Kazandın! +${fmt(w.win)} USDT — ${w.home} vs ${w.away}`, 'win'));
       setUsdtBalance(b => {
         const newBal = b + earlyCredit;
         const upd = supabase
@@ -2478,8 +2482,8 @@ export default function GamesSection() {
       else if (status === 'refunded') lastRefund = credit;
       else lostCount++;
     });
-    if (lastWin > 0) notify(`🏆 Kazandın! +${lastWin.toFixed(2)} USDT`, 'win');
-    if (lastRefund > 0) notify(`↩️ Stake iade edildi: +${lastRefund.toFixed(2)} USDT`, 'info');
+    if (lastWin > 0) notify(`🏆 Kazandın! +${fmt(lastWin)} USDT`, 'win');
+    if (lastRefund > 0) notify(`↩️ Stake iade edildi: +${fmt(lastRefund)} USDT`, 'info');
     if (lostCount > 0 && lastWin === 0) notify(`❌ Bahis kaybedildi`, 'loss');
 
     if (creditTotal > 0) {
@@ -2897,7 +2901,7 @@ export default function GamesSection() {
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444' }} className="animate-pulse" />
           <span style={{ fontSize: 10, color: '#ef4444', fontWeight: 700 }}>LIVE</span>
           {usdtBalance > 0 && (
-            <span style={{ marginLeft: 8, fontSize: 11, color: '#4ade80', fontWeight: 700 }}>{usdtBalance.toFixed(2)} USDT</span>
+            <span style={{ marginLeft: 8, fontSize: 11, color: '#4ade80', fontWeight: 700 }}>{fmt(usdtBalance)} USDT</span>
           )}
         </div>
       </div>
