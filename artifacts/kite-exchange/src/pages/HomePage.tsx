@@ -15,6 +15,7 @@ import LaunchpoolModal from '../components/LaunchpoolModal';
 import CampaignDetailModal, { type CampaignDetailData } from '../components/CampaignDetailModal';
 import { supabase, getCurrentUser } from '../lib/supabase';
 
+import SportsCommunityFeed from '../components/SportsCommunityFeed';
 const SocialFeed = lazy(() => import('../components/SocialFeed'));
 const BasonceAlpha = lazy(() => import('../components/BasonceAlpha'));
 const SupportModal = lazy(() => import('../components/SupportModal'));
@@ -435,6 +436,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         </Suspense>
       ) : (
         <>
+          <SportsCommunityFeed />
           {showPromoBanner && (() => {
             const CAMPAIGN_ICON_MAP: Record<string, React.ReactNode> = {
               trading: <div className="w-10 h-10 rounded-xl bg-[#F0B90B]/20 flex items-center justify-center"><TrendingUp className="w-5 h-5 text-[#F0B90B]" /></div>,
