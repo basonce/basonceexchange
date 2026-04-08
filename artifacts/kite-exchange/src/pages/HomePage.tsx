@@ -37,7 +37,8 @@ interface HomePageProps {
 
 export default function HomePage({ onNavigate }: HomePageProps) {
   const [activeTab, setActiveTab] = useState<'crypto' | 'spot' | 'futures' | 'new-listing' | 'alpha'>('crypto');
-  const [activeFilter, setActiveFilter] = useState<'gainers' | 'losers' | '24h-vol' | 'tradfi' | 'sports'>('gainers');
+  const [activeFilter, setActiveFilter] = useState<'gainers' | 'losers' | '24h-vol' | 'tradfi'>('gainers');
+  const [showSportsModal, setShowSportsModal] = useState(false);
   const [discoverTab, setDiscoverTab] = useState<'discover' | 'following' | 'campaign' | 'announcement'>('discover');
   const [showFAB, setShowFAB] = useState(false);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
@@ -214,7 +215,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
   const quickActions = [
     {
       label: 'Alpha\nSports',
-      onClick: () => setActiveFilter('sports'),
+      onClick: () => setShowSportsModal(true),
       icon: (
         <div style={{ position: 'relative', width: 28, height: 28 }}>
           {/* Goal net — upper/back area, small like in the distance behind the player */}
@@ -563,8 +564,6 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             <FuturesMarketList />
           ) : activeTab === 'alpha' ? (
             <BasonceAlpha />
-          ) : activeFilter === 'sports' ? (
-            <GamesSection />
           ) : activeFilter === 'tradfi' ? (
             <HomeTradFiList />
           ) : (
@@ -728,6 +727,94 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         onOpenP2P={() => setShowP2P(true)}
         onOpenPay={() => setShowPay(true)}
       />
+
+      {/* ── Alpha Sports Full-Screen Modal ── */}
+      {showSportsModal && createPortal(
+        <>
+          <style>{`
+            @keyframes slideUpSports {
+              from { transform: translateY(100%); opacity: 0; }
+              to   { transform: translateY(0);    opacity: 1; }
+            }
+            .sports-modal-sheet {
+              animation: slideUpSports 0.32s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+            }
+          `}</style>
+
+          {/* Backdrop */}
+          <div
+            onClick={() => setShowSportsModal(false)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 8000,
+              background: 'rgba(0,0,0,0.65)',
+              backdropFilter: 'blur(2px)',
+            }}
+          />
+
+          {/* Sheet */}
+          <div
+            className="sports-modal-sheet"
+            style={{
+              position: 'fixed', left: 0, right: 0, bottom: 0,
+              height: '95dvh',
+              zIndex: 8001,
+              background: '#0B0E11',
+              borderRadius: '18px 18px 0 0',
+              display: 'flex', flexDirection: 'column',
+              overflow: 'hidden',
+              boxShadow: '0 -8px 40px rgba(0,0,0,0.7)',
+            }}
+          >
+            {/* Header bar */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '14px 16px 12px',
+              borderBottom: '1px solid #1C2128',
+              background: '#0B0E11',
+              flexShrink: 0,
+            }}>
+              {/* Drag handle */}
+              <div style={{
+                position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)',
+                width: 36, height: 4, borderRadius: 2, background: '#2B3139',
+              }} />
+
+              {/* Title */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 20 }}>⚽</span>
+                <span style={{ fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
+                  Alpha Sports
+                </span>
+                <span style={{
+                  fontSize: 10, fontWeight: 700, color: '#0ECB81',
+                  background: '#0ECB8120', border: '1px solid #0ECB8140',
+                  borderRadius: 4, padding: '1px 6px', letterSpacing: '0.04em',
+                }}>LIVE</span>
+              </div>
+
+              {/* Close button */}
+              <button
+                onClick={() => setShowSportsModal(false)}
+                style={{
+                  width: 32, height: 32, borderRadius: '50%',
+                  background: '#1C2128', border: '1px solid #2B3139',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', color: '#848E9C', fontSize: 16, fontWeight: 900,
+                  lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Scrollable content */}
+            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+              <GamesSection />
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
     </div>
   );
 }
