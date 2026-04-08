@@ -468,17 +468,28 @@ function TeamLogo({ name, size = 36 }: { name: string; size?: number }) {
     );
   }
 
+  // Fallback: professional shield SVG (same style as live match cards)
+  const s = size;
+  const cx = s / 2;
+  const shield = `M ${s*0.08},${s*0.06} L ${s*0.92},${s*0.06} L ${s*0.92},${s*0.62} Q ${s*0.92},${s*0.95} ${cx},${s*0.99} Q ${s*0.08},${s*0.95} ${s*0.08},${s*0.62} Z`;
+  const darkBg = bg.replace('52%', '28%');
+  const fz = initials.length > 2 ? s * 0.22 : s * 0.27;
   return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%',
-      background: bg,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: size * 0.36, fontWeight: 900, color: '#fff',
-      flexShrink: 0, letterSpacing: '-0.03em',
-      boxShadow: `0 0 0 2px #0B0E11, 0 0 0 3px ${bg}66`,
-    }}>
-      {initials}
-    </div>
+    <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`} style={{ flexShrink: 0 }}>
+      <defs>
+        <linearGradient id={`lg_${initials}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={bg}/>
+          <stop offset="100%" stopColor={darkBg}/>
+        </linearGradient>
+      </defs>
+      <path d={shield} fill={`url(#lg_${initials})`} stroke={bg} strokeWidth="0.8" opacity="0.95"/>
+      <text
+        x={cx} y={s * 0.66}
+        textAnchor="middle" dominantBaseline="middle"
+        fontSize={fz} fontWeight="900" fill="white"
+        style={{ fontFamily: 'system-ui, sans-serif', letterSpacing: '-0.03em' }}
+      >{initials}</text>
+    </svg>
   );
 }
 

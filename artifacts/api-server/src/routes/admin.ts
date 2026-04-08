@@ -491,6 +491,22 @@ router.get('/admin/bet-exposure', async (req, res) => {
 ══════════════════════════════════════════════════════════ */
 const _teamLogoCache = new Map<string, string | null>();
 
+async function sportsdbLookup(name: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
+  try {
+    const url = `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(name)}`;
+    const resp = await fetch(url, { signal: controller.signal });
+    if (!resp.ok) return null;
+    const data: any = await resp.json();
+    return data?.teams?.[0]?.strBadge ?? null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 router.get('/team-logo', async (req, res) => {
   const name = (req.query.name as string || '').trim();
   if (!name) return res.json({ badgeUrl: null });
@@ -500,18 +516,29 @@ router.get('/team-logo', async (req, res) => {
     return res.json({ badgeUrl: _teamLogoCache.get(key) });
   }
 
-  try {
-    const url = `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(name)}`;
-    const resp = await fetch(url, { signal: AbortSignal.timeout(6000) } as any);
-    if (!resp.ok) throw new Error('upstream');
-    const data: any = await resp.json();
-    const badgeUrl: string | null = data?.teams?.[0]?.strBadge ?? null;
-    _teamLogoCache.set(key, badgeUrl);
-    return res.json({ badgeUrl });
-  } catch (e: any) {
-    _teamLogoCache.set(key, null);
-    return res.json({ badgeUrl: null });
+  // Build list of name variations to try in order
+  const variants: string[] = [name];
+  // Strip common suffixes: FC, SC, AC, CF, IF, BK
+  const stripped = name.replace(/\s+(FC|SC|AC|CF|IF|BK|FK|SK|United|City|Club|Rovers|Athletic|Albion|Sporting|Racing)$/i, '').trim();
+  if (stripped && stripped !== name) variants.push(stripped);
+  // Try removing hyphens
+  const noHyphen = name.replace(/-/g, ' ').trim();
+  if (noHyphen !== name) variants.push(noHyphen);
+  // Try first two words only
+  const firstTwo = name.split(' ').slice(0, 2).join(' ');
+  if (firstTwo !== name && firstTwo.length > 3) variants.push(firstTwo);
+  // Try first word only
+  const firstWord = name.split(/[\s-]/)[0];
+  if (firstWord !== name && firstWord.length > 3) variants.push(firstWord);
+
+  let badgeUrl: string | null = null;
+  for (const variant of variants) {
+    badgeUrl = await sportsdbLookup(variant);
+    if (badgeUrl) break;
   }
+
+  _teamLogoCache.set(key, badgeUrl);
+  return res.json({ badgeUrl });
 });
 
 export default router;
