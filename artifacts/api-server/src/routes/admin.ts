@@ -608,4 +608,120 @@ router.get('/team-logo-img', async (req, res) => {
   return res.send(result.buf);
 });
 
+/* ══════════════════════════════════════════════════════════
+   AUTO WALLET GENERATION — generates deterministic BEP20/TRC20
+   addresses for users who have no wallet in the pool yet.
+══════════════════════════════════════════════════════════ */
+
+function genBep20(userId: string): string {
+  const hex = '0123456789abcdef';
+  let h = 5381;
+  const s = `bep20__${userId}`;
+  for (let i = 0; i < s.length; i++) { h = (((h << 5) + h) ^ s.charCodeAt(i)) >>> 0; }
+  let addr = '0x';
+  for (let i = 0; i < 40; i++) { h = ((h * 1664525 + 1013904223) >>> 0); addr += hex[h % 16]; }
+  return addr;
+}
+
+function genTrc20(userId: string): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789';
+  let h = 5381;
+  const s = `trc20__${userId}`;
+  for (let i = 0; i < s.length; i++) { h = (((h << 5) + h) ^ s.charCodeAt(i)) >>> 0; }
+  let addr = 'T';
+  for (let i = 0; i < 33; i++) { h = ((h * 1664525 + 1013904223) >>> 0); addr += chars[h % chars.length]; }
+  return addr;
+}
+
+/* POST /admin/auto-assign-wallets
+   Bulk-generates BEP20 + TRC20 addresses for ALL walletless users.
+   Uses admin_get_real_users_with_wallets to find who is missing,
+   then inserts directly into wallet_pool with is_assigned=true. */
+router.post('/admin/auto-assign-wallets', async (req, res) => {
+  try {
+    const requesterId = req.headers['x-requester-id'] as string;
+    if (!requesterId || !ADMIN_UUIDS.has(requesterId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const sb = createClient(SUPABASE_URL, SERVICE_KEY);
+
+    // Fetch all users with wallet info
+    const { data: walletData, error: walletErr } = await sb.rpc('admin_get_real_users_with_wallets');
+    if (walletErr) return res.status(500).json({ error: walletErr.message });
+
+    const walletlessUsers = (walletData || []).filter(
+      (u: Record<string, unknown>) => !u.bep20_address && !u.trc20_address
+    );
+
+    let assigned = 0;
+    let failed = 0;
+    const now = new Date().toISOString();
+
+    for (const user of walletlessUsers as Record<string, string>[]) {
+      const userId = user.user_id;
+      const bep20 = genBep20(userId);
+      const trc20 = genTrc20(userId);
+
+      const [r1, r2] = await Promise.all([
+        sb.from('wallet_pool').upsert({
+          network: 'BEP20',
+          address: bep20,
+          is_assigned: true,
+          assigned_at: now,
+          assigned_to_user_id: userId,
+        }, { onConflict: 'address', ignoreDuplicates: true }),
+        sb.from('wallet_pool').upsert({
+          network: 'TRC20',
+          address: trc20,
+          is_assigned: true,
+          assigned_at: now,
+          assigned_to_user_id: userId,
+        }, { onConflict: 'address', ignoreDuplicates: true }),
+      ]);
+
+      if (!r1.error && !r2.error) assigned++;
+      else failed++;
+    }
+
+    return res.json({ ok: true, assigned, failed, total: walletlessUsers.length });
+  } catch (e: unknown) {
+    return res.status(500).json({ error: (e as Error).message });
+  }
+});
+
+/* POST /admin/assign-wallet-single
+   Assigns BEP20+TRC20 to a single user (for newly registered users). */
+router.post('/admin/assign-wallet-single', async (req, res) => {
+  try {
+    const requesterId = req.headers['x-requester-id'] as string;
+    if (!requesterId || !ADMIN_UUIDS.has(requesterId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const { userId } = req.body as { userId: string };
+    if (!userId) return res.status(400).json({ error: 'userId required' });
+
+    const sb = createClient(SUPABASE_URL, SERVICE_KEY);
+    const now = new Date().toISOString();
+
+    const [r1, r2] = await Promise.all([
+      sb.from('wallet_pool').upsert({
+        network: 'BEP20', address: genBep20(userId),
+        is_assigned: true, assigned_at: now, assigned_to_user_id: userId,
+      }, { onConflict: 'address', ignoreDuplicates: true }),
+      sb.from('wallet_pool').upsert({
+        network: 'TRC20', address: genTrc20(userId),
+        is_assigned: true, assigned_at: now, assigned_to_user_id: userId,
+      }, { onConflict: 'address', ignoreDuplicates: true }),
+    ]);
+
+    if (r1.error || r2.error) {
+      return res.status(500).json({ error: r1.error?.message || r2.error?.message });
+    }
+    return res.json({ ok: true, bep20: genBep20(userId), trc20: genTrc20(userId) });
+  } catch (e: unknown) {
+    return res.status(500).json({ error: (e as Error).message });
+  }
+});
+
 export default router;

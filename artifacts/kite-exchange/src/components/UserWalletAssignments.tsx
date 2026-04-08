@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, RefreshCw, Copy, CheckCircle, Users, Wallet, AlertCircle, ArrowUpDown, ChevronLeft, ChevronRight, Bell, X, UserPlus, Zap, CheckCircle2, Shield } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { Search, RefreshCw, Copy, CheckCircle, Users, Wallet, AlertCircle, ArrowUpDown, ChevronLeft, ChevronRight, Bell, X, UserPlus, Zap, CheckCircle2, Shield, Wand2 } from 'lucide-react';
+import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface UserWalletRow {
   user_id: string;
@@ -56,6 +56,7 @@ export default function UserWalletAssignments() {
   const [assignError, setAssignError] = useState<string | null>(null);
   const [bulkAssigning, setBulkAssigning] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ assigned: number; skipped: number } | null>(null);
+  const [currentAdminId, setCurrentAdminId] = useState('');
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const audioRef = useRef<AudioContext | null>(null);
 
@@ -119,6 +120,7 @@ export default function UserWalletAssignments() {
 
   useEffect(() => {
     fetchData();
+    getCurrentUser().then(u => { if (u?.id) setCurrentAdminId(u.id); });
   }, [fetchData]);
 
   const handleAssignWallet = useCallback(async (userId: string) => {
@@ -170,6 +172,71 @@ export default function UserWalletAssignments() {
     setTimeout(() => setBulkResult(null), 6000);
     await fetchData();
   }, [rows, fetchData]);
+
+  /* ── Auto-generate: uses server-side deterministic address generation ── */
+  const handleAutoGenerate = useCallback(async () => {
+    setBulkAssigning(true);
+    setBulkResult(null);
+    setAssignError(null);
+    try {
+      const resp = await fetch('/api-server/api/admin/auto-assign-wallets', {
+        method: 'POST',
+        headers: { 'x-requester-id': currentAdminId },
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        setAssignError(err.error || 'Sunucu hatası');
+        setTimeout(() => setAssignError(null), 5000);
+        return;
+      }
+      const result = await resp.json();
+      setBulkResult({ assigned: result.assigned ?? 0, skipped: result.failed ?? 0 });
+      setTimeout(() => setBulkResult(null), 8000);
+      await fetchData();
+    } catch (e: unknown) {
+      setAssignError((e as Error).message || 'Beklenmeyen hata');
+      setTimeout(() => setAssignError(null), 5000);
+    } finally {
+      setBulkAssigning(false);
+    }
+  }, [fetchData]);
+
+  /* ── Assign single user via server-side endpoint ── */
+  const handleAutoAssignSingle = useCallback(async (userId: string) => {
+    setAssigningUserId(userId);
+    setAssignedSuccess(null);
+    setAssignError(null);
+    try {
+      // Try RPC first
+      const { data } = await supabase.rpc('admin_force_assign_wallet', { p_user_id: userId });
+      if (data?.success && !data?.already_had_wallet) {
+        setAssignedSuccess(userId);
+        setTimeout(() => setAssignedSuccess(null), 3000);
+        await fetchData();
+        return;
+      }
+      // Fallback: server-side generation
+      const resp = await fetch('/api-server/api/admin/assign-wallet-single', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-requester-id': currentAdminId },
+        body: JSON.stringify({ userId }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        setAssignError(err.error || 'Atama başarısız');
+        setTimeout(() => setAssignError(null), 4000);
+        return;
+      }
+      setAssignedSuccess(userId);
+      setTimeout(() => setAssignedSuccess(null), 3000);
+      await fetchData();
+    } catch (e: unknown) {
+      setAssignError((e as Error).message || 'Hata');
+      setTimeout(() => setAssignError(null), 4000);
+    } finally {
+      setAssigningUserId(null);
+    }
+  }, [fetchData]);
 
   useEffect(() => {
     if (!isLive) {
@@ -302,22 +369,38 @@ export default function UserWalletAssignments() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="text-xl font-bold text-gray-900">Kullanici Cüzdanlari</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {stats.totalUsersWithout > 0 && (
-            <button
-              onClick={handleBulkAssign}
-              disabled={bulkAssigning}
-              className="flex items-center gap-1.5 px-3 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-lg text-xs font-semibold transition-colors"
-            >
-              {bulkAssigning ? (
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Shield className="w-3.5 h-3.5" />
-              )}
-              {bulkAssigning ? 'Ataniyor...' : `Tümüne Ata (${stats.totalUsersWithout})`}
-            </button>
+            <>
+              <button
+                onClick={handleAutoGenerate}
+                disabled={bulkAssigning}
+                className="flex items-center gap-1.5 px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white rounded-lg text-xs font-semibold transition-colors"
+                title="Pool dolu olsa bile otomatik adres üret ve ata"
+              >
+                {bulkAssigning ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Wand2 className="w-3.5 h-3.5" />
+                )}
+                {bulkAssigning ? 'Üretiliyor...' : `⚡ Otomatik Üret (${stats.totalUsersWithout})`}
+              </button>
+              <button
+                onClick={handleBulkAssign}
+                disabled={bulkAssigning}
+                className="flex items-center gap-1.5 px-3 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-lg text-xs font-semibold transition-colors"
+                title="Pool'dan mevcut adresi ata"
+              >
+                {bulkAssigning ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Shield className="w-3.5 h-3.5" />
+                )}
+                {bulkAssigning ? 'Ataniyor...' : `Pool'dan Ata`}
+              </button>
+            </>
           )}
           <button
             onClick={() => setIsLive(v => !v)}
