@@ -393,6 +393,35 @@ function buildMatch(tmpl: MatchTemplate, idx: number): LiveMatch {
   };
 }
 
+/** Generate a vibrant color from team name — consistent across renders */
+function teamColor(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xFFFFFF;
+  const hue = h % 360;
+  return `hsl(${hue}, 72%, 52%)`;
+}
+
+/** Team initials badge (up to 2 chars) */
+function TeamLogo({ name, size = 36 }: { name: string; size?: number }) {
+  const words = name.trim().split(/\s+/);
+  const initials = words.length >= 2
+    ? (words[0][0] + words[1][0]).toUpperCase()
+    : name.slice(0, 2).toUpperCase();
+  const bg = teamColor(name);
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%',
+      background: bg,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: size * 0.36, fontWeight: 900, color: '#fff',
+      flexShrink: 0, letterSpacing: '-0.03em',
+      boxShadow: `0 0 0 2px #0B0E11, 0 0 0 3px ${bg}66`,
+    }}>
+      {initials}
+    </div>
+  );
+}
+
 function betLabel(b: BetType, homeTeam: string, awayTeam: string, ouLine?: number): string {
   if (b === 'W1') return `1 (${homeTeam})`;
   if (b === 'W2') return `2 (${awayTeam})`;
@@ -1928,62 +1957,73 @@ function MyBets({ bets, matches }: { bets: PlacedBet[]; matches: LiveMatch[] }) 
               <div style={{ padding: '10px 14px 12px' }}>
 
                 {/* League */}
-                <div style={{ fontSize: 10, color: '#5E6673', fontWeight: 600, marginBottom: 6, letterSpacing: '0.04em' }}>
+                <div style={{ fontSize: 10, color: '#848E9C', fontWeight: 700, marginBottom: 8, letterSpacing: '0.04em' }}>
                   {bet.league}
                   {bet.result && (
                     <span style={{
-                      marginLeft: 8, fontSize: 10, color: '#848E9C',
+                      marginLeft: 8, fontSize: 10, color: '#C7CACD',
                       background: '#1E2026', padding: '1px 7px', borderRadius: 4, border: '1px solid #2B3139',
                     }}>Final {bet.result}</span>
                   )}
                 </div>
 
-                {/* Teams */}
+                {/* Teams with logos */}
                 <div style={{
                   display: 'grid', gridTemplateColumns: '1fr auto 1fr',
-                  alignItems: 'center', gap: 8, marginBottom: 10,
+                  alignItems: 'center', gap: 8, marginBottom: 12,
                 }}>
-                  <span style={{ fontSize: 13, color: '#EAECEF', fontWeight: 700, lineHeight: 1.2 }}>{bet.homeTeam}</span>
+                  {/* Home team */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <TeamLogo name={bet.homeTeam} size={34} />
+                    <span style={{ fontSize: 13, color: '#fff', fontWeight: 800, lineHeight: 1.2 }}>{bet.homeTeam}</span>
+                  </div>
+
+                  {/* Score / VS badge */}
                   {isOpen && liveMatch ? (
                     <span style={{
-                      fontSize: 15, color: '#fff', fontWeight: 900, padding: '3px 10px',
+                      fontSize: 15, color: '#fff', fontWeight: 900, padding: '4px 12px',
                       background: '#1a2a1a', border: '1px solid #22c55e',
                       borderRadius: 6, textAlign: 'center', letterSpacing: '0.05em',
-                      lineHeight: 1.2,
+                      lineHeight: 1.2, whiteSpace: 'nowrap',
                     }}>
                       {liveMatch.homeScore}–{liveMatch.awayScore}
                     </span>
                   ) : (
                     <span style={{
-                      fontSize: 10, color: '#848E9C', fontWeight: 700, padding: '2px 7px',
-                      border: '1px solid #2B3139', borderRadius: 4,
+                      fontSize: 11, color: '#C7CACD', fontWeight: 800, padding: '3px 8px',
+                      border: '1px solid #3B4149', borderRadius: 5, background: '#1C2128',
                     }}>VS</span>
                   )}
-                  <span style={{ fontSize: 13, color: '#EAECEF', fontWeight: 700, textAlign: 'right', lineHeight: 1.2 }}>{bet.awayTeam}</span>
+
+                  {/* Away team */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
+                    <span style={{ fontSize: 13, color: '#fff', fontWeight: 800, textAlign: 'right', lineHeight: 1.2 }}>{bet.awayTeam}</span>
+                    <TeamLogo name={bet.awayTeam} size={34} />
+                  </div>
                 </div>
 
                 {/* Divider */}
-                <div style={{ height: 1, background: '#1E2026', marginBottom: 10 }} />
+                <div style={{ height: 1, background: '#2B3139', marginBottom: 10 }} />
 
                 {/* Bet details row */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
                   <div>
-                    <div style={{ fontSize: 9, color: '#5E6673', fontWeight: 600, marginBottom: 3, textTransform: 'uppercase' }}>Selection</div>
-                    <div style={{ fontSize: 11, color: '#EAECEF', fontWeight: 700, lineHeight: 1.3 }}>
+                    <div style={{ fontSize: 9, color: '#848E9C', fontWeight: 600, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Selection</div>
+                    <div style={{ fontSize: 11, color: '#fff', fontWeight: 700, lineHeight: 1.3 }}>
                       {betLabel(bet.betType, bet.homeTeam, bet.awayTeam, bet.ouLine)}
                     </div>
                   </div>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 9, color: '#5E6673', fontWeight: 600, marginBottom: 3, textTransform: 'uppercase' }}>Odds</div>
+                    <div style={{ fontSize: 9, color: '#848E9C', fontWeight: 600, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Odds</div>
                     <div style={{ fontSize: 12, color: '#F0B90B', fontWeight: 900 }}>× {bet.odds}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 9, color: '#5E6673', fontWeight: 600, marginBottom: 3, textTransform: 'uppercase' }}>Stake</div>
-                    <div style={{ fontSize: 11, color: '#848E9C', fontWeight: 700 }}>{fmt(bet.amount)} USDT</div>
+                    <div style={{ fontSize: 9, color: '#848E9C', fontWeight: 600, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Stake</div>
+                    <div style={{ fontSize: 11, color: '#fff', fontWeight: 700 }}>{fmt(bet.amount)} USDT</div>
                   </div>
                 </div>
 
-                {/* Return bar — only for settled or highlighted for open */}
+                {/* Return bar */}
                 <div style={{
                   marginTop: 10,
                   background: '#161A1E',
@@ -1992,12 +2032,12 @@ function MyBets({ bets, matches }: { bets: PlacedBet[]; matches: LiveMatch[] }) 
                   padding: '8px 12px',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}>
-                  <span style={{ fontSize: 10, color: '#848E9C', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <span style={{ fontSize: 10, color: '#C7CACD', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     {cfg.returnLabel}
                   </span>
                   <span style={{ fontSize: 16, color: cfg.returnColor, fontWeight: 900, letterSpacing: '-0.02em' }}>
                     {cfg.returnVal}
-                    <span style={{ fontSize: 10, color: '#5E6673', fontWeight: 600, marginLeft: 4 }}>USDT</span>
+                    <span style={{ fontSize: 10, color: '#EAECEF', fontWeight: 600, marginLeft: 4 }}>USDT</span>
                   </span>
                 </div>
 
