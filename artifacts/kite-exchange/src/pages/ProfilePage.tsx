@@ -413,13 +413,12 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
     );
   }
 
-  const totalBalanceUSD = realtimePnL.currentTotalValue > 0
-    ? realtimePnL.currentTotalValue
-    : balances.reduce((sum, balance) => {
-        const balanceValue = parseFloat(balance.balance) || 0;
-        const price = balance.price || (balance.symbol === 'USDT' ? 1 : 0);
-        return sum + (balanceValue * price);
-      }, 0);
+  const totalBalanceUSD = balances.reduce((sum, balance) => {
+    if (balance.symbol === 'EQ' || balance.symbol === 'EQL') return sum;
+    const balanceValue = parseFloat(balance.balance) || 0;
+    const price = balance.price || (balance.symbol === 'USDT' ? 1 : 0);
+    return sum + (balanceValue * price);
+  }, 0);
 
   const memberSince = profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recently';
 
