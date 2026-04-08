@@ -509,7 +509,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
           })()}
 
           <div className="bg-[#0B0E11] px-4 pt-2">
-            <div className="flex items-center gap-3 mb-2 overflow-x-auto scrollbar-hide">
+            <div className="flex items-center gap-4 mb-2 overflow-x-auto scrollbar-hide">
               {[
                 { id: 'crypto', label: 'Crypto' },
                 { id: 'spot', label: 'Spot' },
@@ -520,7 +520,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 <button
                   key={id}
                   onClick={() => setActiveTab(id as typeof activeTab)}
-                  className={`relative text-[13.5px] font-bold whitespace-nowrap pb-1.5 transition-all flex items-center gap-1.5 ${
+                  className={`relative text-[15px] font-bold whitespace-nowrap pb-2 transition-all flex items-center gap-1.5 ${
                     activeTab === id
                       ? special ? 'text-[#F0B90B] border-b-2 border-[#F0B90B]' : 'text-white border-b-2 border-[#F0B90B]'
                       : special ? 'text-[#F0B90B]/60 hover:text-[#F0B90B]' : 'text-[#848E9C] hover:text-[#B7BDC6]'
@@ -532,7 +532,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             </div>
 
             {activeTab !== 'new-listing' && activeTab !== 'futures' && activeTab !== 'alpha' && (
-              <div className="flex items-center gap-1.5 mb-1.5 overflow-x-auto scrollbar-hide -mx-4 px-4">
+              <div className="flex items-center gap-2 mb-2 overflow-x-auto scrollbar-hide -mx-4 px-4">
                 {[
                   { id: 'gainers', label: 'Gainers' },
                   { id: 'losers', label: 'Losers' },
@@ -542,7 +542,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                   <button
                     key={id}
                     onClick={() => setActiveFilter(id as typeof activeFilter)}
-                    className={`px-3 py-1 rounded text-[13px] font-bold transition-all whitespace-nowrap flex-shrink-0 flex items-center gap-1 ${
+                    className={`px-3.5 py-1.5 rounded text-[14px] font-bold transition-all whitespace-nowrap flex-shrink-0 flex items-center gap-1 ${
                       activeFilter === id
                         ? 'bg-[#F0B90B] text-[#0B0E11]'
                         : 'bg-transparent text-[#848E9C] hover:text-[#B7BDC6]'
