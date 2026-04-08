@@ -1,0 +1,21 @@
+[build]
+  command = "pnpm --filter @workspace/kite-exchange run build"
+  publish = "dist/public"
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api-server/*"
+  to = "/.netlify/functions/api-proxy"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api-proxy"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
