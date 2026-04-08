@@ -332,21 +332,18 @@ function FeedCard({ card }: { card: CardType }) {
 }
 
 /* ─── Main component ────────────────────────────────────────── */
-export default function SportsCommunityFeed() {
+export default function SportsCommunityFeed({ compact = false }: { compact?: boolean }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = useState(false);
   const posRef = useRef(0);
   const rafRef = useRef<number>(0);
   const pausedRef = useRef(false);
 
-  useEffect(() => {
-    pausedRef.current = paused;
-  }, [paused]);
+  useEffect(() => { pausedRef.current = paused; }, [paused]);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-
     const tick = () => {
       if (!pausedRef.current && el) {
         posRef.current += 0.45;
@@ -362,9 +359,41 @@ export default function SportsCommunityFeed() {
 
   const doubled = [...CARDS, ...CARDS];
 
+  /* ── Compact mode: slim strip inside Alpha Sports modal ── */
+  if (compact) {
+    return (
+      <div style={{ background: '#0B0E11', paddingTop: 8, paddingBottom: 8, borderBottom: '1px solid #1C2128' }}>
+        {/* Mini header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 12, paddingRight: 12, marginBottom: 6 }}>
+          <span style={{ fontSize: 11, fontWeight: 800, color: '#B7BDC6' }}>Community</span>
+          <span style={{
+            fontSize: 8, fontWeight: 800, color: '#0ECB81', background: '#0ECB8118',
+            border: '1px solid #0ECB8133', borderRadius: 3, padding: '1px 4px', letterSpacing: '0.05em',
+          }}>LIVE</span>
+          <span style={{ marginLeft: 'auto', fontSize: 10, color: '#F0B90B66', fontWeight: 700 }}>💬 10,247 chatting</span>
+        </div>
+        {/* Compact scrolling cards */}
+        <div
+          ref={scrollRef}
+          onTouchStart={() => setPaused(true)}
+          onTouchEnd={() => { setTimeout(() => setPaused(false), 2000); }}
+          style={{
+            display: 'flex', gap: 8, overflowX: 'hidden',
+            paddingLeft: 12, paddingRight: 12,
+            scrollbarWidth: 'none', alignItems: 'stretch',
+          }}
+        >
+          {doubled.map((card, i) => (
+            <CompactFeedCard key={i} card={card} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Full mode: standalone section on home page ── */
   return (
     <div style={{ background: '#0B0E11', paddingTop: 10, paddingBottom: 6 }}>
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 16, paddingRight: 16, marginBottom: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>Community</span>
@@ -375,8 +404,6 @@ export default function SportsCommunityFeed() {
         </div>
         <span style={{ fontSize: 11, color: '#F0B90B', fontWeight: 700 }}>10,247 online</span>
       </div>
-
-      {/* Scrolling feed */}
       <div
         ref={scrollRef}
         onMouseEnter={() => setPaused(true)}
@@ -388,14 +415,65 @@ export default function SportsCommunityFeed() {
           paddingLeft: 16, paddingRight: 16,
           scrollbarWidth: 'none', msOverflowStyle: 'none',
           WebkitOverflowScrolling: 'touch',
-          cursor: 'grab',
-          alignItems: 'stretch',
+          cursor: 'grab', alignItems: 'stretch',
         }}
       >
         {doubled.map((card, i) => (
           <FeedCard key={i} card={card} />
         ))}
       </div>
+    </div>
+  );
+}
+
+/* ── Compact card: shows a small bubble (win or chat) ── */
+function CompactFeedCard({ card }: { card: CardType }) {
+  const profileId = 'profile' in card ? card.profile : ('asker' in card ? card.asker : 'jm');
+  const p = getProfile(profileId);
+
+  if (card.type === 'win') {
+    return (
+      <div style={{
+        minWidth: 180, background: 'linear-gradient(135deg, #0D2B1A 0%, #0B1E13 100%)',
+        border: '1px solid #0ECB8130', borderRadius: 10, padding: '8px 10px',
+        display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Avatar profileId={card.profile} size={22} />
+          <span style={{ fontSize: 10.5, fontWeight: 700, color: '#e2e8f0' }}>{p.name}</span>
+          <span style={{ marginLeft: 'auto', fontSize: 12 }}>🏆</span>
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 900, color: '#0ECB81', letterSpacing: '-0.02em', textAlign: 'center' }}>{card.amount}</div>
+        <div style={{ fontSize: 9.5, color: '#848E9C', lineHeight: 1.3 }}>
+          {card.match} · <span style={{ color: '#F0B90B', fontWeight: 700 }}>{card.pick}</span>
+        </div>
+      </div>
+    );
+  }
+
+  const text = card.type === 'chat' ? card.text
+    : card.type === 'qa' ? card.question
+    : card.type === 'deposit' ? card.text
+    : card.type === 'match' ? card.comment : '';
+
+  return (
+    <div style={{
+      minWidth: 190, background: '#1A1E26', border: '1px solid #2B3139',
+      borderRadius: 10, padding: '8px 10px', display: 'flex', flexDirection: 'column',
+      gap: 5, flexShrink: 0,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Avatar profileId={profileId} size={22} />
+        <span style={{ fontSize: 10.5, fontWeight: 700, color: '#e2e8f0' }}>{p.name} {p.flag}</span>
+        <span style={{ marginLeft: 'auto', fontSize: 9, color: '#4B5563' }}>{card.time}</span>
+      </div>
+      <div style={{
+        fontSize: 11, color: '#9CA3AF', lineHeight: 1.4,
+        display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+      }}>{text}</div>
+      {'likes' in card && (
+        <div style={{ fontSize: 10, color: '#4B5563' }}>❤️ {card.likes}</div>
+      )}
     </div>
   );
 }
