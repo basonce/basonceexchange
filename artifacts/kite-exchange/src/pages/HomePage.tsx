@@ -33,12 +33,13 @@ const Wallet = lazy(() => import('../components/Wallet'));
 
 interface HomePageProps {
   onNavigate?: (tab: string) => void;
+  autoOpenSports?: boolean;
 }
 
-export default function HomePage({ onNavigate }: HomePageProps) {
+export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) {
   const [activeTab, setActiveTab] = useState<'crypto' | 'spot' | 'futures' | 'new-listing' | 'alpha'>('crypto');
   const [activeFilter, setActiveFilter] = useState<'gainers' | 'losers' | '24h-vol' | 'tradfi'>('gainers');
-  const [showSportsModal, setShowSportsModal] = useState(false);
+  const [showSportsModal, setShowSportsModal] = useState(!!autoOpenSports);
   const [discoverTab, setDiscoverTab] = useState<'discover' | 'following' | 'campaign' | 'announcement'>('discover');
   const [showFAB, setShowFAB] = useState(false);
   const [showCreateMenu, setShowCreateMenu] = useState(false);

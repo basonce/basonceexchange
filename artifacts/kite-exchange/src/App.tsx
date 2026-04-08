@@ -89,7 +89,7 @@ class PageErrorBoundary extends Component<{ children: ReactNode; name: string },
 
 type Page = 'markets' | 'trade' | 'wallet' | 'admin';
 
-const VALID_TABS = new Set(['home', 'markets', 'trade', 'futures', 'aibot', 'mining', 'assets', 'profile', 'social-profile']);
+const VALID_TABS = new Set(['home', 'sports', 'markets', 'trade', 'futures', 'aibot', 'mining', 'assets', 'profile', 'social-profile']);
 
 function getTabFromHash(): string {
   const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase().split('?')[0];
@@ -283,6 +283,7 @@ function App() {
       mining: 'Mining | BASONCE Exchange - Kripto Para Borsasi',
       assets: 'Varliklar | BASONCE Exchange - Kripto Para Borsasi',
       profile: 'Profil | BASONCE Exchange - Kripto Para Borsasi',
+      sports: 'Alpha Sports | BASONCE Exchange - Canli Spor Bahis',
     };
     document.title = pageTitles[mobileTab] || pageTitles.home;
   }, [mobileTab]);
@@ -319,7 +320,7 @@ function App() {
             role="main"
             style={{ paddingBottom: mobileTab === 'social-profile' ? 0 : 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
           >
-            {mobileTab === 'home' && <PageErrorBoundary name="home"><HomePage /></PageErrorBoundary>}
+            {(mobileTab === 'home' || mobileTab === 'sports') && <PageErrorBoundary name="home"><HomePage autoOpenSports={mobileTab === 'sports'} /></PageErrorBoundary>}
             {mobileTab === 'markets' && <PageErrorBoundary name="markets"><MarketsPage /></PageErrorBoundary>}
             {mobileTab === 'trade' && <PageErrorBoundary name="trade"><TradePage onBack={() => { setMobileTab(prevTab !== 'trade' ? prevTab : 'markets'); }} /></PageErrorBoundary>}
             {mobileTab === 'futures' && <PageErrorBoundary name="futures"><FuturesPage initialSymbol={futuresInitialSymbol} /></PageErrorBoundary>}
