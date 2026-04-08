@@ -403,27 +403,33 @@ function teamColor(name: string): string {
 
 /** Module-level logo cache: team name → badge URL (null = not found) */
 const _logoCache = new Map<string, string | null>();
-const _logoFetching = new Set<string>();
+const _logoPending = new Map<string, Promise<string | null>>();
 
-async function fetchTeamLogo(name: string): Promise<string | null> {
+function fetchTeamLogo(name: string): Promise<string | null> {
   const key = name.toLowerCase().trim();
-  if (_logoCache.has(key)) return _logoCache.get(key)!;
-  if (_logoFetching.has(key)) return null;
-  _logoFetching.add(key);
-  try {
-    // Use our own API server as a proxy — avoids CORS issues
-    const res = await fetch(`/api-server/api/team-logo?name=${encodeURIComponent(name)}`);
-    if (!res.ok) throw new Error('net');
-    const data = await res.json();
-    const badge: string | null = data?.badgeUrl ?? null;
-    _logoCache.set(key, badge);
-    return badge;
-  } catch {
-    _logoCache.set(key, null);
-    return null;
-  } finally {
-    _logoFetching.delete(key);
-  }
+  // Already resolved — return immediately
+  if (_logoCache.has(key)) return Promise.resolve(_logoCache.get(key)!);
+  // Already in-flight — share the same promise so all callers get the result
+  if (_logoPending.has(key)) return _logoPending.get(key)!;
+
+  const promise: Promise<string | null> = (async () => {
+    try {
+      const res = await fetch(`/api-server/api/team-logo?name=${encodeURIComponent(name)}`);
+      if (!res.ok) throw new Error('net');
+      const data = await res.json();
+      const badge: string | null = data?.badgeUrl ?? null;
+      _logoCache.set(key, badge);
+      return badge;
+    } catch {
+      _logoCache.set(key, null);
+      return null;
+    } finally {
+      _logoPending.delete(key);
+    }
+  })();
+
+  _logoPending.set(key, promise);
+  return promise;
 }
 
 /** Team logo — shows real badge fetched from thesportsdb, falls back to coloured initials */
