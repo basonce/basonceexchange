@@ -484,4 +484,34 @@ router.get('/admin/bet-exposure', async (req, res) => {
   }
 });
 
+/* ══════════════════════════════════════════════════════════
+   GET /api/team-logo?name=TeamName
+   Proxy to thesportsdb — avoids CORS on the client side.
+   Results are cached in-memory for the server lifetime.
+══════════════════════════════════════════════════════════ */
+const _teamLogoCache = new Map<string, string | null>();
+
+router.get('/team-logo', async (req, res) => {
+  const name = (req.query.name as string || '').trim();
+  if (!name) return res.json({ badgeUrl: null });
+
+  const key = name.toLowerCase();
+  if (_teamLogoCache.has(key)) {
+    return res.json({ badgeUrl: _teamLogoCache.get(key) });
+  }
+
+  try {
+    const url = `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(name)}`;
+    const resp = await fetch(url, { signal: AbortSignal.timeout(6000) } as any);
+    if (!resp.ok) throw new Error('upstream');
+    const data: any = await resp.json();
+    const badgeUrl: string | null = data?.teams?.[0]?.strBadge ?? null;
+    _teamLogoCache.set(key, badgeUrl);
+    return res.json({ badgeUrl });
+  } catch (e: any) {
+    _teamLogoCache.set(key, null);
+    return res.json({ badgeUrl: null });
+  }
+});
+
 export default router;

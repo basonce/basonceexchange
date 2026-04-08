@@ -411,13 +411,11 @@ async function fetchTeamLogo(name: string): Promise<string | null> {
   if (_logoFetching.has(key)) return null;
   _logoFetching.add(key);
   try {
-    const res = await fetch(
-      `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(name)}`,
-      { signal: AbortSignal.timeout(5000) }
-    );
+    // Use our own API server as a proxy — avoids CORS issues
+    const res = await fetch(`/api-server/api/team-logo?name=${encodeURIComponent(name)}`);
     if (!res.ok) throw new Error('net');
     const data = await res.json();
-    const badge: string | null = data?.teams?.[0]?.strTeamBadge ?? null;
+    const badge: string | null = data?.badgeUrl ?? null;
     _logoCache.set(key, badge);
     return badge;
   } catch {
