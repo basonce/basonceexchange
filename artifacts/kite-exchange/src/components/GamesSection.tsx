@@ -401,13 +401,69 @@ function teamColor(name: string): string {
   return `hsl(${hue}, 72%, 52%)`;
 }
 
-/** Team initials badge (up to 2 chars) */
+/** Module-level logo cache: team name → badge URL (null = not found) */
+const _logoCache = new Map<string, string | null>();
+const _logoFetching = new Set<string>();
+
+async function fetchTeamLogo(name: string): Promise<string | null> {
+  const key = name.toLowerCase().trim();
+  if (_logoCache.has(key)) return _logoCache.get(key)!;
+  if (_logoFetching.has(key)) return null;
+  _logoFetching.add(key);
+  try {
+    const res = await fetch(
+      `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(name)}`,
+      { signal: AbortSignal.timeout(5000) }
+    );
+    if (!res.ok) throw new Error('net');
+    const data = await res.json();
+    const badge: string | null = data?.teams?.[0]?.strTeamBadge ?? null;
+    _logoCache.set(key, badge);
+    return badge;
+  } catch {
+    _logoCache.set(key, null);
+    return null;
+  } finally {
+    _logoFetching.delete(key);
+  }
+}
+
+/** Team logo — shows real badge fetched from thesportsdb, falls back to coloured initials */
 function TeamLogo({ name, size = 36 }: { name: string; size?: number }) {
+  const key = name.toLowerCase().trim();
+  const [logoUrl, setLogoUrl] = useState<string | null>(() => _logoCache.get(key) ?? null);
+
+  useEffect(() => {
+    if (_logoCache.has(key)) { setLogoUrl(_logoCache.get(key) ?? null); return; }
+    let alive = true;
+    fetchTeamLogo(name).then(url => { if (alive) setLogoUrl(url); });
+    return () => { alive = false; };
+  }, [key, name]);
+
   const words = name.trim().split(/\s+/);
   const initials = words.length >= 2
     ? (words[0][0] + words[1][0]).toUpperCase()
     : name.slice(0, 2).toUpperCase();
   const bg = teamColor(name);
+
+  if (logoUrl) {
+    return (
+      <div style={{
+        width: size, height: size, borderRadius: '50%', overflow: 'hidden',
+        background: '#1C2128', flexShrink: 0,
+        boxShadow: `0 0 0 2px #0B0E11, 0 0 0 3px ${bg}55`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <img
+          src={logoUrl}
+          alt={name}
+          style={{ width: '85%', height: '85%', objectFit: 'contain' }}
+          onError={() => { _logoCache.set(key, null); setLogoUrl(null); }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div style={{
       width: size, height: size, borderRadius: '50%',
