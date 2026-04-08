@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import { supabase, getCurrentUser } from '../lib/supabase';
-import SportsCommunityFeed from './SportsCommunityFeed';
 import { pickFreshMatchups, getLeague, ri, rf, ALL_MATCHUPS, type MatchTemplate } from '../lib/sportsData';
 
 /** Format a number with thousands separator + 2 decimal places. e.g. 16261406697.97 → "16,261,406,697.97" */
@@ -2989,11 +2988,8 @@ export default function GamesSection() {
         </div>
       </div>
 
-      {/* ── Community Feed ── */}
-      <SportsCommunityFeed compact />
-
       {/* ── Tabs: Live | My Bets ── */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #1C2128', margin: '4px 12px 0' }}>
+      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #1C2128', margin: '8px 12px 0' }}>
         {[
           { id: 'live', label: '🔴 Live Matches' },
           { id: 'bets', label: `📋 My Bets${openBets > 0 ? ` (${openBets})` : ''}` },
