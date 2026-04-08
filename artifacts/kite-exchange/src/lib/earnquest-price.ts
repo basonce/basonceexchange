@@ -1,11 +1,11 @@
 import { loadSnapshot, saveSnapshot, saveCycleStart, loadCycleStart } from './price-persist';
 
-const STORAGE_KEY = 'EQ_v6';
-const CYCLE_MS    = 8 * 60 * 60 * 1000; // 8 hours
-const MIN_PRICE   = 0.10;
-const MAX_PRICE   = 1.6327;
+const STORAGE_KEY = 'EQ_v7';
+const CYCLE_MS    = 10 * 60 * 60 * 1000; // 10 hours
+const MIN_PRICE   = 0.01;
+const MAX_PRICE   = 1.63;
 const INIT_VOL    = 7_000_000;
-const MAX_VOL     = 439_000_000;
+const MAX_VOL     = 392_000_000;
 
 function cycleProgress(cycleStart: number): number {
   return Math.min(1, (Date.now() - cycleStart) / CYCLE_MS);

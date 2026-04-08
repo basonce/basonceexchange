@@ -7,7 +7,7 @@ import { SZNPPriceManager } from './sznp-price';
 import { PunchPriceManager } from './punch-price';
 
 // Clean up any orphaned old-version keys from previous releases
-const OLD_KEYS = ['EQ_v4','EQ_v5','BNC_v4','BNC_v5','PAYAI','POWERAI','SGP','SZNP','PUNCH'];
+const OLD_KEYS = ['EQ_v4','EQ_v5','EQ_v6','BNC_v4','BNC_v5','PAYAI','POWERAI','SGP','SZNP','PUNCH'];
 OLD_KEYS.forEach(k => {
   try {
     localStorage.removeItem(`kite_price_${k}`);
