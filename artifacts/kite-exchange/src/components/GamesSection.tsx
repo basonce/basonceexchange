@@ -401,74 +401,18 @@ function teamColor(name: string): string {
   return `hsl(${hue}, 72%, 52%)`;
 }
 
-/** Module-level logo cache: team name → badge URL (null = not found) */
-const _logoCache = new Map<string, string | null>();
-const _logoPending = new Map<string, Promise<string | null>>();
-
-function fetchTeamLogo(name: string): Promise<string | null> {
-  const key = name.toLowerCase().trim();
-  // Already resolved — return immediately
-  if (_logoCache.has(key)) return Promise.resolve(_logoCache.get(key)!);
-  // Already in-flight — share the same promise so all callers get the result
-  if (_logoPending.has(key)) return _logoPending.get(key)!;
-
-  const promise: Promise<string | null> = (async () => {
-    try {
-      const res = await fetch(`/api-server/api/team-logo?name=${encodeURIComponent(name)}`);
-      if (!res.ok) throw new Error('net');
-      const data = await res.json();
-      const badge: string | null = data?.badgeUrl ?? null;
-      _logoCache.set(key, badge);
-      return badge;
-    } catch {
-      _logoCache.set(key, null);
-      return null;
-    } finally {
-      _logoPending.delete(key);
-    }
-  })();
-
-  _logoPending.set(key, promise);
-  return promise;
+/** Direct URL to server-proxied team logo image (no CORS, server-cached, mobile-safe) */
+function teamLogoImgUrl(name: string): string {
+  return `/api-server/api/team-logo-img?name=${encodeURIComponent(name)}`;
 }
 
-/** Team logo — shows real badge fetched from thesportsdb, falls back to coloured initials */
-function TeamLogo({ name, size = 36 }: { name: string; size?: number }) {
-  const key = name.toLowerCase().trim();
-  const [logoUrl, setLogoUrl] = useState<string | null>(() => _logoCache.get(key) ?? null);
-
-  useEffect(() => {
-    if (_logoCache.has(key)) { setLogoUrl(_logoCache.get(key) ?? null); return; }
-    let alive = true;
-    fetchTeamLogo(name).then(url => { if (alive) setLogoUrl(url); });
-    return () => { alive = false; };
-  }, [key, name]);
-
+/** Shield SVG fallback when logo fails to load */
+function ShieldFallback({ name, size }: { name: string; size: number }) {
   const words = name.trim().split(/\s+/);
   const initials = words.length >= 2
     ? (words[0][0] + words[1][0]).toUpperCase()
     : name.slice(0, 2).toUpperCase();
   const bg = teamColor(name);
-
-  if (logoUrl) {
-    return (
-      <div style={{
-        width: size, height: size, borderRadius: '50%', overflow: 'hidden',
-        background: '#1C2128', flexShrink: 0,
-        boxShadow: `0 0 0 2px #0B0E11, 0 0 0 3px ${bg}55`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <img
-          src={logoUrl}
-          alt={name}
-          style={{ width: '85%', height: '85%', objectFit: 'contain' }}
-          onError={() => { _logoCache.set(key, null); setLogoUrl(null); }}
-        />
-      </div>
-    );
-  }
-
-  // Fallback: professional shield SVG (same style as live match cards)
   const s = size;
   const cx = s / 2;
   const shield = `M ${s*0.08},${s*0.06} L ${s*0.92},${s*0.06} L ${s*0.92},${s*0.62} Q ${s*0.92},${s*0.95} ${cx},${s*0.99} Q ${s*0.08},${s*0.95} ${s*0.08},${s*0.62} Z`;
@@ -477,12 +421,12 @@ function TeamLogo({ name, size = 36 }: { name: string; size?: number }) {
   return (
     <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`} style={{ flexShrink: 0 }}>
       <defs>
-        <linearGradient id={`lg_${initials}`} x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={`lg_${initials}_${s}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={bg}/>
           <stop offset="100%" stopColor={darkBg}/>
         </linearGradient>
       </defs>
-      <path d={shield} fill={`url(#lg_${initials})`} stroke={bg} strokeWidth="0.8" opacity="0.95"/>
+      <path d={shield} fill={`url(#lg_${initials}_${s})`} stroke={bg} strokeWidth="0.8" opacity="0.95"/>
       <text
         x={cx} y={s * 0.66}
         textAnchor="middle" dominantBaseline="middle"
@@ -490,6 +434,30 @@ function TeamLogo({ name, size = 36 }: { name: string; size?: number }) {
         style={{ fontFamily: 'system-ui, sans-serif', letterSpacing: '-0.03em' }}
       >{initials}</text>
     </svg>
+  );
+}
+
+/** Team logo — directly loads from server proxy (no async state, no CORS issues) */
+function TeamLogo({ name, size = 36 }: { name: string; size?: number }) {
+  const [failed, setFailed] = useState(false);
+  const bg = teamColor(name);
+
+  if (failed) return <ShieldFallback name={name} size={size} />;
+
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%', overflow: 'hidden',
+      background: '#1C2128', flexShrink: 0,
+      boxShadow: `0 0 0 2px #0B0E11, 0 0 0 3px ${bg}55`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <img
+        src={teamLogoImgUrl(name)}
+        alt={name}
+        style={{ width: '85%', height: '85%', objectFit: 'contain' }}
+        onError={() => setFailed(true)}
+      />
+    </div>
   );
 }
 
@@ -520,32 +488,21 @@ function strHash(s: string): number {
 
 /* ── Real Football Club Crest ── */
 function TeamShield({ abbr, color, size = 32, logoUrl, name }: { abbr: string; color: string; size?: number; logoUrl?: string; name?: string }) {
-  const cacheKey = (name || abbr).toLowerCase().trim();
-  const [resolvedUrl, setResolvedUrl] = useState<string | null>(() => {
-    if (logoUrl) return logoUrl;
-    return _logoCache.get(cacheKey) ?? null;
-  });
   const [imgFailed, setImgFailed] = useState(false);
 
-  useEffect(() => {
-    if (logoUrl) { setResolvedUrl(logoUrl); return; }
-    if (!name) return;
-    if (_logoCache.has(cacheKey)) { setResolvedUrl(_logoCache.get(cacheKey) ?? null); return; }
-    let alive = true;
-    fetchTeamLogo(name).then(url => { if (alive) setResolvedUrl(url); });
-    return () => { alive = false; };
-  }, [cacheKey, logoUrl, name]);
+  // Priority: explicit logoUrl prop → server-proxied by name → fallback SVG
+  const imgSrc = logoUrl || (name ? teamLogoImgUrl(name) : null);
 
-  if (resolvedUrl && !imgFailed) {
+  if (imgSrc && !imgFailed) {
     return (
       <div style={{ width: size, height: size, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, overflow: 'hidden', background: 'rgba(255,255,255,0.06)' }}>
         <img
-          src={resolvedUrl}
+          src={imgSrc}
           alt={abbr}
           width={size - 4}
           height={size - 4}
           style={{ objectFit: 'contain', display: 'block' }}
-          onError={() => { _logoCache.set(cacheKey, null); setImgFailed(true); }}
+          onError={() => setImgFailed(true)}
         />
       </div>
     );

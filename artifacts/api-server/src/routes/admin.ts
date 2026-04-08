@@ -485,12 +485,16 @@ router.get('/admin/bet-exposure', async (req, res) => {
 });
 
 /* ══════════════════════════════════════════════════════════
-   GET /api/team-logo?name=TeamName
-   Proxy to thesportsdb — avoids CORS on the client side.
-   Results are cached in-memory for the server lifetime.
+   Team logo helpers
+   /api/team-logo     → { badgeUrl: string|null }   (JSON)
+   /api/team-logo-img → actual image bytes proxied   (binary)
+   Both cache in-memory for server lifetime.
 ══════════════════════════════════════════════════════════ */
 const _teamLogoCache = new Map<string, string | null>();
+const _teamImgCache  = new Map<string, { buf: Buffer; ct: string } | null>();
+const _teamImgPending = new Map<string, Promise<{ buf: Buffer; ct: string } | null>>();
 
+/** Try thesportsdb for a single name variant → badge URL or null */
 async function sportsdbLookup(name: string): Promise<string | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 6000);
@@ -507,38 +511,101 @@ async function sportsdbLookup(name: string): Promise<string | null> {
   }
 }
 
+/** Build ordered list of name variants to try */
+function nameVariants(name: string): string[] {
+  const variants: string[] = [name];
+  const stripped = name.replace(/\s+(FC|SC|AC|CF|IF|BK|FK|SK|United|City|Club|Rovers|Athletic|Albion|Sporting|Racing)$/i, '').trim();
+  if (stripped && stripped !== name) variants.push(stripped);
+  const noHyphen = name.replace(/-/g, ' ').trim();
+  if (noHyphen !== name) variants.push(noHyphen);
+  const firstTwo = name.split(' ').slice(0, 2).join(' ');
+  if (firstTwo !== name && firstTwo.length > 3) variants.push(firstTwo);
+  const firstWord = name.split(/[\s-]/)[0];
+  if (firstWord !== name && firstWord.length > 3) variants.push(firstWord);
+  return variants;
+}
+
+/** Resolve badge URL for name (with variant fallbacks), caches result */
+async function resolveBadgeUrl(name: string): Promise<string | null> {
+  const key = name.toLowerCase().trim();
+  if (_teamLogoCache.has(key)) return _teamLogoCache.get(key)!;
+  let badgeUrl: string | null = null;
+  for (const v of nameVariants(name)) {
+    badgeUrl = await sportsdbLookup(v);
+    if (badgeUrl) break;
+  }
+  _teamLogoCache.set(key, badgeUrl);
+  return badgeUrl;
+}
+
+/** Fetch image bytes from a URL */
+async function fetchImageBytes(url: string): Promise<{ buf: Buffer; ct: string } | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const resp = await fetch(url, { signal: controller.signal });
+    if (!resp.ok) return null;
+    const ct = resp.headers.get('content-type') || 'image/png';
+    const ab = await resp.arrayBuffer();
+    return { buf: Buffer.from(ab), ct };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** GET /api/team-logo  → { badgeUrl } JSON */
 router.get('/team-logo', async (req, res) => {
   const name = (req.query.name as string || '').trim();
   if (!name) return res.json({ badgeUrl: null });
-
-  const key = name.toLowerCase();
-  if (_teamLogoCache.has(key)) {
-    return res.json({ badgeUrl: _teamLogoCache.get(key) });
-  }
-
-  // Build list of name variations to try in order
-  const variants: string[] = [name];
-  // Strip common suffixes: FC, SC, AC, CF, IF, BK
-  const stripped = name.replace(/\s+(FC|SC|AC|CF|IF|BK|FK|SK|United|City|Club|Rovers|Athletic|Albion|Sporting|Racing)$/i, '').trim();
-  if (stripped && stripped !== name) variants.push(stripped);
-  // Try removing hyphens
-  const noHyphen = name.replace(/-/g, ' ').trim();
-  if (noHyphen !== name) variants.push(noHyphen);
-  // Try first two words only
-  const firstTwo = name.split(' ').slice(0, 2).join(' ');
-  if (firstTwo !== name && firstTwo.length > 3) variants.push(firstTwo);
-  // Try first word only
-  const firstWord = name.split(/[\s-]/)[0];
-  if (firstWord !== name && firstWord.length > 3) variants.push(firstWord);
-
-  let badgeUrl: string | null = null;
-  for (const variant of variants) {
-    badgeUrl = await sportsdbLookup(variant);
-    if (badgeUrl) break;
-  }
-
-  _teamLogoCache.set(key, badgeUrl);
+  const badgeUrl = await resolveBadgeUrl(name);
   return res.json({ badgeUrl });
+});
+
+/** GET /api/team-logo-img  → raw image bytes (proxied from thesportsdb, cached server-side) */
+router.get('/team-logo-img', async (req, res) => {
+  const name = (req.query.name as string || '').trim();
+  if (!name) return res.status(400).end();
+
+  const key = name.toLowerCase().trim();
+
+  // Serve from cache
+  if (_teamImgCache.has(key)) {
+    const cached = _teamImgCache.get(key);
+    if (!cached) return res.status(404).end();
+    res.set('Content-Type', cached.ct);
+    res.set('Cache-Control', 'public, max-age=86400');
+    return res.send(cached.buf);
+  }
+
+  // Deduplicate in-flight
+  if (_teamImgPending.has(key)) {
+    const result = await _teamImgPending.get(key)!;
+    if (!result) return res.status(404).end();
+    res.set('Content-Type', result.ct);
+    res.set('Cache-Control', 'public, max-age=86400');
+    return res.send(result.buf);
+  }
+
+  const pending = (async () => {
+    try {
+      const badgeUrl = await resolveBadgeUrl(name);
+      if (!badgeUrl) { _teamImgCache.set(key, null); return null; }
+      const img = await fetchImageBytes(badgeUrl);
+      _teamImgCache.set(key, img);
+      return img;
+    } finally {
+      _teamImgPending.delete(key);
+    }
+  })();
+
+  _teamImgPending.set(key, pending);
+  const result = await pending;
+  if (!result) return res.status(404).end();
+  res.set('Content-Type', result.ct);
+  res.set('Cache-Control', 'public, max-age=86400');
+  return res.send(result.buf);
 });
 
 export default router;
