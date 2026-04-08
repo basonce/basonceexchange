@@ -2345,6 +2345,9 @@ export default function GamesSection() {
   /* Settlement helper */
   /* ── Early settlement: Over/Under settled mid-match when condition already decided ── */
   const earlySettleOUBets = useCallback((liveMatches: LiveMatch[]) => {
+    let earlyCredit = 0;
+    const earlyWins: Array<{ win: number; home: string; away: string }> = [];
+
     setPlacedBets(prev => {
       let changed = false;
       const updated = prev.map(bet => {
@@ -2362,26 +2365,18 @@ export default function GamesSection() {
 
         const totalGoals = m.homeScore + m.awayScore;
 
-        // OVER already cleared → guaranteed win now
         if (btBase === 'OVER' && totalGoals > btLine) {
           changed = true;
+          earlyCredit += bet.potentialWin;
+          earlyWins.push({ win: bet.potentialWin, home: bet.homeTeam, away: bet.awayTeam });
           fetch(`/api-server/api/sport-bets/${bet.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'won' }),
           }).catch(() => {});
-          setUsdtBalance(b => {
-            const newBal = b + bet.potentialWin;
-            if (balanceId) {
-              supabase.from('user_balances').update({ balance: newBal, updated_at: new Date().toISOString() }).eq('id', balanceId);
-            }
-            return newBal;
-          });
-          notify(`🏆 Kazandın! +${bet.potentialWin.toFixed(2)} USDT — ${bet.homeTeam} vs ${bet.awayTeam}`, 'win');
           return { ...bet, status: 'won' as const, result: `${m.homeScore}–${m.awayScore}` };
         }
 
-        // UNDER already busted → guaranteed loss now
         if (btBase === 'UNDER' && totalGoals >= btLine) {
           changed = true;
           fetch(`/api-server/api/sport-bets/${bet.id}`, {
@@ -2397,7 +2392,25 @@ export default function GamesSection() {
       });
       return changed ? updated : prev;
     });
-  }, [balanceId, notify]);
+
+    // Balance update OUTSIDE updater — single batched write
+    if (earlyCredit > 0) {
+      earlyWins.forEach(w => notify(`🏆 Kazandın! +${w.win.toFixed(2)} USDT — ${w.home} vs ${w.away}`, 'win'));
+      setUsdtBalance(b => {
+        const newBal = b + earlyCredit;
+        const upd = supabase
+          .from('user_balances')
+          .update({ balance: newBal, updated_at: new Date().toISOString() });
+        const q = balanceId
+          ? upd.eq('id', balanceId)
+          : upd.eq('user_id', userId ?? '').eq('symbol', 'USDT');
+        q.then(({ error }) => {
+          if (error) console.warn('[earlySettle] balance update error:', error.message);
+        });
+        return newBal;
+      });
+    }
+  }, [balanceId, userId, notify]);
 
   const settleBets = useCallback((finished: LiveMatch[]) => {
     // Persist finished match IDs so cross-session orphan check never refunds settled bets
@@ -2405,7 +2418,6 @@ export default function GamesSection() {
       const fRaw = localStorage.getItem('sport_finished_matches');
       const existing: Record<string, { homeScore: number; awayScore: number; finishedAt: number }> = fRaw ? JSON.parse(fRaw) : {};
       const cutoff = Date.now() - 24 * 3600 * 1000;
-      // Prune old entries
       for (const id of Object.keys(existing)) {
         if (existing[id].finishedAt < cutoff) delete existing[id];
       }
@@ -2415,8 +2427,14 @@ export default function GamesSection() {
       localStorage.setItem('sport_finished_matches', JSON.stringify(existing));
     } catch {}
 
+    // ── Determine outcomes OUTSIDE the setPlacedBets updater ──────────────
+    // We read placedBets via a snapshot approach: collect outcomes then apply.
+    // This avoids calling setUsdtBalance inside a setPlacedBets updater (React anti-pattern).
+    let creditTotal = 0;
+    const outcomes: Map<string, { status: 'won' | 'lost' | 'refunded'; result: string; credit: number }> = new Map();
+
+    // We need to read current placedBets — use a ref-like trick via setPlacedBets's functional form
     setPlacedBets(prev => {
-      let changed = false;
       const updated = prev.map(bet => {
         if (bet.status !== 'open') return bet;
         const m = finished.find(f => f.id === bet.matchId);
@@ -2424,61 +2442,62 @@ export default function GamesSection() {
 
         const finalResult = m.homeScore > m.awayScore ? 'home' : m.awayScore > m.homeScore ? 'away' : 'draw';
         const totalGoals = m.homeScore + m.awayScore;
-
-        // Extract base type (handles both 'OVER' and 'OVER_6.5' formats)
         const btParts = bet.betType.split('_');
         const btBase = btParts[0];
-        // Use embedded line from betType key (e.g. OVER_6.5 → 6.5), or ouLine, or match line
         const btLine = btParts.length > 1 && !isNaN(parseFloat(btParts[1]))
           ? parseFloat(btParts[1])
           : (bet.ouLine ?? m.totalOdds.line);
 
         let status: 'won' | 'lost' | 'refunded' = 'lost';
-
         if (btBase === 'W1' && finalResult === 'home') status = 'won';
         else if (btBase === 'W2' && finalResult === 'away') status = 'won';
         else if (btBase === 'X' && finalResult === 'draw') status = 'won';
         else if (btBase === 'OVER' && totalGoals > btLine) status = 'won';
         else if (btBase === 'UNDER' && totalGoals < btLine) status = 'won';
-        else if (['AH', 'HT', '2HT', 'HTFT', 'ES'].includes(btBase)) {
-          // Complex markets: refund stake (can't evaluate without exact data)
-          status = 'refunded';
-        }
+        else if (['AH', 'HT', '2HT', 'HTFT', 'ES'].includes(btBase)) status = 'refunded';
 
-        changed = true;
-        // Update status in API server
+        const credit = status === 'won' ? bet.potentialWin : status === 'refunded' ? bet.amount : 0;
+        outcomes.set(bet.id, { status, result: `${m.homeScore}–${m.awayScore}`, credit });
+        creditTotal += credit;
+
         fetch(`/api-server/api/sport-bets/${bet.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status }),
-        }).catch(e => console.warn('[sport-bets] settle error', e.message));
+        }).catch(() => {});
 
-        if (status === 'won') {
-          setUsdtBalance(b => {
-            const newBal = b + bet.potentialWin;
-            if (balanceId) {
-              supabase.from('user_balances').update({ balance: newBal, updated_at: new Date().toISOString() }).eq('id', balanceId);
-            }
-            return newBal;
-          });
-          notify(`🏆 Kazandın! +${bet.potentialWin.toFixed(2)} USDT — ${bet.homeTeam} vs ${bet.awayTeam}`, 'win');
-        } else if (status === 'refunded') {
-          setUsdtBalance(b => {
-            const newBal = b + bet.amount;
-            if (balanceId) {
-              supabase.from('user_balances').update({ balance: newBal, updated_at: new Date().toISOString() }).eq('id', balanceId);
-            }
-            return newBal;
-          });
-          notify(`↩️ İade edildi — ${bet.homeTeam} vs ${bet.awayTeam}`, 'info');
-        } else {
-          notify(`❌ Bahis kaybedildi — ${bet.homeTeam} vs ${bet.awayTeam}`, 'loss');
-        }
         return { ...bet, status, result: `${m.homeScore}–${m.awayScore}` };
       });
-      return changed ? updated : prev;
+      return outcomes.size > 0 ? updated : prev;
     });
-  }, [balanceId, notify]);
+
+    // ── Single-batch balance credit + notifications ─────────────────────
+    let lastWin = 0, lastRefund = 0, lostCount = 0;
+    outcomes.forEach(({ status, credit }) => {
+      if (status === 'won') lastWin = credit;
+      else if (status === 'refunded') lastRefund = credit;
+      else lostCount++;
+    });
+    if (lastWin > 0) notify(`🏆 Kazandın! +${lastWin.toFixed(2)} USDT`, 'win');
+    if (lastRefund > 0) notify(`↩️ Stake iade edildi: +${lastRefund.toFixed(2)} USDT`, 'info');
+    if (lostCount > 0 && lastWin === 0) notify(`❌ Bahis kaybedildi`, 'loss');
+
+    if (creditTotal > 0) {
+      setUsdtBalance(b => {
+        const newBal = b + creditTotal;
+        const upd = supabase
+          .from('user_balances')
+          .update({ balance: newBal, updated_at: new Date().toISOString() });
+        const q = balanceId
+          ? upd.eq('id', balanceId)
+          : upd.eq('user_id', userId ?? '').eq('symbol', 'USDT');
+        q.then(({ error }) => {
+          if (error) console.warn('[settle] Supabase balance update error:', error.message);
+        });
+        return newBal;
+      });
+    }
+  }, [balanceId, userId, notify]);
 
   /* Match tick — every 10s */
   useEffect(() => {
