@@ -223,9 +223,14 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
     if (!user) { initDemoMode(); return; }
 
     // Balance ve equipment paralel çalışır
-    const [{ data: balanceData }, { data: equipment }] = await Promise.all([
+    // Not: user_active_equipment VIEW yerine direkt tablo + join kullan
+    // (VIEW'daki is_currently_usable koşulu bazı geçerli ekipmanları dışarıda bırakıyordu)
+    const [{ data: balanceData }, { data: rawEquipment }] = await Promise.all([
       supabase.from('user_balances').select('balance, eq_amount').eq('user_id', user.id).eq('symbol', 'USDT').maybeSingle(),
-      supabase.from('user_active_equipment').select('*').eq('user_id', user.id).eq('is_currently_usable', true),
+      supabase.from('user_mining_equipment')
+        .select('*, mining_equipment_types(*)')
+        .eq('user_id', user.id)
+        .eq('is_active', true),
     ]);
 
     if (balanceData) {
@@ -233,29 +238,35 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
       setDbEqBalance(Number(balanceData.eq_amount || 0));
     }
 
-    if (!equipment || equipment.length === 0) {
+    if (!rawEquipment || rawEquipment.length === 0) {
       setMiners([]);
       return;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const equipment = rawEquipment as any[];
+
     const devices: MinerDevice[] = equipment.map(eq => {
-      const maxSeconds = (eq.mining_duration_hours || 3) * 3600;
+      const t = eq.mining_equipment_types || {};
+      const durationHours = t.mining_duration_hours || eq.mining_duration_hours || 5;
+      const maxSeconds = durationHours * 3600;
       const usedSeconds = eq.used_mining_seconds || 0;
-      const hasTimeLimit = eq.has_time_limit !== false;
+      // has_time_limit: true if duration is set (> 0), otherwise unlimited
+      const hasTimeLimit = durationHours > 0;
       return {
         id: eq.id,
-        name: eq.equipment_name || 'CPU Miner',
-        icon: eq.equipment_icon || '💻',
-        hash_rate: eq.hash_rate || 10,
-        daily_earning_usdt: eq.daily_earning || 240,
+        name: t.name || 'CPU Miner',
+        icon: t.icon || '💻',
+        hash_rate: t.hash_rate || 10,
+        daily_earning_usdt: t.daily_earning || 240,
         total_earned_usdt: eq.total_earned_usdt || 0,
         session_earned_usdt: eq.session_earned_usdt || 0,
-        status: eq.status as 'active' | 'paused' | 'stopped',
+        status: (eq.status || 'stopped') as 'active' | 'paused' | 'stopped',
         started_at: eq.started_at,
         used_mining_seconds: usedSeconds,
-        level: eq.type_level || 0,
-        mining_duration_hours: eq.mining_duration_hours || 3,
-        withdrawal_limit: eq.withdrawal_limit || 100,
+        level: t.level || 0,
+        mining_duration_hours: durationHours,
+        withdrawal_limit: t.withdrawal_limit || 100,
         times_used: eq.times_used || 0,
         tier: 1,
         max_uses: 999,
