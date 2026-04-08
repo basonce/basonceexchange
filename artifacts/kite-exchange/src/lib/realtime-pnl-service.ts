@@ -164,7 +164,10 @@ class RealtimePnLService {
     const usdtRow = rows.find(r => r.symbol === 'USDT');
     const futuresWallet = parseFloat(usdtRow?.futures_balance || '0') || 0;
 
-    const spotValues = spotBalances.map(b => b.balance * this.getPrice(b.symbol));
+    // Exclude EQ/EQL from portfolio total — mined tokens must not inflate the display
+    const spotValues = spotBalances
+      .filter(b => b.symbol !== 'EQ' && b.symbol !== 'EQL')
+      .map(b => b.balance * this.getPrice(b.symbol));
     const spotTotal = spotValues.reduce((a, b) => a + b, 0);
 
     const { data: positions } = await supabase
@@ -235,7 +238,7 @@ class RealtimePnLService {
       const { total, spotBalances } = await this.computeCurrentPortfolio();
 
       if (total <= 0) {
-        if (this.state.currentTotalValue > 0) return;
+        // Always publish 0 — never suppress based on stale cached value
         this.publish({ ...this.state, currentTotalValue: 0, dailyPnL: 0, dailyPnLPercentage: 0 });
         return;
       }
@@ -260,7 +263,8 @@ class RealtimePnLService {
 
   private publish(pnl: RealtimePnL): void {
     this.state = pnl;
-    if (pnl.currentTotalValue > 0) saveCachedState(pnl);
+    // Always save — including 0 — so stale high values never resurrect after a reset
+    saveCachedState(pnl);
     this.subscribers.forEach(cb => cb(pnl));
   }
 }

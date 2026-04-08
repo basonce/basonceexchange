@@ -185,6 +185,9 @@ export default function AssetsPage() {
     const channel = supabase
       .channel('balance_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'user_balances' }, () => {
+        // Clear stale caches before re-fetching so reset shows immediately
+        try { localStorage.removeItem('basonce_assets_cache_v1'); } catch {}
+        try { localStorage.removeItem('basonce_pnl_cache_v1'); } catch {}
         fetchBalances();
         pnlService.refresh();
       })
@@ -413,7 +416,9 @@ export default function AssetsPage() {
 
   const totalValueUSDT = realtimePnL.currentTotalValue > 0
     ? realtimePnL.currentTotalValue
-    : balances.reduce((sum, b) => sum + (b.balance * b.price), 0);
+    : balances
+        .filter(b => b.symbol !== 'EQ' && b.symbol !== 'EQL')
+        .reduce((sum, b) => sum + (b.balance * b.price), 0);
 
   const getCurrencyPrice = (currency: CurrencyType): number => {
     if (currency === 'USDT') return 1;
