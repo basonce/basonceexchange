@@ -88,7 +88,8 @@ export default function AssetsPage() {
       const raw = localStorage.getItem('basonce_assets_cache_v1');
       if (raw) {
         const { ts, balances: cached } = JSON.parse(raw);
-        if (Date.now() - ts < 60 * 1000 && Array.isArray(cached)) return cached;
+        // Only use cache if 30 seconds fresh — prevents stale high values after admin reset
+        if (Date.now() - ts < 30 * 1000 && Array.isArray(cached)) return cached;
       }
     } catch {}
     return [];

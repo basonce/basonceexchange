@@ -32,8 +32,8 @@ function loadCachedState(): RealtimePnL | null {
     const raw = localStorage.getItem(PORTFOLIO_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { ts: number; state: RealtimePnL };
-    // Use cache up to 10 minutes old (so page opens instantly with last value)
-    if (Date.now() - parsed.ts < 10 * 60 * 1000) return parsed.state;
+    // Only use cache if it's very recent (30 seconds) — avoids stale high values after admin reset
+    if (Date.now() - parsed.ts < 30 * 1000) return parsed.state;
   } catch {}
   return null;
 }
