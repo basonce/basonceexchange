@@ -16,6 +16,7 @@ import { isMetalSymbol } from '../components/MetalIcon';
 import { isTradFiIcon } from '../components/TradFiIcon';
 import { getCachedTradFiPrice } from '../lib/tradfi-price-service';
 import { RealtimePnLService, RealtimePnL } from '../lib/realtime-pnl-service';
+import { PriceCache } from '../lib/price-cache';
 import {
   User, Mail, LogOut, Shield, ChevronRight, Wallet as WalletIcon, Plus, Loader2,
   ArrowLeft, QrCode, Settings, Gift, TrendingUp, Repeat, DollarSign,
@@ -94,6 +95,8 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
     return () => {
       subscription.unsubscribe();
       unsubscribePnL();
+      const unsub = (window as unknown as Record<string, unknown>)['_profilePriceUnsub'];
+      if (typeof unsub === 'function') (unsub as () => void)();
     };
   }, []);
 
@@ -167,50 +170,37 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
         .gt('balance', 0)
         .order('balance', { ascending: false });
 
-      const balancesWithPrices = await Promise.all(
-        (balanceData || []).map(async (balance) => {
-          if (balance.symbol === 'USDT') {
-            return { ...balance, price: 1 };
-          }
+      const priceCache = PriceCache.getInstance();
+      const eqMgr = priceManagerRef.current || EarnQuestPriceManager.getInstance();
 
-          if (balance.symbol === 'EQ' || balance.symbol === 'EQL') {
-            const price = priceManagerRef.current?.getPrice() || 0;
-            return { ...balance, price };
-          }
-
-          if (isMetalSymbol(balance.symbol) || isTradFiIcon(balance.symbol)) {
-            const cached = getCachedTradFiPrice(balance.symbol + 'USDT');
-            return { ...balance, price: cached?.price || 0 };
-          }
-
-          try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-            const response = await fetch(
-              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/binance-proxy?symbol=${balance.symbol}USDT`,
-              {
-                headers: {
-                  'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-                },
-                signal: controller.signal
-              }
-            );
-            clearTimeout(timeoutId);
-
-            const priceData = await response.json();
-            return {
-              ...balance,
-              price: parseFloat(priceData.price || '0')
-            };
-          } catch (error) {
-            console.warn(`Failed to fetch price for ${balance.symbol}:`, error);
-            return { ...balance, price: 0 };
-          }
-        })
-      );
+      const balancesWithPrices = (balanceData || []).map((balance) => {
+        if (balance.symbol === 'USDT') return { ...balance, price: 1 };
+        if (balance.symbol === 'EQ' || balance.symbol === 'EQL') {
+          return { ...balance, price: eqMgr.getPrice() || 0 };
+        }
+        if (isMetalSymbol(balance.symbol) || isTradFiIcon(balance.symbol)) {
+          const cached = getCachedTradFiPrice(balance.symbol + 'USDT');
+          return { ...balance, price: cached?.price || 0 };
+        }
+        // Use PriceCache (same source as Assets page — no proxy latency/failures)
+        const cached = priceCache.getBySymbol(balance.symbol);
+        return { ...balance, price: cached?.price || 0 };
+      });
 
       setBalances(balancesWithPrices);
+
+      // Re-apply live prices when cache updates
+      const unsubPrice = priceCache.subscribe(() => {
+        setBalances(prev => prev.map(b => {
+          if (b.symbol === 'USDT') return b;
+          if (b.symbol === 'EQ' || b.symbol === 'EQL') return { ...b, price: eqMgr.getPrice() || 0 };
+          const fresh = priceCache.getBySymbol(b.symbol);
+          return fresh?.price ? { ...b, price: fresh.price } : b;
+        }));
+      });
+
+      // Store unsubscribe fn for cleanup — attach to window to avoid closure issues
+      (window as unknown as Record<string, unknown>)['_profilePriceUnsub'] = unsubPrice;
     } catch (error) {
       console.error('Error loading balances:', error);
     }
@@ -413,12 +403,17 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
     );
   }
 
-  const totalBalanceUSD = balances.reduce((sum, balance) => {
+  // Use RealtimePnLService as the single source of truth (same as Assets page)
+  // Falls back to local sum only if PnL service hasn't loaded yet
+  const localBalanceSum = balances.reduce((sum, balance) => {
     if (balance.symbol === 'EQ' || balance.symbol === 'EQL') return sum;
     const balanceValue = parseFloat(balance.balance) || 0;
     const price = balance.price || (balance.symbol === 'USDT' ? 1 : 0);
     return sum + (balanceValue * price);
   }, 0);
+  const totalBalanceUSD = realtimePnL.currentTotalValue > 0
+    ? realtimePnL.currentTotalValue
+    : localBalanceSum;
 
   const memberSince = profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recently';
 
