@@ -4,6 +4,7 @@ import { loadSubs } from "./lib/push-store";
 import { configurePush } from "./lib/push-sender";
 import { startPushMonitor } from "./lib/push-monitor";
 import { startWalletChainCron } from "./lib/wallet-chain-cron";
+import { ensureTable } from "./routes/admin";
 
 const rawPort = process.env["PORT"];
 
@@ -31,4 +32,5 @@ app.listen(port, (err) => {
   configurePush();
   startPushMonitor().catch(e => logger.warn({ e }, 'Push monitor başlatılamadı'));
   startWalletChainCron();
+  ensureTable().then(() => logger.info('DB tables ensured')).catch(e => logger.warn({ e }, 'ensureTable startup failed'));
 });

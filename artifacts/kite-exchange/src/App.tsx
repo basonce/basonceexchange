@@ -2,6 +2,7 @@ import { useState, useEffect, Component, ReactNode, Suspense, lazy } from 'react
 import { supabase } from './lib/supabase';
 import { analyticsTracker } from './lib/analytics-tracker';
 import { setActivityUserId, trackPageView as trackActivityPage, initGlobalTracking, destroyGlobalTracking } from './lib/activity-tracker';
+import { initAnonTracker, stopAnonTracker } from './lib/anonymous-tracker';
 import ExchangeModeProvider from './components/ExchangeModeProvider';
 import ExchangeModeBanner from './components/ExchangeModeBanner';
 import BottomNav from './components/BottomNav';
@@ -154,9 +155,13 @@ function App() {
 
     checkAdminStatus();
 
+    // Start anon tracker for visitors before session resolves
+    initAnonTracker(false);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
+        stopAnonTracker();
         checkAdminStatus();
         analyticsTracker.updateUserRegistration(session.user.id);
 
@@ -188,12 +193,16 @@ function App() {
       } else {
         setIsAdmin(false);
         setActivityUserId(null);
+        initAnonTracker(false);
       }
     });
 
     // Restore user id for activity tracking on reload
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) setActivityUserId(session.user.id);
+      if (session?.user) {
+        setActivityUserId(session.user.id);
+        stopAnonTracker();
+      }
     });
 
     return () => subscription.unsubscribe();

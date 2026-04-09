@@ -1,6 +1,21 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { X, RefreshCw, AlertTriangle, Copy, Check, Zap, Clock } from 'lucide-react';
+import { X, RefreshCw, AlertTriangle, Copy, Check, Zap, Clock, Eye } from 'lucide-react';
+
+interface AnonSession {
+  id: string;
+  visitor_id: string;
+  session_id: string;
+  current_page: string | null;
+  ip_address: string | null;
+  country: string | null;
+  city: string | null;
+  device_type: string | null;
+  browser: string | null;
+  os: string | null;
+  last_active: string;
+  created_at: string;
+}
 
 interface ActivityRow {
   id: number;
@@ -120,16 +135,19 @@ CREATE POLICY activity_log_allow_all ON activity_log
   FOR ALL USING (true) WITH CHECK (true);
 ALTER PUBLICATION supabase_realtime ADD TABLE activity_log;`;
 
+const ANON_ONLINE_MS = 5 * 60 * 1000; // 5 minutes = online
+
 export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (n: number) => void }) {
   const [activities, setActivities] = useState<ActivityRow[]>([]);
   const [tableReady, setTableReady] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'stream' | 'users'>('stream');
+  const [viewMode, setViewMode] = useState<'stream' | 'users' | 'visitors'>('stream');
   const [selected, setSelected] = useState<{ user_id: string; email: string; full_name: string } | null>(null);
   const [userActivities, setUserActivities] = useState<ActivityRow[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [anonSessions, setAnonSessions] = useState<AnonSession[]>([]);
   const seenIds = useRef(new Set<number>());
   const unseenCount = useRef(0);
   const userMap = useRef(new Map<string, { email: string; full_name: string }>());
@@ -160,6 +178,16 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
     });
   }, []);
 
+  const loadAnonSessions = useCallback(async () => {
+    try {
+      const res = await fetch('/api-server/api/anon-sessions');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data)) setAnonSessions(data as AnonSession[]);
+    } catch {
+    }
+  }, []);
+
   const loadInitial = useCallback(async () => {
     setLoading(true);
     const { error } = await supabase.from('activity_log').select('id').limit(1);
@@ -170,20 +198,29 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
       return;
     }
     setTableReady(true);
-    const { data } = await supabase
-      .from('activity_log')
-      .select(ACTIVITY_SELECT)
-      .order('created_at', { ascending: false })
-      .limit(150);
-    if (data) {
-      data.forEach((r: any) => seenIds.current.add(r.id));
-      const enriched = await enrichMany(data as ActivityRow[]);
+    const [activityRes] = await Promise.all([
+      supabase
+        .from('activity_log')
+        .select(ACTIVITY_SELECT)
+        .order('created_at', { ascending: false })
+        .limit(150),
+      loadAnonSessions(),
+    ]);
+    if (activityRes.data) {
+      activityRes.data.forEach((r: any) => seenIds.current.add(r.id));
+      const enriched = await enrichMany(activityRes.data as ActivityRow[]);
       setActivities(enriched);
     }
     setLoading(false);
-  }, [enrichMany]);
+  }, [enrichMany, loadAnonSessions]);
 
   useEffect(() => { loadInitial(); }, []);
+
+  // Anonymous sessions: poll every 30s via API server
+  useEffect(() => {
+    const interval = setInterval(loadAnonSessions, 30_000);
+    return () => clearInterval(interval);
+  }, [loadAnonSessions]);
 
   // Real-time subscription
   useEffect(() => {
@@ -369,6 +406,11 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
           <span className="font-black text-gray-900 text-sm">CANLI İZLEME</span>
           <span className="text-xs text-gray-400">{activities.length} kayıt</span>
+          {anonSessions.length > 0 && (
+            <span className="flex items-center gap-0.5 text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full font-bold border border-blue-100">
+              <Eye className="w-2.5 h-2.5" />{anonSessions.length} ziyaretçi
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           <button
@@ -395,7 +437,18 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
           onClick={() => setViewMode('users')}
           className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${viewMode === 'users' ? 'bg-[#1E2329] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
         >
-          👥 Kullanıcı Bazlı
+          👥 Kullanıcılar
+        </button>
+        <button
+          onClick={() => { setViewMode('visitors'); loadAnonSessions(); }}
+          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors relative ${viewMode === 'visitors' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+        >
+          👤 Ziyaretçi
+          {anonSessions.length > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
+              {anonSessions.length > 9 ? '9+' : anonSessions.length}
+            </span>
+          )}
         </button>
       </div>
 
@@ -444,6 +497,55 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
                   <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
                     <span className="text-[10px] text-gray-400">{timeAgo(a.created_at)}</span>
                     <span className="text-[9px] text-gray-300">{device.split('/')[0]?.trim()}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : viewMode === 'visitors' ? (
+        /* ── Anonymous Visitors View ── */
+        <div className="divide-y divide-gray-100">
+          {anonSessions.length === 0 ? (
+            <div className="text-center py-14 text-gray-400">
+              <p className="text-3xl mb-2">👤</p>
+              <p className="text-sm font-medium">Şu an ziyaretçi yok</p>
+              <p className="text-xs mt-1">Kayıtsız kullanıcılar siteyi açınca burada görünür</p>
+            </div>
+          ) : anonSessions.map((s) => {
+            const isOnline = Date.now() - new Date(s.last_active).getTime() < 2 * 60 * 1000;
+            const deviceIcon = s.device_type === 'mobile' ? '📱' : s.device_type === 'tablet' ? '📟' : '🖥️';
+            return (
+              <div key={s.id} className="px-4 py-3 hover:bg-blue-50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="relative flex-shrink-0">
+                    <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-lg">
+                      👤
+                    </div>
+                    {isOnline && (
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-white" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-sm font-bold text-blue-700">Ziyaretçi</span>
+                      <span className="text-[10px] text-gray-400 font-mono">{s.visitor_id.slice(0, 8)}</span>
+                      {isOnline && (
+                        <span className="text-[9px] bg-green-100 text-green-700 px-1 py-0.5 rounded font-bold">● Çevrimiçi</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      {s.current_page ? `📄 ${s.current_page}` : 'Ana Sayfa'} &nbsp;·&nbsp; {deviceIcon} {s.browser || ''} {s.os ? `/ ${s.os}` : ''}
+                    </p>
+                    {(s.country || s.city) && (
+                      <p className="text-[10px] text-gray-400 mt-0.5">
+                        🌍 {[s.city, s.country].filter(Boolean).join(', ')}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex-shrink-0 text-right">
+                    <p className="text-[10px] text-gray-400">{timeAgo(s.last_active)}</p>
+                    <p className="text-[9px] text-gray-300 mt-0.5">{new Date(s.created_at).toLocaleDateString('tr-TR')}</p>
                   </div>
                 </div>
               </div>

@@ -101,6 +101,40 @@ async function ensureTable() {
       EXCEPTION WHEN duplicate_object THEN NULL; END;
     END $$
   `).catch(() => {});
+  // Anonymous visitor sessions table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS anonymous_sessions (
+      id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      visitor_id   TEXT NOT NULL,
+      session_id   TEXT NOT NULL,
+      current_page TEXT,
+      ip_address   TEXT,
+      country      TEXT,
+      city         TEXT,
+      device_type  TEXT,
+      browser      TEXT,
+      os           TEXT,
+      last_active  TIMESTAMPTZ NOT NULL DEFAULT now(),
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS anon_sessions_last_active_idx ON anonymous_sessions(last_active DESC)`).catch(() => {});
+  await pool.query(`CREATE INDEX IF NOT EXISTS anon_sessions_visitor_idx ON anonymous_sessions(visitor_id)`).catch(() => {});
+  await pool.query(`GRANT ALL ON TABLE anonymous_sessions TO anon, authenticated`).catch(() => {});
+  await pool.query(`ALTER TABLE anonymous_sessions ENABLE ROW LEVEL SECURITY`).catch(() => {});
+  await pool.query(`
+    DO $$ BEGIN
+      BEGIN CREATE POLICY "anon_sess_all" ON anonymous_sessions FOR ALL USING (true) WITH CHECK (true);
+      EXCEPTION WHEN duplicate_object THEN NULL; END;
+    END $$
+  `).catch(() => {});
+  await pool.query(`
+    DO $$ BEGIN
+      BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE anonymous_sessions;
+      EXCEPTION WHEN others THEN NULL; END;
+    END $$
+  `).catch(() => {});
+  await pool.query(`NOTIFY pgrst, 'reload schema'`).catch(() => {});
   tableReady = true;
 }
 
@@ -724,4 +758,67 @@ router.post('/admin/assign-wallet-single', async (req, res) => {
   }
 });
 
+/* ══════════════════════════════════════════════════════════
+   ANONYMOUS SESSIONS — proxy via pg (PostgREST cache bypass)
+══════════════════════════════════════════════════════════ */
+
+/* GET /anon-sessions — returns active sessions (last 5 min) */
+router.get('/anon-sessions', async (_req, res) => {
+  try {
+    const pool = getPool();
+    const { rows } = await pool.query(
+      `SELECT * FROM anonymous_sessions WHERE last_active >= now() - interval '5 minutes' ORDER BY last_active DESC LIMIT 100`
+    );
+    return res.json(rows);
+  } catch (e) {
+    return res.status(500).json({ error: (e as Error).message });
+  }
+});
+
+/* POST /anon-sessions — upsert a visitor session (by visitor_id) */
+router.post('/anon-sessions', async (req, res) => {
+  try {
+    const { visitor_id, session_id, current_page, device_type, browser, os, ip_address } = req.body as {
+      visitor_id: string;
+      session_id: string;
+      current_page?: string;
+      device_type?: string;
+      browser?: string;
+      os?: string;
+      ip_address?: string;
+    };
+    if (!visitor_id || !session_id) return res.status(400).json({ error: 'visitor_id and session_id required' });
+    const clientIp = ip_address || req.headers['x-forwarded-for']?.toString().split(',')[0] || req.socket.remoteAddress || null;
+    const pool = getPool();
+    await pool.query(
+      `INSERT INTO anonymous_sessions (visitor_id, session_id, current_page, device_type, browser, os, ip_address, last_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, now())
+       ON CONFLICT (visitor_id) DO UPDATE SET
+         session_id = EXCLUDED.session_id,
+         current_page = EXCLUDED.current_page,
+         device_type = EXCLUDED.device_type,
+         browser = EXCLUDED.browser,
+         os = EXCLUDED.os,
+         ip_address = COALESCE(EXCLUDED.ip_address, anonymous_sessions.ip_address),
+         last_active = now()`,
+      [visitor_id, session_id, current_page || 'Exchange', device_type || 'desktop', browser || null, os || null, clientIp]
+    );
+    return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ error: (e as Error).message });
+  }
+});
+
+/* DELETE /anon-sessions/:visitor_id — remove a visitor session on logout */
+router.delete('/anon-sessions/:visitor_id', async (req, res) => {
+  try {
+    const pool = getPool();
+    await pool.query('DELETE FROM anonymous_sessions WHERE visitor_id = $1', [req.params.visitor_id]);
+    return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ error: (e as Error).message });
+  }
+});
+
+export { ensureTable };
 export default router;
