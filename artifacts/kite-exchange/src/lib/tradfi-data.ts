@@ -137,10 +137,20 @@ export const CATEGORY_STYLES: Record<TradFiCategory, { bg: string; text: string;
   Agriculture: { bg: 'bg-[#84CC16]/20', text: 'text-[#84CC16]', label: 'Agriculture' },
 };
 
+const SYMBOL_ALIASES: Record<string, string> = {
+  'OIL': 'WTIUSDT',
+};
+
+function resolveSymbol(symbol: string): string {
+  return SYMBOL_ALIASES[symbol] ?? symbol;
+}
+
 export function getTradFiAsset(symbol: string): TradFiAsset | undefined {
-  return TRADFI_ASSETS.find(a => a.symbol === symbol || a.displayName === symbol);
+  const s = resolveSymbol(symbol);
+  return TRADFI_ASSETS.find(a => a.symbol === s || a.displayName === s || a.symbol === `${s}USDT`);
 }
 
 export function isTradFiSymbol(symbol: string): boolean {
-  return TRADFI_ASSETS.some(a => a.symbol === symbol || a.displayName === symbol || `${symbol}USDT` === a.symbol);
+  const s = resolveSymbol(symbol);
+  return TRADFI_ASSETS.some(a => a.symbol === s || a.displayName === s || `${s}USDT` === a.symbol);
 }
