@@ -221,9 +221,9 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
 
   useEffect(() => { loadInitial(); }, []);
 
-  // Anonymous sessions: poll every 15s via API server
+  // Anonymous sessions: poll every 3s for near-instant updates
   useEffect(() => {
-    const interval = setInterval(loadAnonSessions, 15_000);
+    const interval = setInterval(loadAnonSessions, 3_000);
     return () => clearInterval(interval);
   }, [loadAnonSessions]);
 

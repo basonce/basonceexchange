@@ -105,6 +105,7 @@ export function startSupportAlarm()   { startPersistentAlarm('support',    sound
 export function startSecurityAlarm()  { startPersistentAlarm('security',   sounds.security); }
 export function startCriticalAlarm()  { startPersistentAlarm('critical',   sounds.critical); }
 export function startPositionAlarm()  { startPersistentAlarm('position',   sounds.success); }
+export function startVisitorAlarm()   { sounds.visitor(); } // short single beep — not persistent
 
 // ── Browser notification ──────────────────────────────────────
 let silentNode: ScriptProcessorNode | null = null;
