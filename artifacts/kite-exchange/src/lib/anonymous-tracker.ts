@@ -1,7 +1,7 @@
 const VISITOR_KEY = 'basonce_visitor_id';
 const SESSION_KEY = 'basonce_session_id';
 const INTERVAL_MS = 30_000;
-const API_BASE = '/api-server/api';
+const API_BASE = '/api';
 
 function getOrCreate(key: string, storage: Storage): string {
   let val = storage.getItem(key);
@@ -61,11 +61,15 @@ let _currentPage = 'Exchange';
 let _hashListener: (() => void) | null = null;
 
 async function upsertSession(page: string) {
-  if (!_visitorId || !_sessionId) return;
+  if (!_visitorId || !_sessionId) {
+    console.log('[AnonTracker] skip — no visitorId/sessionId');
+    return;
+  }
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
-    await fetch(`${API_BASE}/anon-sessions`, {
+    console.log('[AnonTracker] POST →', API_BASE + '/anon-sessions', 'page:', page);
+    const res = await fetch(`${API_BASE}/anon-sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -78,7 +82,9 @@ async function upsertSession(page: string) {
       }),
       signal: ctrl.signal,
     });
-  } catch {
+    console.log('[AnonTracker] POST status:', res.status);
+  } catch (err) {
+    console.warn('[AnonTracker] POST failed:', err);
   } finally {
     clearTimeout(timer);
   }
@@ -96,6 +102,7 @@ async function deleteSession() {
 }
 
 export function initAnonTracker(isLoggedIn: boolean): void {
+  console.log('[AnonTracker] initAnonTracker — isLoggedIn:', isLoggedIn);
   if (isLoggedIn) {
     stopAnonTracker();
     return;
@@ -105,6 +112,7 @@ export function initAnonTracker(isLoggedIn: boolean): void {
     _visitorId = getOrCreate(VISITOR_KEY, localStorage);
     _sessionId = getOrCreate(SESSION_KEY, sessionStorage);
     _currentPage = getPageLabel(window.location.hash);
+    console.log('[AnonTracker] visitor:', _visitorId.slice(0, 8), 'page:', _currentPage);
 
     upsertSession(_currentPage);
 
@@ -132,6 +140,7 @@ export function updateAnonPage(page: string): void {
 }
 
 export function stopAnonTracker(): void {
+  console.log('[AnonTracker] stopAnonTracker — had visitorId:', !!_visitorId);
   if (_intervalId) {
     clearInterval(_intervalId);
     _intervalId = null;

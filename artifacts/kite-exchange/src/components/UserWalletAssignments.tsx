@@ -179,7 +179,7 @@ export default function UserWalletAssignments() {
     setBulkResult(null);
     setAssignError(null);
     try {
-      const resp = await fetch('/api-server/api/admin/auto-assign-wallets', {
+      const resp = await fetch('/api/admin/auto-assign-wallets', {
         method: 'POST',
         headers: { 'x-requester-id': currentAdminId },
       });
@@ -216,7 +216,7 @@ export default function UserWalletAssignments() {
         return;
       }
       // Fallback: server-side generation
-      const resp = await fetch('/api-server/api/admin/assign-wallet-single', {
+      const resp = await fetch('/api/admin/assign-wallet-single', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-requester-id': currentAdminId },
         body: JSON.stringify({ userId }),

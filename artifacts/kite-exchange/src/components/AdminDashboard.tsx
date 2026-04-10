@@ -741,7 +741,7 @@ async function readStorageControls(): Promise<MatchCtrl[]> {
 
 async function writeStorageControls(controls: MatchCtrl[], adminId?: string) {
   const aid = adminId || FALLBACK_ADMIN;
-  const res = await fetch('/api-server/api/sport/controls', {
+  const res = await fetch('/api/sport/controls', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', 'x-requester-id': aid },
     body: JSON.stringify(controls),
@@ -761,7 +761,7 @@ function timeAgoMC(ts: number) {
   return `${Math.floor(s / 3600)}sa önce`;
 }
 
-const EXPOSURE_API = '/api-server/api/admin/bet-exposure';
+const EXPOSURE_API = '/api/admin/bet-exposure';
 
 interface BetExposure {
   homeTeam: string;
@@ -1536,7 +1536,7 @@ async function registerAdminPush() {
     if (perm !== 'granted') return;
 
     const existing = await reg.pushManager.getSubscription();
-    const PUSH_API = `${window.location.origin}/api-server/api`;
+    const PUSH_API = `${window.location.origin}/api`;
 
     const sendSub = async (sub: PushSubscription) => {
       const j = sub.toJSON();

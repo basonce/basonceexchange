@@ -403,7 +403,7 @@ function teamColor(name: string): string {
 
 /** Direct URL to server-proxied team logo image (no CORS, server-cached, mobile-safe) */
 function teamLogoImgUrl(name: string): string {
-  return `/api-server/api/team-logo-img?name=${encodeURIComponent(name)}`;
+  return `/api/team-logo-img?name=${encodeURIComponent(name)}`;
 }
 
 /** Shield SVG fallback when logo fails to load */
@@ -2233,7 +2233,7 @@ export default function GamesSection() {
       if (needsRefund.length === 0) return prev;
       return prev.map(b => {
         if (b.status === 'open' && !liveIds.has(b.matchId) && !finishedIds.has(b.matchId)) {
-          fetch(`/api-server/api/sport-bets/${b.id}`, {
+          fetch(`/api/sport-bets/${b.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'refunded' }),
@@ -2455,7 +2455,7 @@ export default function GamesSection() {
           changed = true;
           earlyCredit += bet.potentialWin;
           earlyWins.push({ win: bet.potentialWin, home: bet.homeTeam, away: bet.awayTeam });
-          fetch(`/api-server/api/sport-bets/${bet.id}`, {
+          fetch(`/api/sport-bets/${bet.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'won' }),
@@ -2465,7 +2465,7 @@ export default function GamesSection() {
 
         if (btBase === 'UNDER' && totalGoals >= btLine) {
           changed = true;
-          fetch(`/api-server/api/sport-bets/${bet.id}`, {
+          fetch(`/api/sport-bets/${bet.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'lost' }),
@@ -2546,7 +2546,7 @@ export default function GamesSection() {
         outcomes.set(bet.id, { status, result: `${m.homeScore}–${m.awayScore}`, credit });
         creditTotal += credit;
 
-        fetch(`/api-server/api/sport-bets/${bet.id}`, {
+        fetch(`/api/sport-bets/${bet.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status }),
@@ -2910,7 +2910,7 @@ export default function GamesSection() {
     };
 
     // Report bet to API server for admin exposure tracking
-    fetch('/api-server/api/sport-bets', {
+    fetch('/api/sport-bets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -180,7 +180,7 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
 
   const loadAnonSessions = useCallback(async () => {
     try {
-      const res = await fetch('/api-server/api/anon-sessions', {
+      const res = await fetch('/api/anon-sessions', {
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-cache' },
       });
