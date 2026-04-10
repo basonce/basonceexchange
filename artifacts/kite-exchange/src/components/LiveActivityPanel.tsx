@@ -180,7 +180,9 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
 
   const loadAnonSessions = useCallback(async () => {
     try {
-      const res = await fetch('/api/anon-sessions', {
+      // Always read from production so dev-preview and prod admin see the same visitors
+      const ANON_URL = 'https://basoncecom.replit.app/api/anon-sessions';
+      const res = await fetch(ANON_URL, {
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-cache' },
       });
