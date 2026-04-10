@@ -806,35 +806,22 @@ async function lookupGeo(ip: string | null): Promise<{ country: string | null; c
 /* POST /anon-sessions — upsert a visitor session (by visitor_id) */
 router.post('/anon-sessions', async (req, res) => {
   try {
-    const { visitor_id, session_id, current_page, device_type, browser, os, ip_address } = req.body as {
+    const { visitor_id, session_id, current_page, device_type, browser, os } = req.body as {
       visitor_id: string;
       session_id: string;
       current_page?: string;
       device_type?: string;
       browser?: string;
       os?: string;
-      ip_address?: string;
     };
     if (!visitor_id || !session_id) return res.status(400).json({ error: 'visitor_id and session_id required' });
-    const clientIp = ip_address || req.headers['x-forwarded-for']?.toString().split(',')[0] || req.socket.remoteAddress || null;
+    const clientIp = req.headers['x-forwarded-for']?.toString().split(',')[0].trim() || req.socket.remoteAddress || null;
     const pool = getPool();
 
-    // Geo lookup only on first insert (check if row already has geo)
-    const existing = await pool.query('SELECT country, city FROM anonymous_sessions WHERE visitor_id = $1', [visitor_id]);
-    let country: string | null = null;
-    let city: string | null = null;
-    if (existing.rows.length === 0 || !existing.rows[0].country) {
-      const geo = await lookupGeo(clientIp);
-      country = geo.country;
-      city = geo.city;
-    } else {
-      country = existing.rows[0].country;
-      city = existing.rows[0].city;
-    }
-
-    await pool.query(
-      `INSERT INTO anonymous_sessions (visitor_id, session_id, current_page, device_type, browser, os, ip_address, country, city, last_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
+    // 1. Save immediately — don't block on geo lookup
+    const result = await pool.query(
+      `INSERT INTO anonymous_sessions (visitor_id, session_id, current_page, device_type, browser, os, ip_address, last_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, now())
        ON CONFLICT (visitor_id) DO UPDATE SET
          session_id = EXCLUDED.session_id,
          current_page = EXCLUDED.current_page,
@@ -842,14 +829,25 @@ router.post('/anon-sessions', async (req, res) => {
          browser = EXCLUDED.browser,
          os = EXCLUDED.os,
          ip_address = COALESCE(EXCLUDED.ip_address, anonymous_sessions.ip_address),
-         country = COALESCE($8, anonymous_sessions.country),
-         city = COALESCE($9, anonymous_sessions.city),
-         last_active = now()`,
-      [visitor_id, session_id, current_page || 'Exchange', device_type || 'desktop', browser || null, os || null, clientIp, country, city]
+         last_active = now()
+       RETURNING country`,
+      [visitor_id, session_id, current_page || 'Exchange', device_type || 'desktop', browser || null, os || null, clientIp]
     );
-    return res.json({ ok: true });
+    res.json({ ok: true }); // respond instantly
+
+    // 2. Geo lookup in background — only if no country yet
+    if (!result.rows[0]?.country && clientIp) {
+      lookupGeo(clientIp).then(({ country, city }) => {
+        if (country) {
+          pool.query(
+            'UPDATE anonymous_sessions SET country=$1, city=$2 WHERE visitor_id=$3 AND country IS NULL',
+            [country, city, visitor_id]
+          ).catch(() => {});
+        }
+      }).catch(() => {});
+    }
   } catch (e) {
-    return res.status(500).json({ error: (e as Error).message });
+    if (!res.headersSent) res.status(500).json({ error: (e as Error).message });
   }
 });
 
