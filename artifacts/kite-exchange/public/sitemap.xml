@@ -1,53 +1,95 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml"
-        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+
   <url>
     <loc>https://basonce.com/</loc>
-    <lastmod>2026-02-15</lastmod>
+    <lastmod>2026-04-10</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://basonce.com/"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://basonce.com/"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://basonce.com/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://basonce.com/"/>
     <image:image>
-      <image:loc>https://basonce.com/og-image.png</image:loc>
-      <image:title>BASONCE Exchange - Kripto Para Borsası</image:title>
+      <image:loc>https://basonce.com/favicon.png</image:loc>
+      <image:title>BASONCE Exchange - World's Most Trusted Crypto Exchange</image:title>
+      <image:caption>Trade 258+ cryptocurrencies, stocks, ETFs, gold, oil and commodities on BASONCE Exchange</image:caption>
     </image:image>
   </url>
+
   <url>
     <loc>https://basonce.com/markets</loc>
-    <lastmod>2026-02-15</lastmod>
+    <lastmod>2026-04-10</lastmod>
     <changefreq>hourly</changefreq>
-    <priority>0.9</priority>
+    <priority>0.95</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://basonce.com/markets"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://basonce.com/markets"/>
   </url>
+
   <url>
     <loc>https://basonce.com/trade</loc>
-    <lastmod>2026-02-15</lastmod>
+    <lastmod>2026-04-10</lastmod>
     <changefreq>hourly</changefreq>
-    <priority>0.9</priority>
+    <priority>0.95</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://basonce.com/trade"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://basonce.com/trade"/>
   </url>
+
   <url>
     <loc>https://basonce.com/futures</loc>
-    <lastmod>2026-02-15</lastmod>
+    <lastmod>2026-04-10</lastmod>
     <changefreq>hourly</changefreq>
-    <priority>0.9</priority>
+    <priority>0.95</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://basonce.com/futures"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://basonce.com/futures"/>
   </url>
+
+  <url>
+    <loc>https://basonce.com/sports</loc>
+    <lastmod>2026-04-10</lastmod>
+    <changefreq>hourly</changefreq>
+    <priority>0.90</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://basonce.com/sports"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://basonce.com/sports"/>
+  </url>
+
   <url>
     <loc>https://basonce.com/mining</loc>
-    <lastmod>2026-02-15</lastmod>
+    <lastmod>2026-04-10</lastmod>
     <changefreq>daily</changefreq>
-    <priority>0.8</priority>
+    <priority>0.85</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://basonce.com/mining"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://basonce.com/mining"/>
   </url>
+
+  <url>
+    <loc>https://basonce.com/earn</loc>
+    <lastmod>2026-04-10</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+
+  <url>
+    <loc>https://basonce.com/referral</loc>
+    <lastmod>2026-04-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
   <url>
     <loc>https://basonce.com/assets</loc>
-    <lastmod>2026-02-15</lastmod>
+    <lastmod>2026-04-10</lastmod>
     <changefreq>daily</changefreq>
-    <priority>0.7</priority>
+    <priority>0.75</priority>
   </url>
+
   <url>
     <loc>https://basonce.com/profile</loc>
-    <lastmod>2026-02-15</lastmod>
+    <lastmod>2026-04-10</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.50</priority>
   </url>
+
 </urlset>

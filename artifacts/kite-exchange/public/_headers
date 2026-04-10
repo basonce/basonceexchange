@@ -1,28 +1,39 @@
+# ── Immutable static assets (JS/CSS bundles have content hash in filename) ──
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+  X-Content-Type-Options: nosniff
 
+# ── Sitemap ──
 /sitemap.xml
-  Content-Type: application/xml
+  Content-Type: application/xml; charset=utf-8
   Cache-Control: public, max-age=3600, s-maxage=86400
 
+# ── Robots ──
 /robots.txt
-  Content-Type: text/plain
+  Content-Type: text/plain; charset=utf-8
   Cache-Control: public, max-age=3600, s-maxage=86400
 
+# ── Icons / OG image ──
 /favicon*
   Cache-Control: public, max-age=604800, immutable
-
+/apple-touch-icon*
+  Cache-Control: public, max-age=604800, immutable
 /og-image*
   Cache-Control: public, max-age=604800
+  Access-Control-Allow-Origin: *
 
+# ── index.html — always fresh (SPA) ──
 /index.html
   Cache-Control: no-cache, no-store, must-revalidate
   Pragma: no-cache
   Expires: 0
+  X-Robots-Tag: index, follow
 
+# ── Global security + performance headers ──
 /*
   X-Content-Type-Options: nosniff
   X-Frame-Options: SAMEORIGIN
   X-XSS-Protection: 1; mode=block
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(self)
+  X-DNS-Prefetch-Control: on
