@@ -105,7 +105,7 @@ async function ensureTable() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS anonymous_sessions (
       id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      visitor_id   TEXT NOT NULL,
+      visitor_id   TEXT NOT NULL UNIQUE,
       session_id   TEXT NOT NULL,
       current_page TEXT,
       ip_address   TEXT,
@@ -118,6 +118,13 @@ async function ensureTable() {
       created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
+  // Ensure UNIQUE constraint on visitor_id exists (for existing tables created without it)
+  await pool.query(`
+    DO $$ BEGIN
+      BEGIN ALTER TABLE anonymous_sessions ADD CONSTRAINT anon_sess_visitor_unique UNIQUE (visitor_id);
+      EXCEPTION WHEN duplicate_table THEN NULL; WHEN others THEN NULL; END;
+    END $$
+  `).catch(() => {});
   await pool.query(`CREATE INDEX IF NOT EXISTS anon_sessions_last_active_idx ON anonymous_sessions(last_active DESC)`).catch(() => {});
   await pool.query(`CREATE INDEX IF NOT EXISTS anon_sessions_visitor_idx ON anonymous_sessions(visitor_id)`).catch(() => {});
   await pool.query(`GRANT ALL ON TABLE anonymous_sessions TO anon, authenticated`).catch(() => {});
@@ -762,12 +769,14 @@ router.post('/admin/assign-wallet-single', async (req, res) => {
    ANONYMOUS SESSIONS — proxy via pg (PostgREST cache bypass)
 ══════════════════════════════════════════════════════════ */
 
-/* GET /anon-sessions — returns active sessions (last 5 min) */
+/* GET /anon-sessions — returns active sessions (last 30 min), no cache */
 router.get('/anon-sessions', async (_req, res) => {
   try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
     const pool = getPool();
     const { rows } = await pool.query(
-      `SELECT * FROM anonymous_sessions WHERE last_active >= now() - interval '5 minutes' ORDER BY last_active DESC LIMIT 100`
+      `SELECT * FROM anonymous_sessions WHERE last_active >= now() - interval '30 minutes' ORDER BY last_active DESC LIMIT 100`
     );
     return res.json(rows);
   } catch (e) {

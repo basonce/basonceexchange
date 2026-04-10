@@ -62,6 +62,8 @@ let _hashListener: (() => void) | null = null;
 
 async function upsertSession(page: string) {
   if (!_visitorId || !_sessionId) return;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
     await fetch(`${API_BASE}/anon-sessions`, {
       method: 'POST',
@@ -74,9 +76,11 @@ async function upsertSession(page: string) {
         browser: detectBrowser(),
         os: detectOS(),
       }),
-      signal: AbortSignal.timeout(5000),
+      signal: ctrl.signal,
     });
   } catch {
+  } finally {
+    clearTimeout(timer);
   }
 }
 

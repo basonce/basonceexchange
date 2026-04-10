@@ -135,7 +135,7 @@ CREATE POLICY activity_log_allow_all ON activity_log
   FOR ALL USING (true) WITH CHECK (true);
 ALTER PUBLICATION supabase_realtime ADD TABLE activity_log;`;
 
-const ANON_ONLINE_MS = 5 * 60 * 1000; // 5 minutes = online
+const ANON_ONLINE_MS = 2 * 60 * 1000; // 2 minutes = actively online
 
 export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (n: number) => void }) {
   const [activities, setActivities] = useState<ActivityRow[]>([]);
@@ -180,7 +180,10 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
 
   const loadAnonSessions = useCallback(async () => {
     try {
-      const res = await fetch('/api-server/api/anon-sessions');
+      const res = await fetch('/api-server/api/anon-sessions', {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
+      });
       if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data)) setAnonSessions(data as AnonSession[]);
@@ -216,9 +219,9 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
 
   useEffect(() => { loadInitial(); }, []);
 
-  // Anonymous sessions: poll every 30s via API server
+  // Anonymous sessions: poll every 15s via API server
   useEffect(() => {
-    const interval = setInterval(loadAnonSessions, 30_000);
+    const interval = setInterval(loadAnonSessions, 15_000);
     return () => clearInterval(interval);
   }, [loadAnonSessions]);
 
@@ -506,11 +509,19 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
       ) : viewMode === 'visitors' ? (
         /* ── Anonymous Visitors View ── */
         <div className="divide-y divide-gray-100">
+          {/* Header for visitors view */}
+          <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
+            <span className="text-[10px] text-blue-600 font-bold">Son 30 dakikadaki ziyaretçiler</span>
+            <button onClick={loadAnonSessions} className="text-[10px] text-blue-500 flex items-center gap-1 hover:text-blue-700">
+              <RefreshCw className="w-2.5 h-2.5" /> Yenile
+            </button>
+          </div>
           {anonSessions.length === 0 ? (
             <div className="text-center py-14 text-gray-400">
               <p className="text-3xl mb-2">👤</p>
               <p className="text-sm font-medium">Şu an ziyaretçi yok</p>
               <p className="text-xs mt-1">Kayıtsız kullanıcılar siteyi açınca burada görünür</p>
+              <p className="text-[10px] mt-2 text-gray-300">Son 30 dakika içinde ziyaret yok</p>
             </div>
           ) : anonSessions.map((s) => {
             const isOnline = Date.now() - new Date(s.last_active).getTime() < 2 * 60 * 1000;
