@@ -548,11 +548,10 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
                     <p className="text-xs text-gray-600">
                       {s.current_page ? `📄 ${s.current_page}` : 'Ana Sayfa'} &nbsp;·&nbsp; {deviceIcon} {s.browser || ''} {s.os ? `/ ${s.os}` : ''}
                     </p>
-                    {(s.country || s.city) && (
-                      <p className="text-[10px] text-gray-400 mt-0.5">
-                        🌍 {[s.city, s.country].filter(Boolean).join(', ')}
-                      </p>
-                    )}
+                    <p className="text-[10px] text-gray-500 mt-0.5 font-mono">
+                      🌐 {s.ip_address || '—'}
+                      {(s.country || s.city) && ` · 🗺 ${[s.city, s.country].filter(Boolean).join(', ')}`}
+                    </p>
                   </div>
                   <div className="flex-shrink-0 text-right">
                     <p className="text-[10px] text-gray-400">{timeAgo(s.last_active)}</p>

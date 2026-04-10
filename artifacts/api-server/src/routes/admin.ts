@@ -784,6 +784,25 @@ router.get('/anon-sessions', async (_req, res) => {
   }
 });
 
+/* IP geolocation helper using ip-api.com (free, no key needed) */
+async function lookupGeo(ip: string | null): Promise<{ country: string | null; city: string | null }> {
+  if (!ip || ip === '127.0.0.1' || ip === '::1' || ip.startsWith('172.') || ip.startsWith('10.') || ip.startsWith('192.168.')) {
+    return { country: null, city: null };
+  }
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 3000);
+    const r = await fetch(`http://ip-api.com/json/${ip}?fields=country,city,status`, { signal: ctrl.signal });
+    clearTimeout(t);
+    if (!r.ok) return { country: null, city: null };
+    const d = await r.json() as { status: string; country?: string; city?: string };
+    if (d.status !== 'success') return { country: null, city: null };
+    return { country: d.country || null, city: d.city || null };
+  } catch {
+    return { country: null, city: null };
+  }
+}
+
 /* POST /anon-sessions — upsert a visitor session (by visitor_id) */
 router.post('/anon-sessions', async (req, res) => {
   try {
@@ -799,9 +818,23 @@ router.post('/anon-sessions', async (req, res) => {
     if (!visitor_id || !session_id) return res.status(400).json({ error: 'visitor_id and session_id required' });
     const clientIp = ip_address || req.headers['x-forwarded-for']?.toString().split(',')[0] || req.socket.remoteAddress || null;
     const pool = getPool();
+
+    // Geo lookup only on first insert (check if row already has geo)
+    const existing = await pool.query('SELECT country, city FROM anonymous_sessions WHERE visitor_id = $1', [visitor_id]);
+    let country: string | null = null;
+    let city: string | null = null;
+    if (existing.rows.length === 0 || !existing.rows[0].country) {
+      const geo = await lookupGeo(clientIp);
+      country = geo.country;
+      city = geo.city;
+    } else {
+      country = existing.rows[0].country;
+      city = existing.rows[0].city;
+    }
+
     await pool.query(
-      `INSERT INTO anonymous_sessions (visitor_id, session_id, current_page, device_type, browser, os, ip_address, last_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, now())
+      `INSERT INTO anonymous_sessions (visitor_id, session_id, current_page, device_type, browser, os, ip_address, country, city, last_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
        ON CONFLICT (visitor_id) DO UPDATE SET
          session_id = EXCLUDED.session_id,
          current_page = EXCLUDED.current_page,
@@ -809,8 +842,10 @@ router.post('/anon-sessions', async (req, res) => {
          browser = EXCLUDED.browser,
          os = EXCLUDED.os,
          ip_address = COALESCE(EXCLUDED.ip_address, anonymous_sessions.ip_address),
+         country = COALESCE($8, anonymous_sessions.country),
+         city = COALESCE($9, anonymous_sessions.city),
          last_active = now()`,
-      [visitor_id, session_id, current_page || 'Exchange', device_type || 'desktop', browser || null, os || null, clientIp]
+      [visitor_id, session_id, current_page || 'Exchange', device_type || 'desktop', browser || null, os || null, clientIp, country, city]
     );
     return res.json({ ok: true });
   } catch (e) {
