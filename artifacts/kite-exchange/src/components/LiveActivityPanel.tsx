@@ -180,17 +180,13 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
 
   const loadAnonSessions = useCallback(async () => {
     try {
-      // Always read from production so dev-preview and prod admin see the same visitors
-      const ANON_URL = 'https://basoncecom.replit.app/api/anon-sessions';
-      const res = await fetch(ANON_URL, {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' },
+      const res = await fetch('https://basoncecom.replit.app/api/anon-sessions', {
+        cache: 'no-store', headers: { 'Cache-Control': 'no-cache' },
       });
       if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data)) setAnonSessions(data as AnonSession[]);
-    } catch {
-    }
+    } catch {}
   }, []);
 
   const loadInitial = useCallback(async () => {
@@ -221,10 +217,29 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
 
   useEffect(() => { loadInitial(); }, []);
 
-  // Anonymous sessions: poll every 3s for near-instant updates
+  // Anonymous sessions: SSE real-time stream (instant push, no polling)
   useEffect(() => {
-    const interval = setInterval(loadAnonSessions, 3_000);
-    return () => clearInterval(interval);
+    const SSE_URL = 'https://basoncecom.replit.app/api/anon-sessions/stream';
+    let es: EventSource | null = null;
+    let fallback: ReturnType<typeof setInterval> | null = null;
+
+    function connect() {
+      es = new EventSource(SSE_URL);
+      es.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (Array.isArray(data)) setAnonSessions(data as AnonSession[]);
+        } catch {}
+      };
+      es.onerror = () => {
+        es?.close();
+        // Fallback: poll every 5s if SSE fails
+        if (!fallback) fallback = setInterval(loadAnonSessions, 5_000);
+      };
+    }
+
+    connect();
+    return () => { es?.close(); if (fallback) clearInterval(fallback); };
   }, [loadAnonSessions]);
 
   // Real-time subscription

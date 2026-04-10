@@ -784,6 +784,52 @@ router.get('/anon-sessions', async (_req, res) => {
   }
 });
 
+/* ══════════════════════════════════════════════════════════
+   SSE broadcast — push visitor list to all connected admins
+══════════════════════════════════════════════════════════ */
+const sseClients = new Set<import('express').Response>();
+
+function broadcastSessions(sessions: unknown[]) {
+  const data = `data: ${JSON.stringify(sessions)}\n\n`;
+  for (const client of sseClients) {
+    try { client.write(data); } catch { sseClients.delete(client); }
+  }
+}
+
+async function fetchAllSessions(pool: import('pg').Pool) {
+  const { rows } = await pool.query(
+    `SELECT visitor_id, session_id, current_page, ip_address, country, city, device_type, browser, os, last_active
+     FROM anonymous_sessions
+     ORDER BY last_active DESC`
+  );
+  return rows;
+}
+
+/* GET /anon-sessions/stream — SSE endpoint for real-time visitor push */
+router.get('/anon-sessions/stream', async (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.flushHeaders();
+
+  sseClients.add(res);
+
+  // Send current state immediately
+  try {
+    const sessions = await fetchAllSessions(getPool());
+    res.write(`data: ${JSON.stringify(sessions)}\n\n`);
+  } catch {}
+
+  // Heartbeat every 25s to keep connection alive through proxies
+  const hb = setInterval(() => { try { res.write(': ping\n\n'); } catch {} }, 25_000);
+
+  req.on('close', () => {
+    clearInterval(hb);
+    sseClients.delete(res);
+  });
+});
+
 /* IP geolocation helper using ip-api.com (free, no key needed) */
 async function lookupGeo(ip: string | null): Promise<{ country: string | null; city: string | null }> {
   if (!ip || ip === '127.0.0.1' || ip === '::1' || ip.startsWith('172.') || ip.startsWith('10.') || ip.startsWith('192.168.')) {
@@ -835,14 +881,17 @@ router.post('/anon-sessions', async (req, res) => {
     );
     res.json({ ok: true }); // respond instantly
 
-    // 2. Geo lookup in background — only if no country yet
+    // 2. Broadcast current sessions to all SSE clients immediately
+    fetchAllSessions(pool).then(sessions => broadcastSessions(sessions)).catch(() => {});
+
+    // 3. Geo lookup in background — only if no country yet, then re-broadcast
     if (!result.rows[0]?.country && clientIp) {
       lookupGeo(clientIp).then(({ country, city }) => {
         if (country) {
           pool.query(
             'UPDATE anonymous_sessions SET country=$1, city=$2 WHERE visitor_id=$3 AND country IS NULL',
             [country, city, visitor_id]
-          ).catch(() => {});
+          ).then(() => fetchAllSessions(pool).then(sessions => broadcastSessions(sessions))).catch(() => {});
         }
       }).catch(() => {});
     }
@@ -856,7 +905,8 @@ router.delete('/anon-sessions/:visitor_id', async (req, res) => {
   try {
     const pool = getPool();
     await pool.query('DELETE FROM anonymous_sessions WHERE visitor_id = $1', [req.params.visitor_id]);
-    return res.json({ ok: true });
+    res.json({ ok: true });
+    fetchAllSessions(pool).then(sessions => broadcastSessions(sessions)).catch(() => {});
   } catch (e) {
     return res.status(500).json({ error: (e as Error).message });
   }

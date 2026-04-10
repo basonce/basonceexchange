@@ -79,36 +79,38 @@ export default function Visitors() {
   const isFirstLoad = useRef(true);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
+  const handleAnonData = useCallback((data: AnonSession[]) => {
+    if (!Array.isArray(data)) return;
+
+    // Detect new visitors and fire alarm
+    if (!isFirstLoad.current) {
+      for (const s of data) {
+        if (!seenVisitors.current.has(s.visitor_id)) {
+          if (alarmEnabled) {
+            startVisitorAlarm();
+            sendBrowserNotification(
+              '👁️ Yeni Ziyaretçi',
+              `${getFlag(s.country)} ${[s.city, s.country].filter(Boolean).join(', ') || 'Bilinmiyor'} — ${s.browser || 'Tarayıcı'} / ${s.device_type || 'Cihaz'}`,
+            );
+          }
+        }
+      }
+    }
+
+    data.forEach(s => seenVisitors.current.add(s.visitor_id));
+    isFirstLoad.current = false;
+    data.sort((a, b) => new Date(b.last_active).getTime() - new Date(a.last_active).getTime());
+    setAnonSessions(data);
+  }, [alarmEnabled]);
+
   const loadAnon = useCallback(async () => {
     try {
       const res = await fetch(PROD_ANON_URL, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
       if (!res.ok) return;
       const data: AnonSession[] = await res.json();
-      if (!Array.isArray(data)) return;
-
-      // Detect new visitors
-      if (!isFirstLoad.current) {
-        for (const s of data) {
-          if (!seenVisitors.current.has(s.visitor_id)) {
-            // New visitor!
-            if (alarmEnabled) {
-              startVisitorAlarm();
-              sendBrowserNotification(
-                '👁️ Yeni Ziyaretçi',
-                `${getFlag(s.country)} ${s.city || ''}${s.city ? ', ' : ''}${s.country || 'Bilinmiyor'} — ${s.browser || 'Tarayıcı'} / ${s.device_type || 'Cihaz'}`,
-              );
-            }
-          }
-        }
-      }
-
-      data.forEach(s => seenVisitors.current.add(s.visitor_id));
-      isFirstLoad.current = false;
-
-      data.sort((a, b) => new Date(b.last_active).getTime() - new Date(a.last_active).getTime());
-      setAnonSessions(data);
+      handleAnonData(data);
     } catch {}
-  }, [alarmEnabled]);
+  }, [handleAnonData]);
 
   async function loadMembers() {
     setMemberLoading(true);
@@ -132,10 +134,28 @@ export default function Visitors() {
   }
 
   useEffect(() => {
-    loadAnon();
     loadMembers();
 
-    const pollInterval = setInterval(loadAnon, 3_000);
+    // SSE: real-time push from production API (instant, no polling)
+    const SSE_URL = 'https://basoncecom.replit.app/api/anon-sessions/stream';
+    let es: EventSource | null = null;
+    let fallbackInterval: ReturnType<typeof setInterval> | null = null;
+
+    function connectSSE() {
+      es = new EventSource(SSE_URL);
+      es.onmessage = (e) => {
+        try { handleAnonData(JSON.parse(e.data)); } catch {}
+      };
+      es.onerror = () => {
+        es?.close();
+        es = null;
+        // Fallback: poll every 5s when SSE unavailable
+        if (!fallbackInterval) fallbackInterval = setInterval(loadAnon, 5_000);
+        loadAnon(); // immediate fetch
+      };
+    }
+
+    connectSSE();
 
     channelRef.current = supabase.channel('admin_monitor_visitors_rt')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_profiles' }, (p) => {
@@ -154,10 +174,11 @@ export default function Visitors() {
       .subscribe();
 
     return () => {
-      clearInterval(pollInterval);
+      es?.close();
+      if (fallbackInterval) clearInterval(fallbackInterval);
       if (channelRef.current) supabase.removeChannel(channelRef.current);
     };
-  }, [loadAnon]);
+  }, [loadAnon, handleAnonData]);
 
   const onlineCount = anonSessions.filter(s => isOnline(s.last_active)).length;
 
