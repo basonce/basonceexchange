@@ -110,23 +110,35 @@
       "@context": "https://schema.org",
       "@graph": [
         {
-          "@type": "Organization",
+          "@type": ["Organization", "FinancialService"],
           "@id": "https://basonce.com/#organization",
           "name": "BASONCE Exchange",
-          "alternateName": ["BASONCE", "Basonce Crypto Exchange"],
+          "legalName": "BASONCE Exchange",
+          "brand": {
+            "@type": "Brand",
+            "name": "BASONCE",
+            "url": "https://basonce.com"
+          },
+          "alternateName": ["BASONCE", "BASONCE crypto", "BASONCE Exchange platform", "basonce.com"],
           "url": "https://basonce.com",
           "logo": {
             "@type": "ImageObject",
-            "url": "https://basonce.com/favicon.png",
-            "width": 512,
-            "height": 512
+            "url": "https://basonce.com/BASONCE_LOGO_SON_BITEN.png",
+            "width": 1024,
+            "height": 1024,
+            "caption": "BASONCE Exchange Logo"
           },
-          "image": "https://basonce.com/favicon.png",
-          "description": "BASONCE Exchange — The world's most trusted cryptocurrency exchange. Trade Bitcoin, Ethereum and 258+ cryptocurrencies with spot, futures, mining, sports betting and more.",
+          "image": "https://basonce.com/BASONCE_LOGO_SON_BITEN.png",
+          "description": "BASONCE Exchange is a global cryptocurrency trading platform. Trade Bitcoin (BTC), Ethereum (ETH), USDT and 258+ digital assets. Features: spot trading, 200x futures, cloud mining, sports betting, stocks and commodities.",
           "foundingDate": "2024",
+          "knowsAbout": ["cryptocurrency", "bitcoin trading", "ethereum", "blockchain", "futures trading", "cloud mining", "crypto exchange"],
+          "areaServed": "Worldwide",
+          "serviceType": "Cryptocurrency Exchange",
           "sameAs": [
             "https://twitter.com/basonceexchange",
-            "https://t.me/basonceexchange"
+            "https://t.me/basonceexchange",
+            "https://basonce.com/about.html",
+            "https://basonce.com/basonce-review.html"
           ],
           "contactPoint": {
             "@type": "ContactPoint",
