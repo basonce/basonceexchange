@@ -2,6 +2,18 @@ import { useState } from 'react';
 import { X, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
+function fireGoogleAdsConversion() {
+  try {
+    if (typeof (window as any).gtag === 'function') {
+      (window as any).gtag('event', 'conversion', {
+        send_to: 'AW-18085254361/zi8xCNaRi5sCENmp3K9D',
+        value: 1.0,
+        currency: 'USD',
+      });
+    }
+  } catch (_) {}
+}
+
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -93,6 +105,7 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
             const { data: loginCheck } = await supabase.auth.signInWithPassword({ email, password });
             if (loginCheck?.user) {
               try { await supabase.rpc('complete_user_setup', { p_user_id: loginCheck.user.id }); } catch (_) {}
+              fireGoogleAdsConversion();
               setSuccess('Account created successfully!');
               setEmail(''); setPassword(''); setAgreedToTerms(false);
               setTimeout(() => { onClose(); }, 1500);
@@ -113,6 +126,7 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
               await supabase.rpc('complete_user_setup', { p_user_id: data.user.id });
             } catch (_) {}
           }
+          fireGoogleAdsConversion();
           setSuccess('Account created successfully! You can now login.');
           setEmail('');
           setPassword('');
