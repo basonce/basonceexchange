@@ -16,8 +16,7 @@ interface AdminWithdrawal {
   admin_notes: string | null;
   reviewed_at: string | null;
   created_at: string;
-  user_email: string | null;
-  user_name: string | null;
+  user_email?: string | null;
 }
 
 const STATUS_TABS = ['pending', 'completed', 'rejected', 'all'] as const;
@@ -49,13 +48,24 @@ export default function WithdrawalApprovalPanel() {
   const loadWithdrawals = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc('get_admin_withdrawals', {
-        p_status: activeStatus === 'all' ? null : activeStatus
-      });
+      let query = supabase
+        .from('withdrawal_transactions')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      if (activeStatus !== 'all') {
+        query = query.eq('status', activeStatus);
+      }
+
+      const { data, error } = await query;
+
       if (!error && data) {
-        setWithdrawals(data);
+        setWithdrawals(data as AdminWithdrawal[]);
         const pending = data.filter((w: AdminWithdrawal) => w.status === 'pending' || w.status === 'processing');
         setPendingCount(pending.length);
+      } else if (error) {
+        console.error('load withdrawals error:', error);
       }
     } catch (e) {
       console.error('load withdrawals error:', e);
@@ -68,15 +78,20 @@ export default function WithdrawalApprovalPanel() {
     if (actionLoading) return;
     setActionLoading(w.id);
     try {
-      const { data } = await supabase.rpc('admin_approve_withdrawal', {
-        p_withdrawal_id: w.id,
-        p_txid: txidInput[w.id] || null
-      });
-      if (data?.success) {
+      const { error } = await supabase
+        .from('withdrawal_transactions')
+        .update({
+          status: 'completed',
+          txid: txidInput[w.id] || null,
+          reviewed_at: new Date().toISOString()
+        })
+        .eq('id', w.id);
+
+      if (!error) {
         await loadWithdrawals();
         setExpandedId(null);
       } else {
-        alert(data?.error || 'Failed to approve');
+        alert('Failed to approve: ' + error.message);
       }
     } catch (e) {
       alert('Error approving withdrawal');
@@ -90,15 +105,36 @@ export default function WithdrawalApprovalPanel() {
     const notes = rejectNotes[w.id] || 'Rejected by admin';
     setActionLoading(w.id);
     try {
-      const { data } = await supabase.rpc('admin_reject_withdrawal', {
-        p_withdrawal_id: w.id,
-        p_notes: notes
-      });
-      if (data?.success) {
+      const { error } = await supabase
+        .from('withdrawal_transactions')
+        .update({
+          status: 'rejected',
+          admin_notes: notes,
+          reviewed_at: new Date().toISOString()
+        })
+        .eq('id', w.id);
+
+      if (!error) {
+        const { data: bal } = await supabase
+          .from('user_balances')
+          .select('balance')
+          .eq('user_id', w.user_id)
+          .eq('symbol', w.coin_symbol)
+          .maybeSingle();
+
+        if (bal) {
+          const restored = parseFloat(bal.balance || '0') + w.amount;
+          await supabase
+            .from('user_balances')
+            .update({ balance: restored.toString() })
+            .eq('user_id', w.user_id)
+            .eq('symbol', w.coin_symbol);
+        }
+
         await loadWithdrawals();
         setExpandedId(null);
       } else {
-        alert(data?.error || 'Failed to reject');
+        alert('Failed to reject: ' + error.message);
       }
     } catch (e) {
       alert('Error rejecting withdrawal');
@@ -182,10 +218,10 @@ export default function WithdrawalApprovalPanel() {
                 </div>
                 <div className="flex-1 text-left">
                   <p className="text-sm font-semibold text-gray-900">
-                    {w.receive_amount.toFixed(8)} {w.coin_symbol}
+                    {w.receive_amount.toFixed(4)} {w.coin_symbol}
                   </p>
                   <p className="text-xs text-gray-500 truncate max-w-[200px]">
-                    {w.user_email || w.user_name || w.user_id.slice(0, 8)}
+                    {w.user_id.slice(0, 12)}...
                   </p>
                 </div>
                 <div className="text-right shrink-0">
@@ -203,19 +239,29 @@ export default function WithdrawalApprovalPanel() {
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
                       <p className="text-xs text-gray-400 mb-0.5">Amount</p>
-                      <p className="font-semibold text-gray-900">{w.amount.toFixed(8)} {w.coin_symbol}</p>
+                      <p className="font-semibold text-gray-900">{w.amount.toFixed(4)} {w.coin_symbol}</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-400 mb-0.5">Fee</p>
-                      <p className="font-semibold text-gray-900">{w.network_fee.toFixed(8)} {w.coin_symbol}</p>
+                      <p className="font-semibold text-gray-900">{w.network_fee.toFixed(4)} {w.coin_symbol}</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-400 mb-0.5">Receive</p>
-                      <p className="font-bold text-green-600">{w.receive_amount.toFixed(8)} {w.coin_symbol}</p>
+                      <p className="font-bold text-green-600">{w.receive_amount.toFixed(4)} {w.coin_symbol}</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-400 mb-0.5">Network</p>
                       <p className="font-semibold text-gray-900 uppercase">{w.network}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-gray-400 mb-0.5">User ID</p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-xs font-mono text-gray-700">{w.user_id}</p>
+                      <button onClick={() => copyToClipboard(w.user_id)} className="p-1 hover:bg-gray-200 rounded">
+                        <Copy className="w-3 h-3 text-gray-400" />
+                      </button>
                     </div>
                   </div>
 
@@ -232,10 +278,10 @@ export default function WithdrawalApprovalPanel() {
                     </div>
                   </div>
 
-                  {w.user_email && (
+                  {w.txid && (
                     <div>
-                      <p className="text-xs text-gray-400 mb-0.5">User</p>
-                      <p className="text-sm text-gray-700">{w.user_email}</p>
+                      <p className="text-xs text-gray-400 mb-0.5">TxID</p>
+                      <p className="text-xs font-mono text-blue-600 break-all">{w.txid}</p>
                     </div>
                   )}
 
