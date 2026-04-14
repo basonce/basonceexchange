@@ -8,6 +8,7 @@ import HomeMarketList from '../components/HomeMarketList';
 import FuturesMarketList from '../components/FuturesMarketList';
 import NewListingSection from '../components/NewListingSection';
 import HomeTradFiList from '../components/HomeTradFiList';
+import HomeBDexList from '../components/HomeBDexList';
 import GamesSection from '../components/GamesSection';
 import MenuDrawer from '../components/MenuDrawer';
 import FuturesCampaignModal from '../components/FuturesCampaignModal';
@@ -38,7 +39,7 @@ interface HomePageProps {
 
 export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) {
   const [activeTab, setActiveTab] = useState<'crypto' | 'spot' | 'futures' | 'new-listing' | 'alpha'>('crypto');
-  const [activeFilter, setActiveFilter] = useState<'gainers' | 'losers' | '24h-vol' | 'tradfi'>('gainers');
+  const [activeFilter, setActiveFilter] = useState<'gainers' | 'losers' | '24h-vol' | 'tradfi' | 'bdex'>('gainers');
   const [showSportsModal, setShowSportsModal] = useState(!!autoOpenSports);
   const [discoverTab, setDiscoverTab] = useState<'discover' | 'following' | 'campaign' | 'announcement'>('discover');
   const [showFAB, setShowFAB] = useState(false);
@@ -539,6 +540,7 @@ export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) 
                   { id: 'losers', label: 'Losers' },
                   { id: '24h-vol', label: '24h Vol' },
                   { id: 'tradfi', label: 'TradFi' },
+                  { id: 'bdex', label: 'B-DeX' },
                 ].map(({ id, label }) => (
                   <button
                     key={id}
@@ -551,6 +553,7 @@ export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) 
                   >
                     {label}
                     {id === 'tradfi' && <MegaphoneAnim size={13} />}
+                    {id === 'bdex' && <span className="text-[10px] leading-none">🔗</span>}
                   </button>
                 ))}
               </div>
@@ -567,8 +570,10 @@ export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) 
             <BasonceAlpha />
           ) : activeFilter === 'tradfi' ? (
             <HomeTradFiList />
+          ) : activeFilter === 'bdex' ? (
+            <HomeBDexList />
           ) : (
-            <HomeMarketList activeFilter={activeFilter} marketType={activeTab as 'crypto' | 'spot' | 'futures'} />
+            <HomeMarketList activeFilter={activeFilter as 'gainers' | 'losers' | '24h-vol'} marketType={activeTab as 'crypto' | 'spot' | 'futures'} />
           )}
           </Suspense>
           </div>
