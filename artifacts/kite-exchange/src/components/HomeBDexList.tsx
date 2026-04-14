@@ -33,33 +33,65 @@ const formatBnb = (n: number): string => {
   return n.toExponential(2);
 };
 
-// Build all candidate logo URLs in priority order
-function buildLogoUrls(icon: string | null, baseAddress: string): string[] {
-  const urls: string[] = [];
-  if (icon && icon.startsWith('http')) urls.push(icon);
+// Fetch missing logos from DexScreener (batch, up to 30 addresses)
+async function fetchDexScreenerLogos(addresses: string[]): Promise<Record<string, string>> {
+  const logoMap: Record<string, string> = {};
+  if (addresses.length === 0) return logoMap;
 
-  const addr = baseAddress.toLowerCase();
-  // Trust Wallet CDN (most comprehensive for BSC)
-  urls.push(`https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/${baseAddress}/logo.png`);
-  // DexScreener token image
-  urls.push(`https://dd.dexscreener.com/ds-data/tokens/bsc/${addr}/header.png`);
-  // CoinGecko format used by GeckoTerminal
-  if (icon && icon.includes('coin')) urls.push(icon);
-  return urls;
+  // Chunk into groups of 30 (DexScreener limit)
+  const chunks: string[][] = [];
+  for (let i = 0; i < addresses.length; i += 30) {
+    chunks.push(addresses.slice(i, i + 30));
+  }
+
+  await Promise.allSettled(
+    chunks.map(async (chunk) => {
+      try {
+        const url = `https://api.dexscreener.com/latest/dex/tokens/${chunk.join(',')}`;
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const json = await res.json();
+        const pairs: any[] = json.pairs || [];
+        for (const pair of pairs) {
+          const addr = (pair.baseToken?.address || '').toLowerCase();
+          const imgUrl = pair.info?.imageUrl || pair.info?.header || '';
+          if (addr && imgUrl && !logoMap[addr]) {
+            logoMap[addr] = imgUrl;
+          }
+        }
+      } catch {}
+    })
+  );
+
+  return logoMap;
 }
 
-const TokenLogo: React.FC<{ icon: string | null; symbol: string; baseAddress: string }> = ({
-  icon, symbol, baseAddress,
-}) => {
-  const candidates = buildLogoUrls(icon, baseAddress);
-  const [idx, setIdx] = useState(0);
-  const [failed, setFailed] = useState(candidates.length === 0);
+// Fetch logo from GeckoTerminal token endpoint for a single missing address
+async function fetchGTTokenLogo(address: string): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://api.geckoterminal.com/api/v2/networks/bsc/tokens/${address}`,
+      { headers: { Accept: 'application/json;version=20230302' } }
+    );
+    if (!res.ok) return '';
+    const json = await res.json();
+    return json?.data?.attributes?.image_url || '';
+  } catch {
+    return '';
+  }
+}
+
+// In-memory logo cache (persists across refreshes)
+const logoCache: Record<string, string> = {};
+
+const TokenLogo: React.FC<{ icon: string | null; symbol: string }> = ({ icon, symbol }) => {
+  const [src, setSrc] = useState<string | null>(icon || null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    const newCandidates = buildLogoUrls(icon, baseAddress);
-    setIdx(0);
-    setFailed(newCandidates.length === 0);
-  }, [icon, baseAddress]);
+    setSrc(icon || null);
+    setFailed(false);
+  }, [icon]);
 
   const colors = [
     '#F0B90B','#0ECB81','#F6465D','#3B82F6','#A855F7',
@@ -68,25 +100,18 @@ const TokenLogo: React.FC<{ icon: string | null; symbol: string; baseAddress: st
   const color = colors[symbol.charCodeAt(0) % colors.length];
   const letter = symbol.slice(0, 2).toUpperCase();
 
-  const currentUrl = candidates[idx];
-
   return (
     <div
       className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border border-[#2B3139]"
-      style={{ background: (!failed && currentUrl) ? 'transparent' : color }}
+      style={{ background: (src && !failed) ? 'transparent' : color }}
     >
-      {!failed && currentUrl ? (
+      {src && !failed ? (
         <img
-          src={currentUrl}
+          src={src}
           alt={symbol}
           className="w-full h-full object-cover"
-          onError={() => {
-            if (idx + 1 < candidates.length) {
-              setIdx(i => i + 1);
-            } else {
-              setFailed(true);
-            }
-          }}
+          crossOrigin="anonymous"
+          onError={() => setFailed(true)}
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center">
@@ -116,7 +141,6 @@ async function fetchBscTopTokens(): Promise<DexToken[]> {
   const results: DexToken[] = [];
   const seen = new Set<string>();
 
-  // Fetch multiple pages of top-volume + trending BSC pools
   const urls = [
     'https://api.geckoterminal.com/api/v2/networks/bsc/pools?sort=h24_volume_usd_desc&include=base_token,quote_token&page=1',
     'https://api.geckoterminal.com/api/v2/networks/bsc/pools?sort=h24_volume_usd_desc&include=base_token,quote_token&page=2',
@@ -163,17 +187,20 @@ async function fetchBscTopTokens(): Promise<DexToken[]> {
       const priceBnb = parseFloat(attr.base_token_price_native_currency || '0');
       const chg24h = parseFloat(attr.price_change_percentage?.h24 || '0');
 
-      // Only show tokens with significant volume ($500K+)
       if (priceUsd === 0 || vol24h < 500_000) continue;
 
       const baseAddress = baseId.replace('bsc_', '');
+
+      // Check in-memory logo cache first
+      const cachedLogo = logoCache[baseAddress.toLowerCase()];
+      const icon = cachedLogo || baseTok.image_url || null;
 
       results.push({
         symbol: sym,
         name: baseTok.name || sym,
         poolAddress: attr.address || '',
         baseAddress,
-        icon: baseTok.image_url || null,
+        icon,
         priceUsd,
         priceBnb,
         priceChange24h: chg24h,
@@ -184,8 +211,44 @@ async function fetchBscTopTokens(): Promise<DexToken[]> {
     }
   }
 
-  // Sort by 24h volume descending, show top 40
-  return results.sort((a, b) => b.volume24h - a.volume24h).slice(0, 40);
+  const sorted = results.sort((a, b) => b.volume24h - a.volume24h).slice(0, 40);
+
+  // Find tokens with missing logos that aren't cached yet
+  const missing = sorted.filter(
+    t => !t.icon && !logoCache[t.baseAddress.toLowerCase()]
+  );
+
+  if (missing.length > 0) {
+    // Batch-fetch from DexScreener
+    const dsLogos = await fetchDexScreenerLogos(missing.map(t => t.baseAddress));
+
+    // For any still missing, try GeckoTerminal token API (first 5 only to avoid too many requests)
+    const stillMissing = missing.filter(t => !dsLogos[t.baseAddress.toLowerCase()]).slice(0, 5);
+    const gtLogos = await Promise.all(
+      stillMissing.map(async t => ({
+        addr: t.baseAddress.toLowerCase(),
+        logo: await fetchGTTokenLogo(t.baseAddress),
+      }))
+    );
+
+    // Merge and cache all found logos
+    for (const [addr, url] of Object.entries(dsLogos)) {
+      if (url) logoCache[addr] = url;
+    }
+    for (const { addr, logo } of gtLogos) {
+      if (logo) logoCache[addr] = logo;
+    }
+
+    // Apply logos to results
+    for (const token of sorted) {
+      const addr = token.baseAddress.toLowerCase();
+      if (!token.icon && logoCache[addr]) {
+        token.icon = logoCache[addr];
+      }
+    }
+  }
+
+  return sorted;
 }
 
 interface HomeBDexListProps {
@@ -217,14 +280,12 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
 
   useEffect(() => {
     load();
-    // Refresh every 10 seconds
     const interval = setInterval(load, 10_000);
     return () => clearInterval(interval);
   }, [load]);
 
   return (
     <div className="bg-[#0B0E11]">
-      {/* Header bar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-[#2B3139]">
         <div className="flex items-center gap-2">
           <span className="text-[#F0B90B] text-xs font-bold">BSC Chain · High Volume</span>
@@ -241,17 +302,14 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
         </div>
       </div>
 
-      {/* Column headers */}
       <div className="flex items-center px-4 py-2 border-b border-[#2B3139]">
         <span className="text-[#848E9C] text-xs flex-1">Name / Vol</span>
         <span className="text-[#848E9C] text-xs w-[120px] text-right">Last Price</span>
         <span className="text-[#848E9C] text-xs w-[80px] text-right">24h Chg%</span>
       </div>
 
-      {/* Skeletons */}
       {loading && Array.from({ length: 10 }).map((_, i) => <SkeletonRow key={i} />)}
 
-      {/* Error */}
       {!loading && error && (
         <div className="py-16 text-center text-[#848E9C]">
           <div className="text-4xl mb-3">🔗</div>
@@ -260,7 +318,6 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
         </div>
       )}
 
-      {/* Token rows */}
       {!loading && !error && tokens.map((token) => {
         const isUp = token.priceChange24h >= 0;
         const chgAbs = Math.min(Math.abs(token.priceChange24h), 9999.99);
@@ -272,16 +329,13 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
             className="flex items-center px-4 py-3 border-b border-[#1E2329] active:bg-[#1E2329] transition-colors cursor-pointer"
             onClick={() => onSelectToken ? onSelectToken(token) : window.open(token.dexUrl, '_blank')}
           >
-            {/* Logo with multi-source fallback */}
-            <TokenLogo icon={token.icon} symbol={token.symbol} baseAddress={token.baseAddress} />
+            <TokenLogo icon={token.icon} symbol={token.symbol} />
 
-            {/* Name + volume */}
             <div className="ml-3 flex-1 min-w-0">
               <div className="text-white text-sm font-semibold truncate">{token.symbol}</div>
               <div className="text-[#848E9C] text-xs">{formatVolume(token.volume24h)}</div>
             </div>
 
-            {/* Price */}
             <div className="w-[120px] text-right pr-3">
               <div className="text-white text-sm font-medium tabular-nums">
                 {formatPrice(token.priceUsd)}
@@ -291,7 +345,6 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
               </div>
             </div>
 
-            {/* 24h change badge */}
             <div
               className={`w-[72px] py-1.5 rounded text-xs font-bold text-center tabular-nums flex-shrink-0 ${
                 isUp ? 'bg-[#0ECB81] text-black' : 'bg-[#F6465D] text-white'
@@ -305,7 +358,7 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
 
       {!loading && !error && tokens.length > 0 && (
         <div className="px-4 py-4 text-center text-[#848E9C] text-[11px] border-t border-[#2B3139]">
-          Powered by GeckoTerminal · BSC Chain · Top Volume · Refreshes every 10s
+          Powered by GeckoTerminal · DexScreener · BSC Chain · Refreshes every 10s
         </div>
       )}
     </div>
