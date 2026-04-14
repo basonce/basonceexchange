@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
+import { bdexPriceService } from '../lib/bdex-price-service';
 import { ChevronDown, Menu, Gift, BarChart3, Calculator, MoreVertical, Plus, Minus, ChevronUp, Settings, Zap } from 'lucide-react';
 import FuturesPositionCard from '../components/FuturesPositionCard';
 import CoinLogo from '../components/CoinLogo';
@@ -62,6 +63,13 @@ const INDEPENDENT_PRICE_TABLES: Record<string, { table: string; idCol: string; i
 };
 
 async function fetchFreshPrice(symbol: string): Promise<number> {
+  if (symbol.startsWith('BDEX_')) {
+    const price = await bdexPriceService.fetchLatestPrice(symbol);
+    if (price > 0) return price;
+    const cached = bdexPriceService.getPrice(symbol);
+    if (cached > 0) return cached;
+  }
+
   if (isTradFiSymbol(symbol)) {
     const liveData = getCachedTradFiPrice(symbol);
     if (liveData && liveData.price > 0) return liveData.price;
@@ -236,6 +244,10 @@ function TradFiHeaderLogo({ displayName }: { displayName: string }) {
 
 export default function FuturesPage({ initialSymbol }: { initialSymbol?: string }) {
   const [selectedSymbol, setSelectedSymbol] = useState(initialSymbol || 'BTCUSDT');
+
+  const isBDex = useMemo(() => bdexPriceService.isBDex(selectedSymbol), [selectedSymbol]);
+  const displaySymbol = useMemo(() => bdexPriceService.displaySymbol(selectedSymbol), [selectedSymbol]);
+
   const [selectedCoinLogo, setSelectedCoinLogo] = useState('https://cryptologos.cc/logos/bitcoin-btc-logo.png');
   const [currentPrice, setCurrentPrice] = useState(78023.0);
   const [priceChange, setPriceChange] = useState(-7.17);
@@ -324,7 +336,7 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
 
     const isIndep = INDEPENDENT_PRICE_MANAGERS[selectedSymbol] !== undefined;
     const isTradFi = isTradFiSymbol(selectedSymbol);
-    const skipBinance = isIndep || isTradFi;
+    const skipBinance = isIndep || isTradFi || isBDex;
     const now = Date.now();
     const sinceDepth = now - lastDepthFetchRef.current;
 
@@ -429,6 +441,32 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
               setVolume24h(asset.volume24hBase);
               setOpenInterest(prev => prev > 0 ? prev : asset.volume24hBase * 0.38);
             }
+          }
+        }
+        return;
+      }
+
+      if (isBDex) {
+        const now = Date.now();
+        const sinceLastFetch = now - lastBinanceFetchRef.current;
+        if (sinceLastFetch >= 5000) {
+          lastBinanceFetchRef.current = now;
+          const price = await bdexPriceService.fetchLatestPrice(selectedSymbol);
+          if (price > 0) {
+            const change = bdexPriceService.getChange(selectedSymbol);
+            const vol = bdexPriceService.getVolume(selectedSymbol);
+            const high = bdexPriceService.getHigh(selectedSymbol);
+            const low = bdexPriceService.getLow(selectedSymbol);
+            setCurrentPrice(price);
+            setPriceChange(change);
+            setMarkPrice(price);
+            setLastPrice(price);
+            setPrice(price.toFixed(getPriceDecimals(price)));
+            if (vol > 0) setVolume24h(vol);
+            if (high > 0) setHigh24h(h => Math.max(h, high));
+            if (low > 0) setLow24h(l => l > 0 ? Math.min(l, low) : low);
+            setOpenInterest(prev => prev > 0 ? prev : (vol > 0 ? vol * 0.38 : price * 1000));
+            await generateOrderBook(price);
           }
         }
         return;
@@ -609,6 +647,11 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
     };
 
     const fetchCoinLogo = async () => {
+      if (isBDex) {
+        const logo = bdexPriceService.getLogo(selectedSymbol);
+        if (logo) setSelectedCoinLogo(logo);
+        return;
+      }
       const coinSymbol = selectedSymbol.replace('USDT', '');
       if (LOGO_FALLBACKS[coinSymbol]) {
         setSelectedCoinLogo(LOGO_FALLBACKS[coinSymbol]);
@@ -654,6 +697,22 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
             setOpenInterest(Math.floor(asset.volume24hBase * 0.38));
           }
         }
+      }
+    } else if (isBDex) {
+      const p = bdexPriceService.getPrice(selectedSymbol);
+      if (p > 0) {
+        setCurrentPrice(p);
+        setMarkPrice(p);
+        setLastPrice(p);
+        setPrice(p.toFixed(getPriceDecimals(p)));
+        setPriceChange(bdexPriceService.getChange(selectedSymbol));
+        const vol = bdexPriceService.getVolume(selectedSymbol);
+        const high = bdexPriceService.getHigh(selectedSymbol);
+        const low = bdexPriceService.getLow(selectedSymbol);
+        if (vol > 0) setVolume24h(vol);
+        if (high > 0) setHigh24h(high);
+        if (low > 0) setLow24h(low);
+        setOpenInterest(vol > 0 ? vol * 0.38 : p * 1000);
       }
     } else {
       const indepGetter = INDEPENDENT_PRICE_MANAGERS[selectedSymbol];
@@ -871,13 +930,19 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
 
   const loadPositions = async (uid: string) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('futures_positions')
         .select('*')
         .eq('user_id', uid)
-        .eq('status', 'open')
-        .not('symbol', 'like', 'BDEX_%')
-        .order('created_at', { ascending: false });
+        .eq('status', 'open');
+
+      if (isBDex) {
+        query = query.like('symbol', 'BDEX_%');
+      } else {
+        query = query.not('symbol', 'like', 'BDEX_%');
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
 
@@ -1336,7 +1401,9 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
               {isMetalSymbol(selectedSymbol) ? (
                 <MetalIcon symbol={selectedSymbol} size={24} />
               ) : (() => {
-                const baseSymbol = selectedSymbol.replace('USDT', '');
+                const baseSymbol = isBDex
+                  ? displaySymbol.replace('USDT', '')
+                  : selectedSymbol.replace('USDT', '');
                 const tradFiAsset = getTradFiAsset(selectedSymbol) || getTradFiAsset(baseSymbol);
                 if (tradFiAsset) {
                   return <TradFiHeaderLogo displayName={tradFiAsset.displayName} />;
@@ -1344,7 +1411,7 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
                 return <CoinLogo symbol={baseSymbol} dbUrl={selectedCoinLogo} eager />;
               })()}
             </div>
-            <span className="text-base font-bold">{selectedSymbol}</span>
+            <span className="text-base font-bold">{displaySymbol}</span>
             <span className="text-gray-500">Perp</span>
             <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
           </button>
@@ -2017,7 +2084,7 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
           onClick={() => setShowChart(!showChart)}
           className="w-full px-3 py-2.5 flex items-center justify-between border-[#2B3139] hover:bg-[#2B3139] transition-colors"
         >
-          <span className="text-white">{selectedSymbol} Perp Chart</span>
+          <span className="text-white">{displaySymbol} Perp Chart</span>
           <ChevronUp className={`w-4 h-4 text-gray-400 transition-transform ${showChart ? '' : 'rotate-180'}`} />
         </button>
       </div>

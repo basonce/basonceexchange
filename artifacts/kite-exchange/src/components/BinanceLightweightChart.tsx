@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback, memo } from 'react';
 import { createChart, CandlestickSeries, HistogramSeries, LineSeries, ColorType } from 'lightweight-charts';
 import { fetchBinanceKlines } from '../lib/binance';
+import { bdexPriceService } from '../lib/bdex-price-service';
 import { BNCPriceManager } from '../lib/bnc-price';
 import { EarnQuestPriceManager } from '../lib/earnquest-price';
 import { PayAIPriceManager } from '../lib/payai-price';
@@ -400,16 +401,26 @@ function BinanceLightweightChart({ symbol, binanceSymbol, timeframe, currentPric
         let klineData: KlineData[] = [];
         const intMs = INTERVAL_MS[interval] || 86400000;
 
-        const indepGetter = CHART_INDEP_PRICES[symbol];
-        if (indepGetter) {
-          const price = indepGetter();
-          klineData = generateSimulatedKlines(price > 0 ? price : 1, limit, intMs);
+        if (bdexPriceService.isBDex(symbol)) {
+          const gtData = await bdexPriceService.fetchOhlcv(symbol, interval, limit);
+          if (gtData.length > 0) {
+            klineData = gtData;
+          } else {
+            const price = bdexPriceService.getPrice(symbol);
+            klineData = generateSimulatedKlines(price > 0 ? price : 1, limit, intMs);
+          }
         } else {
-          klineData = await fetchBinanceKlines(binanceSymbol, interval, limit);
+          const indepGetter = CHART_INDEP_PRICES[symbol];
+          if (indepGetter) {
+            const price = indepGetter();
+            klineData = generateSimulatedKlines(price > 0 ? price : 1, limit, intMs);
+          } else {
+            klineData = await fetchBinanceKlines(binanceSymbol, interval, limit);
 
-          if (klineData.length === 0) {
-            const fallbackPrice = currentPriceRef.current > 0 ? currentPriceRef.current : 1;
-            klineData = generateSimulatedKlines(fallbackPrice, limit, intMs);
+            if (klineData.length === 0) {
+              const fallbackPrice = currentPriceRef.current > 0 ? currentPriceRef.current : 1;
+              klineData = generateSimulatedKlines(fallbackPrice, limit, intMs);
+            }
           }
         }
 
