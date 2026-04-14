@@ -578,6 +578,7 @@ export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) 
               const symbol = `BDEX_${tok.symbol}USDT`;
               bdexPriceService.register(symbol, {
                 poolAddress: tok.poolAddress,
+                baseAddress: tok.baseAddress,
                 price: tok.priceUsd,
                 change24h: tok.priceChange24h,
                 logoUrl: tok.icon ?? '',

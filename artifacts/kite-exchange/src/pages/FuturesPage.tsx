@@ -449,7 +449,7 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
       if (isBDex) {
         const now = Date.now();
         const sinceLastFetch = now - lastBinanceFetchRef.current;
-        if (sinceLastFetch >= 5000) {
+        if (sinceLastFetch >= 3000) {
           lastBinanceFetchRef.current = now;
           const price = await bdexPriceService.fetchLatestPrice(selectedSymbol);
           if (price > 0) {

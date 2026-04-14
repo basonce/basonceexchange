@@ -1,5 +1,6 @@
 interface BDexTokenInfo {
   poolAddress: string;
+  baseAddress: string;
   price: number;
   change24h: number;
   logoUrl: string;
@@ -33,7 +34,17 @@ class BDexPriceService {
   }
 
   getLogo(symbol: string): string {
-    return this.tokens.get(symbol)?.logoUrl ?? '';
+    const info = this.tokens.get(symbol);
+    if (!info) return '';
+    if (info.logoUrl) return info.logoUrl;
+    if (info.baseAddress) {
+      return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/${info.baseAddress}/logo.png`;
+    }
+    return '';
+  }
+
+  getBaseAddress(symbol: string): string {
+    return this.tokens.get(symbol)?.baseAddress ?? '';
   }
 
   getVolume(symbol: string): number {

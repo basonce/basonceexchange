@@ -1,12 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import type { BDexToken } from '../pages/BDexTradePage';
 
-// Local alias
 type DexToken = BDexToken;
 
 const SKIP_SYMBOLS = new Set([
   'USDT','USDC','BUSD','DAI','FDUSD','TUSD','FRAX','USDD','USDP','GUSD',
-  'WBNB','BNB','WETH','ETH','WBTC','BTC','BTCB',
+  'WBNB','BNB','WETH','ETH','WBTC','BTC','BTCB','CAKE','XRP','ADA',
 ]);
 
 const formatVolume = (v: number): string => {
@@ -34,9 +33,33 @@ const formatBnb = (n: number): string => {
   return n.toExponential(2);
 };
 
-const TokenLogo: React.FC<{ icon: string | null; symbol: string }> = ({ icon, symbol }) => {
-  const [imgOk, setImgOk] = useState(!!icon);
-  useEffect(() => { setImgOk(!!icon); }, [icon]);
+// Build all candidate logo URLs in priority order
+function buildLogoUrls(icon: string | null, baseAddress: string): string[] {
+  const urls: string[] = [];
+  if (icon && icon.startsWith('http')) urls.push(icon);
+
+  const addr = baseAddress.toLowerCase();
+  // Trust Wallet CDN (most comprehensive for BSC)
+  urls.push(`https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/${baseAddress}/logo.png`);
+  // DexScreener token image
+  urls.push(`https://dd.dexscreener.com/ds-data/tokens/bsc/${addr}/header.png`);
+  // CoinGecko format used by GeckoTerminal
+  if (icon && icon.includes('coin')) urls.push(icon);
+  return urls;
+}
+
+const TokenLogo: React.FC<{ icon: string | null; symbol: string; baseAddress: string }> = ({
+  icon, symbol, baseAddress,
+}) => {
+  const candidates = buildLogoUrls(icon, baseAddress);
+  const [idx, setIdx] = useState(0);
+  const [failed, setFailed] = useState(candidates.length === 0);
+
+  useEffect(() => {
+    const newCandidates = buildLogoUrls(icon, baseAddress);
+    setIdx(0);
+    setFailed(newCandidates.length === 0);
+  }, [icon, baseAddress]);
 
   const colors = [
     '#F0B90B','#0ECB81','#F6465D','#3B82F6','#A855F7',
@@ -45,15 +68,25 @@ const TokenLogo: React.FC<{ icon: string | null; symbol: string }> = ({ icon, sy
   const color = colors[symbol.charCodeAt(0) % colors.length];
   const letter = symbol.slice(0, 2).toUpperCase();
 
+  const currentUrl = candidates[idx];
+
   return (
-    <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border border-[#2B3139]"
-      style={{ background: imgOk ? 'transparent' : color }}>
-      {imgOk && icon ? (
+    <div
+      className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border border-[#2B3139]"
+      style={{ background: (!failed && currentUrl) ? 'transparent' : color }}
+    >
+      {!failed && currentUrl ? (
         <img
-          src={icon}
+          src={currentUrl}
           alt={symbol}
           className="w-full h-full object-cover"
-          onError={() => setImgOk(false)}
+          onError={() => {
+            if (idx + 1 < candidates.length) {
+              setIdx(i => i + 1);
+            } else {
+              setFailed(true);
+            }
+          }}
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center">
@@ -83,38 +116,45 @@ async function fetchBscTopTokens(): Promise<DexToken[]> {
   const results: DexToken[] = [];
   const seen = new Set<string>();
 
-  // Fetch 2 pages of trending BSC pools (they have logos from CoinGecko)
-  // Plus 1 page of top-volume pools (catches newer tokens)
+  // Fetch multiple pages of top-volume + trending BSC pools
   const urls = [
+    'https://api.geckoterminal.com/api/v2/networks/bsc/pools?sort=h24_volume_usd_desc&include=base_token,quote_token&page=1',
+    'https://api.geckoterminal.com/api/v2/networks/bsc/pools?sort=h24_volume_usd_desc&include=base_token,quote_token&page=2',
+    'https://api.geckoterminal.com/api/v2/networks/bsc/pools?sort=h24_volume_usd_desc&include=base_token,quote_token&page=3',
     'https://api.geckoterminal.com/api/v2/networks/bsc/trending_pools?include=base_token,quote_token&page=1',
     'https://api.geckoterminal.com/api/v2/networks/bsc/trending_pools?include=base_token,quote_token&page=2',
-    'https://api.geckoterminal.com/api/v2/networks/bsc/pools?sort=h24_volume_usd_desc&include=base_token,quote_token&page=1',
   ];
 
-  const responses = await Promise.allSettled(urls.map(u => fetch(u).then(r => r.json())));
+  const responses = await Promise.allSettled(
+    urls.map(u =>
+      fetch(u, { headers: { Accept: 'application/json;version=20230302' } }).then(r => r.json())
+    )
+  );
 
   for (const res of responses) {
     if (res.status !== 'fulfilled') continue;
     const d = res.value;
     const pools: any[] = d.data || [];
     const included: any[] = d.included || [];
-    const tokMap: Record<string, any> = Object.fromEntries(included.map((t: any) => [t.id, t]));
+    const tokMap: Record<string, any> = Object.fromEntries(
+      included.map((t: any) => [t.id, t])
+    );
 
     for (const pool of pools) {
       const attr = pool.attributes || {};
       const baseId: string = pool.relationships?.base_token?.data?.id || '';
       const quoteId: string = pool.relationships?.quote_token?.data?.id || '';
       const baseTok = tokMap[baseId]?.attributes || {};
-      const sym: string = baseTok.symbol || '';
+      const sym: string = (baseTok.symbol || '').toUpperCase();
 
-      if (!sym || SKIP_SYMBOLS.has(sym.toUpperCase())) continue;
+      if (!sym || SKIP_SYMBOLS.has(sym)) continue;
+      if (!/^[A-Za-z0-9._-]{1,20}$/.test(sym)) continue;
+
+      const vol24h = parseFloat(attr.volume_usd?.h24 || '0');
+
       if (seen.has(baseId)) {
-        // Update volume if we already have this token but found higher volume
         const existing = results.find(t => t.baseAddress === baseId.replace('bsc_', ''));
-        if (existing) {
-          const vol = parseFloat(attr.volume_usd?.h24 || '0');
-          if (vol > existing.volume24h) existing.volume24h = vol;
-        }
+        if (existing && vol24h > existing.volume24h) existing.volume24h = vol24h;
         continue;
       }
       seen.add(baseId);
@@ -122,30 +162,30 @@ async function fetchBscTopTokens(): Promise<DexToken[]> {
       const priceUsd = parseFloat(attr.base_token_price_usd || '0');
       const priceBnb = parseFloat(attr.base_token_price_native_currency || '0');
       const chg24h = parseFloat(attr.price_change_percentage?.h24 || '0');
-      const vol24h = parseFloat(attr.volume_usd?.h24 || '0');
 
-      // Skip dust, micro-prices, or non-ASCII symbols (e.g. Chinese characters)
-      if (priceUsd === 0 || vol24h < 100_000) continue;
-      if (!/^[A-Za-z0-9._-]{1,15}$/.test(sym)) continue;
+      // Only show tokens with significant volume ($500K+)
+      if (priceUsd === 0 || vol24h < 500_000) continue;
+
+      const baseAddress = baseId.replace('bsc_', '');
 
       results.push({
         symbol: sym,
         name: baseTok.name || sym,
-        poolAddress: pool.attributes?.address || '',
-        baseAddress: baseId.replace('bsc_', ''),
+        poolAddress: attr.address || '',
+        baseAddress,
         icon: baseTok.image_url || null,
         priceUsd,
         priceBnb,
         priceChange24h: chg24h,
         volume24h: vol24h,
-        dexUrl: `https://www.geckoterminal.com/bsc/pools/${pool.attributes?.address || ''}`,
+        dexUrl: `https://www.geckoterminal.com/bsc/pools/${attr.address || ''}`,
         pairLabel: tokMap[quoteId]?.attributes?.symbol || 'BNB',
       });
     }
   }
 
-  // Sort by 24h volume descending (like Binance Alpha default)
-  return results.sort((a, b) => b.volume24h - a.volume24h).slice(0, 30);
+  // Sort by 24h volume descending, show top 40
+  return results.sort((a, b) => b.volume24h - a.volume24h).slice(0, 40);
 }
 
 interface HomeBDexListProps {
@@ -157,8 +197,11 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const fetchingRef = useRef(false);
 
   const load = useCallback(async () => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
     try {
       const data = await fetchBscTopTokens();
       setTokens(data);
@@ -168,12 +211,14 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
       setError(true);
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
   }, []);
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, 30_000);
+    // Refresh every 10 seconds
+    const interval = setInterval(load, 10_000);
     return () => clearInterval(interval);
   }, [load]);
 
@@ -182,13 +227,13 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
       {/* Header bar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-[#2B3139]">
         <div className="flex items-center gap-2">
-          <span className="text-[#F0B90B] text-xs font-bold">BSC Chain</span>
-          <span className="text-[#848E9C] text-[11px]">via GeckoTerminal</span>
+          <span className="text-[#F0B90B] text-xs font-bold">BSC Chain · High Volume</span>
+          <span className="text-[#848E9C] text-[11px]">GeckoTerminal</span>
         </div>
         <div className="flex items-center gap-2">
           {lastUpdated && (
             <span className="text-[#848E9C] text-[10px]">
-              {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
           )}
           <div className="w-1.5 h-1.5 rounded-full bg-[#0ECB81] animate-pulse" />
@@ -196,7 +241,7 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
         </div>
       </div>
 
-      {/* Column headers — same as Binance Alpha */}
+      {/* Column headers */}
       <div className="flex items-center px-4 py-2 border-b border-[#2B3139]">
         <span className="text-[#848E9C] text-xs flex-1">Name / Vol</span>
         <span className="text-[#848E9C] text-xs w-[120px] text-right">Last Price</span>
@@ -227,8 +272,8 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
             className="flex items-center px-4 py-3 border-b border-[#1E2329] active:bg-[#1E2329] transition-colors cursor-pointer"
             onClick={() => onSelectToken ? onSelectToken(token) : window.open(token.dexUrl, '_blank')}
           >
-            {/* Logo */}
-            <TokenLogo icon={token.icon} symbol={token.symbol} />
+            {/* Logo with multi-source fallback */}
+            <TokenLogo icon={token.icon} symbol={token.symbol} baseAddress={token.baseAddress} />
 
             {/* Name + volume */}
             <div className="ml-3 flex-1 min-w-0">
@@ -260,7 +305,7 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
 
       {!loading && !error && tokens.length > 0 && (
         <div className="px-4 py-4 text-center text-[#848E9C] text-[11px] border-t border-[#2B3139]">
-          Powered by GeckoTerminal · BSC Chain · Refreshes every 30s
+          Powered by GeckoTerminal · BSC Chain · Top Volume · Refreshes every 10s
         </div>
       )}
     </div>
