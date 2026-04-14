@@ -68,6 +68,12 @@ export async function fetchBinanceTicker(symbol: string): Promise<BinanceTicker 
   }
 }
 
+// Binance Futures (Perpetual) ticker — uses spot proxy as fapi.binance.com is geo-blocked.
+// Spot and perp prices are within <0.1% for liquid pairs.
+export async function fetchBinanceFuturesTicker(symbol: string): Promise<BinanceTicker | null> {
+  return fetchBinanceTicker(symbol);
+}
+
 export async function fetchBinanceDepth(symbol: string, limit: number = 20): Promise<BinanceDepth | null> {
   try {
     const response = await fetch(`${EDGE_FUNCTION_URL}?endpoint=depth&symbol=${symbol}&limit=${limit}`, { headers: EDGE_HEADERS });

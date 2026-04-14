@@ -21,7 +21,7 @@ import { PowerAIPriceManager } from '../lib/powerai-price';
 import { SZNPPriceManager } from '../lib/sznp-price';
 import { PunchPriceManager } from '../lib/punch-price';
 import { BNCPriceManager } from '../lib/bnc-price';
-import { fetchBinanceTicker } from '../lib/binance';
+import { fetchBinanceTicker, fetchBinanceFuturesTicker } from '../lib/binance';
 import { PriceCache } from '../lib/price-cache';
 import { formatPrice as sharedFormatPrice, formatAmount as sharedFormatAmount, getPriceDecimals } from '../lib/format-utils';
 import {
@@ -96,7 +96,7 @@ async function fetchFreshPrice(symbol: string): Promise<number> {
     if (p > 0) return p;
   }
 
-  const ticker = await fetchBinanceTicker(symbol);
+  const ticker = await fetchBinanceFuturesTicker(symbol);
   if (ticker) {
     const lp = parseFloat(ticker.lastPrice);
     if (lp > 0) return lp;
@@ -503,7 +503,7 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
 
         if (sinceLastFetch >= 3000) {
           lastBinanceFetchRef.current = now;
-          const ticker = await fetchBinanceTicker(selectedSymbol);
+          const ticker = await fetchBinanceFuturesTicker(selectedSymbol);
           if (ticker) {
             const lp = parseFloat(ticker.lastPrice);
             if (lp > 0) {
