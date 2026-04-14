@@ -239,7 +239,7 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
     }
 
     if (!rawEquipment || rawEquipment.length === 0) {
-      setMiners([]);
+      initDemoMode();
       return;
     }
 
