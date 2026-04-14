@@ -110,7 +110,6 @@ const TokenLogo: React.FC<{ icon: string | null; symbol: string }> = ({ icon, sy
           src={src}
           alt={symbol}
           className="w-full h-full object-cover"
-          crossOrigin="anonymous"
           onError={() => setFailed(true)}
         />
       ) : (
