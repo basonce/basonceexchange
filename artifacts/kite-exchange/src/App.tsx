@@ -214,21 +214,9 @@ function App() {
     trackActivityPage(mobileTab);
     const newHash = `#${mobileTab}`;
     if (window.location.hash !== newHash) {
-      window.history.pushState(null, '', newHash);
+      window.history.replaceState(null, '', newHash);
     }
   }, [mobileTab]);
-
-  useEffect(() => {
-    const handleHashChange = () => {
-      const tab = getTabFromHash();
-      setMobileTab(prev => {
-        if (prev !== tab) setPrevTab(prev);
-        return tab;
-      });
-    };
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
 
   useEffect(() => {
     const handleNavigateToTrade = async (e: any) => {
