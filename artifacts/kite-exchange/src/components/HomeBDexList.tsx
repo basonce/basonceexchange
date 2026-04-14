@@ -1,17 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import type { BDexToken } from '../pages/BDexTradePage';
 
-interface DexToken {
-  symbol: string;
-  name: string;
-  poolAddress: string;
-  baseAddress: string;
-  icon: string | null;
-  priceUsd: number;
-  priceBnb: number;
-  priceChange24h: number;
-  volume24h: number;
-  dexUrl: string;
-}
+// Local alias
+type DexToken = BDexToken;
 
 const SKIP_SYMBOLS = new Set([
   'USDT','USDC','BUSD','DAI','FDUSD','TUSD','FRAX','USDD','USDP','GUSD',
@@ -148,6 +139,7 @@ async function fetchBscTopTokens(): Promise<DexToken[]> {
         priceChange24h: chg24h,
         volume24h: vol24h,
         dexUrl: `https://www.geckoterminal.com/bsc/pools/${pool.attributes?.address || ''}`,
+        pairLabel: tokMap[quoteId]?.attributes?.symbol || 'BNB',
       });
     }
   }
@@ -156,7 +148,11 @@ async function fetchBscTopTokens(): Promise<DexToken[]> {
   return results.sort((a, b) => b.volume24h - a.volume24h).slice(0, 30);
 }
 
-const HomeBDexList: React.FC = () => {
+interface HomeBDexListProps {
+  onSelectToken?: (token: DexToken) => void;
+}
+
+const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
   const [tokens, setTokens] = useState<DexToken[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -229,7 +225,7 @@ const HomeBDexList: React.FC = () => {
           <div
             key={token.baseAddress}
             className="flex items-center px-4 py-3 border-b border-[#1E2329] active:bg-[#1E2329] transition-colors cursor-pointer"
-            onClick={() => window.open(token.dexUrl, '_blank')}
+            onClick={() => onSelectToken ? onSelectToken(token) : window.open(token.dexUrl, '_blank')}
           >
             {/* Logo */}
             <TokenLogo icon={token.icon} symbol={token.symbol} />

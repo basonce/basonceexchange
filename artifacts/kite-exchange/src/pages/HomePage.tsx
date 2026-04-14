@@ -9,6 +9,7 @@ import FuturesMarketList from '../components/FuturesMarketList';
 import NewListingSection from '../components/NewListingSection';
 import HomeTradFiList from '../components/HomeTradFiList';
 import HomeBDexList from '../components/HomeBDexList';
+import BDexTradePage, { type BDexToken } from './BDexTradePage';
 import GamesSection from '../components/GamesSection';
 import MenuDrawer from '../components/MenuDrawer';
 import FuturesCampaignModal from '../components/FuturesCampaignModal';
@@ -41,6 +42,8 @@ export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) 
   const [activeTab, setActiveTab] = useState<'crypto' | 'spot' | 'futures' | 'new-listing' | 'alpha'>('crypto');
   const [activeFilter, setActiveFilter] = useState<'gainers' | 'losers' | '24h-vol' | 'tradfi' | 'bdex'>('gainers');
   const [showSportsModal, setShowSportsModal] = useState(!!autoOpenSports);
+  const [bdexTradeToken, setBdexTradeToken] = useState<BDexToken | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [discoverTab, setDiscoverTab] = useState<'discover' | 'following' | 'campaign' | 'announcement'>('discover');
   const [showFAB, setShowFAB] = useState(false);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
@@ -51,6 +54,7 @@ export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) 
     supabase.auth.getSession().then(({ data }) => {
       const uid = data.session?.user?.id;
       if (!uid) return;
+      setCurrentUserId(uid);
       supabase.from('user_profiles').select('avatar_url, username').eq('id', uid).maybeSingle()
         .then(({ data: p }) => { if (p) setMyProfile(p); });
     });
@@ -571,7 +575,7 @@ export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) 
           ) : activeFilter === 'tradfi' ? (
             <HomeTradFiList />
           ) : activeFilter === 'bdex' ? (
-            <HomeBDexList />
+            <HomeBDexList onSelectToken={(tok) => setBdexTradeToken(tok)} />
           ) : (
             <HomeMarketList activeFilter={activeFilter as 'gainers' | 'losers' | '24h-vol'} marketType={activeTab as 'crypto' | 'spot' | 'futures'} />
           )}
@@ -626,6 +630,15 @@ export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) 
       <CampaignDetailModal campaign={selectedCampaign} onClose={() => setSelectedCampaign(null)} />
       <FuturesCampaignModal isOpen={showFuturesCampaign} onClose={() => setShowFuturesCampaign(false)} />
       <LaunchpoolModal isOpen={showLaunchpool} onClose={() => setShowLaunchpool(false)} />
+
+      {/* B-DeX Trading Page overlay */}
+      {bdexTradeToken && (
+        <BDexTradePage
+          token={bdexTradeToken}
+          onBack={() => setBdexTradeToken(null)}
+          userId={currentUserId}
+        />
+      )}
 
       {/* Social Feed FAB - yalnızca social feed görünürken çıkar, createPortal ile sabit konumda */}
       {createPortal(

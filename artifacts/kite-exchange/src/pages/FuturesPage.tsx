@@ -876,6 +876,7 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
         .select('*')
         .eq('user_id', uid)
         .eq('status', 'open')
+        .not('symbol', 'like', 'BDEX_%')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
