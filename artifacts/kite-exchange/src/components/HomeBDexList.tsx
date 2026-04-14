@@ -143,9 +143,7 @@ async function fetchBscTopTokens(): Promise<DexToken[]> {
   const urls = [
     'https://api.geckoterminal.com/api/v2/networks/bsc/pools?sort=h24_volume_usd_desc&include=base_token,quote_token&page=1',
     'https://api.geckoterminal.com/api/v2/networks/bsc/pools?sort=h24_volume_usd_desc&include=base_token,quote_token&page=2',
-    'https://api.geckoterminal.com/api/v2/networks/bsc/pools?sort=h24_volume_usd_desc&include=base_token,quote_token&page=3',
     'https://api.geckoterminal.com/api/v2/networks/bsc/trending_pools?include=base_token,quote_token&page=1',
-    'https://api.geckoterminal.com/api/v2/networks/bsc/trending_pools?include=base_token,quote_token&page=2',
   ];
 
   const responses = await Promise.allSettled(
@@ -266,9 +264,12 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
     fetchingRef.current = true;
     try {
       const data = await fetchBscTopTokens();
-      setTokens(data);
-      setLastUpdated(new Date());
-      setError(false);
+      if (data.length > 0) {
+        setTokens(data);
+        setLastUpdated(new Date());
+        setError(false);
+      }
+      // If 0 results (rate-limited), keep stale tokens — don't clear them
     } catch {
       setError(true);
     } finally {
@@ -279,7 +280,7 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, 10_000);
+    const interval = setInterval(load, 20_000);
     return () => clearInterval(interval);
   }, [load]);
 
@@ -314,6 +315,15 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
           <div className="text-4xl mb-3">🔗</div>
           <div className="text-sm font-medium mb-1">DEX data unavailable</div>
           <div className="text-xs">Check your connection</div>
+        </div>
+      )}
+
+      {!loading && !error && tokens.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 text-center min-h-[320px]">
+          <div className="text-3xl mb-3">🔗</div>
+          <div className="text-[#848E9C] text-sm font-medium mb-1">Loading DEX data...</div>
+          <div className="text-[#848E9C] text-xs">Fetching high-volume BSC tokens</div>
+          <div className="mt-4 w-6 h-6 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin" />
         </div>
       )}
 
