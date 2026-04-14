@@ -1,284 +1,88 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml"
-        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
-        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
 
   <url>
     <loc>https://basonce.com/</loc>
-    <lastmod>2026-04-10</lastmod>
+    <lastmod>2026-04-14</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://basonce.com/"/>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://basonce.com/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://basonce.com/"/>
     <image:image>
-      <image:loc>https://basonce.com/favicon.png</image:loc>
-      <image:title>BASONCE Exchange - World's Most Trusted Crypto Exchange</image:title>
-      <image:caption>Trade 258+ cryptocurrencies, stocks, ETFs, gold, oil and commodities on BASONCE Exchange</image:caption>
+      <image:loc>https://basonce.com/BASONCE_LOGO_SON_BITEN.png</image:loc>
+      <image:title>BASONCE Exchange - World's Most Trusted Crypto Platform</image:title>
+      <image:caption>Trade 258+ cryptocurrencies, futures, cloud mining, gold, oil on BASONCE Exchange</image:caption>
     </image:image>
   </url>
 
-  <url>
-    <loc>https://basonce.com/markets</loc>
-    <lastmod>2026-04-10</lastmod>
-    <changefreq>hourly</changefreq>
-    <priority>0.95</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://basonce.com/markets"/>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://basonce.com/markets"/>
-  </url>
+  <url><loc>https://basonce.com/markets</loc><lastmod>2026-04-14</lastmod><changefreq>hourly</changefreq><priority>0.95</priority></url>
+  <url><loc>https://basonce.com/trade</loc><lastmod>2026-04-14</lastmod><changefreq>hourly</changefreq><priority>0.95</priority></url>
+  <url><loc>https://basonce.com/futures</loc><lastmod>2026-04-14</lastmod><changefreq>hourly</changefreq><priority>0.95</priority></url>
+  <url><loc>https://basonce.com/sports</loc><lastmod>2026-04-14</lastmod><changefreq>hourly</changefreq><priority>0.90</priority></url>
+  <url><loc>https://basonce.com/mining</loc><lastmod>2026-04-14</lastmod><changefreq>daily</changefreq><priority>0.85</priority></url>
+  <url><loc>https://basonce.com/earn</loc><lastmod>2026-04-14</lastmod><changefreq>daily</changefreq><priority>0.80</priority></url>
+  <url><loc>https://basonce.com/referral</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.75</priority></url>
+  <url><loc>https://basonce.com/assets</loc><lastmod>2026-04-14</lastmod><changefreq>daily</changefreq><priority>0.75</priority></url>
 
-  <url>
-    <loc>https://basonce.com/trade</loc>
-    <lastmod>2026-04-10</lastmod>
-    <changefreq>hourly</changefreq>
-    <priority>0.95</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://basonce.com/trade"/>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://basonce.com/trade"/>
-  </url>
+  <!-- Review & Main Brand Pages -->
+  <url><loc>https://basonce.com/basonce-review.html</loc><lastmod>2026-04-14</lastmod><changefreq>monthly</changefreq><priority>0.98</priority></url>
+  <url><loc>https://basonce.com/basonce-exchange-review-2025.html</loc><lastmod>2026-04-14</lastmod><changefreq>monthly</changefreq><priority>0.97</priority></url>
+  <url><loc>https://basonce.com/about.html</loc><lastmod>2026-04-14</lastmod><changefreq>monthly</changefreq><priority>0.95</priority></url>
+  <url><loc>https://basonce.com/basonce-signup-bonus.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.95</priority></url>
+  <url><loc>https://basonce.com/best-crypto-exchange.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.95</priority></url>
+  <url><loc>https://basonce.com/basonce-trading-fees.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.90</priority></url>
 
-  <url>
-    <loc>https://basonce.com/futures</loc>
-    <lastmod>2026-04-10</lastmod>
-    <changefreq>hourly</changefreq>
-    <priority>0.95</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://basonce.com/futures"/>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://basonce.com/futures"/>
-  </url>
+  <!-- Trading Guides -->
+  <url><loc>https://basonce.com/how-to-trade-crypto.html</loc><lastmod>2026-04-14</lastmod><changefreq>monthly</changefreq><priority>0.90</priority></url>
+  <url><loc>https://basonce.com/crypto-for-beginners.html</loc><lastmod>2026-04-14</lastmod><changefreq>monthly</changefreq><priority>0.90</priority></url>
+  <url><loc>https://basonce.com/crypto-portfolio.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.88</priority></url>
+  <url><loc>https://basonce.com/defi-trading.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.88</priority></url>
 
-  <url>
-    <loc>https://basonce.com/sports</loc>
-    <lastmod>2026-04-10</lastmod>
-    <changefreq>hourly</changefreq>
-    <priority>0.90</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://basonce.com/sports"/>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://basonce.com/sports"/>
-  </url>
+  <!-- Coin-Specific Pages -->
+  <url><loc>https://basonce.com/buy-bitcoin.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.90</priority></url>
+  <url><loc>https://basonce.com/bitcoin-price-today.html</loc><lastmod>2026-04-14</lastmod><changefreq>daily</changefreq><priority>0.92</priority></url>
+  <url><loc>https://basonce.com/bitcoin-futures.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.90</priority></url>
+  <url><loc>https://basonce.com/ethereum-trading.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.88</priority></url>
+  <url><loc>https://basonce.com/ethereum-futures.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.88</priority></url>
+  <url><loc>https://basonce.com/solana-trading.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://basonce.com/bnb-trading.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://basonce.com/xrp-dogecoin-trading.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://basonce.com/altcoin-trading.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
 
-  <url>
-    <loc>https://basonce.com/mining</loc>
-    <lastmod>2026-04-10</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.85</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://basonce.com/mining"/>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://basonce.com/mining"/>
-  </url>
+  <!-- Futures & Leverage -->
+  <url><loc>https://basonce.com/crypto-futures-trading.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.90</priority></url>
+  <url><loc>https://basonce.com/leverage-trading.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.88</priority></url>
 
-  <url>
-    <loc>https://basonce.com/earn</loc>
-    <lastmod>2026-04-10</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.80</priority>
-  </url>
+  <!-- Mining -->
+  <url><loc>https://basonce.com/cloud-mining.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.88</priority></url>
+  <url><loc>https://basonce.com/crypto-mining-2025.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.90</priority></url>
 
-  <url>
-    <loc>https://basonce.com/referral</loc>
-    <lastmod>2026-04-10</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.75</priority>
-  </url>
+  <!-- TradFi -->
+  <url><loc>https://basonce.com/gold-trading.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.88</priority></url>
+  <url><loc>https://basonce.com/oil-trading.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://basonce.com/stock-trading.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
 
-  <url>
-    <loc>https://basonce.com/assets</loc>
-    <lastmod>2026-04-10</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.75</priority>
-  </url>
+  <!-- Sports & Earn -->
+  <url><loc>https://basonce.com/sports-betting.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://basonce.com/copy-trading.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://basonce.com/passive-income-crypto.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://basonce.com/referral-program.html</loc><lastmod>2026-04-14</lastmod><changefreq>monthly</changefreq><priority>0.80</priority></url>
 
-  <url>
-    <loc>https://basonce.com/profile</loc>
-    <lastmod>2026-04-10</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.50</priority>
-  </url>
+  <!-- Deposit & Wallet -->
+  <url><loc>https://basonce.com/crypto-deposit-guide.html</loc><lastmod>2026-04-14</lastmod><changefreq>monthly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://basonce.com/usdt-trc20-guide.html</loc><lastmod>2026-04-14</lastmod><changefreq>monthly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://basonce.com/usdt-exchange.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.88</priority></url>
+  <url><loc>https://basonce.com/crypto-wallet.html</loc><lastmod>2026-04-14</lastmod><changefreq>monthly</changefreq><priority>0.82</priority></url>
 
-  <url>
-    <loc>https://basonce.com/buy-bitcoin.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
+  <!-- Regional Pages -->
+  <url><loc>https://basonce.com/crypto-exchange-turkey.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.92</priority></url>
+  <url><loc>https://basonce.com/crypto-exchange-middle-east.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.90</priority></url>
+  <url><loc>https://basonce.com/crypto-exchange-europe.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.90</priority></url>
+  <url><loc>https://basonce.com/crypto-exchange-asia.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.90</priority></url>
+  <url><loc>https://basonce.com/crypto-exchange-africa.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.88</priority></url>
+  <url><loc>https://basonce.com/crypto-exchange-latin-america.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.88</priority></url>
 
-  <url>
-    <loc>https://basonce.com/crypto-exchange-africa.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/crypto-futures-trading.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/cloud-mining.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.80</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/crypto-exchange-asia.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.90</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/about.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.90</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/usdt-exchange.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/ethereum-trading.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/sports-betting.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/stock-trading.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.80</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/referral-program.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.80</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/gold-trading.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/copy-trading.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/solana-trading.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/crypto-for-beginners.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.90</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/passive-income-crypto.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/crypto-exchange-middle-east.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.90</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/altcoin-trading.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/bitcoin-futures.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.90</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/basonce-review.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.95</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/crypto-exchange-europe.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.90</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/crypto-exchange-latin-america.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.90</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/xrp-dogecoin-trading.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/oil-trading.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/leverage-trading.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/bnb-trading.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-
-  <url>
-    <loc>https://basonce.com/crypto-wallet.html</loc>
-    <lastmod>2026-04-13</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.85</priority>
-  </url>
+  <!-- Other -->
+  <url><loc>https://basonce.com/global-markets.html</loc><lastmod>2026-04-14</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
 
 </urlset>
