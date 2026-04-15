@@ -239,7 +239,50 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
     }
 
     if (!rawEquipment || rawEquipment.length === 0) {
-      initDemoMode();
+      // Logged-in user has no active equipment (e.g. after collect deactivated it).
+      // Retry once after 1.5s in case initializeUser() is still running.
+      await new Promise(r => setTimeout(r, 1500));
+      const { data: retryEquipment } = await supabase
+        .from('user_mining_equipment')
+        .select('*, mining_equipment_types(*)')
+        .eq('user_id', user.id)
+        .eq('is_active', true);
+
+      if (!retryEquipment || retryEquipment.length === 0) {
+        // Still nothing – show empty state, NOT demo mode
+        setMiners([]);
+        return;
+      }
+      // Use the freshly fetched equipment
+      const retryDevices: MinerDevice[] = retryEquipment.map((eq: any) => {
+        const t = eq.mining_equipment_types || {};
+        const durationHours = t.mining_duration_hours || eq.mining_duration_hours || 5;
+        const maxSeconds = durationHours * 3600;
+        const usedSeconds = eq.used_mining_seconds || 0;
+        const hasTimeLimit = durationHours > 0;
+        return {
+          id: eq.id,
+          name: t.name || 'CPU Miner',
+          icon: t.icon || '💻',
+          hash_rate: t.hash_rate || 10,
+          daily_earning_usdt: t.daily_earning || 240,
+          total_earned_usdt: eq.total_earned_usdt || 0,
+          session_earned_usdt: eq.session_earned_usdt || 0,
+          status: (eq.status || 'stopped') as 'active' | 'paused' | 'stopped',
+          started_at: eq.started_at,
+          used_mining_seconds: usedSeconds,
+          level: t.level || 0,
+          mining_duration_hours: durationHours,
+          withdrawal_limit: t.withdrawal_limit || 100,
+          times_used: eq.times_used || 0,
+          tier: 1,
+          max_uses: 999,
+          has_time_limit: hasTimeLimit,
+          remaining_mining_seconds: hasTimeLimit ? Math.max(0, maxSeconds - usedSeconds) : 999999,
+          usage_percentage: hasTimeLimit ? (usedSeconds / maxSeconds * 100) : 0,
+        };
+      });
+      setMiners(retryDevices);
       return;
     }
 
@@ -380,13 +423,12 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
       return;
     }
 
-    if (isDemoMode) {
+    // Always check real auth status — never rely on isDemoMode flag alone
+    const user = await getCurrentUser();
+    if (!user) {
       setShowAuthModal(true);
       return;
     }
-
-    const user = await getCurrentUser();
-    if (!user) return;
 
     const restrictions = await getUserRestrictions(user.id);
     if (restrictions?.mining_blocked || restrictions?.usdt_frozen) {
@@ -527,7 +569,8 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
 
     if (miner.used_mining_seconds >= maxDuration && currentStatus === 'stopped') {
       if (miner.name === 'CPU Miner') {
-        if (isDemoMode) {
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
           setShowAuthModal(true);
         } else {
           setShowUpgradeModal(true);
