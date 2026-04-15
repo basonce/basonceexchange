@@ -20,6 +20,11 @@ interface SharePositionCardProps {
   pnlPercentage: number;
 }
 
+/** Strip BDEX_ prefix for display */
+function displaySymbol(raw: string): string {
+  return raw.startsWith('BDEX_') ? raw.slice(5) : raw;
+}
+
 export default function SharePositionCard({
   isOpen,
   onClose,
@@ -94,7 +99,7 @@ export default function SharePositionCard({
       const url = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.href = url;
-      link.download = `basonce-${position.symbol}-${dateStr.replace(/[: ]/g, '-')}.png`;
+      link.download = `basonce-${displaySymbol(position.symbol)}-${dateStr.replace(/[: ]/g, '-')}.png`;
       link.click();
     } catch (e) {
       console.error(e);
@@ -116,14 +121,15 @@ export default function SharePositionCard({
       });
       canvas.toBlob(async (blob) => {
         if (!blob) return;
-        const file = new File([blob], `basonce-${position.symbol}.png`, { type: 'image/png' });
+        const sym = displaySymbol(position.symbol);
+        const file = new File([blob], `basonce-${sym}.png`, { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: `Basonce ${position.symbol} ${pnlSign}${pnlPercentage.toFixed(2)}%` });
+          await navigator.share({ files: [file], title: `Basonce ${sym} ${pnlSign}${pnlPercentage.toFixed(2)}%` });
         } else {
           const url = canvas.toDataURL('image/png');
           const link = document.createElement('a');
           link.href = url;
-          link.download = `basonce-${position.symbol}.png`;
+          link.download = `basonce-${sym}.png`;
           link.click();
         }
       }, 'image/png');
@@ -135,7 +141,7 @@ export default function SharePositionCard({
   };
 
   const handleCopy = () => {
-    const text = `${position.symbol} Perpetual\n${sideLabel} | ${position.leverage}x\n${pnlSign}${pnlPercentage.toFixed(2)}%\n${pnlAmtFmt} USDT\nEntry: ${entryFmt} | Last: ${lastFmt}\nbasonce.com?ref=${referralCode}`;
+    const text = `${displaySymbol(position.symbol)} Perpetual\n${sideLabel} | ${position.leverage}x\n${pnlSign}${pnlPercentage.toFixed(2)}%\n${pnlAmtFmt} USDT\nEntry: ${entryFmt} | Last: ${lastFmt}\nbasonce.com?ref=${referralCode}`;
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -249,7 +255,7 @@ export default function SharePositionCard({
             {/* Symbol + side + leverage */}
             <div style={{ marginBottom: '6px' }}>
               <div style={{ color: '#EAECEF', fontWeight: 700, fontSize: '22px', marginBottom: '10px', letterSpacing: '-0.3px' }}>
-                {position.symbol} Perpetual
+                {displaySymbol(position.symbol)} Perpetual
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <span style={{ color: sideColor, fontWeight: 700, fontSize: '15px' }}>
