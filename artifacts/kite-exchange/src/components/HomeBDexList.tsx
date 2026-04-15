@@ -254,11 +254,31 @@ interface HomeBDexListProps {
   onSelectToken?: (token: DexToken) => void;
 }
 
+// Inject CSS keyframes once
+const FLASH_STYLE = `
+@keyframes flashGreen {
+  0%   { color: #0ECB81; }
+  60%  { color: #0ECB81; }
+  100% { color: #fff; }
+}
+@keyframes flashRed {
+  0%   { color: #F6465D; }
+  60%  { color: #F6465D; }
+  100% { color: #fff; }
+}
+.price-flash-up   { animation: flashGreen 700ms ease-out forwards; }
+.price-flash-down { animation: flashRed   700ms ease-out forwards; }
+`;
+
+type FlashDir = 'up' | 'down' | null;
+
 const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
   const [tokens, setTokens] = useState<DexToken[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [priceFlash, setPriceFlash] = useState<Record<string, FlashDir>>({});
+  const prevPricesRef = useRef<Record<string, number>>({});
   const fetchingRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -267,9 +287,26 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
     try {
       const data = await fetchBscTopTokens();
       if (data.length > 0) {
+        // Compute flash directions by comparing to previous prices
+        const flashMap: Record<string, FlashDir> = {};
+        const prev = prevPricesRef.current;
+        for (const token of data) {
+          const key = token.baseAddress;
+          const oldPrice = prev[key];
+          if (oldPrice !== undefined && oldPrice !== token.priceUsd) {
+            flashMap[key] = token.priceUsd > oldPrice ? 'up' : 'down';
+          }
+          prev[key] = token.priceUsd;
+        }
+
         setTokens(data);
         setLastUpdated(new Date());
         setError(false);
+
+        if (Object.keys(flashMap).length > 0) {
+          setPriceFlash(flashMap);
+          setTimeout(() => setPriceFlash({}), 750);
+        }
       }
       // If 0 results (rate-limited/filtered), keep stale tokens but signal error on first load
       else {
@@ -297,6 +334,7 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
 
   return (
     <div className="bg-[#0B0E11]">
+      <style>{FLASH_STYLE}</style>
       <div className="flex items-center justify-between px-4 py-2 border-b border-[#2B3139]">
         <div className="flex items-center gap-2">
           <span className="text-[#F0B90B] text-xs font-bold">BSC Chain · High Volume</span>
@@ -339,6 +377,7 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
         const isUp = token.priceChange24h >= 0;
         const chgAbs = Math.min(Math.abs(token.priceChange24h), 9999.99);
         const chgStr = `${isUp ? '+' : '-'}${chgAbs.toFixed(2)}%`;
+        const flash = priceFlash[token.baseAddress];
 
         return (
           <div
@@ -354,7 +393,9 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
             </div>
 
             <div className="w-[120px] text-right pr-3">
-              <div className="text-white text-sm font-medium tabular-nums">
+              <div
+                className={`text-sm font-medium tabular-nums ${flash === 'up' ? 'price-flash-up' : flash === 'down' ? 'price-flash-down' : 'text-white'}`}
+              >
                 {formatPrice(token.priceUsd)}
               </div>
               <div className="text-[#848E9C] text-[11px] tabular-nums">
