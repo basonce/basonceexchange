@@ -790,6 +790,14 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
     const liquidatingSet = new Set<string>();
 
     const getMarkPrice = async (position: Position): Promise<number> => {
+      // B-DEX positions: use bdexPriceService first
+      if (position.symbol.startsWith('BDEX_')) {
+        const cached = bdexPriceService.getPrice(position.symbol);
+        if (cached > 0) return cached;
+        const fresh = await bdexPriceService.fetchLatestPrice(position.symbol);
+        if (fresh > 0) return fresh;
+      }
+
       const indepGetter = INDEPENDENT_PRICE_MANAGERS[position.symbol];
       if (indepGetter) {
         const p = indepGetter();
@@ -909,6 +917,21 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
     const interval = setInterval(runCycle, 2000);
     return () => clearInterval(interval);
   }, [userId]);
+
+  // Keep B-DEX prices warm for any open BDEX_ positions
+  useEffect(() => {
+    const bdexPositions = positions.filter(p => p.symbol.startsWith('BDEX_') && p.status === 'open');
+    if (bdexPositions.length === 0) return;
+
+    const refresh = async () => {
+      for (const pos of bdexPositions) {
+        await bdexPriceService.fetchLatestPrice(pos.symbol);
+      }
+    };
+    refresh();
+    const id = setInterval(refresh, 10_000);
+    return () => clearInterval(id);
+  }, [positions]);
 
   const loadUserBalance = async (uid: string) => {
     try {
