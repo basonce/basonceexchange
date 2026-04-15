@@ -20,23 +20,23 @@ function PnlSignalBars({ pnlPercentage }: { pnlPercentage: number }) {
   else if (abs >= 15) activeCount = 2;
   else if (abs > 0) activeCount = 1;
   const activeColor = isPositive ? '#0ECB81' : '#F6465D';
+  const dimColor = isPositive ? '#0ECB8130' : '#F6465D30';
+
   return (
-    <div className="flex items-center" style={{ gap: '1px' }}>
-      {[1, 2, 3, 4].map((i) => (
-        <span
-          key={i}
-          style={{
-            color: i <= activeCount ? activeColor : `${activeColor}30`,
-            fontSize: '13px',
-            fontWeight: 700,
-            lineHeight: 1,
-            transition: 'color 0.4s ease',
-          }}
-        >
-          !
-        </span>
-      ))}
-    </div>
+    <svg width="26" height="16" viewBox="0 0 26 16" fill="none">
+      {[0, 1, 2, 3].map((i) => {
+        const x = i * 6.5 + 1;
+        const color = i < activeCount ? activeColor : dimColor;
+        return (
+          <g key={i}>
+            {/* vertical bar */}
+            <rect x={x} y={0} width={3} height={11} rx={1.5} fill={color} />
+            {/* dot */}
+            <rect x={x} y={13} width={3} height={3} rx={1.5} fill={color} />
+          </g>
+        );
+      })}
+    </svg>
   );
 }
 
