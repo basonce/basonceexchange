@@ -256,18 +256,17 @@ interface HomeBDexListProps {
 
 // Inject CSS keyframes once
 const FLASH_STYLE = `
-@keyframes flashGreen {
-  0%   { color: #0ECB81; }
-  60%  { color: #0ECB81; }
-  100% { color: #fff; }
+@keyframes bdex-flash-green {
+  0%,40% { color: #0ECB81 !important; }
+  100%    { color: #ffffff !important; }
 }
-@keyframes flashRed {
-  0%   { color: #F6465D; }
-  60%  { color: #F6465D; }
-  100% { color: #fff; }
+@keyframes bdex-flash-red {
+  0%,40% { color: #F6465D !important; }
+  100%    { color: #ffffff !important; }
 }
-.price-flash-up   { animation: flashGreen 700ms ease-out forwards; }
-.price-flash-down { animation: flashRed   700ms ease-out forwards; }
+.bdex-price-up   { animation: bdex-flash-green 550ms ease-out both !important; }
+.bdex-price-down { animation: bdex-flash-red   550ms ease-out both !important; }
+.bdex-price-idle { color: #ffffff; }
 `;
 
 type FlashDir = 'up' | 'down' | null;
@@ -280,6 +279,23 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
   const [priceFlash, setPriceFlash] = useState<Record<string, FlashDir>>({});
   const prevPricesRef = useRef<Record<string, number>>({});
   const fetchingRef = useRef(false);
+  const tokensRef = useRef<DexToken[]>([]);
+
+  // Keep tokensRef in sync so tick interval can access current tokens
+  useEffect(() => { tokensRef.current = tokens; }, [tokens]);
+
+  const applyFlash = useCallback((flashMap: Record<string, FlashDir>) => {
+    if (Object.keys(flashMap).length === 0) return;
+    setPriceFlash(prev => ({ ...prev, ...flashMap }));
+    // Clear only the flashed keys after animation
+    setTimeout(() => {
+      setPriceFlash(prev => {
+        const next = { ...prev };
+        for (const key of Object.keys(flashMap)) delete next[key];
+        return next;
+      });
+    }, 580);
+  }, []);
 
   const load = useCallback(async () => {
     if (fetchingRef.current) return;
@@ -298,21 +314,14 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
           }
           prev[key] = token.priceUsd;
         }
-
         setTokens(data);
         setLastUpdated(new Date());
         setError(false);
-
-        if (Object.keys(flashMap).length > 0) {
-          setPriceFlash(flashMap);
-          setTimeout(() => setPriceFlash({}), 750);
-        }
-      }
-      // If 0 results (rate-limited/filtered), keep stale tokens but signal error on first load
-      else {
+        applyFlash(flashMap);
+      } else {
         setTokens(prev => {
-          if (prev.length === 0) setError(true); // first load, no stale data
-          return prev; // keep stale
+          if (prev.length === 0) setError(true);
+          return prev;
         });
       }
     } catch {
@@ -324,7 +333,28 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
       setLoading(false);
       fetchingRef.current = false;
     }
-  }, []);
+  }, [applyFlash]);
+
+  // Simulated tick: fires every 1.4s, randomly flashes 2-4 visible tokens
+  useEffect(() => {
+    const tick = () => {
+      const list = tokensRef.current;
+      if (list.length === 0) return;
+      const count = 2 + Math.floor(Math.random() * 3); // 2-4 tokens
+      const shuffled = [...list].sort(() => Math.random() - 0.5).slice(0, count);
+      const flashMap: Record<string, FlashDir> = {};
+      for (const token of shuffled) {
+        // 70% chance matches 24h trend; 30% chance is opposite (market noise)
+        const trendUp = token.priceChange24h >= 0;
+        const noise = Math.random() < 0.3;
+        flashMap[token.baseAddress] = (trendUp !== noise) ? 'up' : 'down';
+      }
+      applyFlash(flashMap);
+    };
+
+    const id = setInterval(tick, 1400);
+    return () => clearInterval(id);
+  }, [applyFlash]);
 
   useEffect(() => {
     load();
@@ -394,7 +424,7 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
 
             <div className="w-[120px] text-right pr-3">
               <div
-                className={`text-sm font-medium tabular-nums ${flash === 'up' ? 'price-flash-up' : flash === 'down' ? 'price-flash-down' : 'text-white'}`}
+                className={`text-sm font-medium tabular-nums ${flash === 'up' ? 'bdex-price-up' : flash === 'down' ? 'bdex-price-down' : 'bdex-price-idle'}`}
               >
                 {formatPrice(token.priceUsd)}
               </div>
