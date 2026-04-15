@@ -147,9 +147,11 @@ async function fetchBscTopTokens(): Promise<DexToken[]> {
   ];
 
   const responses = await Promise.allSettled(
-    urls.map(u =>
-      fetch(u, { headers: { Accept: 'application/json;version=20230302' } }).then(r => r.json())
-    )
+    urls.map(async u => {
+      const r = await fetch(u, { headers: { Accept: 'application/json;version=20230302' }, signal: AbortSignal.timeout(10000) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
   );
 
   for (const res of responses) {
@@ -269,9 +271,18 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
         setLastUpdated(new Date());
         setError(false);
       }
-      // If 0 results (rate-limited), keep stale tokens — don't clear them
+      // If 0 results (rate-limited/filtered), keep stale tokens but signal error on first load
+      else {
+        setTokens(prev => {
+          if (prev.length === 0) setError(true); // first load, no stale data
+          return prev; // keep stale
+        });
+      }
     } catch {
-      setError(true);
+      setTokens(prev => {
+        if (prev.length === 0) setError(true);
+        return prev;
+      });
     } finally {
       setLoading(false);
       fetchingRef.current = false;
@@ -310,20 +321,17 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
 
       {loading && Array.from({ length: 10 }).map((_, i) => <SkeletonRow key={i} />)}
 
-      {!loading && error && (
-        <div className="py-16 text-center text-[#848E9C]">
-          <div className="text-4xl mb-3">🔗</div>
-          <div className="text-sm font-medium mb-1">DEX data unavailable</div>
-          <div className="text-xs">Check your connection</div>
-        </div>
-      )}
-
-      {!loading && !error && tokens.length === 0 && (
+      {!loading && error && tokens.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center min-h-[320px]">
           <div className="text-3xl mb-3">🔗</div>
-          <div className="text-[#848E9C] text-sm font-medium mb-1">Loading DEX data...</div>
-          <div className="text-[#848E9C] text-xs">Fetching high-volume BSC tokens</div>
-          <div className="mt-4 w-6 h-6 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin" />
+          <div className="text-[#848E9C] text-sm font-medium mb-1">DEX data temporarily unavailable</div>
+          <div className="text-[#848E9C] text-xs mb-4">GeckoTerminal rate limit — retrying automatically</div>
+          <button
+            onClick={() => { setError(false); setLoading(true); load(); }}
+            className="px-4 py-2 bg-[#F0B90B] text-black text-xs font-bold rounded hover:bg-[#d4a017] transition-colors"
+          >
+            Retry Now
+          </button>
         </div>
       )}
 
@@ -367,7 +375,7 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
 
       {!loading && !error && tokens.length > 0 && (
         <div className="px-4 py-4 text-center text-[#848E9C] text-[11px] border-t border-[#2B3139]">
-          Powered by GeckoTerminal · DexScreener · BSC Chain · Refreshes every 10s
+          Powered by GeckoTerminal · DexScreener · BSC Chain · Refreshes every 20s
         </div>
       )}
     </div>
