@@ -276,85 +276,101 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  // displayPrices: simulated prices shown to user (deviate slightly from real)
+  const [displayPrices, setDisplayPrices] = useState<Record<string, number>>({});
+  // priceFlash: 'up' | 'down' | null per token
   const [priceFlash, setPriceFlash] = useState<Record<string, FlashDir>>({});
-  const prevPricesRef = useRef<Record<string, number>>({});
+
+  const realPricesRef = useRef<Record<string, number>>({});  // canonical GeckoTerminal prices
   const fetchingRef = useRef(false);
   const tokensRef = useRef<DexToken[]>([]);
 
-  // Keep tokensRef in sync so tick interval can access current tokens
   useEffect(() => { tokensRef.current = tokens; }, [tokens]);
 
-  const applyFlash = useCallback((flashMap: Record<string, FlashDir>) => {
-    if (Object.keys(flashMap).length === 0) return;
+  // Apply flash and clear it after animation
+  const triggerFlash = useCallback((flashMap: Record<string, FlashDir>) => {
+    if (!Object.keys(flashMap).length) return;
     setPriceFlash(prev => ({ ...prev, ...flashMap }));
-    // Clear only the flashed keys after animation
     setTimeout(() => {
       setPriceFlash(prev => {
         const next = { ...prev };
-        for (const key of Object.keys(flashMap)) delete next[key];
+        Object.keys(flashMap).forEach(k => delete next[k]);
         return next;
       });
     }, 580);
   }, []);
 
+  // Load real data from GeckoTerminal
   const load = useCallback(async () => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
     try {
       const data = await fetchBscTopTokens();
       if (data.length > 0) {
-        // Compute flash directions by comparing to previous prices
         const flashMap: Record<string, FlashDir> = {};
-        const prev = prevPricesRef.current;
+        const newDisplay: Record<string, number> = {};
         for (const token of data) {
           const key = token.baseAddress;
-          const oldPrice = prev[key];
-          if (oldPrice !== undefined && oldPrice !== token.priceUsd) {
-            flashMap[key] = token.priceUsd > oldPrice ? 'up' : 'down';
+          const oldReal = realPricesRef.current[key];
+          if (oldReal !== undefined && oldReal !== token.priceUsd) {
+            flashMap[key] = token.priceUsd > oldReal ? 'up' : 'down';
           }
-          prev[key] = token.priceUsd;
+          realPricesRef.current[key] = token.priceUsd;
+          newDisplay[key] = token.priceUsd; // reset display to real on refresh
         }
         setTokens(data);
+        setDisplayPrices(newDisplay);
         setLastUpdated(new Date());
         setError(false);
-        applyFlash(flashMap);
+        triggerFlash(flashMap);
       } else {
-        setTokens(prev => {
-          if (prev.length === 0) setError(true);
-          return prev;
-        });
+        setTokens(prev => { if (prev.length === 0) setError(true); return prev; });
       }
     } catch {
-      setTokens(prev => {
-        if (prev.length === 0) setError(true);
-        return prev;
-      });
+      setTokens(prev => { if (prev.length === 0) setError(true); return prev; });
     } finally {
       setLoading(false);
       fetchingRef.current = false;
     }
-  }, [applyFlash]);
+  }, [triggerFlash]);
 
-  // Simulated tick: fires every 1.4s, randomly flashes 2-4 visible tokens
+  // Tick: every 1.3s pick 2-4 tokens, micro-move their displayed price + flash
   useEffect(() => {
     const tick = () => {
       const list = tokensRef.current;
       if (list.length === 0) return;
-      const count = 2 + Math.floor(Math.random() * 3); // 2-4 tokens
-      const shuffled = [...list].sort(() => Math.random() - 0.5).slice(0, count);
+
+      const count = 2 + Math.floor(Math.random() * 3);
+      const picked = [...list].sort(() => Math.random() - 0.5).slice(0, count);
+
       const flashMap: Record<string, FlashDir> = {};
-      for (const token of shuffled) {
-        // 70% chance matches 24h trend; 30% chance is opposite (market noise)
+      const priceUpdates: Record<string, number> = {};
+
+      for (const token of picked) {
+        const key = token.baseAddress;
+        const real = realPricesRef.current[key] ?? token.priceUsd;
+        // 65% follows 24h trend, 35% noise
         const trendUp = token.priceChange24h >= 0;
-        const noise = Math.random() < 0.3;
-        flashMap[token.baseAddress] = (trendUp !== noise) ? 'up' : 'down';
+        const goUp = Math.random() < (trendUp ? 0.65 : 0.35);
+        // Random micro-movement: 0.03% to 0.18%
+        const pct = 0.0003 + Math.random() * 0.0015;
+        const delta = real * pct * (goUp ? 1 : -1);
+        // Keep display within ±0.5% of real price
+        const newDisplay = Math.max(real * 0.995, Math.min(real * 1.005, (realPricesRef.current[key + '_display'] ?? real) + delta));
+        realPricesRef.current[key + '_display'] = newDisplay;
+
+        priceUpdates[key] = newDisplay;
+        flashMap[key] = goUp ? 'up' : 'down';
       }
-      applyFlash(flashMap);
+
+      setDisplayPrices(prev => ({ ...prev, ...priceUpdates }));
+      triggerFlash(flashMap);
     };
 
-    const id = setInterval(tick, 1400);
+    const id = setInterval(tick, 1300);
     return () => clearInterval(id);
-  }, [applyFlash]);
+  }, [triggerFlash]);
 
   useEffect(() => {
     load();
@@ -408,6 +424,8 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
         const chgAbs = Math.min(Math.abs(token.priceChange24h), 9999.99);
         const chgStr = `${isUp ? '+' : '-'}${chgAbs.toFixed(2)}%`;
         const flash = priceFlash[token.baseAddress];
+        // Use simulated display price if available, else fall back to real
+        const shownPrice = displayPrices[token.baseAddress] ?? token.priceUsd;
 
         return (
           <div
@@ -426,7 +444,7 @@ const HomeBDexList: React.FC<HomeBDexListProps> = ({ onSelectToken }) => {
               <div
                 className={`text-sm font-medium tabular-nums ${flash === 'up' ? 'bdex-price-up' : flash === 'down' ? 'bdex-price-down' : 'bdex-price-idle'}`}
               >
-                {formatPrice(token.priceUsd)}
+                {formatPrice(shownPrice)}
               </div>
               <div className="text-[#848E9C] text-[11px] tabular-nums">
                 ł{formatBnb(token.priceBnb)}
