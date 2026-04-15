@@ -14,7 +14,6 @@ import { supabase } from '../lib/supabase';
 function PnlSignalBars({ pnlPercentage }: { pnlPercentage: number }) {
   const abs = Math.abs(pnlPercentage);
   const isPositive = pnlPercentage >= 0;
-  // How many bars are "active" (filled): 0-4 based on magnitude
   let activeCount = 0;
   if (abs >= 75) activeCount = 4;
   else if (abs >= 40) activeCount = 3;
@@ -22,18 +21,20 @@ function PnlSignalBars({ pnlPercentage }: { pnlPercentage: number }) {
   else if (abs > 0) activeCount = 1;
   const activeColor = isPositive ? '#0ECB81' : '#F6465D';
   return (
-    <div className="flex items-center gap-[2px]">
-      {[1, 2, 3, 4].map((bar) => (
-        <div
-          key={bar}
+    <div className="flex items-center" style={{ gap: '1px' }}>
+      {[1, 2, 3, 4].map((i) => (
+        <span
+          key={i}
           style={{
-            width: '3px',
-            height: '13px',
-            borderRadius: '1px',
-            backgroundColor: bar <= activeCount ? activeColor : `${activeColor}28`,
-            transition: 'background-color 0.4s ease',
+            color: i <= activeCount ? activeColor : `${activeColor}30`,
+            fontSize: '13px',
+            fontWeight: 700,
+            lineHeight: 1,
+            transition: 'color 0.4s ease',
           }}
-        />
+        >
+          !
+        </span>
       ))}
     </div>
   );
