@@ -1,5 +1,4 @@
 import { Router, type IRouter } from "express";
-import pg from "pg";
 import { createClient } from '@supabase/supabase-js';
 
 const router: IRouter = Router();
@@ -11,142 +10,17 @@ const ADMIN_UUIDS = new Set([
   '88292f59-898a-4fef-a1c8-8813d7b60b61',
 ]);
 
-/* ══════════════════════════════════════════════════════════
-   DB pool — lazy init so server doesn't crash if DB unavailable
-══════════════════════════════════════════════════════════ */
-let _pool: pg.Pool | null = null;
-function getPool(): pg.Pool {
-  if (!_pool) {
-    const url = process.env.DATABASE_URL;
-    if (!url) throw new Error('DATABASE_URL not set');
-    _pool = new pg.Pool({ connectionString: url, max: 5 });
-    _pool.on('error', (err) => console.error('[pool] idle error', err.message));
-  }
-  return _pool;
+function getAdminSupabase() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY not configured');
+  return createClient(SUPABASE_URL, key, { auth: { persistSession: false } });
 }
 
-/* Ensure tables exist — run once on first use */
-let tableReady = false;
-async function ensureTable() {
-  if (tableReady) return;
-  const pool = getPool();
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS sport_bets (
-      id           TEXT PRIMARY KEY,
-      user_id      TEXT NOT NULL,
-      match_id     TEXT NOT NULL,
-      home_team    TEXT NOT NULL,
-      away_team    TEXT NOT NULL,
-      bet_type     TEXT NOT NULL,
-      odds         NUMERIC NOT NULL,
-      stake        NUMERIC NOT NULL,
-      potential_win NUMERIC NOT NULL,
-      ou_line      NUMERIC,
-      status       TEXT NOT NULL DEFAULT 'open',
-      created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-      settled_at   TIMESTAMPTZ
-    )
-  `);
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS sport_match_controls (
-      team_key     TEXT PRIMARY KEY,
-      id           TEXT NOT NULL,
-      home_team    TEXT NOT NULL,
-      away_team    TEXT NOT NULL,
-      target_result TEXT,
-      target_score  JSONB,
-      target_total  NUMERIC,
-      started_at    BIGINT,
-      pinned        BOOLEAN NOT NULL DEFAULT false,
-      created_at    BIGINT NOT NULL
-    )
-  `);
-  // Grant anon/authenticated access so Supabase REST API works from frontend
-  await pool.query(`GRANT ALL ON TABLE sport_match_controls TO anon, authenticated`).catch(() => {});
-  await pool.query(`ALTER TABLE sport_match_controls ENABLE ROW LEVEL SECURITY`).catch(() => {});
-  await pool.query(`
-    DO $$ BEGIN
-      BEGIN
-        CREATE POLICY "smc_select_all" ON sport_match_controls FOR SELECT USING (true);
-      EXCEPTION WHEN duplicate_object THEN NULL; END;
-      BEGIN
-        CREATE POLICY "smc_all_admin" ON sport_match_controls FOR ALL USING (true) WITH CHECK (true);
-      EXCEPTION WHEN duplicate_object THEN NULL; END;
-    END $$
-  `).catch(() => {});
-  // Notify PostgREST to reload schema so Supabase REST API can see the table
-  await pool.query(`NOTIFY pgrst, 'reload schema'`).catch(() => {});
-  // Set up storage policies for sport-controls bucket (allow authenticated writes, public reads)
-  await pool.query(`
-    DO $$ BEGIN
-      BEGIN
-        CREATE POLICY "sport_controls_read" ON storage.objects
-          FOR SELECT USING (bucket_id = 'sport-controls');
-      EXCEPTION WHEN duplicate_object THEN NULL; END;
-      BEGIN
-        CREATE POLICY "sport_controls_write" ON storage.objects
-          FOR INSERT TO authenticated
-          WITH CHECK (bucket_id = 'sport-controls');
-      EXCEPTION WHEN duplicate_object THEN NULL; END;
-      BEGIN
-        CREATE POLICY "sport_controls_update" ON storage.objects
-          FOR UPDATE TO authenticated
-          USING (bucket_id = 'sport-controls')
-          WITH CHECK (bucket_id = 'sport-controls');
-      EXCEPTION WHEN duplicate_object THEN NULL; END;
-      BEGIN
-        CREATE POLICY "sport_controls_delete" ON storage.objects
-          FOR DELETE TO authenticated
-          USING (bucket_id = 'sport-controls');
-      EXCEPTION WHEN duplicate_object THEN NULL; END;
-    END $$
-  `).catch(() => {});
-  // Anonymous visitor sessions table
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS anonymous_sessions (
-      id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      visitor_id   TEXT NOT NULL UNIQUE,
-      session_id   TEXT NOT NULL,
-      current_page TEXT,
-      ip_address   TEXT,
-      country      TEXT,
-      city         TEXT,
-      device_type  TEXT,
-      browser      TEXT,
-      os           TEXT,
-      last_active  TIMESTAMPTZ NOT NULL DEFAULT now(),
-      created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-    )
-  `);
-  // Ensure UNIQUE constraint on visitor_id exists (for existing tables created without it)
-  await pool.query(`
-    DO $$ BEGIN
-      BEGIN ALTER TABLE anonymous_sessions ADD CONSTRAINT anon_sess_visitor_unique UNIQUE (visitor_id);
-      EXCEPTION WHEN duplicate_table THEN NULL; WHEN others THEN NULL; END;
-    END $$
-  `).catch(() => {});
-  await pool.query(`CREATE INDEX IF NOT EXISTS anon_sessions_last_active_idx ON anonymous_sessions(last_active DESC)`).catch(() => {});
-  await pool.query(`CREATE INDEX IF NOT EXISTS anon_sessions_visitor_idx ON anonymous_sessions(visitor_id)`).catch(() => {});
-  await pool.query(`GRANT ALL ON TABLE anonymous_sessions TO anon, authenticated`).catch(() => {});
-  await pool.query(`ALTER TABLE anonymous_sessions ENABLE ROW LEVEL SECURITY`).catch(() => {});
-  await pool.query(`
-    DO $$ BEGIN
-      BEGIN CREATE POLICY "anon_sess_all" ON anonymous_sessions FOR ALL USING (true) WITH CHECK (true);
-      EXCEPTION WHEN duplicate_object THEN NULL; END;
-    END $$
-  `).catch(() => {});
-  await pool.query(`
-    DO $$ BEGIN
-      BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE anonymous_sessions;
-      EXCEPTION WHEN others THEN NULL; END;
-    END $$
-  `).catch(() => {});
-  await pool.query(`NOTIFY pgrst, 'reload schema'`).catch(() => {});
-  tableReady = true;
-}
+/* No-op: kept for index.ts compatibility — no pg tables needed anymore */
+export async function ensureTable() {}
 
 /* ══════════════════════════════════════════════════════════
-   MATCH CONTROLS — DB-backed store
+   MATCH CONTROLS — in-memory + Supabase Storage
 ══════════════════════════════════════════════════════════ */
 interface MatchControl {
   id: string;
@@ -163,82 +37,8 @@ interface MatchControl {
 const matchControls = new Map<string, MatchControl>();
 let controlsLoaded = false;
 
-async function loadControlsFromDB() {
-  if (controlsLoaded) return;
-  try {
-    await ensureTable();
-    const { rows } = await getPool().query('SELECT * FROM sport_match_controls ORDER BY created_at ASC');
-    matchControls.clear();
-    for (const r of rows) {
-      const ctrl: MatchControl = {
-        id: r.id,
-        homeTeam: r.home_team,
-        awayTeam: r.away_team,
-        targetResult: r.target_result || undefined,
-        targetScore: r.target_score || undefined,
-        targetTotal: r.target_total ? Number(r.target_total) : undefined,
-        startedAt: r.started_at ? Number(r.started_at) : undefined,
-        pinned: !!r.pinned,
-        createdAt: Number(r.created_at),
-      };
-      matchControls.set(r.team_key, ctrl);
-    }
-    controlsLoaded = true;
-  } catch (e) {
-    console.error('[match-controls] loadFromDB error', e);
-  }
-}
-
-async function saveControlToDB(key: string, ctrl: MatchControl) {
-  try {
-    await getPool().query(`
-      INSERT INTO sport_match_controls
-        (team_key, id, home_team, away_team, target_result, target_score, target_total, started_at, pinned, created_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-      ON CONFLICT (team_key) DO UPDATE SET
-        id = EXCLUDED.id,
-        target_result = EXCLUDED.target_result,
-        target_score = EXCLUDED.target_score,
-        target_total = EXCLUDED.target_total,
-        started_at = EXCLUDED.started_at,
-        pinned = EXCLUDED.pinned
-    `, [
-      key, ctrl.id, ctrl.homeTeam, ctrl.awayTeam,
-      ctrl.targetResult ?? null,
-      ctrl.targetScore ? JSON.stringify(ctrl.targetScore) : null,
-      ctrl.targetTotal ?? null,
-      ctrl.startedAt ?? null,
-      ctrl.pinned,
-      ctrl.createdAt,
-    ]);
-  } catch (e) {
-    console.error('[match-controls] saveToDB error', e);
-  }
-}
-
-async function deleteControlFromDB(key: string) {
-  try {
-    await getPool().query('DELETE FROM sport_match_controls WHERE team_key = $1', [key]);
-  } catch (e) {
-    console.error('[match-controls] deleteFromDB error', e);
-  }
-}
-
-function genId() {
-  return Math.random().toString(36).slice(2, 10);
-}
-
-/* ══════════════════════════════════════════════════════════
-   STORAGE CONTROLS — read/write controls.json via service role
-══════════════════════════════════════════════════════════ */
 const CTRL_BUCKET = 'sport-controls';
 const CTRL_FILE = 'controls.json';
-
-function getAdminSupabase() {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY not configured');
-  return createClient(SUPABASE_URL, key, { auth: { persistSession: false } });
-}
 
 async function writeStorageWithServiceRole(controls: MatchControl[]) {
   const client = getAdminSupabase();
@@ -247,6 +47,29 @@ async function writeStorageWithServiceRole(controls: MatchControl[]) {
     contentType: 'application/json', upsert: true,
   });
   if (error) throw new Error(`Storage write failed: ${error.message}`);
+}
+
+async function loadControlsFromStorage() {
+  if (controlsLoaded) return;
+  try {
+    const client = getAdminSupabase();
+    const { data, error } = await client.storage.from(CTRL_BUCKET).download(CTRL_FILE);
+    if (error || !data) { controlsLoaded = true; return; }
+    const text = await data.text();
+    const arr: MatchControl[] = JSON.parse(text);
+    matchControls.clear();
+    for (const ctrl of arr) {
+      const key = `${ctrl.homeTeam.trim()}:${ctrl.awayTeam.trim()}`;
+      matchControls.set(key, ctrl);
+    }
+  } catch (e) {
+    console.error('[match-controls] loadFromStorage error', e);
+  }
+  controlsLoaded = true;
+}
+
+function genId() {
+  return Math.random().toString(36).slice(2, 10);
 }
 
 /* PUT /sport/controls — admin writes full controls list to storage */
@@ -268,7 +91,7 @@ router.put('/sport/controls', async (req, res) => {
 
 /* GET /admin/match-controls — public (kite-exchange reads this) */
 router.get('/admin/match-controls', async (_req, res) => {
-  await loadControlsFromDB();
+  await loadControlsFromStorage();
   return res.json(Array.from(matchControls.values()));
 });
 
@@ -284,11 +107,10 @@ router.post('/admin/match-controls', async (req, res) => {
     return res.status(400).json({ error: 'homeTeam and awayTeam required' });
   }
 
-  await loadControlsFromDB();
+  await loadControlsFromStorage();
   const key = `${homeTeam.trim()}:${awayTeam.trim()}`;
   const existing = matchControls.get(key);
 
-  // Compute targetScore from targetTotal + targetResult if targetTotal supplied
   let computedScore: { h: number; a: number } | undefined = targetScore || undefined;
   if (targetTotal && Number(targetTotal) > 0) {
     const tot = Number(targetTotal);
@@ -317,7 +139,12 @@ router.post('/admin/match-controls', async (req, res) => {
     createdAt: existing?.createdAt || Date.now(),
   };
   matchControls.set(key, ctrl);
-  await saveControlToDB(key, ctrl);
+
+  // Persist to Supabase Storage
+  writeStorageWithServiceRole(Array.from(matchControls.values())).catch(e =>
+    console.error('[match-controls] save to storage failed', e)
+  );
+
   return res.json({ ok: true, ctrl });
 });
 
@@ -327,16 +154,20 @@ router.delete('/admin/match-controls/:id', async (req, res) => {
   if (!requesterId || !ADMIN_UUIDS.has(requesterId)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
-  await loadControlsFromDB();
+  await loadControlsFromStorage();
   const { id } = req.params;
   let deleted = false;
   for (const [key, ctrl] of matchControls.entries()) {
     if (ctrl.id === id) {
       matchControls.delete(key);
-      await deleteControlFromDB(key);
       deleted = true;
       break;
     }
+  }
+  if (deleted) {
+    writeStorageWithServiceRole(Array.from(matchControls.values())).catch(e =>
+      console.error('[match-controls] delete storage save failed', e)
+    );
   }
   return res.json({ ok: deleted });
 });
@@ -404,25 +235,46 @@ router.get('/admin/users', async (req, res) => {
 });
 
 /* ══════════════════════════════════════════════════════════
-   SPORT BETS — Raw SQL via pg (works on any instance)
+   SPORT BETS — in-memory store (ephemeral per server lifetime)
+   Bets are settled within match sessions; persistence across
+   restarts is not required for this platform.
 ══════════════════════════════════════════════════════════ */
+
+interface SportBet {
+  id: string;
+  userId: string;
+  matchId: string;
+  homeTeam: string;
+  awayTeam: string;
+  betType: string;
+  odds: number;
+  stake: number;
+  potentialWin: number;
+  ouLine: number | null;
+  status: 'open' | 'won' | 'lost' | 'refunded';
+  createdAt: number;
+  settledAt?: number;
+}
+
+const sportBets = new Map<string, SportBet>();
 
 /* POST /sport-bets — record a bet */
 router.post('/sport-bets', async (req, res) => {
   try {
-    await ensureTable();
     const { id, userId, matchId, homeTeam, awayTeam, betType, odds, stake, potentialWin, ouLine } = req.body;
     if (!id || !userId || !matchId || !homeTeam || !awayTeam || !betType) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    await getPool().query(
-      `INSERT INTO sport_bets (id, user_id, match_id, home_team, away_team, bet_type, odds, stake, potential_win, ou_line, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'open')
-       ON CONFLICT (id) DO NOTHING`,
-      [id, userId, matchId, homeTeam, awayTeam, betType,
-       Number(odds), Number(stake), Number(potentialWin),
-       ouLine != null ? Number(ouLine) : null]
-    );
+    if (!sportBets.has(id)) {
+      sportBets.set(id, {
+        id, userId, matchId, homeTeam, awayTeam, betType,
+        odds: Number(odds), stake: Number(stake),
+        potentialWin: Number(potentialWin),
+        ouLine: ouLine != null ? Number(ouLine) : null,
+        status: 'open',
+        createdAt: Date.now(),
+      });
+    }
     return res.json({ ok: true });
   } catch (e: any) {
     console.error('[sport-bets POST]', e.message);
@@ -433,16 +285,16 @@ router.post('/sport-bets', async (req, res) => {
 /* PATCH /sport-bets/:id — settle a bet */
 router.patch('/sport-bets/:id', async (req, res) => {
   try {
-    await ensureTable();
     const { id } = req.params;
     const { status } = req.body;
     if (!['won', 'lost', 'refunded'].includes(status)) {
       return res.status(400).json({ error: 'status must be won, lost, or refunded' });
     }
-    await getPool().query(
-      `UPDATE sport_bets SET status=$1, settled_at=now() WHERE id=$2`,
-      [status, id]
-    );
+    const bet = sportBets.get(id);
+    if (bet) {
+      bet.status = status;
+      bet.settledAt = Date.now();
+    }
     return res.json({ ok: true });
   } catch (e: any) {
     console.error('[sport-bets PATCH]', e.message);
@@ -458,17 +310,8 @@ router.get('/admin/bet-exposure', async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    await ensureTable();
-
-    const { rows } = await getPool().query<{
-      id: string; user_id: string; match_id: string;
-      home_team: string; away_team: string;
-      bet_type: string; odds: string; stake: string;
-      potential_win: string; ou_line: string | null;
-      status: string; created_at: Date;
-    }>(
-      `SELECT * FROM sport_bets WHERE created_at >= now() - INTERVAL '2 hours' ORDER BY created_at DESC`
-    );
+    const cutoff = Date.now() - 2 * 60 * 60 * 1000;
+    const rows = Array.from(sportBets.values()).filter(b => b.createdAt >= cutoff);
 
     const map = new Map<string, {
       homeTeam: string; awayTeam: string;
@@ -478,10 +321,10 @@ router.get('/admin/bet-exposure', async (req, res) => {
     }>();
 
     for (const row of rows) {
-      const key = `${row.home_team}:${row.away_team}`;
+      const key = `${row.homeTeam}:${row.awayTeam}`;
       if (!map.has(key)) {
         map.set(key, {
-          homeTeam: row.home_team, awayTeam: row.away_team,
+          homeTeam: row.homeTeam, awayTeam: row.awayTeam,
           bets: {}, totalStake: 0, totalBets: 0, uniqueUsers: new Set(),
           openCount: 0, wonCount: 0, lostCount: 0, refundedCount: 0,
         });
@@ -489,14 +332,14 @@ router.get('/admin/bet-exposure', async (req, res) => {
       const entry = map.get(key)!;
 
       if (row.status === 'open') {
-        if (!entry.bets[row.bet_type]) entry.bets[row.bet_type] = { count: 0, totalStake: 0 };
-        entry.bets[row.bet_type].count++;
-        entry.bets[row.bet_type].totalStake += Number(row.stake);
-        entry.totalStake += Number(row.stake);
+        if (!entry.bets[row.betType]) entry.bets[row.betType] = { count: 0, totalStake: 0 };
+        entry.bets[row.betType].count++;
+        entry.bets[row.betType].totalStake += row.stake;
+        entry.totalStake += row.stake;
       }
 
       entry.totalBets++;
-      entry.uniqueUsers.add(row.user_id);
+      entry.uniqueUsers.add(row.userId);
       if (row.status === 'open') entry.openCount++;
       else if (row.status === 'won') entry.wonCount++;
       else if (row.status === 'lost') entry.lostCount++;
@@ -535,7 +378,6 @@ const _teamLogoCache = new Map<string, string | null>();
 const _teamImgCache  = new Map<string, { buf: Buffer; ct: string } | null>();
 const _teamImgPending = new Map<string, Promise<{ buf: Buffer; ct: string } | null>>();
 
-/** Try thesportsdb for a single name variant → badge URL or null */
 async function sportsdbLookup(name: string): Promise<string | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 6000);
@@ -552,7 +394,6 @@ async function sportsdbLookup(name: string): Promise<string | null> {
   }
 }
 
-/** Build ordered list of name variants to try */
 function nameVariants(name: string): string[] {
   const variants: string[] = [name];
   const stripped = name.replace(/\s+(FC|SC|AC|CF|IF|BK|FK|SK|United|City|Club|Rovers|Athletic|Albion|Sporting|Racing)$/i, '').trim();
@@ -566,7 +407,6 @@ function nameVariants(name: string): string[] {
   return variants;
 }
 
-/** Resolve badge URL for name (with variant fallbacks), caches result */
 async function resolveBadgeUrl(name: string): Promise<string | null> {
   const key = name.toLowerCase().trim();
   if (_teamLogoCache.has(key)) return _teamLogoCache.get(key)!;
@@ -579,7 +419,6 @@ async function resolveBadgeUrl(name: string): Promise<string | null> {
   return badgeUrl;
 }
 
-/** Fetch image bytes from a URL */
 async function fetchImageBytes(url: string): Promise<{ buf: Buffer; ct: string } | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
@@ -596,7 +435,6 @@ async function fetchImageBytes(url: string): Promise<{ buf: Buffer; ct: string }
   }
 }
 
-/** GET /api/team-logo  → { badgeUrl } JSON */
 router.get('/team-logo', async (req, res) => {
   const name = (req.query.name as string || '').trim();
   if (!name) return res.json({ badgeUrl: null });
@@ -604,14 +442,12 @@ router.get('/team-logo', async (req, res) => {
   return res.json({ badgeUrl });
 });
 
-/** GET /api/team-logo-img  → raw image bytes (proxied from thesportsdb, cached server-side) */
 router.get('/team-logo-img', async (req, res) => {
   const name = (req.query.name as string || '').trim();
   if (!name) return res.status(400).end();
 
   const key = name.toLowerCase().trim();
 
-  // Serve from cache
   if (_teamImgCache.has(key)) {
     const cached = _teamImgCache.get(key);
     if (!cached) return res.status(404).end();
@@ -620,7 +456,6 @@ router.get('/team-logo-img', async (req, res) => {
     return res.send(cached.buf);
   }
 
-  // Deduplicate in-flight
   if (_teamImgPending.has(key)) {
     const result = await _teamImgPending.get(key)!;
     if (!result) return res.status(404).end();
@@ -650,8 +485,7 @@ router.get('/team-logo-img', async (req, res) => {
 });
 
 /* ══════════════════════════════════════════════════════════
-   AUTO WALLET GENERATION — generates deterministic BEP20/TRC20
-   addresses for users who have no wallet in the pool yet.
+   AUTO WALLET GENERATION
 ══════════════════════════════════════════════════════════ */
 
 function genBep20(userId: string): string {
@@ -674,10 +508,6 @@ function genTrc20(userId: string): string {
   return addr;
 }
 
-/* POST /admin/auto-assign-wallets
-   Bulk-generates BEP20 + TRC20 addresses for ALL walletless users.
-   Uses admin_get_real_users_with_wallets to find who is missing,
-   then inserts directly into wallet_pool with is_assigned=true. */
 router.post('/admin/auto-assign-wallets', async (req, res) => {
   try {
     const requesterId = req.headers['x-requester-id'] as string;
@@ -686,8 +516,6 @@ router.post('/admin/auto-assign-wallets', async (req, res) => {
     }
 
     const sb = createClient(SUPABASE_URL, SERVICE_KEY);
-
-    // Fetch all users with wallet info
     const { data: walletData, error: walletErr } = await sb.rpc('admin_get_real_users_with_wallets');
     if (walletErr) return res.status(500).json({ error: walletErr.message });
 
@@ -706,18 +534,12 @@ router.post('/admin/auto-assign-wallets', async (req, res) => {
 
       const [r1, r2] = await Promise.all([
         sb.from('wallet_pool').upsert({
-          network: 'BEP20',
-          address: bep20,
-          is_assigned: true,
-          assigned_at: now,
-          assigned_to_user_id: userId,
+          network: 'BEP20', address: bep20,
+          is_assigned: true, assigned_at: now, assigned_to_user_id: userId,
         }, { onConflict: 'address', ignoreDuplicates: true }),
         sb.from('wallet_pool').upsert({
-          network: 'TRC20',
-          address: trc20,
-          is_assigned: true,
-          assigned_at: now,
-          assigned_to_user_id: userId,
+          network: 'TRC20', address: trc20,
+          is_assigned: true, assigned_at: now, assigned_to_user_id: userId,
         }, { onConflict: 'address', ignoreDuplicates: true }),
       ]);
 
@@ -731,8 +553,6 @@ router.post('/admin/auto-assign-wallets', async (req, res) => {
   }
 });
 
-/* POST /admin/assign-wallet-single
-   Assigns BEP20+TRC20 to a single user (for newly registered users). */
 router.post('/admin/assign-wallet-single', async (req, res) => {
   try {
     const requesterId = req.headers['x-requester-id'] as string;
@@ -766,44 +586,62 @@ router.post('/admin/assign-wallet-single', async (req, res) => {
 });
 
 /* ══════════════════════════════════════════════════════════
-   ANONYMOUS SESSIONS — proxy via pg (PostgREST cache bypass)
+   ANONYMOUS SESSIONS — in-memory store with SSE broadcast
+   Real-time visitor tracking for admin panel.
+   Data is ephemeral (lost on server restart) — this is
+   acceptable for live visitor monitoring.
 ══════════════════════════════════════════════════════════ */
 
-/* GET /anon-sessions — returns active sessions (last 30 min), no cache */
-router.get('/anon-sessions', async (_req, res) => {
-  try {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    const pool = getPool();
-    const { rows } = await pool.query(
-      `SELECT * FROM anonymous_sessions WHERE last_active >= now() - interval '30 minutes' ORDER BY last_active DESC LIMIT 100`
-    );
-    return res.json(rows);
-  } catch (e) {
-    return res.status(500).json({ error: (e as Error).message });
-  }
-});
+interface AnonSession {
+  id: string;
+  visitor_id: string;
+  session_id: string;
+  current_page: string | null;
+  ip_address: string | null;
+  country: string | null;
+  city: string | null;
+  device_type: string | null;
+  browser: string | null;
+  os: string | null;
+  last_active: string;
+  created_at: string;
+}
+
+const anonSessions = new Map<string, AnonSession>();
+
+function nowIso() { return new Date().toISOString(); }
 
 /* ══════════════════════════════════════════════════════════
    SSE broadcast — push visitor list to all connected admins
 ══════════════════════════════════════════════════════════ */
 const sseClients = new Set<import('express').Response>();
 
-function broadcastSessions(sessions: unknown[]) {
+function broadcastSessions(sessions: AnonSession[]) {
   const data = `data: ${JSON.stringify(sessions)}\n\n`;
   for (const client of sseClients) {
     try { client.write(data); } catch { sseClients.delete(client); }
   }
 }
 
-async function fetchAllSessions(pool: import('pg').Pool) {
-  const { rows } = await pool.query(
-    `SELECT visitor_id, session_id, current_page, ip_address, country, city, device_type, browser, os, last_active
-     FROM anonymous_sessions
-     ORDER BY last_active DESC`
-  );
-  return rows;
+function getActiveSessions(): AnonSession[] {
+  const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+  return Array.from(anonSessions.values())
+    .filter(s => s.last_active >= cutoff)
+    .sort((a, b) => b.last_active.localeCompare(a.last_active))
+    .slice(0, 100);
 }
+
+function getAllSessions(): AnonSession[] {
+  return Array.from(anonSessions.values())
+    .sort((a, b) => b.last_active.localeCompare(a.last_active));
+}
+
+/* GET /anon-sessions — returns active sessions (last 30 min) */
+router.get('/anon-sessions', async (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  return res.json(getActiveSessions());
+});
 
 /* GET /anon-sessions/stream — SSE endpoint for real-time visitor push */
 router.get('/anon-sessions/stream', async (req, res) => {
@@ -817,11 +655,9 @@ router.get('/anon-sessions/stream', async (req, res) => {
 
   // Send current state immediately
   try {
-    const sessions = await fetchAllSessions(getPool());
-    res.write(`data: ${JSON.stringify(sessions)}\n\n`);
+    res.write(`data: ${JSON.stringify(getAllSessions())}\n\n`);
   } catch {}
 
-  // Heartbeat every 25s to keep connection alive through proxies
   const hb = setInterval(() => { try { res.write(': ping\n\n'); } catch {} }, 25_000);
 
   req.on('close', () => {
@@ -830,7 +666,7 @@ router.get('/anon-sessions/stream', async (req, res) => {
   });
 });
 
-/* IP geolocation helper using ip-api.com (free, no key needed) */
+/* IP geolocation helper */
 async function lookupGeo(ip: string | null): Promise<{ country: string | null; city: string | null }> {
   if (!ip || ip === '127.0.0.1' || ip === '::1' || ip.startsWith('172.') || ip.startsWith('10.') || ip.startsWith('192.168.')) {
     return { country: null, city: null };
@@ -849,7 +685,7 @@ async function lookupGeo(ip: string | null): Promise<{ country: string | null; c
   }
 }
 
-/* POST /anon-sessions — upsert a visitor session (by visitor_id) */
+/* POST /anon-sessions — upsert a visitor session */
 router.post('/anon-sessions', async (req, res) => {
   try {
     const { visitor_id, session_id, current_page, device_type, browser, os } = req.body as {
@@ -861,37 +697,42 @@ router.post('/anon-sessions', async (req, res) => {
       os?: string;
     };
     if (!visitor_id || !session_id) return res.status(400).json({ error: 'visitor_id and session_id required' });
+
     const clientIp = req.headers['x-forwarded-for']?.toString().split(',')[0].trim() || req.socket.remoteAddress || null;
-    const pool = getPool();
+    const existing = anonSessions.get(visitor_id);
+    const now = nowIso();
 
-    // 1. Save immediately — don't block on geo lookup
-    const result = await pool.query(
-      `INSERT INTO anonymous_sessions (visitor_id, session_id, current_page, device_type, browser, os, ip_address, last_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, now())
-       ON CONFLICT (visitor_id) DO UPDATE SET
-         session_id = EXCLUDED.session_id,
-         current_page = EXCLUDED.current_page,
-         device_type = EXCLUDED.device_type,
-         browser = EXCLUDED.browser,
-         os = EXCLUDED.os,
-         ip_address = COALESCE(EXCLUDED.ip_address, anonymous_sessions.ip_address),
-         last_active = now()
-       RETURNING country`,
-      [visitor_id, session_id, current_page || 'Exchange', device_type || 'desktop', browser || null, os || null, clientIp]
-    );
-    res.json({ ok: true }); // respond instantly
+    const session: AnonSession = {
+      id: existing?.id || crypto.randomUUID(),
+      visitor_id,
+      session_id,
+      current_page: current_page || 'Exchange',
+      ip_address: clientIp,
+      country: existing?.country || null,
+      city: existing?.city || null,
+      device_type: device_type || 'desktop',
+      browser: browser || null,
+      os: os || null,
+      last_active: now,
+      created_at: existing?.created_at || now,
+    };
 
-    // 2. Broadcast current sessions to all SSE clients immediately
-    fetchAllSessions(pool).then(sessions => broadcastSessions(sessions)).catch(() => {});
+    anonSessions.set(visitor_id, session);
+    res.json({ ok: true });
 
-    // 3. Geo lookup in background — only if no country yet, then re-broadcast
-    if (!result.rows[0]?.country && clientIp) {
+    // Broadcast immediately
+    broadcastSessions(getAllSessions());
+
+    // Geo lookup in background if no country yet
+    if (!session.country && clientIp) {
       lookupGeo(clientIp).then(({ country, city }) => {
         if (country) {
-          pool.query(
-            'UPDATE anonymous_sessions SET country=$1, city=$2 WHERE visitor_id=$3 AND country IS NULL',
-            [country, city, visitor_id]
-          ).then(() => fetchAllSessions(pool).then(sessions => broadcastSessions(sessions))).catch(() => {});
+          const s = anonSessions.get(visitor_id);
+          if (s && !s.country) {
+            s.country = country;
+            s.city = city;
+            broadcastSessions(getAllSessions());
+          }
         }
       }).catch(() => {});
     }
@@ -902,15 +743,9 @@ router.post('/anon-sessions', async (req, res) => {
 
 /* DELETE /anon-sessions/:visitor_id — remove a visitor session on logout */
 router.delete('/anon-sessions/:visitor_id', async (req, res) => {
-  try {
-    const pool = getPool();
-    await pool.query('DELETE FROM anonymous_sessions WHERE visitor_id = $1', [req.params.visitor_id]);
-    res.json({ ok: true });
-    fetchAllSessions(pool).then(sessions => broadcastSessions(sessions)).catch(() => {});
-  } catch (e) {
-    return res.status(500).json({ error: (e as Error).message });
-  }
+  anonSessions.delete(req.params.visitor_id);
+  res.json({ ok: true });
+  broadcastSessions(getAllSessions());
 });
 
-export { ensureTable };
 export default router;
