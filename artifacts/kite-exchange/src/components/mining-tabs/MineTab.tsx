@@ -275,9 +275,10 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
     }
 
     if (!rawEquipment || rawEquipment.length === 0) {
-      // Retry up to 4 times (initializeUser() in MiningPage may still be running)
+      // Retry up to 6 times (initializeUser() in MiningPage may still be running).
+      // NO self-assign here — that caused duplicate records. initializeUser handles it.
       let retryEquipment: any[] | null = null;
-      for (let attempt = 0; attempt < 4; attempt++) {
+      for (let attempt = 0; attempt < 6; attempt++) {
         await new Promise(r => setTimeout(r, 1500));
         const { data } = await supabase
           .from('user_mining_equipment')
@@ -285,33 +286,6 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
           .eq('user_id', user.id)
           .eq('is_active', true);
         if (data && data.length > 0) { retryEquipment = data; break; }
-      }
-
-      // If still nothing, try to self-assign the free equipment directly
-      if (!retryEquipment || retryEquipment.length === 0) {
-        const { data: freeType } = await supabase
-          .from('mining_equipment_types')
-          .select('id')
-          .or('is_free.eq.true,level.eq.0')
-          .maybeSingle();
-        if (freeType) {
-          await supabase.from('user_mining_equipment').insert({
-            user_id: user.id,
-            equipment_type_id: freeType.id,
-            is_active: true,
-            status: 'stopped',
-            session_earned_usdt: 0,
-            total_earned_usdt: 0,
-            used_mining_seconds: 0,
-          });
-          // Final fetch after self-assign
-          const { data: finalData } = await supabase
-            .from('user_mining_equipment')
-            .select('*, mining_equipment_types(*)')
-            .eq('user_id', user.id)
-            .eq('is_active', true);
-          retryEquipment = finalData;
-        }
       }
 
       if (!retryEquipment || retryEquipment.length === 0) {
