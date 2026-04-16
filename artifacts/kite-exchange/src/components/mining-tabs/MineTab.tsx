@@ -235,30 +235,27 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
       return false;
     })();
 
-    // Try current session
+    // Try current session (cached)
     let user = await getCurrentUser();
 
-    // If getSession returned null but localStorage has session data,
-    // Supabase is still refreshing the token — wait up to 4s
+    // If cached session returned null but localStorage has session data,
+    // make a definitive network request to Supabase (always reliable)
     if (!user && hasStoredSession) {
-      await new Promise<void>(resolve => {
-        let done = false;
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-          if (!done && session?.user) {
-            done = true;
-            user = session.user;
-            subscription.unsubscribe();
-            resolve();
-          }
-        });
-        setTimeout(() => { if (!done) { done = true; subscription.unsubscribe(); resolve(); } }, 4000);
-      });
+      const { data } = await supabase.auth.getUser();
+      if (data?.user) user = data.user;
+    }
+
+    // Last resort: try refreshSession which forces a token renewal
+    if (!user && hasStoredSession) {
+      const { data } = await supabase.auth.refreshSession();
+      if (data?.user) user = data.user;
     }
 
     setAuthChecked(true);
+    // Only go to demo mode if we are CERTAIN there is no session
     if (!user) { initDemoMode(); return; }
 
-    // User is logged in — make sure demo mode is off
+    // User is logged in — force demo mode OFF permanently
     setIsDemoMode(false);
 
     // Balance ve equipment paralel çalışır
