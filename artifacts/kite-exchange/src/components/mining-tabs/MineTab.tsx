@@ -73,7 +73,7 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
 
   useEffect(() => {
     
-    loadMiningData();
+    loadMiningData().catch(() => { setAuthChecked(true); initDemoMode(); });
 
     // Subscribe to EQ price updates
     const priceManager = EarnQuestPriceManager.getInstance();
@@ -205,7 +205,7 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
     }
   };
 
-  const MINING_CACHE_KEY = 'basonce_mining_cache_v1';
+  const MINING_CACHE_KEY = 'basonce_mining_cache_v3';
 
   const loadMiningData = async () => {
     // Önce cache'den anında göster
