@@ -291,11 +291,22 @@ async function loadAllBets(env) {
 }
 
 /* ═══════════════════════════════════════════════
-   ANON SESSIONS
+   ANON SESSIONS — per-visitor file (concurrent-safe)
 ═══════════════════════════════════════════════ */
-const SESS_BUCKET='visitor-sessions', SESS_FILE='sessions.json';
-async function loadSessions(env) { const d=await stoDownload(SESS_BUCKET,SESS_FILE,env); return (d&&typeof d==='object')?d:{}; }
-async function saveSessions(map,env) { await ensureBucket(SESS_BUCKET,env); await stoUpload(SESS_BUCKET,SESS_FILE,map,env); }
+const SESS_BUCKET='visitor-sessions';
+function sessPath(vid) { return `v/${vid}.json`; }
+async function loadOneSession(vid,env) { return stoDownload(SESS_BUCKET,sessPath(vid),env); }
+async function saveOneSession(vid,data,env) { await ensureBucket(SESS_BUCKET,env); await stoUpload(SESS_BUCKET,sessPath(vid),data,env); }
+async function deleteOneSession(vid,env) {
+  await fetch(`${STO}/object/${SESS_BUCKET}/${sessPath(vid)}`,{method:'DELETE',headers:stoHeaders(env)});
+}
+async function loadAllSessions(env) {
+  await ensureBucket(SESS_BUCKET,env);
+  const files=await stoList(SESS_BUCKET,'v/',env);
+  if (!files.length) return [];
+  const results=await Promise.allSettled(files.map(f=>stoDownload(SESS_BUCKET,`v/${f.name}`,env)));
+  return results.filter(r=>r.status==='fulfilled'&&r.value).map(r=>r.value);
+}
 
 /* ═══════════════════════════════════════════════
    PUSH SUBSCRIPTIONS
@@ -546,9 +557,9 @@ export default {
 
       /* ── ANON SESSIONS ── */
       if (method==='GET' && (path==='/anon-sessions'||path==='/anon-sessions/stream')) {
-        const sessMap=await loadSessions(env);
+        const all=await loadAllSessions(env);
         const cutoff=new Date(Date.now()-30*60*1000).toISOString();
-        const active=Object.values(sessMap).filter(s=>s.last_active>=cutoff).sort((a,b)=>b.last_active.localeCompare(a.last_active)).slice(0,100);
+        const active=all.filter(s=>s&&s.last_active>=cutoff).sort((a,b)=>b.last_active.localeCompare(a.last_active)).slice(0,100);
         if (path==='/anon-sessions/stream') {
           return new Response(`data: ${JSON.stringify(active)}\n\n`,{status:200,headers:{...CORS,'Content-Type':'text/event-stream','Cache-Control':'no-cache'}});
         }
@@ -558,21 +569,18 @@ export default {
         const {visitor_id,session_id,current_page,device_type,browser,os}=body;
         if (!visitor_id||!session_id) return err(400,'visitor_id and session_id required');
         const ip=(request.headers.get('cf-connecting-ip')||request.headers.get('x-forwarded-for')||'').split(',')[0].trim()||null;
-        const sessMap=await loadSessions(env);
-        const existing=sessMap[visitor_id];
+        const existing=await loadOneSession(visitor_id,env);
         let country=existing?.country||null,city=existing?.city||null;
         if (!country&&ip){const geo=await lookupGeo(ip);country=geo.country;city=geo.city;}
         const now=new Date().toISOString();
-        sessMap[visitor_id]={id:existing?.id||crypto.randomUUID(),visitor_id,session_id,current_page:current_page||'Exchange',ip_address:ip,country,city,device_type:device_type||'desktop',browser:browser||'Unknown',os:os||'Unknown',last_active:now,created_at:existing?.created_at||now};
-        await saveSessions(sessMap,env);
+        const rec={id:existing?.id||crypto.randomUUID(),visitor_id,session_id,current_page:current_page||'Exchange',ip_address:ip,country,city,device_type:device_type||'desktop',browser:browser||'Unknown',os:os||'Unknown',last_active:now,created_at:existing?.created_at||now};
+        await saveOneSession(visitor_id,rec,env);
         return ok({ok:true});
       }
       if (method==='DELETE' && /^\/anon-sessions\//.test(path)) {
         const visitor_id=path.split('/').pop();
         if (!visitor_id) return err(400,'visitor_id required');
-        const sessMap=await loadSessions(env);
-        delete sessMap[visitor_id];
-        await saveSessions(sessMap,env);
+        await deleteOneSession(visitor_id,env);
         return ok({ok:true});
       }
 
