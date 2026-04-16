@@ -258,16 +258,22 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
     // User is logged in — force demo mode OFF permanently
     setIsDemoMode(false);
 
-    // Balance ve equipment paralel çalışır
-    // Not: user_active_equipment VIEW yerine direkt tablo + join kullan
-    // (VIEW'daki is_currently_usable koşulu bazı geçerli ekipmanları dışarıda bırakıyordu)
-    const [{ data: balanceData }, { data: rawEquipment }] = await Promise.all([
+    // Balance + equipment + types paralel (join KULLANMA — schema cache FK'yi tanımıyor)
+    const [{ data: balanceData }, { data: rawEquipmentRaw }, { data: typesData }] = await Promise.all([
       supabase.from('user_balances').select('balance, eq_amount').eq('user_id', user.id).eq('symbol', 'USDT').maybeSingle(),
       supabase.from('user_mining_equipment')
-        .select('*, mining_equipment_types(*)')
+        .select('*')
         .eq('user_id', user.id)
         .eq('is_active', true),
+      supabase.from('mining_equipment_types').select('*'),
     ]);
+    // Ekipman ile type'ı JS tarafında birleştir
+    const typesMap: Record<string, any> = {};
+    (typesData || []).forEach((t: any) => { typesMap[t.id] = t; });
+    const rawEquipment = (rawEquipmentRaw || []).map((eq: any) => ({
+      ...eq,
+      mining_equipment_types: typesMap[eq.equipment_type_id] || null,
+    }));
 
     if (balanceData) {
       setDbUsdtBalance(Number(balanceData.balance || 0));
