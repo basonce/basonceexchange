@@ -36,6 +36,31 @@ artifacts-monorepo/
 └── package.json            # Root package with hoisted devDeps
 ```
 
+## DEPLOYMENT ARCHITECTURE (as of April 2026)
+
+### Production: 100% Netlify (Replit-independent)
+- **basonce.com** → Netlify (DNS points to Netlify)
+- **Frontend**: `artifacts/kite-exchange` → built with `pnpm --filter @workspace/kite-exchange run build` → uploaded to Netlify via ZIP API
+- **Backend API**: `netlify/functions/api-proxy.js` (full Express-equivalent logic in one file, no Replit dependency)
+  - Crypto prices: KuCoin direct fetch
+  - TradFi prices: Yahoo Finance direct fetch
+  - Match controls: Supabase Storage (`sport-controls/controls.json`)
+  - Sport bets: Supabase Storage (`sport-bets-data/{id}.json`)
+  - Anon sessions: Supabase Storage (`visitor-sessions/sessions.json`)
+  - Push subscriptions: Supabase Storage (`push-data/subscriptions.json`)
+  - Admin routes: Supabase REST API
+  - web-push: bundled in `netlify/functions/node_modules/`
+- **Database**: Supabase (`jfjjymprvjfltpvmfptj.supabase.co`) — not Replit PostgreSQL
+- **Env vars on Netlify**: SUPABASE_SERVICE_ROLE_KEY, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
+
+### How to deploy updates:
+```bash
+pnpm --filter @workspace/kite-exchange run build
+cd /tmp/netlify-fn && node -e "JSZip deploy script..."
+```
+
+### Replit deployment: BROKEN (PostgreSQL dev DB unreachable) — NOT used for production
+
 ## Admin Monitor PWA (artifacts/admin-monitor)
 
 Glassmorphism admin monitoring PWA for BASONCE/KITE Exchange. Path: `/admin-monitor/`.

@@ -1679,7 +1679,7 @@ export default function SocialFeed() {
                 };
                 const handleShare = async () => {
                   const text = `${post.username}: ${post.content?.slice(0, 120)}...`;
-                  const url = 'https://basoncecom.replit.app/';
+                  const url = 'https://basonce.com/';
                   if (navigator.share) {
                     try { await navigator.share({ title: 'BASONCE Exchange – 258+ Coins, Stocks & More', text, url }); } catch {}
                   } else {

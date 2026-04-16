@@ -180,7 +180,7 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
 
   const loadAnonSessions = useCallback(async () => {
     try {
-      const res = await fetch('https://basoncecom.replit.app/api/anon-sessions', {
+      const res = await fetch('/api/anon-sessions', {
         cache: 'no-store', headers: { 'Cache-Control': 'no-cache' },
       });
       if (!res.ok) return;
@@ -219,7 +219,7 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
 
   // Anonymous sessions: SSE real-time stream (instant push, no polling)
   useEffect(() => {
-    const SSE_URL = 'https://basoncecom.replit.app/api/anon-sessions/stream';
+    const SSE_URL = '/api/anon-sessions/stream';
     let es: EventSource | null = null;
     let fallback: ReturnType<typeof setInterval> | null = null;
 

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { startVisitorAlarm, startNewUserAlarm, sendBrowserNotification } from '../lib/audio';
 
-const PROD_ANON_URL = 'https://basoncecom.replit.app/api/anon-sessions';
+const PROD_ANON_URL = 'https://basonce.com/api/anon-sessions';
 
 interface AnonSession {
   visitor_id: string;
@@ -137,7 +137,7 @@ export default function Visitors() {
     loadMembers();
 
     // SSE: real-time push from production API (instant, no polling)
-    const SSE_URL = 'https://basoncecom.replit.app/api/anon-sessions/stream';
+    const SSE_URL = 'https://basonce.com/api/anon-sessions/stream';
     let es: EventSource | null = null;
     let fallbackInterval: ReturnType<typeof setInterval> | null = null;
 
