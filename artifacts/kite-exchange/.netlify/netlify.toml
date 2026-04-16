@@ -1,17 +1,19 @@
+redirectsOrigin = "config"
 plugins = []
-headers = []
-redirects = []
+functionsDirectory = "/home/runner/workspace/artifacts/kite-exchange/netlify/functions"
+functionsDirectoryOrigin = "config-v1"
 
 [functions]
 
 [functions."*"]
 
 [build]
-publish = "/home/runner/workspace/artifacts/kite-exchange/artifacts/kite-exchange/dist"
-publishOrigin = "ui"
-commandOrigin = "ui"
+publish = "/home/runner/workspace/artifacts/kite-exchange/dist/public"
+publishOrigin = "config"
+commandOrigin = "config"
 base = "/home/runner/workspace/artifacts/kite-exchange"
-command = "pnpm --filter @workspace/kite-exchange... run build"
+command = "pnpm --filter @workspace/kite-exchange run build"
+functions = "/home/runner/workspace/artifacts/kite-exchange/netlify/functions"
 
 [build.environment]
 
@@ -26,3 +28,111 @@ command = "pnpm --filter @workspace/kite-exchange... run build"
 [build.processing.js]
 
 [build.services]
+
+[[headers]]
+for = "/assets/*"
+
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
+X-Content-Type-Options = "nosniff"
+
+[[headers]]
+for = "/sitemap.xml"
+
+[headers.values]
+Content-Type = "application/xml; charset=utf-8"
+Cache-Control = "public, max-age=3600, s-maxage=86400"
+
+[[headers]]
+for = "/robots.txt"
+
+[headers.values]
+Content-Type = "text/plain; charset=utf-8"
+Cache-Control = "public, max-age=3600, s-maxage=86400"
+
+[[headers]]
+for = "/favicon*"
+
+[headers.values]
+Cache-Control = "public, max-age=604800, immutable"
+
+[[headers]]
+for = "/apple-touch-icon*"
+
+[headers.values]
+Cache-Control = "public, max-age=604800, immutable"
+
+[[headers]]
+for = "/og-image*"
+
+[headers.values]
+Cache-Control = "public, max-age=604800"
+Access-Control-Allow-Origin = "*"
+
+[[headers]]
+for = "/index.html"
+
+[headers.values]
+Cache-Control = "no-cache, no-store, must-revalidate"
+Pragma = "no-cache"
+Expires = "0"
+X-Robots-Tag = "index, follow"
+
+[[headers]]
+for = "/*"
+
+[headers.values]
+X-Content-Type-Options = "nosniff"
+X-Frame-Options = "SAMEORIGIN"
+X-XSS-Protection = "1; mode=block"
+Referrer-Policy = "strict-origin-when-cross-origin"
+Permissions-Policy = "camera=(), microphone=(), geolocation=(self)"
+X-DNS-Prefetch-Control = "on"
+
+[[redirects]]
+from = "/google255958a821dd4bf4.html"
+to = "/google255958a821dd4bf4.html"
+status = 200.0
+force = true
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/api-server/*"
+to = "/.netlify/functions/api-proxy"
+status = 200.0
+force = true
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/api/*"
+to = "/.netlify/functions/api-proxy"
+status = 200.0
+force = true
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
