@@ -110,8 +110,30 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
         .subscribe();
     });
 
+    // If session is not immediately available (token refreshing), retry once after 1.5s
+    // This prevents false demo-mode when Supabase is refreshing the access token
+    const authRetryTimer = setTimeout(async () => {
+      const user = await getCurrentUser();
+      if (user) {
+        // User IS logged in but demo mode may have started due to slow token refresh
+        setIsDemoMode(false);
+        loadMiningData();
+      }
+    }, 1500);
+
+    // Also listen for auth state changes to switch from demo → member mode instantly
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        setIsDemoMode(false);
+        setShowAuthModal(false);
+        loadMiningData();
+      }
+    });
+
     return () => {
       unsubscribePrice();
+      clearTimeout(authRetryTimer);
+      authSub.unsubscribe();
       if (channel) {
         supabase.removeChannel(channel);
       }
@@ -221,6 +243,9 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
 
     const user = await getCurrentUser();
     if (!user) { initDemoMode(); return; }
+
+    // User is logged in — make sure demo mode is off
+    setIsDemoMode(false);
 
     // Balance ve equipment paralel çalışır
     // Not: user_active_equipment VIEW yerine direkt tablo + join kullan
