@@ -498,26 +498,74 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
       let anyDeactivated = false;
       let anyTimeLimitReached = false;
 
-      for (const miner of equipmentWithEarnings) {
-        const { data, error } = await supabase
-          .rpc('collect_mining_earnings', {
-            p_user_id: user.id,
-            p_equipment_id: miner.id
-          });
+      // DIRECT DB collect — RPC yok, frontend yapıyor
+      // Bakiyeyi bir kez oku, her cihazı toplayıp tek seferde yaz
+      const { data: balRow } = await supabase
+        .from('user_balances')
+        .select('balance')
+        .eq('user_id', user.id)
+        .eq('symbol', 'USDT')
+        .maybeSingle();
+      let currentBal = Number(balRow?.balance || 0);
 
-        if (error) {
-          console.error('Collect RPC error:', error);
+      for (const miner of equipmentWithEarnings) {
+        const amount = Number(miner.session_earned_usdt || 0);
+        if (amount <= 0) continue;
+
+        const maxDuration = miner.mining_duration_hours * 3600;
+        const timeLimitExpired = miner.has_time_limit && miner.used_mining_seconds >= maxDuration;
+
+        // 1) Ekipmanı sıfırla
+        const { error: eqErr } = await supabase
+          .from('user_mining_equipment')
+          .update({
+            session_earned_usdt: 0,
+            status: 'stopped',
+            is_active: !timeLimitExpired,
+          })
+          .eq('id', miner.id)
+          .eq('user_id', user.id);
+
+        if (eqErr) {
+          console.error('Collect: equipment update failed', eqErr);
           continue;
         }
 
-        if (data?.success) {
-          totalCollected += Number(data.collected_usdt || 0);
-          if (data.deactivated) anyDeactivated = true;
-          if (data.time_limit_reached) anyTimeLimitReached = true;
+        // 2) Bakiyeyi artır
+        currentBal = Number((currentBal + amount).toFixed(4));
+        totalCollected += amount;
+        if (timeLimitExpired) anyTimeLimitReached = true;
+      }
 
-          const newBalance = Number(data.new_balance || 0);
-          setDbUsdtBalance(newBalance);
+      // 3) Bakiyeyi yaz — UPDATE, yoksa INSERT
+      if (totalCollected > 0) {
+        const { data: updated, error: balErr } = await supabase
+          .from('user_balances')
+          .update({ balance: currentBal })
+          .eq('user_id', user.id)
+          .eq('symbol', 'USDT')
+          .select('id');
+
+        if (balErr) {
+          console.error('Collect: balance update failed', balErr);
+          alert('Collection failed — balance not updated. Contact support.');
+          setCollecting(false);
+          return;
         }
+
+        // Satır yoksa oluştur
+        if (!updated || updated.length === 0) {
+          const { error: insErr } = await supabase
+            .from('user_balances')
+            .insert({ user_id: user.id, symbol: 'USDT', balance: currentBal });
+          if (insErr) {
+            console.error('Collect: balance insert failed', insErr);
+            alert('Collection failed — balance not created. Contact support.');
+            setCollecting(false);
+            return;
+          }
+        }
+        setDbUsdtBalance(currentBal);
       }
 
       setMiners(prev => prev.map(m => {
