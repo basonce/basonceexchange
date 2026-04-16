@@ -4,6 +4,19 @@
 
 pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
 
+## Production Deployment (CRITICAL)
+
+**basonce.com = Cloudflare Pages** (NOT Replit, NOT Netlify)
+- Deploy command: `cd /tmp/cf-deploy && git init && CLOUDFLARE_API_TOKEN=... npx wrangler@latest pages deploy dist --project-name basonce --branch main`
+- Build first: `pnpm --filter @workspace/kite-exchange run build`
+- Copy worker: `cp artifacts/kite-exchange/cf-worker/_worker.js artifacts/kite-exchange/dist/public/_worker.js`
+- Then copy dist to /tmp/cf-deploy/dist and deploy
+- CF Account ID: `8f9b03817a00b806bc638ffc0c293655`
+- Pages URL: `basonce.pages.dev` | Custom domain: `basonce.com`
+- API runs as Cloudflare Worker (_worker.js) — no Node.js, no web-push package (Web Crypto API used instead)
+- Env vars set on Cloudflare Pages dashboard: SUPABASE_SERVICE_ROLE_KEY, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
+- DNS: Namecheap → CNAME @ → basonce.pages.dev
+
 ## Stack
 
 - **Monorepo tool**: pnpm workspaces
