@@ -423,7 +423,24 @@ function MessageCard({ msg }: { msg: Message }) {
 }
 
 export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    // Başlangıçta havuzdan 40 mesaj karıştırıp göster — chat anında dolu görünsün
+    const shuffled = [...LIVE_POOL].sort(() => Math.random() - 0.5).slice(0, 40);
+    const baseTime = Date.now();
+    return shuffled.map((tmpl, i) => ({
+      id: `seed-${baseTime}-${i}`,
+      username: tmpl.username,
+      avatar_url: '',
+      message: tmpl.message,
+      created_at: new Date(baseTime - (40 - i) * 45000).toISOString(),
+      level: tmpl.level,
+      country: tmpl.country,
+      message_type: tmpl.message_type,
+      amount: Math.min(tmpl.amount, 13789),
+      is_featured: tmpl.is_featured,
+      ...(tmpl.network ? { network: tmpl.network } : {}),
+    } as Message));
+  });
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('all');
