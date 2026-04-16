@@ -740,7 +740,18 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
         subtitle={`You earned $${sessionUsdtTotal.toFixed(2)} USDT in demo mode!`}
       />
 
-      {isDemoMode && (
+      {isDemoMode && (() => {
+        try {
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i) || '';
+            if (k.startsWith('sb-') && k.endsWith('-auth-token')) {
+              const v = localStorage.getItem(k);
+              if (v && v !== 'null') return false;
+            }
+          }
+        } catch {}
+        return true;
+      })() && (
         <div className="bg-gradient-to-r from-blue-500/20 via-emerald-500/20 to-blue-500/20 border-b border-blue-500/30">
           <div className="max-w-2xl mx-auto px-4 py-3">
             <div className="flex items-center justify-between">
