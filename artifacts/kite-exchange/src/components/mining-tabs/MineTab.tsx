@@ -53,6 +53,7 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
   const [demoTimeRemaining, setDemoTimeRemaining] = useState<number | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showFAQModal, setShowFAQModal] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   const minersRef = useRef(miners);
 
@@ -140,6 +141,7 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
 
   // ✅ DEMO MODE INITIALIZATION
   const initDemoMode = () => {
+    setAuthChecked(true);
     setIsDemoMode(true);
 
     // Always clear old demo data and start fresh - better conversion
@@ -219,28 +221,41 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
       }
     } catch {}
 
-    // Try current session first
+    // Check localStorage for any stored Supabase session (synchronous, fast)
+    const hasStoredSession = (() => {
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i) || '';
+          if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+            const val = localStorage.getItem(key);
+            if (val && val !== 'null') return true;
+          }
+        }
+      } catch {}
+      return false;
+    })();
+
+    // Try current session
     let user = await getCurrentUser();
 
-    // If no user yet, Supabase might still be refreshing the token — wait up to 3s
-    if (!user) {
+    // If getSession returned null but localStorage has session data,
+    // Supabase is still refreshing the token — wait up to 4s
+    if (!user && hasStoredSession) {
       await new Promise<void>(resolve => {
-        let resolved = false;
+        let done = false;
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-          if (!resolved && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
-            resolved = true;
+          if (!done && session?.user) {
+            done = true;
             user = session.user;
             subscription.unsubscribe();
             resolve();
           }
         });
-        // Timeout after 3 seconds regardless
-        setTimeout(() => {
-          if (!resolved) { resolved = true; subscription.unsubscribe(); resolve(); }
-        }, 3000);
+        setTimeout(() => { if (!done) { done = true; subscription.unsubscribe(); resolve(); } }, 4000);
       });
     }
 
+    setAuthChecked(true);
     if (!user) { initDemoMode(); return; }
 
     // User is logged in — make sure demo mode is off
@@ -680,6 +695,18 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
     const secs = Math.floor(seconds % 60);
     return `${hours}h ${minutes}m ${secs}s`;
   };
+
+  // Show loading spinner until auth is definitively resolved
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-[#0D0E12] flex items-center justify-center pb-24">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          <div className="text-gray-400 text-sm">Loading mining data...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0D0E12] pb-24 relative">
