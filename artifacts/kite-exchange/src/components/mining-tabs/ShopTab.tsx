@@ -389,16 +389,25 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
         return;
       }
 
-      const newBalance = userBalance - item.price;
+      const newBalance = Number((userBalance - item.price).toFixed(4));
 
-      // Update USDT balance
-      await supabase
+      // 1) USDT bakiyesini düş (yeterli mi kontrol — yarışta bakiye eksi düşmesin)
+      const { data: balUpdated, error: balErr } = await supabase
         .from('user_balances')
         .update({ balance: newBalance })
         .eq('user_id', user.id)
-        .eq('symbol', 'USDT');
+        .eq('symbol', 'USDT')
+        .gte('balance', item.price)
+        .select('id');
 
-      // Insert new equipment with level
+      if (balErr || !balUpdated || balUpdated.length === 0) {
+        console.error('Purchase: balance deduction failed', balErr);
+        alert('Purchase failed — insufficient balance or payment error. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // 2) Ekipmanı aktif olarak ekle (Mine sekmesinde hemen görünsün)
       const { data: newEquipment, error: insertError } = await supabase
         .from('user_mining_equipment')
         .insert({
@@ -406,24 +415,36 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
           equipment_type_id: item.id,
           equipment_level: equipmentLevel,
           icon: item.icon,
-          is_active: false,
+          is_active: true,
+          status: 'stopped',
+          session_earned_usdt: 0,
+          total_earned_usdt: 0,
+          used_mining_seconds: 0,
           started_at: null,
           ends_at: null,
-          total_earned_from_equipment: 0
+          total_earned_from_equipment: 0,
         })
         .select();
 
       if (insertError) {
-        console.error('Insert error:', insertError);
-        throw new Error(insertError.message);
+        // Ekipman eklenemezse parayı iade et
+        await supabase
+          .from('user_balances')
+          .update({ balance: userBalance })
+          .eq('user_id', user.id)
+          .eq('symbol', 'USDT');
+        console.error('Purchase: insert failed — balance refunded', insertError);
+        alert('Purchase failed — your balance has been refunded. Please try again.');
+        setLoading(false);
+        return;
       }
 
-      // Level up if needed
+      // 3) Seviye yükseldiyse user_profiles'ta direkt güncelle
       if (isLevelUp) {
-        await supabase.rpc('level_up_user', {
-          p_user_id: user.id,
-          p_new_level: equipmentLevel
-        });
+        await supabase
+          .from('user_profiles')
+          .update({ current_mining_level: equipmentLevel })
+          .eq('id', user.id);
       }
 
       setShowSuccess(true);
