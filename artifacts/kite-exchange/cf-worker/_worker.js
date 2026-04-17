@@ -746,13 +746,8 @@ async function scanTronWallet(address, env) {
   const headers = env.TRONGRID_API_KEY ? {'TRON-PRO-API-KEY': env.TRONGRID_API_KEY} : {};
   // 1) ALL TRC-20 token transfers
   const trc20Url = `https://api.trongrid.io/v1/accounts/${address}/transactions/trc20?limit=50&only_to=true`;
-  // 2) NATIVE TRX transfers
-  const trxUrl = `https://api.trongrid.io/v1/accounts/${address}/transactions?limit=50&only_to=true`;
   try {
-    const [trc20Res, trxRes] = await Promise.all([
-      fetch(trc20Url, {headers, signal: AbortSignal.timeout(10000)}).then(r=>r.json()).catch(()=>({data:[]})),
-      fetch(trxUrl,   {headers, signal: AbortSignal.timeout(10000)}).then(r=>r.json()).catch(()=>({data:[]})),
-    ]);
+    const trc20Res = await fetch(trc20Url, {headers, signal: AbortSignal.timeout(10000)}).then(r=>r.json()).catch(()=>({data:[]}));
     const out = [];
     if (Array.isArray(trc20Res.data)) {
       for (const tx of trc20Res.data) {
@@ -761,22 +756,6 @@ async function scanTronWallet(address, env) {
           currency: (tx.token_info?.symbol || 'UNKNOWN').toUpperCase(),
           contract: tx.token_info?.address,
           amount: Number(tx.value) / Math.pow(10, Number(tx.token_info?.decimals||6)),
-          block_number: null,
-          block_time: tx.block_timestamp ? new Date(tx.block_timestamp).toISOString() : null,
-          confirmations: 1,
-        });
-      }
-    }
-    if (Array.isArray(trxRes.data)) {
-      for (const tx of trxRes.data) {
-        const c = tx.raw_data?.contract?.[0];
-        if (!c || c.type !== 'TransferContract') continue;
-        const v = c.parameter?.value;
-        if (!v || !v.amount) continue;
-        out.push({
-          tx_hash: tx.txID, from_address: v.owner_address, to_address: v.to_address,
-          currency: 'TRX', contract: null,
-          amount: Number(v.amount) / 1e6,
           block_number: null,
           block_time: tx.block_timestamp ? new Date(tx.block_timestamp).toISOString() : null,
           confirmations: 1,
@@ -885,7 +864,7 @@ async function scanAllWallets(env) {
     await sendTelegramAlert(msg, env);
   }
 
-  return {ok:true, scanned, found, inserted, errors, new_deposits: newOnes.length, rpcErrors: rpcDebug.slice(0, 20), rpcErrorCount: rpcDebug.length};
+  return {ok:true, scanned, found, inserted, errors, new_deposits: newOnes.length};
 }
 
 /* ═══════════════════════════════════════════════
