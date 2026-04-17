@@ -625,50 +625,133 @@ function isAdmin(headers) {
 const USDT_BEP20 = '0x55d398326f99059fF775485246999027B3197955';
 const USDT_TRC20 = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
 
+// BSC public RPC — no API key needed. Fallback list for reliability.
+const BSC_RPCS = [
+  'https://bsc-dataseed.binance.org/',
+  'https://bsc-dataseed1.defibit.io/',
+  'https://bsc-dataseed1.ninicoin.io/',
+  'https://rpc.ankr.com/bsc',
+];
+async function bscRpc(method, params) {
+  for (const url of BSC_RPCS) {
+    try {
+      const r = await fetch(url, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({jsonrpc:'2.0',id:1,method,params}),
+        signal: AbortSignal.timeout(10000),
+      });
+      const j = await r.json();
+      if (j.result !== undefined) return j.result;
+    } catch {}
+  }
+  return null;
+}
+
+// Token symbol/decimals cache (per worker invocation)
+const tokenInfoCache = new Map();
+async function getTokenInfo(contract) {
+  if (tokenInfoCache.has(contract)) return tokenInfoCache.get(contract);
+  const [symHex, decHex] = await Promise.all([
+    bscRpc('eth_call', [{to: contract, data: '0x95d89b41'}, 'latest']), // symbol()
+    bscRpc('eth_call', [{to: contract, data: '0x313ce567'}, 'latest']), // decimals()
+  ]);
+  let symbol = 'UNKNOWN', decimals = 18;
+  if (symHex && symHex !== '0x') {
+    try {
+      // ABI-encoded string: offset(32) + length(32) + data
+      const len = parseInt(symHex.slice(66, 130), 16);
+      const dataHex = symHex.slice(130, 130 + len*2);
+      symbol = decodeURIComponent(dataHex.match(/.{2}/g).map(b=>'%'+b).join('')).replace(/\0/g,'').trim();
+      if (!symbol || /[^\x20-\x7E]/.test(symbol)) symbol = 'UNKNOWN';
+    } catch { symbol = 'UNKNOWN'; }
+  }
+  if (decHex && decHex !== '0x') decimals = parseInt(decHex, 16) || 18;
+  const info = {symbol: symbol.toUpperCase(), decimals};
+  tokenInfoCache.set(contract, info);
+  return info;
+}
+
+const blockTimeCache = new Map();
+async function getBlockTime(blockHex) {
+  if (blockTimeCache.has(blockHex)) return blockTimeCache.get(blockHex);
+  const b = await bscRpc('eth_getBlockByNumber', [blockHex, false]);
+  const ts = b?.timestamp ? new Date(parseInt(b.timestamp, 16) * 1000).toISOString() : null;
+  blockTimeCache.set(blockHex, ts);
+  return ts;
+}
+
+const TRANSFER_SIG = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+
 async function scanBscWallet(address, env) {
-  const apiKey = env.BSCSCAN_API_KEY || '';
   const addrLc = address.toLowerCase();
-  // 1) ALL BEP-20 token transfers (USDT, BUSD, EARN, ETH, BTCB, etc.)
-  const tokenUrl = `https://api.bscscan.com/api?module=account&action=tokentx&address=${address}&page=1&offset=50&sort=desc${apiKey?`&apikey=${apiKey}`:''}`;
-  // 2) NATIVE BNB transfers
-  const bnbUrl = `https://api.bscscan.com/api?module=account&action=txlist&address=${address}&page=1&offset=50&sort=desc${apiKey?`&apikey=${apiKey}`:''}`;
+  const paddedAddr = '0x' + '0'.repeat(24) + addrLc.slice(2);
+  // Get current block
+  const currentHex = await bscRpc('eth_blockNumber', []);
+  if (!currentHex) return [];
+  const currentBlock = parseInt(currentHex, 16);
+  // Scan last ~5000 blocks (≈ 4 hours of BSC) — public RPC limit
+  const fromBlock = '0x' + Math.max(currentBlock - 4900, 0).toString(16);
+
+  // 1) BEP-20 Transfer logs to this address
+  const logs = await bscRpc('eth_getLogs', [{
+    fromBlock, toBlock: 'latest',
+    topics: [TRANSFER_SIG, null, paddedAddr],
+  }]);
+  const out = [];
+  if (Array.isArray(logs)) {
+    // Resolve unique tokens once
+    const uniq = [...new Set(logs.map(l => l.address.toLowerCase()))];
+    for (const c of uniq) await getTokenInfo(c);
+    for (const log of logs) {
+      try {
+        const info = await getTokenInfo(log.address.toLowerCase());
+        const valueWei = BigInt(log.data || '0x0');
+        const amount = Number(valueWei) / Math.pow(10, info.decimals);
+        if (amount <= 0) continue;
+        const blockTime = await getBlockTime(log.blockNumber);
+        out.push({
+          tx_hash: log.transactionHash,
+          from_address: '0x' + log.topics[1].slice(26),
+          to_address: address,
+          currency: info.symbol,
+          contract: log.address,
+          amount,
+          block_number: parseInt(log.blockNumber, 16),
+          block_time: blockTime,
+          confirmations: currentBlock - parseInt(log.blockNumber, 16),
+        });
+      } catch {}
+    }
+  }
+
+  // 2) Native BNB transfers — scan last 50 blocks for incoming BNB (heavy, so limited)
   try {
-    const [tokenRes, bnbRes] = await Promise.all([
-      fetch(tokenUrl, {signal: AbortSignal.timeout(10000)}).then(r=>r.json()).catch(()=>({result:[]})),
-      fetch(bnbUrl,   {signal: AbortSignal.timeout(10000)}).then(r=>r.json()).catch(()=>({result:[]})),
-    ]);
-    const out = [];
-    if (Array.isArray(tokenRes.result)) {
-      for (const tx of tokenRes.result) {
+    const tipBlock = currentBlock;
+    const blocks = await Promise.all(
+      Array.from({length: 50}, (_, i) => bscRpc('eth_getBlockByNumber', ['0x' + (tipBlock - i).toString(16), true]))
+    );
+    for (const b of blocks) {
+      if (!b?.transactions) continue;
+      for (const tx of b.transactions) {
         if (!tx.to || tx.to.toLowerCase() !== addrLc) continue;
+        const valWei = BigInt(tx.value || '0x0');
+        if (valWei === 0n) continue;
         out.push({
-          tx_hash: tx.hash, from_address: tx.from, to_address: tx.to,
-          currency: (tx.tokenSymbol || 'UNKNOWN').toUpperCase(),
-          contract: tx.contractAddress,
-          amount: Number(tx.value) / Math.pow(10, Number(tx.tokenDecimal||18)),
-          block_number: Number(tx.blockNumber),
-          block_time: new Date(Number(tx.timeStamp)*1000).toISOString(),
-          confirmations: Number(tx.confirmations||0),
+          tx_hash: tx.hash,
+          from_address: tx.from,
+          to_address: tx.to,
+          currency: 'BNB',
+          contract: null,
+          amount: Number(valWei) / 1e18,
+          block_number: parseInt(tx.blockNumber, 16),
+          block_time: new Date(parseInt(b.timestamp, 16) * 1000).toISOString(),
+          confirmations: currentBlock - parseInt(tx.blockNumber, 16),
         });
       }
     }
-    if (Array.isArray(bnbRes.result)) {
-      for (const tx of bnbRes.result) {
-        if (!tx.to || tx.to.toLowerCase() !== addrLc) continue;
-        if (Number(tx.value) === 0) continue;
-        if (tx.isError === '1') continue;
-        out.push({
-          tx_hash: tx.hash, from_address: tx.from, to_address: tx.to,
-          currency: 'BNB', contract: null,
-          amount: Number(tx.value) / 1e18,
-          block_number: Number(tx.blockNumber),
-          block_time: new Date(Number(tx.timeStamp)*1000).toISOString(),
-          confirmations: Number(tx.confirmations||0),
-        });
-      }
-    }
-    return out;
-  } catch (e) { console.error('BSC scan error', address, e.message); return []; }
+  } catch (e) { console.error('BNB scan error', address, e.message); }
+
+  return out;
 }
 
 async function scanTronWallet(address, env) {
