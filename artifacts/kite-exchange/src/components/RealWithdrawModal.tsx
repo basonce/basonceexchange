@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, AlertCircle, ExternalLink, Shield, Lock, TrendingUp, ShieldAlert } from 'lucide-react';
+import { X, AlertCircle, ExternalLink, Shield, Lock, TrendingUp, ShieldAlert, Smartphone, Loader2 } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { blockchainProvider } from '../lib/blockchain-provider';
 import { WITHDRAWAL_FEES, BLOCKCHAIN_NETWORKS, isMainnet, getNetworkDisplayInfo, type NetworkKey } from '../lib/blockchain-config';
@@ -104,12 +104,61 @@ export function RealWithdrawModal({
     return true;
   };
 
+  // 2FA challenge state for withdrawal protection
+  const [mfaFactor, setMfaFactor] = useState<{ id: string; challengeId: string } | null>(null);
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaError, setMfaError] = useState('');
+  const [mfaBusy, setMfaBusy] = useState(false);
+
+  const requestMfaChallenge = async (): Promise<boolean> => {
+    // Returns true to proceed without MFA, false if MFA prompt is now shown.
+    try {
+      const { data: factorsData } = await supabase.auth.mfa.listFactors();
+      const verified = factorsData?.totp?.find((f: any) => f.status === 'verified');
+      if (!verified) return true;
+      const { data: chal, error } = await supabase.auth.mfa.challenge({ factorId: verified.id });
+      if (error || !chal) return true;
+      setMfaFactor({ id: verified.id, challengeId: chal.id });
+      setMfaCode('');
+      setMfaError('');
+      return false;
+    } catch {
+      return true;
+    }
+  };
+
+  const verifyMfaAndContinue = async () => {
+    if (!mfaFactor || mfaCode.length !== 6) return;
+    setMfaBusy(true); setMfaError('');
+    try {
+      const { error } = await supabase.auth.mfa.verify({
+        factorId: mfaFactor.id, challengeId: mfaFactor.challengeId, code: mfaCode,
+      });
+      if (error) throw error;
+      setMfaFactor(null);
+      setMfaCode('');
+      // Continue with actual withdrawal
+      await doWithdraw();
+    } catch (e: any) {
+      setMfaError(e?.message || 'Invalid code. Try again.');
+    }
+    setMfaBusy(false);
+  };
+
   const handleWithdraw = async () => {
     setError('');
 
     if (!validateAddress() || !validateAmount()) {
       return;
     }
+
+    // 2FA gate: if user has Google Authenticator enabled, require code first
+    const proceed = await requestMfaChallenge();
+    if (!proceed) return;
+    await doWithdraw();
+  };
+
+  const doWithdraw = async () => {
 
     if (customFeeUsdt > 0) {
       const user = await getCurrentUser();
@@ -401,6 +450,55 @@ export function RealWithdrawModal({
               Done
             </button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mfaFactor) {
+    return (
+      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+        <div className="bg-[#181A20] w-full max-w-md rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#F0B90B]/10 rounded-lg flex items-center justify-center">
+                <Smartphone className="w-5 h-5 text-[#F0B90B]" />
+              </div>
+              <div>
+                <h2 className="font-bold text-white">Withdrawal Verification</h2>
+                <p className="text-xs text-gray-400">Open Google Authenticator</p>
+              </div>
+            </div>
+            <button onClick={() => { setMfaFactor(null); setMfaCode(''); }} className="text-gray-400 hover:text-white">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="bg-[#0B0E11] rounded-lg p-3 mb-3 text-xs">
+            <div className="flex justify-between text-gray-400 mb-1"><span>Amount</span><span className="text-white font-mono">{amount} {currency}</span></div>
+            <div className="flex justify-between text-gray-400 mb-1"><span>Network</span><span className="text-white">{selectedNetwork}</span></div>
+            <div className="flex justify-between text-gray-400"><span>To</span><span className="text-white font-mono truncate ml-2 max-w-[180px]">{toAddress}</span></div>
+          </div>
+          <p className="text-xs text-gray-400 mb-3">Enter the 6-digit code from your authenticator app to confirm this withdrawal.</p>
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={6}
+            value={mfaCode}
+            onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder="000000"
+            className="w-full bg-[#0B0E11] text-white text-center text-3xl tracking-[0.5em] font-mono rounded-lg p-4 border border-[#2B3139] focus:border-[#F0B90B] outline-none mb-3"
+            autoFocus
+          />
+          {mfaError && <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-red-400 text-xs mb-3 flex gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /> {mfaError}
+          </div>}
+          <button
+            onClick={verifyMfaAndContinue}
+            disabled={mfaCode.length !== 6 || mfaBusy}
+            className="w-full bg-[#F0B90B] text-black rounded-lg py-3 font-bold disabled:opacity-40"
+          >
+            {mfaBusy ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Confirm Withdrawal'}
+          </button>
         </div>
       </div>
     );

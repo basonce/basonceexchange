@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import AuthModal from '../components/AuthModal';
 import SupportModal from '../components/SupportModal';
+import SecurityCenterModal from '../components/SecurityCenterModal';
 import ReferralModal from '../components/ReferralModal';
 import EarnModal from '../components/EarnModal';
 import DepositMethodModal from '../components/DepositMethodModal';
@@ -39,6 +40,7 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
+  const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [showReferral, setShowReferral] = useState(false);
   const [showEarn, setShowEarn] = useState(false);
   const [showDepositUSD, setShowDepositUSD] = useState(false);
@@ -876,12 +878,12 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
         </div>
 
         <div className="space-y-3 mb-6">
-          <button onClick={() => setShowSupportModal(true)} className="w-full bg-[#1E2329] text-[#F5F5F5] rounded-xl p-4 flex items-center justify-between transition-all hover:scale-[1.01] active:scale-[0.99]">
+          <button onClick={() => setShowSecurityModal(true)} className="w-full bg-[#1E2329] text-[#F5F5F5] rounded-xl p-4 flex items-center justify-between transition-all hover:scale-[1.01] active:scale-[0.99]">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center">
                 <Lock className="w-5 h-5 text-blue-400" />
               </div>
-              <span className="font-medium">Security & Privacy</span>
+              <span className="font-medium">Security</span>
             </div>
             <ChevronRight className="w-5 h-5 text-gray-400" />
           </button>
@@ -937,6 +939,11 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         mode="login"
+      />
+
+      <SecurityCenterModal
+        isOpen={showSecurityModal}
+        onClose={() => setShowSecurityModal(false)}
       />
 
       <SupportModal

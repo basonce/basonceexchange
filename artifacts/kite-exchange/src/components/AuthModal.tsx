@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { X, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Eye, EyeOff, CheckCircle2, AlertCircle, Smartphone, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { recordLoginEvent } from './SecurityCenterModal';
 
 function fireGoogleAdsConversion() {
   try {
@@ -32,7 +33,51 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // MFA challenge state (after password OK, before session is fully aal2)
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [mfaChallengeId, setMfaChallengeId] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaError, setMfaError] = useState('');
+  const [mfaBusy, setMfaBusy] = useState(false);
+
   if (!isOpen) return null;
+
+  const submitMfa = async () => {
+    if (!mfaFactorId || !mfaChallengeId || mfaCode.length !== 6) return;
+    setMfaBusy(true); setMfaError('');
+    try {
+      const { error } = await supabase.auth.mfa.verify({
+        factorId: mfaFactorId, challengeId: mfaChallengeId, code: mfaCode,
+      });
+      if (error) throw error;
+      recordLoginEvent('success');
+      setMfaFactorId(null); setMfaChallengeId(null); setMfaCode('');
+      setSuccess('Login successful!');
+      setTimeout(() => onClose(), 400);
+    } catch (e: any) {
+      setMfaError(e?.message || 'Invalid code. Try again.');
+    }
+    setMfaBusy(false);
+  };
+
+  const checkMfaAfterLogin = async (): Promise<boolean> => {
+    // Returns true if session is fully signed in. False means MFA prompt is now showing.
+    const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aalData?.nextLevel === 'aal2' && aalData?.currentLevel === 'aal1') {
+      const { data: factorsData } = await supabase.auth.mfa.listFactors();
+      const verified = factorsData?.totp?.find((f: any) => f.status === 'verified');
+      if (verified) {
+        const { data: chal, error } = await supabase.auth.mfa.challenge({ factorId: verified.id });
+        if (!error && chal) {
+          setMfaFactorId(verified.id);
+          setMfaChallengeId(chal.id);
+          recordLoginEvent('2fa_required');
+          return false;
+        }
+      }
+    }
+    return true;
+  };
 
   const passwordStrength = () => {
     if (password.length === 0) return { strength: 0, label: '', color: '' };
@@ -148,8 +193,17 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
           password,
         });
 
-        if (error) throw error;
+        if (error) {
+          recordLoginEvent('failed');
+          throw error;
+        }
 
+        const fullySignedIn = await checkMfaAfterLogin();
+        if (!fullySignedIn) {
+          // MFA challenge UI now showing — don't close modal
+          return;
+        }
+        recordLoginEvent('success');
         setSuccess('Login successful!');
         setTimeout(() => {
           onClose();
@@ -183,6 +237,53 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
   };
 
   const strength = passwordStrength();
+
+  if (mfaFactorId && mfaChallengeId) {
+    return (
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+        <div className="bg-[#181A20] rounded-2xl max-w-md w-full border border-[#2B3139] shadow-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#F0B90B]/10 rounded-lg flex items-center justify-center">
+                <Smartphone className="w-5 h-5 text-[#F0B90B]" />
+              </div>
+              <div>
+                <h2 className="font-bold text-white">2FA Verification</h2>
+                <p className="text-xs text-gray-400">Open Google Authenticator</p>
+              </div>
+            </div>
+            <button onClick={async () => { await supabase.auth.signOut(); setMfaFactorId(null); setMfaChallengeId(null); setMfaCode(''); }} className="text-gray-400 hover:text-white">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <p className="text-sm text-gray-400 mb-4">Enter the 6-digit code from your authenticator app to complete sign-in.</p>
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={6}
+            value={mfaCode}
+            onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder="000000"
+            className="w-full bg-[#0B0E11] text-white text-center text-3xl tracking-[0.5em] font-mono rounded-lg p-4 border border-[#2B3139] focus:border-[#F0B90B] outline-none mb-3"
+            autoFocus
+          />
+          {mfaError && <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-red-400 text-xs mb-3 flex gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /> {mfaError}
+          </div>}
+          <button
+            onClick={submitMfa}
+            disabled={mfaCode.length !== 6 || mfaBusy}
+            className="w-full bg-[#F0B90B] text-black rounded-lg py-3 font-bold disabled:opacity-40"
+          >
+            {mfaBusy ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Verify & Sign In'}
+          </button>
+          {success && <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 text-emerald-400 text-xs mt-3 flex gap-2">
+            <CheckCircle2 className="w-4 h-4" /> {success}
+          </div>}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
