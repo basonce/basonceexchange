@@ -442,7 +442,7 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
     } as Message));
   });
   const [newMessage, setNewMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [isSending, setIsSending] = useState(false);
   const [lastMessageTime, setLastMessageTime] = useState(0);
@@ -502,9 +502,12 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
     ];
 
     let liveTimeout: NodeJS.Timeout;
+    let firstInjection = true;
     const injectLive = () => {
-      // Slow pace: 8–15s between messages
-      const delay = Math.random() * 7000 + 8000;
+      // First message fires within 800ms so chat feels immediately alive.
+      // Afterwards slow pace: 8–15s between messages.
+      const delay = firstInjection ? (400 + Math.random() * 400) : (Math.random() * 7000 + 8000);
+      firstInjection = false;
       liveTimeout = setTimeout(() => {
         const cyclePos = injectCycleRef.current % CYCLE.length;
         injectCycleRef.current += 1;
@@ -564,17 +567,19 @@ export default function MiningLiveChatModal({ isOpen, onClose }: { isOpen: boole
   }, [messages]);
 
   const loadMessages = async () => {
-    setIsLoading(true);
-    const { count } = await supabase.from('mining_chat_messages').select('*', { count: 'exact', head: true });
-    const total = count || 5000;
-    const offset = Math.floor(Math.random() * Math.max(0, total - 80));
-    const { data } = await supabase
-      .from('mining_chat_messages')
-      .select('*')
-      .order('created_at', { ascending: true })
-      .range(offset, offset + 79);
-    if (data) setMessages(data as Message[]);
-    setIsLoading(false);
+    // Seeded messages already visible; only merge real DB messages if any exist.
+    try {
+      const { count } = await supabase.from('mining_chat_messages').select('*', { count: 'exact', head: true });
+      const total = count || 0;
+      if (total <= 0) return;
+      const offset = Math.floor(Math.random() * Math.max(0, total - 80));
+      const { data } = await supabase
+        .from('mining_chat_messages')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .range(offset, offset + 79);
+      if (data && data.length > 0) setMessages(data as Message[]);
+    } catch {}
   };
 
   const handleSend = async () => {
