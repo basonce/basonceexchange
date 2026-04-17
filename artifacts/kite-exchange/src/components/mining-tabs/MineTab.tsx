@@ -45,6 +45,12 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showForcedUpgradeModal, setShowForcedUpgradeModal] = useState(false);
   const [eqPrice, setEqPrice] = useState(0.055);
+  // 🔒 Locked EQ price for "Display Only" calculations.
+  // The session EQ shown to the user must NEVER decrease just because the
+  // live market price of EQ moved up. We snapshot the price once and keep it
+  // stable so the displayed "EQ Earned" only ever grows with USDT earnings.
+  const lockedEqPriceRef = useRef<number>(0.055);
+  const [lockedEqPrice, setLockedEqPrice] = useState(0.055);
   const [collecting, setCollecting] = useState(false);
   const [nextTierInfo, setNextTierInfo] = useState<{ name: string; price: number } | null>(null);
 
@@ -59,12 +65,13 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
 
   // ✅ LOCKED EARNINGS (in mining session, not yet collected)
   const sessionUsdtTotal = miners.reduce((sum, m) => sum + m.session_earned_usdt, 0);
-  const sessionEqTotal = sessionUsdtTotal / eqPrice; // Real EQ price calculation
+  // Use locked price so EQ display only grows with USDT, never shrinks on price changes.
+  const sessionEqTotal = sessionUsdtTotal / lockedEqPrice;
 
   const activeMiners = miners.filter(m => m.status === 'active').length;
   const totalMiners = miners.length;
   const hourlyRate = miners.filter(m => m.status === 'active').reduce((sum, m) => sum + (m.daily_earning_usdt / 24), 0);
-  const eqHourlyRate = hourlyRate / eqPrice;
+  const eqHourlyRate = hourlyRate / lockedEqPrice;
   const dailyEstimate = hourlyRate * 24;
 
   useEffect(() => {
@@ -77,10 +84,24 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
 
     // Subscribe to EQ price updates
     const priceManager = EarnQuestPriceManager.getInstance();
-    setEqPrice(priceManager.getPrice());
+    const initialPrice = priceManager.getPrice();
+    setEqPrice(initialPrice);
+    // 🔒 Snapshot the price ONCE for "Display Only" EQ calculations.
+    // This is intentionally NOT updated by the live price subscription so
+    // the displayed EQ Earned cannot decrease while the user is watching.
+    if (initialPrice && initialPrice > 0) {
+      lockedEqPriceRef.current = initialPrice;
+      setLockedEqPrice(initialPrice);
+    }
 
     const unsubscribePrice = priceManager.subscribe(() => {
-      setEqPrice(priceManager.getPrice());
+      const p = priceManager.getPrice();
+      setEqPrice(p);
+      // First valid price wins; never overwrite once locked.
+      if (p && p > 0 && lockedEqPriceRef.current === 0.055) {
+        lockedEqPriceRef.current = p;
+        setLockedEqPrice(p);
+      }
     });
 
     // Subscribe to balance changes
