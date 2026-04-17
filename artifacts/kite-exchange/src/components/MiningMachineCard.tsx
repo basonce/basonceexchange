@@ -19,6 +19,7 @@ interface MiningMachineCardProps {
   hasTimeLimit?: boolean;
   remainingSeconds?: number;
   usagePercentage?: number;
+  onShopClick?: () => void;
 }
 
 const LEVEL_THEMES = {
@@ -101,7 +102,8 @@ export default function MiningMachineCard({
   maxUses = 999,
   hasTimeLimit = false,
   remainingSeconds = 0,
-  usagePercentage = 0
+  usagePercentage = 0,
+  onShopClick
 }: MiningMachineCardProps) {
   const [cpuUsage, setCpuUsage] = useState(0);
   const [outputRate, setOutputRate] = useState(0);
@@ -134,8 +136,16 @@ export default function MiningMachineCard({
   return (
     <div className={`overflow-hidden rounded-2xl transition-all duration-500 ${isExpired ? 'opacity-40 grayscale' : ''}`}>
       {isExpired && (
-        <div className="bg-gray-800/80 border border-gray-700 rounded-t-xl px-3 py-2 flex items-center gap-2">
-          <span className="text-xs font-bold text-gray-400">EXPIRED - Collect earnings and upgrade in Shop</span>
+        <div className="bg-red-900/40 border border-red-500/60 rounded-t-xl px-3 py-2 flex items-center justify-between gap-2">
+          <span className="text-xs font-bold text-red-300">⛔ EXPIRED — Mining time is over</span>
+          {onShopClick && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onShopClick(); }}
+              className="text-[11px] font-bold bg-[#F0B90B] hover:bg-[#FCD535] text-black px-3 py-1 rounded-md transition-colors"
+            >
+              🛒 Buy New Device
+            </button>
+          )}
         </div>
       )}
       <div className={`bg-gradient-to-br ${isExpired ? 'from-gray-900 to-gray-950' : theme.bgGradient} border-2 ${isExpired ? 'border-gray-700' : theme.borderColor} ${isExpired ? 'rounded-b-2xl' : 'rounded-2xl'} p-5 relative overflow-hidden transition-all duration-500 ${

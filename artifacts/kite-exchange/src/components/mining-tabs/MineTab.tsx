@@ -970,6 +970,30 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
             </div>
           </div>
 
+          {(() => {
+            const expiredCount = miners.filter(m => m.has_time_limit && (m.remaining_mining_seconds ?? 0) <= 0 && m.status !== 'active').length;
+            if (expiredCount === 0) return null;
+            return (
+              <div className="mb-4 bg-gradient-to-r from-red-900/40 to-orange-900/40 border border-red-500/50 rounded-xl p-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xl flex-shrink-0">⚠️</span>
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-red-300">
+                      {expiredCount} device{expiredCount > 1 ? 's' : ''} expired
+                    </div>
+                    <div className="text-[11px] text-red-200/80 truncate">Get a new device from Shop to keep mining</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onSwitchToShop && onSwitchToShop()}
+                  className="flex-shrink-0 bg-[#F0B90B] hover:bg-[#FCD535] text-black text-xs font-bold px-3 py-2 rounded-lg transition-colors"
+                >
+                  🛒 Open Shop
+                </button>
+              </div>
+            );
+          })()}
+
           <div className="space-y-4">
             {miners.map(miner => {
               const hourlyUSDT = miner.daily_earning_usdt / 24;
@@ -995,6 +1019,7 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
                   usagePercentage={miner.usage_percentage}
                   timesUsed={miner.times_used}
                   maxUses={miner.max_uses}
+                  onShopClick={onSwitchToShop}
                 />
               );
             })}
