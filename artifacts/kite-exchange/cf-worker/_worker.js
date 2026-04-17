@@ -633,6 +633,7 @@ const BSC_RPCS = [
   'https://1rpc.io/bnb',
   'https://bsc-dataseed.binance.org/',
 ];
+let rpcDebug = [];
 async function bscRpc(method, params) {
   for (const url of BSC_RPCS) {
     try {
@@ -643,7 +644,8 @@ async function bscRpc(method, params) {
       });
       const j = await r.json();
       if (j.result !== undefined) return j.result;
-    } catch {}
+      rpcDebug.push({url, method, error: j.error?.message || 'no result'});
+    } catch (e) { rpcDebug.push({url, method, fetchError: e.message}); }
   }
   return null;
 }
@@ -683,76 +685,61 @@ async function getBlockTime(blockHex) {
 
 const TRANSFER_SIG = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
-async function scanBscWallet(address, env) {
-  const addrLc = address.toLowerCase();
-  const paddedAddr = '0x' + '0'.repeat(24) + addrLc.slice(2);
-  // Get current block
+// Batch scan: ALL BSC addresses in a single eth_getLogs call per chunk
+async function scanBscWalletsBatch(addresses, env) {
+  if (!addresses.length) return new Map();
+  const addrToOriginal = new Map();
+  const paddedList = addresses.map(a => {
+    const lc = a.toLowerCase();
+    const padded = '0x' + '0'.repeat(24) + lc.slice(2);
+    addrToOriginal.set(lc, a);
+    return padded;
+  });
   const currentHex = await bscRpc('eth_blockNumber', []);
-  if (!currentHex) return [];
+  if (!currentHex) return new Map();
   const currentBlock = parseInt(currentHex, 16);
-  // Scan last ~5000 blocks (≈ 4 hours of BSC) — public RPC limit
-  const fromBlock = '0x' + Math.max(currentBlock - 4900, 0).toString(16);
-
-  // 1) BEP-20 Transfer logs to this address
-  const logs = await bscRpc('eth_getLogs', [{
-    fromBlock, toBlock: 'latest',
-    topics: [TRANSFER_SIG, null, paddedAddr],
-  }]);
-  const out = [];
-  if (Array.isArray(logs)) {
-    // Resolve unique tokens once
-    const uniq = [...new Set(logs.map(l => l.address.toLowerCase()))];
-    for (const c of uniq) await getTokenInfo(c);
-    for (const log of logs) {
-      try {
-        const info = await getTokenInfo(log.address.toLowerCase());
-        const valueWei = BigInt(log.data || '0x0');
-        const amount = Number(valueWei) / Math.pow(10, info.decimals);
-        if (amount <= 0) continue;
-        const blockTime = await getBlockTime(log.blockNumber);
-        out.push({
-          tx_hash: log.transactionHash,
-          from_address: '0x' + log.topics[1].slice(26),
-          to_address: address,
-          currency: info.symbol,
-          contract: log.address,
-          amount,
-          block_number: parseInt(log.blockNumber, 16),
-          block_time: blockTime,
-          confirmations: currentBlock - parseInt(log.blockNumber, 16),
-        });
-      } catch {}
-    }
+  const TOTAL_BLOCKS = 30000, CHUNK = 9900;
+  const logs = [];
+  for (let off = 0; off < TOTAL_BLOCKS; off += CHUNK) {
+    const hi = Math.max(currentBlock - off, 0);
+    const lo = Math.max(hi - CHUNK, 0);
+    if (hi <= 0) break;
+    const part = await bscRpc('eth_getLogs', [{
+      fromBlock: '0x' + lo.toString(16),
+      toBlock: '0x' + hi.toString(16),
+      topics: [TRANSFER_SIG, null, paddedList],
+    }]);
+    if (Array.isArray(part)) logs.push(...part);
   }
-
-  // 2) Native BNB transfers — scan last 50 blocks for incoming BNB (heavy, so limited)
-  try {
-    const tipBlock = currentBlock;
-    const blocks = await Promise.all(
-      Array.from({length: 50}, (_, i) => bscRpc('eth_getBlockByNumber', ['0x' + (tipBlock - i).toString(16), true]))
-    );
-    for (const b of blocks) {
-      if (!b?.transactions) continue;
-      for (const tx of b.transactions) {
-        if (!tx.to || tx.to.toLowerCase() !== addrLc) continue;
-        const valWei = BigInt(tx.value || '0x0');
-        if (valWei === 0n) continue;
-        out.push({
-          tx_hash: tx.hash,
-          from_address: tx.from,
-          to_address: tx.to,
-          currency: 'BNB',
-          contract: null,
-          amount: Number(valWei) / 1e18,
-          block_number: parseInt(tx.blockNumber, 16),
-          block_time: new Date(parseInt(b.timestamp, 16) * 1000).toISOString(),
-          confirmations: currentBlock - parseInt(tx.blockNumber, 16),
-        });
-      }
-    }
-  } catch (e) { console.error('BNB scan error', address, e.message); }
-
-  return out;
+  // Resolve unique tokens
+  const uniq = [...new Set(logs.map(l => l.address.toLowerCase()))];
+  for (const c of uniq) await getTokenInfo(c);
+  // Group by recipient address
+  const byAddr = new Map();
+  for (const a of addresses) byAddr.set(a, []);
+  for (const log of logs) {
+    try {
+      const toLc = '0x' + log.topics[2].slice(26).toLowerCase();
+      const original = addrToOriginal.get(toLc);
+      if (!original) continue;
+      const info = await getTokenInfo(log.address.toLowerCase());
+      const valueWei = BigInt(log.data || '0x0');
+      const amount = Number(valueWei) / Math.pow(10, info.decimals);
+      if (amount <= 0) continue;
+      byAddr.get(original).push({
+        tx_hash: log.transactionHash,
+        from_address: '0x' + log.topics[1].slice(26),
+        to_address: original,
+        currency: info.symbol,
+        contract: log.address,
+        amount,
+        block_number: parseInt(log.blockNumber, 16),
+        block_time: log.blockTimestamp ? new Date(parseInt(log.blockTimestamp,16)*1000).toISOString() : null,
+        confirmations: currentBlock - parseInt(log.blockNumber, 16),
+      });
+    } catch {}
+  }
+  return byAddr;
 }
 
 async function scanTronWallet(address, env) {
@@ -829,14 +816,18 @@ async function scanAllWallets(env) {
   const exRes = await fetch(`${SUPABASE_URL}/rest/v1/blockchain_deposits?select=tx_hash`, {headers: {...headers, 'Range':'0-9999'}});
   const existing = new Set(((await exRes.json())||[]).map(r=>r.tx_hash));
 
+  rpcDebug = [];
   let scanned=0, found=0, inserted=0, errors=0;
   const newOnes = [];
 
-  // Throttle: BscScan free = 5 req/sec; TRC has 15. Process serially with small delay.
+  // Batch BSC: one call covers all BSC addresses
+  const bscWallets = wallets.filter(w => w.network === 'BEP20' || w.network === 'BSC');
+  const bscMap = await scanBscWalletsBatch(bscWallets.map(w => w.address), env);
+
   for (const w of wallets) {
     scanned++;
     let txs = [];
-    if (w.network === 'BEP20' || w.network === 'BSC') txs = await scanBscWallet(w.address, env);
+    if (w.network === 'BEP20' || w.network === 'BSC') txs = bscMap.get(w.address) || [];
     else if (w.network === 'TRC20' || w.network === 'TRON') txs = await scanTronWallet(w.address, env);
     else continue;
 
@@ -894,7 +885,7 @@ async function scanAllWallets(env) {
     await sendTelegramAlert(msg, env);
   }
 
-  return {ok:true, scanned, found, inserted, errors, new_deposits: newOnes.length};
+  return {ok:true, scanned, found, inserted, errors, new_deposits: newOnes.length, rpcErrors: rpcDebug.slice(0, 20), rpcErrorCount: rpcDebug.length};
 }
 
 /* ═══════════════════════════════════════════════
@@ -1225,6 +1216,20 @@ export default {
         if (!isAdmin(request.headers)) return err(403,'Forbidden');
         const result = await scanAllWallets(env);
         return ok(result);
+      }
+      if (method==='GET' && path==='/debug-scan') {
+        const addr = url.searchParams.get('addr') || '';
+        if (!addr) return err(400,'addr required');
+        const debug = {addr, rpcs: BSC_RPCS, results: []};
+        for (const u of BSC_RPCS) {
+          try {
+            const r = await fetch(u, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'eth_blockNumber',params:[]}),signal:AbortSignal.timeout(8000)});
+            const j = await r.json();
+            debug.results.push({rpc:u, blockNumber:j.result, error:j.error});
+          } catch (e) { debug.results.push({rpc:u, fetchError:e.message}); }
+        }
+        const txs = await scanBscWallet(addr, env);
+        return ok({...debug, scannedTxs: txs.length, sample: txs.slice(0,5)});
       }
 
       return err(404, `Not found: ${method} ${path}`);
