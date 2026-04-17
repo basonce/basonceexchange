@@ -867,8 +867,9 @@ async function scanAllWallets(env, part='main') {
         errors++;
       }
     }
-    // Small pacing
-    await new Promise(r=>setTimeout(r, 250));
+    // Pacing: TronGrid free tier = 1 req/sec. Use 1100ms for TRC/TRX wallets.
+    const isTron = (w.network === 'TRC20' || w.network === 'TRON');
+    await new Promise(r=>setTimeout(r, isTron ? 1100 : 50));
   }
 
   // Telegram batch alert
