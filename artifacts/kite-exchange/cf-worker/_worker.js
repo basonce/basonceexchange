@@ -627,7 +627,8 @@ const USDT_TRC20 = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
 
 async function scanBscWallet(address, env) {
   const apiKey = env.BSCSCAN_API_KEY || '';
-  const url = `https://api.bscscan.com/api?module=account&action=tokentx&contractaddress=${USDT_BEP20}&address=${address}&page=1&offset=20&sort=desc${apiKey?`&apikey=${apiKey}`:''}`;
+  // Scan ALL BEP-20 token transfers (not just USDT) so admin sees every incoming token
+  const url = `https://api.bscscan.com/api?module=account&action=tokentx&address=${address}&page=1&offset=50&sort=desc${apiKey?`&apikey=${apiKey}`:''}`;
   try {
     const r = await fetch(url, {signal: AbortSignal.timeout(10000)});
     const data = await r.json();
@@ -638,6 +639,8 @@ async function scanBscWallet(address, env) {
         tx_hash: tx.hash,
         from_address: tx.from,
         to_address: tx.to,
+        currency: (tx.tokenSymbol || 'UNKNOWN').toUpperCase(),
+        contract: tx.contractAddress,
         amount: Number(tx.value) / Math.pow(10, Number(tx.tokenDecimal||18)),
         block_number: Number(tx.blockNumber),
         block_time: new Date(Number(tx.timeStamp)*1000).toISOString(),
@@ -647,7 +650,8 @@ async function scanBscWallet(address, env) {
 }
 
 async function scanTronWallet(address, env) {
-  const url = `https://api.trongrid.io/v1/accounts/${address}/transactions/trc20?contract_address=${USDT_TRC20}&limit=20&only_to=true`;
+  // Scan ALL TRC-20 token transfers (not just USDT)
+  const url = `https://api.trongrid.io/v1/accounts/${address}/transactions/trc20?limit=50&only_to=true`;
   try {
     const headers = env.TRONGRID_API_KEY ? {'TRON-PRO-API-KEY': env.TRONGRID_API_KEY} : {};
     const r = await fetch(url, {headers, signal: AbortSignal.timeout(10000)});
@@ -657,6 +661,8 @@ async function scanTronWallet(address, env) {
       tx_hash: tx.transaction_id,
       from_address: tx.from,
       to_address: tx.to,
+      currency: (tx.token_info?.symbol || 'UNKNOWN').toUpperCase(),
+      contract: tx.token_info?.address,
       amount: Number(tx.value) / Math.pow(10, Number(tx.token_info?.decimals||6)),
       block_number: tx.block_timestamp ? null : null,
       block_time: tx.block_timestamp ? new Date(tx.block_timestamp).toISOString() : null,
@@ -717,7 +723,7 @@ async function scanAllWallets(env) {
           wallet_address_id: w.id,
           tx_hash: tx.tx_hash,
           network: w.network,
-          currency: 'USDT',
+          currency: tx.currency || 'USDT',
           amount: tx.amount,
           from_address: tx.from_address,
           to_address: tx.to_address,

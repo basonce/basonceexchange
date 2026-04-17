@@ -178,21 +178,22 @@ export default function DepositRadarPanel() {
       alert('Bu cüzdan henüz bir üyeye atanmamış. Önce üyeye atayın.');
       return;
     }
-    if (!confirm(`${d.amount.toFixed(2)} USDT, ${d.user_email || d.user_id} hesabına eklensin mi?`)) return;
+    const sym = (d.currency || 'USDT').toUpperCase();
+    if (!confirm(`${d.amount.toFixed(4)} ${sym}, ${d.user_email || d.user_id} hesabına eklensin mi?`)) return;
     setCrediting(d.id);
     try {
-      // Read current USDT balance
+      // Read current balance for the actual token symbol
       const { data: bal } = await supabase
         .from('user_balances')
-        .select('balance').eq('user_id', d.user_id).eq('symbol', 'USDT').maybeSingle();
+        .select('balance').eq('user_id', d.user_id).eq('symbol', sym).maybeSingle();
       const current = Number(bal?.balance || 0);
-      const next = Number((current + d.amount).toFixed(4));
+      const next = Number((current + d.amount).toFixed(8));
 
       let upd;
       if (bal) {
-        upd = await supabase.from('user_balances').update({ balance: next }).eq('user_id', d.user_id).eq('symbol', 'USDT');
+        upd = await supabase.from('user_balances').update({ balance: next }).eq('user_id', d.user_id).eq('symbol', sym);
       } else {
-        upd = await supabase.from('user_balances').insert({ user_id: d.user_id, symbol: 'USDT', balance: next });
+        upd = await supabase.from('user_balances').insert({ user_id: d.user_id, symbol: sym, balance: next });
       }
       if (upd.error) throw upd.error;
 
