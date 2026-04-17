@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Eye, EyeOff, CheckCircle2, AlertCircle, Smartphone, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { recordLoginEvent } from './SecurityCenterModal';
@@ -39,6 +39,19 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
   const [mfaCode, setMfaCode] = useState('');
   const [mfaError, setMfaError] = useState('');
   const [mfaBusy, setMfaBusy] = useState(false);
+
+  // Auto-close if a session already exists (prevents stale modal over logged-in profile)
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled && data?.session) onClose();
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
+      if (session) onClose();
+    });
+    return () => { cancelled = true; sub.subscription.unsubscribe(); };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

@@ -935,12 +935,6 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
         </div>
       )}
 
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        mode="login"
-      />
-
       <SecurityCenterModal
         isOpen={showSecurityModal}
         onClose={() => setShowSecurityModal(false)}
