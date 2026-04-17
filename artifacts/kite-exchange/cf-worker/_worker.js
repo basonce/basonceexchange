@@ -627,47 +627,92 @@ const USDT_TRC20 = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
 
 async function scanBscWallet(address, env) {
   const apiKey = env.BSCSCAN_API_KEY || '';
-  // Scan ALL BEP-20 token transfers (not just USDT) so admin sees every incoming token
-  const url = `https://api.bscscan.com/api?module=account&action=tokentx&address=${address}&page=1&offset=50&sort=desc${apiKey?`&apikey=${apiKey}`:''}`;
+  const addrLc = address.toLowerCase();
+  // 1) ALL BEP-20 token transfers (USDT, BUSD, EARN, ETH, BTCB, etc.)
+  const tokenUrl = `https://api.bscscan.com/api?module=account&action=tokentx&address=${address}&page=1&offset=50&sort=desc${apiKey?`&apikey=${apiKey}`:''}`;
+  // 2) NATIVE BNB transfers
+  const bnbUrl = `https://api.bscscan.com/api?module=account&action=txlist&address=${address}&page=1&offset=50&sort=desc${apiKey?`&apikey=${apiKey}`:''}`;
   try {
-    const r = await fetch(url, {signal: AbortSignal.timeout(10000)});
-    const data = await r.json();
-    if (data.status !== '1' || !Array.isArray(data.result)) return [];
-    return data.result
-      .filter(tx => tx.to && tx.to.toLowerCase() === address.toLowerCase())
-      .map(tx => ({
-        tx_hash: tx.hash,
-        from_address: tx.from,
-        to_address: tx.to,
-        currency: (tx.tokenSymbol || 'UNKNOWN').toUpperCase(),
-        contract: tx.contractAddress,
-        amount: Number(tx.value) / Math.pow(10, Number(tx.tokenDecimal||18)),
-        block_number: Number(tx.blockNumber),
-        block_time: new Date(Number(tx.timeStamp)*1000).toISOString(),
-        confirmations: Number(tx.confirmations||0),
-      }));
+    const [tokenRes, bnbRes] = await Promise.all([
+      fetch(tokenUrl, {signal: AbortSignal.timeout(10000)}).then(r=>r.json()).catch(()=>({result:[]})),
+      fetch(bnbUrl,   {signal: AbortSignal.timeout(10000)}).then(r=>r.json()).catch(()=>({result:[]})),
+    ]);
+    const out = [];
+    if (Array.isArray(tokenRes.result)) {
+      for (const tx of tokenRes.result) {
+        if (!tx.to || tx.to.toLowerCase() !== addrLc) continue;
+        out.push({
+          tx_hash: tx.hash, from_address: tx.from, to_address: tx.to,
+          currency: (tx.tokenSymbol || 'UNKNOWN').toUpperCase(),
+          contract: tx.contractAddress,
+          amount: Number(tx.value) / Math.pow(10, Number(tx.tokenDecimal||18)),
+          block_number: Number(tx.blockNumber),
+          block_time: new Date(Number(tx.timeStamp)*1000).toISOString(),
+          confirmations: Number(tx.confirmations||0),
+        });
+      }
+    }
+    if (Array.isArray(bnbRes.result)) {
+      for (const tx of bnbRes.result) {
+        if (!tx.to || tx.to.toLowerCase() !== addrLc) continue;
+        if (Number(tx.value) === 0) continue;
+        if (tx.isError === '1') continue;
+        out.push({
+          tx_hash: tx.hash, from_address: tx.from, to_address: tx.to,
+          currency: 'BNB', contract: null,
+          amount: Number(tx.value) / 1e18,
+          block_number: Number(tx.blockNumber),
+          block_time: new Date(Number(tx.timeStamp)*1000).toISOString(),
+          confirmations: Number(tx.confirmations||0),
+        });
+      }
+    }
+    return out;
   } catch (e) { console.error('BSC scan error', address, e.message); return []; }
 }
 
 async function scanTronWallet(address, env) {
-  // Scan ALL TRC-20 token transfers (not just USDT)
-  const url = `https://api.trongrid.io/v1/accounts/${address}/transactions/trc20?limit=50&only_to=true`;
+  const headers = env.TRONGRID_API_KEY ? {'TRON-PRO-API-KEY': env.TRONGRID_API_KEY} : {};
+  // 1) ALL TRC-20 token transfers
+  const trc20Url = `https://api.trongrid.io/v1/accounts/${address}/transactions/trc20?limit=50&only_to=true`;
+  // 2) NATIVE TRX transfers
+  const trxUrl = `https://api.trongrid.io/v1/accounts/${address}/transactions?limit=50&only_to=true`;
   try {
-    const headers = env.TRONGRID_API_KEY ? {'TRON-PRO-API-KEY': env.TRONGRID_API_KEY} : {};
-    const r = await fetch(url, {headers, signal: AbortSignal.timeout(10000)});
-    const data = await r.json();
-    if (!Array.isArray(data.data)) return [];
-    return data.data.map(tx => ({
-      tx_hash: tx.transaction_id,
-      from_address: tx.from,
-      to_address: tx.to,
-      currency: (tx.token_info?.symbol || 'UNKNOWN').toUpperCase(),
-      contract: tx.token_info?.address,
-      amount: Number(tx.value) / Math.pow(10, Number(tx.token_info?.decimals||6)),
-      block_number: tx.block_timestamp ? null : null,
-      block_time: tx.block_timestamp ? new Date(tx.block_timestamp).toISOString() : null,
-      confirmations: 1,
-    }));
+    const [trc20Res, trxRes] = await Promise.all([
+      fetch(trc20Url, {headers, signal: AbortSignal.timeout(10000)}).then(r=>r.json()).catch(()=>({data:[]})),
+      fetch(trxUrl,   {headers, signal: AbortSignal.timeout(10000)}).then(r=>r.json()).catch(()=>({data:[]})),
+    ]);
+    const out = [];
+    if (Array.isArray(trc20Res.data)) {
+      for (const tx of trc20Res.data) {
+        out.push({
+          tx_hash: tx.transaction_id, from_address: tx.from, to_address: tx.to,
+          currency: (tx.token_info?.symbol || 'UNKNOWN').toUpperCase(),
+          contract: tx.token_info?.address,
+          amount: Number(tx.value) / Math.pow(10, Number(tx.token_info?.decimals||6)),
+          block_number: null,
+          block_time: tx.block_timestamp ? new Date(tx.block_timestamp).toISOString() : null,
+          confirmations: 1,
+        });
+      }
+    }
+    if (Array.isArray(trxRes.data)) {
+      for (const tx of trxRes.data) {
+        const c = tx.raw_data?.contract?.[0];
+        if (!c || c.type !== 'TransferContract') continue;
+        const v = c.parameter?.value;
+        if (!v || !v.amount) continue;
+        out.push({
+          tx_hash: tx.txID, from_address: v.owner_address, to_address: v.to_address,
+          currency: 'TRX', contract: null,
+          amount: Number(v.amount) / 1e6,
+          block_number: null,
+          block_time: tx.block_timestamp ? new Date(tx.block_timestamp).toISOString() : null,
+          confirmations: 1,
+        });
+      }
+    }
+    return out;
   } catch (e) { console.error('TRON scan error', address, e.message); return []; }
 }
 
