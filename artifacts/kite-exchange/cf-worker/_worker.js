@@ -204,22 +204,35 @@ async function sbRpc(fn, body, env) {
 /* ═══════════════════════════════════════════════
    CRYPTO PRICES (KuCoin) — in-memory cache per isolate
 ═══════════════════════════════════════════════ */
-let _cryptoCache=null, _cryptoCacheTs=0;
+// EPOCH-ALIGNED cache: every device worldwide sees the SAME snapshot
+// in any given 15-second time slot. Slot boundaries are fixed at
+// floor(epoch_ms / 15000) so two devices calling at any time within
+// the same slot get the identical price snapshot.
+const CRYPTO_SLOT_MS = 15000;
+let _cryptoCache=null, _cryptoSlot=-1, _cryptoInflight=null;
 async function getAllKuCoinPrices() {
-  const now=Date.now();
-  if (_cryptoCache && now-_cryptoCacheTs<15000) return _cryptoCache;
-  const r = await fetch('https://api.kucoin.com/api/v1/market/allTickers',{signal:AbortSignal.timeout(8000)});
-  if (!r.ok) throw new Error(`KuCoin ${r.status}`);
-  const json = await r.json();
-  const result={};
-  for (const t of (json?.data?.ticker||[])) {
-    if (!t.symbol.endsWith('-USDT')) continue;
-    const sym=t.symbol.replace('-USDT','');
-    const price=parseFloat(t.last);
-    if (price>0) result[sym]={price,change:parseFloat(t.changeRate)*100};
-  }
-  _cryptoCache=result; _cryptoCacheTs=now;
-  return result;
+  const slot = Math.floor(Date.now() / CRYPTO_SLOT_MS);
+  if (_cryptoCache && _cryptoSlot === slot) return _cryptoCache;
+  if (_cryptoInflight) return _cryptoInflight;
+  _cryptoInflight = (async () => {
+    try {
+      const r = await fetch('https://api.kucoin.com/api/v1/market/allTickers',{signal:AbortSignal.timeout(8000)});
+      if (!r.ok) throw new Error(`KuCoin ${r.status}`);
+      const json = await r.json();
+      const result={};
+      for (const t of (json?.data?.ticker||[])) {
+        if (!t.symbol.endsWith('-USDT')) continue;
+        const sym=t.symbol.replace('-USDT','');
+        const price=parseFloat(t.last);
+        if (price>0) result[sym]={price,change:parseFloat(t.changeRate)*100};
+      }
+      _cryptoCache=result; _cryptoSlot=slot;
+      return result;
+    } finally {
+      _cryptoInflight=null;
+    }
+  })();
+  return _cryptoInflight;
 }
 
 /* ═══════════════════════════════════════════════
@@ -236,7 +249,9 @@ const YAHOO_MAP = {
   SAPUSDT:'SAP',ASMUSDT:'ASML',NESNUSDT:'NSRGY',LVMHUSDT:'LVMUY',SHUSDT:'SH',
   OILUSDT:'CL=F',NGASUSDT:'NG=F',WHEATUSDT:'ZW=F',CORNUSDT:'ZC=F',SOYUSDT:'ZS=F',
 };
-let _tradfiCache=null, _tradfiCacheTs=0;
+// EPOCH-aligned 60s slots — global single snapshot
+const TRADFI_SLOT_MS = 60000;
+let _tradfiCache=null, _tradfiSlot=-1, _tradfiInflight=null;
 async function fetchYahooQuote(sym) {
   try {
     const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=2d`,
@@ -252,19 +267,33 @@ async function fetchYahooQuote(sym) {
   } catch { return null; }
 }
 async function getAllTradfiPrices(symbols) {
-  const now=Date.now();
-  if (_tradfiCache && now-_tradfiCacheTs<60000) {
+  const slot = Math.floor(Date.now() / TRADFI_SLOT_MS);
+  if (_tradfiCache && _tradfiSlot === slot) {
     if (!symbols) return _tradfiCache;
     const out={}; for (const s of symbols) if (_tradfiCache[s]) out[s]=_tradfiCache[s];
     return out;
   }
-  const pairs=Object.entries(YAHOO_MAP);
-  const results=await Promise.allSettled(pairs.map(([k,v])=>fetchYahooQuote(v).then(d=>[k,d])));
-  const out={};
-  for (const r of results) if (r.status==='fulfilled'&&r.value[1]) out[r.value[0]]=r.value[1];
-  _tradfiCache=out; _tradfiCacheTs=now;
-  if (!symbols) return out;
-  const filtered={}; for (const s of symbols) if (out[s]) filtered[s]=out[s];
+  if (_tradfiInflight) {
+    const cache = await _tradfiInflight;
+    if (!symbols) return cache;
+    const out={}; for (const s of symbols) if (cache[s]) out[s]=cache[s];
+    return out;
+  }
+  _tradfiInflight = (async () => {
+    try {
+      const pairs=Object.entries(YAHOO_MAP);
+      const results=await Promise.allSettled(pairs.map(([k,v])=>fetchYahooQuote(v).then(d=>[k,d])));
+      const out={};
+      for (const r of results) if (r.status==='fulfilled'&&r.value[1]) out[r.value[0]]=r.value[1];
+      _tradfiCache=out; _tradfiSlot=slot;
+      return out;
+    } finally {
+      _tradfiInflight=null;
+    }
+  })();
+  const fresh = await _tradfiInflight;
+  if (!symbols) return fresh;
+  const filtered={}; for (const s of symbols) if (fresh[s]) filtered[s]=fresh[s];
   return filtered;
 }
 
