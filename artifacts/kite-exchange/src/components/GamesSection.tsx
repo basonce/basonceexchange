@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import { supabase, getCurrentUser } from '../lib/supabase';
-import { pickFreshMatchups, getLeague, ri, rf, ALL_MATCHUPS, type MatchTemplate } from '../lib/sportsData';
+import { getLeague, ri, rf, LEAGUE_TEAMS, type MatchTemplate, type Team } from '../lib/sportsData';
 
 /** Format a number with thousands separator + 2 decimal places. e.g. 16261406697.97 → "16,261,406,697.97" */
 const fmt = (n: number): string =>
@@ -2093,6 +2093,99 @@ function MyBets({ bets, matches }: { bets: PlacedBet[]; matches: LiveMatch[] }) 
 }
 
 /* ══════════════════════════════════════════════════════════
+   SERVER SNAPSHOT TYPES (mirrors cf-worker /api/sport/snapshot)
+══════════════════════════════════════════════════════════ */
+interface ServerMatch {
+  id: string;
+  leagueId: string;
+  homeTeam: string; homeAbbr: string;
+  awayTeam: string; awayAbbr: string;
+  startedAt: number;
+  minute: number;
+  phase: 'first_half' | 'ht_break' | 'second_half' | 'ft_stoppage' | 'finished';
+  status: 'live' | 'finished';
+  homeScore: number; awayScore: number;
+  finishedAt: number | null;
+  odds: { w1: number; x: number; w2: number };
+  totalOdds: { line: number; over: number; under: number };
+  goalEvents: GoalEvent[];
+  pinned?: boolean;
+  hasAdminCtrl?: boolean;
+}
+
+function getOrBuildTeam(name: string, abbr: string, leagueId: string): Team {
+  const teams = LEAGUE_TEAMS[leagueId] || [];
+  const found = teams.find(t => t.name === name);
+  if (found) return found;
+  return { name, abbr, color: '#1a56db' };
+}
+
+/** Convert a server snapshot match into a full LiveMatch, preserving cosmetic state from prev when possible */
+function mergeServerMatch(srv: ServerMatch, prev?: LiveMatch): LiveMatch {
+  const home = getOrBuildTeam(srv.homeTeam, srv.homeAbbr, srv.leagueId);
+  const away = getOrBuildTeam(srv.awayTeam, srv.awayAbbr, srv.leagueId);
+  const tmpl: MatchTemplate = { leagueId: srv.leagueId, homeTeam: home, awayTeam: away };
+
+  const phase: LiveMatch['phase'] =
+    srv.phase === 'finished' ? 'second_half' :
+    srv.phase === 'first_half' ? 'first_half' :
+    srv.phase === 'ht_break' ? 'ht_break' :
+    srv.phase === 'second_half' ? 'second_half' : 'ft_stoppage';
+
+  const goalChanged = !prev || prev.homeScore !== srv.homeScore || prev.awayScore !== srv.awayScore;
+  const justScored: 'home' | 'away' | null =
+    !prev ? null :
+    srv.homeScore > prev.homeScore ? 'home' :
+    srv.awayScore > prev.awayScore ? 'away' : null;
+
+  const odds = srv.odds;
+  const prevOdds = prev?.odds;
+  const oddsDir: OddsDirs | undefined = prevOdds ? {
+    w1: odds.w1 > prevOdds.w1 ? 'up' : odds.w1 < prevOdds.w1 ? 'down' : 'same',
+    x:  odds.x  > prevOdds.x  ? 'up' : odds.x  < prevOdds.x  ? 'down' : 'same',
+    w2: odds.w2 > prevOdds.w2 ? 'up' : odds.w2 < prevOdds.w2 ? 'down' : 'same',
+  } : undefined;
+
+  const extMarkets = (prev && !goalChanged && prev.extMarkets.length > 0)
+    ? prev.extMarkets
+    : buildExtMarkets(srv.homeScore, srv.awayScore, odds.w1, odds.x, odds.w2);
+
+  const adminCtrl: AdminCtrl | undefined = srv.hasAdminCtrl
+    ? { pinned: !!srv.pinned, startedAt: srv.startedAt }
+    : undefined;
+
+  return {
+    id: srv.id,
+    tmpl,
+    homeScore: srv.homeScore,
+    awayScore: srv.awayScore,
+    minute: srv.minute,
+    half: srv.minute > 45 ? 2 : 1,
+    status: srv.status,
+    odds,
+    prevOdds,
+    oddsDir,
+    totalOdds: srv.totalOdds,
+    extMarkets,
+    goalFlash: justScored,
+    flashTs: justScored ? Date.now() : (prev?.flashTs ?? 0),
+    finishedAt: srv.finishedAt,
+    halfTimeScore: prev?.halfTimeScore ?? (srv.minute >= 45 ? { h: srv.homeScore, a: srv.awayScore } : undefined),
+    adminCtrl,
+    goalEvents: srv.goalEvents,
+    phase,
+    stoppageMin: srv.phase === 'ft_stoppage' ? Math.max(1, srv.minute - 89) : 0,
+    stoppageHT: 0,
+    stoppageFT: srv.phase === 'ft_stoppage' ? 5 : 0,
+    htBreakLeft: srv.phase === 'ht_break' ? 1 : 0,
+    homeAttack: prev?.homeAttack ?? [],
+    awayAttack: prev?.awayAttack ?? [],
+    matchStats: prev?.matchStats ?? { shotsH: 0, shotsA: 0, cornersH: 0, cornersA: 0, possession: 50 },
+    pitchEvent: prev?.pitchEvent,
+  };
+}
+
+/* ══════════════════════════════════════════════════════════
    MAIN COMPONENT
 ══════════════════════════════════════════════════════════ */
 export default function GamesSection() {
@@ -2177,215 +2270,82 @@ export default function GamesSection() {
     };
   }, []);
 
-  /* Init matches — restore from localStorage or generate fresh */
+  /* ── SERVER SNAPSHOT POLLER ──────────────────────────────────
+     Single source of truth: every 3s fetch /api/sport/snapshot.
+     Worker generates matches deterministically from a 2-hour epoch
+     and computes scores/odds from elapsed time. ALL devices see
+     identical match list, identical scores, identical odds.
+     Local localStorage cache removed. */
   useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
+    let cancelled = false;
+    let prevMatchesRef: LiveMatch[] = [];
 
-    let initMatches: LiveMatch[] | null = null;
-
-    // Try to restore saved match state (< 2 hours old)
-    try {
-      const raw = localStorage.getItem('sport_matches_v3');
-      if (raw) {
-        const parsed = JSON.parse(raw) as { ts: number; matches: LiveMatch[] };
-        const age = Date.now() - parsed.ts;
-        if (age < 2 * 3600 * 1000 && Array.isArray(parsed.matches) && parsed.matches.length > 0) {
-          // Keep only live matches (drop finished ones already removed from list)
-          const liveOnly = parsed.matches.filter(m => m.status === 'live');
-          if (liveOnly.length > 0) {
-            initMatches = liveOnly;
-            // Advance counter past existing IDs to avoid collisions
-            const maxIdx = Math.max(...liveOnly.map(m => parseInt(m.id.split('_')[1] || '0', 10)));
-            counter.current = Math.max(counter.current, maxIdx + 1);
-          }
-        }
-      }
-    } catch {}
-
-    // No valid saved state → generate fresh
-    if (!initMatches) {
-      const templates = pickFreshMatchups(30);
-      initMatches = templates.map((t, i) => buildMatch(t, i));
-    }
-
-    setMatches(initMatches);
-
-    // Load finished match IDs so we don't refund already-settled bets
-    const finishedIds = new Set<string>();
-    try {
-      const fRaw = localStorage.getItem('sport_finished_matches');
-      if (fRaw) {
-        for (const id of Object.keys(JSON.parse(fRaw) as Record<string, unknown>)) {
-          finishedIds.add(id);
-        }
-      }
-    } catch {}
-
-    const liveIds = new Set(initMatches.map(m => m.id));
-
-    // Only auto-refund open bets whose match is truly unknown (not live, not finished)
-    // NEVER touch bets that are already won / lost / refunded
-    setPlacedBets(prev => {
-      const needsRefund = prev.filter(
-        b => b.status === 'open' && !liveIds.has(b.matchId) && !finishedIds.has(b.matchId)
-      );
-      if (needsRefund.length === 0) return prev;
-      return prev.map(b => {
-        if (b.status === 'open' && !liveIds.has(b.matchId) && !finishedIds.has(b.matchId)) {
-          fetch(`/api/sport-bets/${b.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 'refunded' }),
-          }).catch(() => {});
-          return { ...b, status: 'refunded' as const, result: 'Match not found' };
-        }
-        return b;
-      });
-    });
-  }, []);
-
-  /* Poll admin match controls every 10s */
-  useEffect(() => {
-    async function fetchControls() {
+    async function fetchSnapshot() {
       try {
-        const CTRL_URL = 'https://jfjjymprvjfltpvmfptj.supabase.co/storage/v1/object/public/sport-controls/controls.json';
-        const res = await fetch(`${CTRL_URL}?t=${Date.now()}`, { cache: 'no-store' });
-        const data: Array<{ homeTeam: string; awayTeam: string; targetResult?: '1'|'X'|'2'; targetScore?: {h:number;a:number}; targetTotal?: number; startedAt?: number; pinned: boolean }> = res.ok ? await res.json() : [];
-        const map = new Map<string, AdminCtrl>();
-        for (const c of data) {
-          map.set(`${c.homeTeam}:${c.awayTeam}`, {
-            targetResult: c.targetResult,
-            targetScore: c.targetScore,
-            targetTotal: c.targetTotal,
-            startedAt: c.startedAt,
-            pinned: c.pinned,
+        const res = await fetch(`/api/sport/snapshot?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json() as { matches: ServerMatch[] };
+        if (cancelled || !Array.isArray(data.matches)) return;
+
+        setMatches(prev => {
+          const prevById = new Map(prev.map(m => [m.id, m]));
+          // Keep recently-finished local matches for ~10s so settlement UI doesn't flicker
+          const stillFinishing = prev.filter(m =>
+            m.status === 'finished' &&
+            m.finishedAt && (Date.now() - m.finishedAt < 10000) &&
+            !data.matches.some(s => s.id === m.id)
+          );
+          const merged = data.matches.map(srv => mergeServerMatch(srv, prevById.get(srv.id)));
+          // Pinned admin matches first, then other admin, then rest
+          merged.sort((a, b) => {
+            const aS = a.adminCtrl?.pinned ? 2 : a.adminCtrl ? 1 : 0;
+            const bS = b.adminCtrl?.pinned ? 2 : b.adminCtrl ? 1 : 0;
+            return bS - aS;
           });
+          prevMatchesRef = [...merged, ...stillFinishing];
+          return prevMatchesRef;
+        });
+
+        // Populate controlsRef for any remaining downstream consumers
+        const map = new Map<string, AdminCtrl>();
+        for (const m of data.matches) {
+          if (m.hasAdminCtrl) {
+            map.set(`${m.homeTeam}:${m.awayTeam}`, { pinned: !!m.pinned, startedAt: m.startedAt });
+          }
         }
         controlsRef.current = map;
 
-        setMatches(prev => {
-          // Step 1: apply / remove adminCtrl on existing matches
-          let next = prev.map(m => {
-            const key = `${m.tmpl.homeTeam.name}:${m.tmpl.awayTeam.name}`;
-            const ctrl = map.get(key);
-            if (!ctrl) return m.adminCtrl ? { ...m, adminCtrl: undefined } : m;
-
-            const prevStartedAt = m.adminCtrl?.startedAt;
-            const startedAtChanged = ctrl.startedAt && ctrl.startedAt !== prevStartedAt;
-
-            // If startedAt changed → hard reset match to 0-0 at minute 1 with fresh schedule
-            if (startedAtChanged && ctrl.targetScore) {
-              const ts = ctrl.targetScore;
-              const schedKey = `${ts.h}-${ts.a}-${ctrl.startedAt}`;
-              const scheduled = generateScheduledGoals(ts, 0, 0, 1);
-              const newTotalOdds = adminTotalOdds(ts.h + ts.a, 0, 1);
-              return {
-                ...m,
-                homeScore: 0, awayScore: 0, minute: 1, half: 1, goalEvents: [],
-                status: 'live' as const,
-                totalOdds: newTotalOdds,
-                adminCtrl: { ...ctrl, scheduledGoals: scheduled, scheduleKey: schedKey },
-              };
+        if (!initialized.current) {
+          initialized.current = true;
+          // Refund any open bets whose match is no longer in server snapshot
+          const liveIds = new Set(data.matches.map(m => m.id));
+          const finishedIds = new Set<string>();
+          try {
+            const fRaw = localStorage.getItem('sport_finished_matches');
+            if (fRaw) for (const id of Object.keys(JSON.parse(fRaw) as Record<string, unknown>)) finishedIds.add(id);
+          } catch {}
+          setPlacedBets(prev => prev.map(b => {
+            if (b.status === 'open' && !liveIds.has(b.matchId) && !finishedIds.has(b.matchId)) {
+              fetch(`/api/sport-bets/${b.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'refunded' }),
+              }).catch(() => {});
+              return { ...b, status: 'refunded' as const, result: 'Match not found' };
             }
-
-            // Recalc O/U odds based on target (every poll, so it stays accurate)
-            let updatedTotalOdds = m.totalOdds;
-            if (ctrl.targetScore) {
-              updatedTotalOdds = adminTotalOdds(
-                ctrl.targetScore.h + ctrl.targetScore.a,
-                m.homeScore + m.awayScore,
-                m.minute,
-              );
-            }
-
-            // Preserve existing scheduledGoals unless adminCtrl changed
-            const existingSchedule = m.adminCtrl?.scheduledGoals;
-            const existingScheduleKey = m.adminCtrl?.scheduleKey;
-            return {
-              ...m,
-              totalOdds: updatedTotalOdds,
-              adminCtrl: {
-                ...ctrl,
-                scheduledGoals: existingSchedule,
-                scheduleKey: existingScheduleKey,
-              },
-            };
-          });
-
-          // Step 2: inject admin-controlled matches not already in live list (pinned or not)
-          const liveKeys = new Set(next.filter(m => m.status === 'live').map(m => `${m.tmpl.homeTeam.name}:${m.tmpl.awayTeam.name}`));
-          for (const [key, ctrl] of map.entries()) {
-            if (liveKeys.has(key)) continue;
-            const tmpl = ALL_MATCHUPS.find(t => `${t.homeTeam.name}:${t.awayTeam.name}` === key);
-            if (!tmpl) continue;
-            counter.current++;
-            const nm = buildMatch(tmpl, counter.current);
-
-            let injectedMatch: LiveMatch;
-            if (ctrl.targetScore) {
-              const ts = ctrl.targetScore;
-              const targetTot = ts.h + ts.a;
-              if (ctrl.startedAt) {
-                // Fresh start: 0-0 at minute 1 with goal schedule
-                const schedKey = `${ts.h}-${ts.a}-${ctrl.startedAt}`;
-                const scheduled = generateScheduledGoals(ts, 0, 0, 1);
-                const newTotalOdds = adminTotalOdds(targetTot, 0, 1);
-                injectedMatch = {
-                  ...nm, homeScore: 0, awayScore: 0, minute: 1, half: 1, goalEvents: [],
-                  totalOdds: newTotalOdds,
-                  adminCtrl: { ...ctrl, scheduledGoals: scheduled, scheduleKey: schedKey },
-                };
-              } else {
-                // Legacy: snap to target score immediately
-                const newTotalOdds = adminTotalOdds(targetTot, targetTot, 45);
-                injectedMatch = {
-                  ...nm, homeScore: ts.h, awayScore: ts.a,
-                  totalOdds: newTotalOdds,
-                  adminCtrl: ctrl,
-                };
-              }
-            } else {
-              injectedMatch = { ...nm, adminCtrl: ctrl };
-            }
-            next = [injectedMatch, ...next];
-          }
-
-          // Step 2.5: Remove random matches where either team is already in an admin-controlled match
-          // (prevents duplicate teams appearing in two different matches simultaneously)
-          const adminTeams = new Set<string>();
-          for (const m of next) {
-            if (m.adminCtrl) {
-              adminTeams.add(m.tmpl.homeTeam.name);
-              adminTeams.add(m.tmpl.awayTeam.name);
-            }
-          }
-          if (adminTeams.size > 0) {
-            next = next.filter(m => {
-              if (m.adminCtrl) return true; // always keep admin matches
-              // Remove random match if either team is in an admin match
-              return !adminTeams.has(m.tmpl.homeTeam.name) && !adminTeams.has(m.tmpl.awayTeam.name);
-            });
-          }
-
-          // Step 3: admin-controlled matches always at top (pinned first, then other admin, then random)
-          next.sort((a, b) => {
-            const aScore = a.adminCtrl?.pinned ? 2 : a.adminCtrl ? 1 : 0;
-            const bScore = b.adminCtrl?.pinned ? 2 : b.adminCtrl ? 1 : 0;
-            return bScore - aScore;
-          });
-
-          return next;
-        });
+            return b;
+          }));
+        }
       } catch {}
     }
-    fetchControls();
-    const iv = setInterval(fetchControls, 10000);
-    // Immediately re-fetch when admin submits a control
-    window.addEventListener('admin-control-updated', fetchControls);
+
+    fetchSnapshot();
+    const iv = setInterval(fetchSnapshot, 3000);
+    window.addEventListener('admin-control-updated', fetchSnapshot);
     return () => {
+      cancelled = true;
       clearInterval(iv);
-      window.removeEventListener('admin-control-updated', fetchControls);
+      window.removeEventListener('admin-control-updated', fetchSnapshot);
     };
   }, []);
 
@@ -2585,263 +2545,55 @@ export default function GamesSection() {
     }
   }, [balanceId, userId, notify]);
 
-  /* Match tick — every 10s */
+  /* Cosmetic tick — every 4s. Server controls scores/minute/odds; this only
+     updates visual things: pitch event animation, attack waves, possession drift.
+     Also detects matches that finished server-side and triggers settlement. */
   useEffect(() => {
+    let lastSeenIds = new Set<string>();
     const tick = setInterval(() => {
       const now = Date.now();
       setMatches(prev => {
+        // Detect newly-finished matches for bet settlement
         const finishing: LiveMatch[] = [];
-        let next = prev.map(m => {
+        for (const m of prev) {
+          if (m.status === 'finished' && !lastSeenIds.has(m.id)) finishing.push(m);
+        }
+        lastSeenIds = new Set(prev.map(m => m.id));
+
+        const next = prev.map(m => {
           if (m.status === 'finished') return m;
-
-          // ── Phase-aware clock tick ──────────────────────────
-          // Guard: old cached matches may not have new fields — backfill defaults
-          let mm: LiveMatch = {
-            ...m,
-            phase: m.phase ?? (m.minute > 45 ? 'second_half' : 'first_half'),
-            stoppageMin: m.stoppageMin ?? 0,
-            stoppageHT: m.stoppageHT ?? 0,
-            stoppageFT: m.stoppageFT ?? 0,
-            htBreakLeft: m.htBreakLeft ?? 0,
-            homeAttack: m.homeAttack ?? [],
-            awayAttack: m.awayAttack ?? [],
-            matchStats: m.matchStats ?? { shotsH: 0, shotsA: 0, cornersH: 0, cornersA: 0, possession: 50 },
+          // Cosmetic-only updates
+          const t: 'home' | 'away' = Math.random() < 0.52 ? 'home' : 'away';
+          const hAtk = ri(20, 68);
+          const aAtk = ri(20, 68);
+          const newHA = [...(m.homeAttack ?? []), hAtk].slice(-90);
+          const newAA = [...(m.awayAttack ?? []), aAtk].slice(-90);
+          const cur = m.matchStats ?? { shotsH: 0, shotsA: 0, cornersH: 0, cornersA: 0, possession: 50 };
+          const newStats: MatchStats = {
+            shotsH: cur.shotsH + (Math.random() < 0.18 ? 1 : 0),
+            shotsA: cur.shotsA + (Math.random() < 0.18 ? 1 : 0),
+            cornersH: cur.cornersH + (Math.random() < 0.10 ? 1 : 0),
+            cornersA: cur.cornersA + (Math.random() < 0.10 ? 1 : 0),
+            possession: Math.min(78, Math.max(22, cur.possession + (Math.random() < 0.5 ? 1 : -1))),
           };
-
-          // HT break: freeze clock, no goals
-          if (mm.phase === 'ht_break') {
-            const left = mm.htBreakLeft - 1;
-            if (left <= 0) {
-              mm = { ...mm, phase: 'second_half', htBreakLeft: 0, half: 2 };
-            } else {
-              mm = { ...mm, htBreakLeft: left };
-            }
-            return mm;
-          }
-
-          // FT stoppage
-          if (mm.phase === 'ft_stoppage') {
-            const nextStopMin = mm.stoppageMin + 1;
-            if (nextStopMin > mm.stoppageFT) {
-              const fin = { ...mm, status: 'finished' as const, finishedAt: now };
-              finishing.push(fin);
-              return fin;
-            }
-            mm = { ...mm, stoppageMin: nextStopMin };
-            // Allow goals in FT stoppage (result-control can fire here)
-          }
-
-          // First-half / second-half minute advance
-          if (mm.phase === 'first_half' || mm.phase === 'second_half') {
-            // Advance minute
-            mm = { ...mm, minute: mm.minute + 1, half: mm.minute + 1 > 45 ? 2 : 1 };
-
-            // End of first half — enter HT stoppage ticks then break
-            if (mm.phase === 'first_half' && mm.minute >= 45) {
-              if (mm.stoppageHT === 0) {
-                // Assign HT stoppage time
-                const shtMin = ri(1, 4);
-                mm = { ...mm, minute: 45, stoppageHT: shtMin, stoppageMin: 1, halfTimeScore: { h: mm.homeScore, a: mm.awayScore } };
-              } else if (mm.stoppageMin < mm.stoppageHT) {
-                mm = { ...mm, minute: 45, stoppageMin: mm.stoppageMin + 1 };
-              } else {
-                // HT break starts
-                mm = { ...mm, minute: 45, stoppageMin: 0, htBreakLeft: 3, phase: 'ht_break' };
-                return mm;
-              }
-            }
-
-            // End of second half — enter FT stoppage
-            if (mm.phase === 'second_half' && mm.minute >= 90) {
-              const sftMin = ri(2, 6);
-              mm = { ...mm, minute: 90, stoppageFT: sftMin, stoppageMin: 1, phase: 'ft_stoppage' };
-            }
-          }
-
-          // Goal logic (~7% per tick)
-          let scoringSide: 'home' | 'away' | undefined;
-
-          // ── Admin control steering ──────────────────────────
-          const ctrl = mm.adminCtrl;
-          if (ctrl) {
-            const minsLeft = 90 - mm.minute;
-            if (ctrl.targetScore !== undefined) {
-              const ts = ctrl.targetScore;
-              const schedKey = `${ts.h}-${ts.a}-${ctrl.startedAt ?? 'x'}`;
-
-              if (!ctrl.scheduledGoals || ctrl.scheduleKey !== schedKey) {
-                // Lazy-init: generate goal schedule on first tick
-                const scheduled = generateScheduledGoals(ts, mm.homeScore, mm.awayScore, mm.minute);
-                mm = { ...mm, adminCtrl: { ...ctrl, scheduledGoals: scheduled, scheduleKey } };
-              } else {
-                const homeStillNeeds = mm.homeScore < ts.h;
-                const awayStillNeeds = mm.awayScore < ts.a;
-                const goalsLeft = Math.max(0, ts.h - mm.homeScore) + Math.max(0, ts.a - mm.awayScore);
-                const due = ctrl.scheduledGoals.find(g => g.minute === mm.minute);
-                if (due && goalsLeft > 0) {
-                  // Use scheduled side — only redirect if that team already met quota
-                  let finalSide: 'home' | 'away' | null = null;
-                  if (due.side === 'home' && homeStillNeeds) finalSide = 'home';
-                  else if (due.side === 'away' && awayStillNeeds) finalSide = 'away';
-                  else if (due.side === 'home' && awayStillNeeds) finalSide = 'away'; // redirect
-                  else if (due.side === 'away' && homeStillNeeds) finalSide = 'home'; // redirect
-                  if (finalSide) {
-                    scoringSide = finalSide;
-                    mm = {
-                      ...mm,
-                      homeScore: finalSide === 'home' ? mm.homeScore + 1 : mm.homeScore,
-                      awayScore: finalSide === 'away' ? mm.awayScore + 1 : mm.awayScore,
-                      goalFlash: finalSide, flashTs: now,
-                    };
-                  }
-                }
-                // Hard guarantee at min 88: only ADD missing goals, never reduce
-                if (mm.minute >= 88) {
-                  const finalH = Math.max(mm.homeScore, ts.h);
-                  const finalA = Math.max(mm.awayScore, ts.a);
-                  if (mm.homeScore !== finalH || mm.awayScore !== finalA) {
-                    mm = { ...mm, homeScore: finalH, awayScore: finalA };
-                  }
-                }
-              }
-            } else if (ctrl.targetResult && minsLeft <= 3) {
-              // Result-only: force minimal score adjustment at end
-              const h = mm.homeScore, a = mm.awayScore;
-              if (ctrl.targetResult === '1' && h <= a) {
-                mm = { ...mm, homeScore: a + 1, goalFlash: 'home', flashTs: now };
-                scoringSide = 'home';
-              } else if (ctrl.targetResult === '2' && a <= h) {
-                mm = { ...mm, awayScore: h + 1, goalFlash: 'away', flashTs: now };
-                scoringSide = 'away';
-              } else if (ctrl.targetResult === 'X' && h !== a) {
-                mm = { ...mm, awayScore: h };
-              }
-            }
-          } else {
-            // Normal random goal logic (~7% per tick)
-            if (Math.random() < 0.07) {
-              scoringSide = Math.random() < 0.52 ? 'home' : 'away';
-              const newHome = scoringSide === 'home' ? mm.homeScore + 1 : mm.homeScore;
-              const newAway = scoringSide === 'away' ? mm.awayScore + 1 : mm.awayScore;
-              mm = { ...mm, homeScore: newHome, awayScore: newAway, goalFlash: scoringSide, flashTs: now };
-            }
-          }
-
-          // Record goal event + update O/U odds
-          if (scoringSide) {
-            const ev: GoalEvent = { minute: mm.minute, side: scoringSide, score: `${mm.homeScore}–${mm.awayScore}` };
-            mm = { ...mm, goalEvents: [...(mm.goalEvents || []), ev] };
-          }
-
-          // ── Attack wave tracking (simulation chart) ──
-          {
-            const hAtk = scoringSide === 'home' ? ri(80, 100) : scoringSide === 'away' ? ri(5, 18) : ri(20, 68);
-            const aAtk = scoringSide === 'away' ? ri(80, 100) : scoringSide === 'home' ? ri(5, 18) : ri(20, 68);
-            const newHA = [...(mm.homeAttack ?? []), hAtk].slice(-90);
-            const newAA = [...(mm.awayAttack ?? []), aAtk].slice(-90);
-            // Drift possession slightly towards scoring team
-            const curStats: MatchStats = mm.matchStats ?? { shotsH: 0, shotsA: 0, cornersH: 0, cornersA: 0, possession: 50 };
-            const newPoss = scoringSide === 'home'
-              ? Math.min(78, curStats.possession + ri(1, 3))
-              : scoringSide === 'away'
-                ? Math.max(22, curStats.possession - ri(1, 3))
-                : curStats.possession + (Math.random() < 0.5 ? 1 : -1);
-            const newStats: MatchStats = {
-              shotsH: curStats.shotsH + (scoringSide === 'home' ? ri(1, 3) : Math.random() < 0.18 ? 1 : 0),
-              shotsA: curStats.shotsA + (scoringSide === 'away' ? ri(1, 3) : Math.random() < 0.18 ? 1 : 0),
-              cornersH: curStats.cornersH + (Math.random() < 0.12 ? 1 : 0),
-              cornersA: curStats.cornersA + (Math.random() < 0.12 ? 1 : 0),
-              possession: Math.min(79, Math.max(21, newPoss)),
-            };
-            mm = { ...mm, homeAttack: newHA, awayAttack: newAA, matchStats: newStats };
-          }
-
-          // Recalculate O/U odds:
-          //   • Admin-controlled matches → deterministic model based on remaining goals & time
-          //   • Normal matches → random drift
-          if (mm.adminCtrl?.targetScore) {
-            const ts = mm.adminCtrl.targetScore;
-            mm = { ...mm, totalOdds: adminTotalOdds(ts.h + ts.a, mm.homeScore + mm.awayScore, mm.minute) };
-          } else if (scoringSide) {
-            const newTotal = mm.homeScore + mm.awayScore;
-            const newLine = dynamicOULine(newTotal, mm.totalOdds.line);
-            const newTotalOdds: TotalOdds = {
-              line: newLine,
-              over:  +(rf(1.55, 2.90)).toFixed(2),
-              under: +(rf(1.55, 2.90)).toFixed(2),
-            };
-            mm = { ...mm, totalOdds: newTotalOdds };
-          }
-
-          // Recalc result odds — big shift on goal, small drift every tick
-          const newOdds = recalcOdds(mm.odds, mm.homeScore, mm.awayScore, mm.minute, !!scoringSide, scoringSide);
-          const newOddsDir = calcOddsDir(mm.odds, newOdds);
-          // Always rebuild extended markets so the panel reflects live state
-          const newExtMarkets = buildExtMarkets(mm.homeScore, mm.awayScore, newOdds.w1, newOdds.x, newOdds.w2);
-          mm = { ...mm, prevOdds: mm.odds, odds: newOdds, oddsDir: newOddsDir, extMarkets: newExtMarkets };
-
-          // ── Generate live pitch event ────────────────────────
-          {
-            const pitchEvents: Array<LiveMatch['pitchEvent']> = [];
-            const addEv = (type: NonNullable<LiveMatch['pitchEvent']>['type'], team: 'home' | 'away', w: number) => {
-              for (let i = 0; i < w; i++) pitchEvents.push({ type, team, ts: now });
-            };
-            const t: 'home' | 'away' = scoringSide ?? (Math.random() < 0.52 ? 'home' : 'away');
-            if (scoringSide) {
-              addEv('shot', scoringSide, 6);
-              addEv('dangerous_attack', scoringSide, 4);
-            } else {
-              addEv('ball_play', t, 8);
-              addEv('attack', t, 7);
-              addEv('dangerous_attack', t, 4);
-              addEv('throw_in', Math.random() < 0.5 ? 'home' : 'away', 4);
-              addEv('corner', Math.random() < 0.5 ? 'home' : 'away', 2);
-              addEv('foul', Math.random() < 0.5 ? 'home' : 'away', 3);
-              addEv('offside', Math.random() < 0.5 ? 'home' : 'away', 2);
-              addEv('save', Math.random() < 0.5 ? 'home' : 'away', 2);
-              addEv('shot', t, 3);
-            }
-            const chosen = pitchEvents[Math.floor(Math.random() * pitchEvents.length)];
-            mm = { ...mm, pitchEvent: chosen };
-          }
-
-          return mm;
+          const evTypes: NonNullable<LiveMatch['pitchEvent']>['type'][] =
+            ['ball_play','attack','dangerous_attack','throw_in','corner','foul','offside','save','shot'];
+          const pe = { type: evTypes[ri(0, evTypes.length - 1)], team: t, ts: now };
+          return { ...m, homeAttack: newHA, awayAttack: newAA, matchStats: newStats, pitchEvent: pe };
         });
 
         if (finishing.length) settleBets(finishing);
-        // Settle OVER bets immediately when total goals already exceed the line (mid-match)
         earlySettleOUBets(next.filter(m => m.status === 'live'));
-
-        next = next.filter(m => !(m.status === 'finished' && m.finishedAt && now - m.finishedAt > 10000));
-        const need = 30 - next.length;
-        if (need > 0) {
-          // Collect all teams already in active matches so no team appears twice
-          const busyTeams = new Set<string>(
-            next
-              .filter(m => m.status === 'live')
-              .flatMap(m => [m.tmpl.homeTeam.name, m.tmpl.awayTeam.name])
-          );
-          const fresh = pickFreshMatchups(need, busyTeams);
-          fresh.forEach(t => {
-            counter.current++;
-            const nm = buildMatch(t, counter.current);
-            const key = `${t.homeTeam.name}:${t.awayTeam.name}`;
-            const ctrl = controlsRef.current.get(key);
-            next.push(ctrl ? { ...nm, adminCtrl: ctrl } : nm);
-          });
-        }
-        // Pinned matches always appear at the top
-        next.sort((a, b) => {
-          const ap = a.adminCtrl?.pinned ? 1 : 0;
-          const bp = b.adminCtrl?.pinned ? 1 : 0;
-          return bp - ap;
-        });
         return next;
       });
-    }, 10000);
+    }, 4000);
     return () => clearInterval(tick);
   }, [settleBets, earlySettleOUBets]);
 
+  /* DISABLED legacy local match-engine block removed (replaced by server snapshot).
+     Helpers like generateScheduledGoals, adminTotalOdds, recalcOdds, calcOddsDir,
+     buildExtMarkets, dynamicOULine, buildMatch are still used by the snapshot
+     merger and other components, so they remain defined above. */
   /* Winners feed — new entry every 15-28 seconds */
   useEffect(() => {
     const descOpts = ['Match Result 1','Match Result 2','Draw','Over 2.5','Under 2.5','Asian Handicap -1','Double Chance 1X','BTTS Yes','Correct Score 1-0','Half-Time 2','Corners O 9.5','Cards U 3.5'];

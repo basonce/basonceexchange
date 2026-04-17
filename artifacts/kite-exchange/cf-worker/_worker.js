@@ -306,6 +306,213 @@ async function saveControls(controls,env) { await ensureBucket(CTRL_BUCKET,env);
 function genId() { return Math.random().toString(36).slice(2,10); }
 
 /* ═══════════════════════════════════════════════
+   SPORT ENGINE — server-side single source of truth
+   All devices fetch identical match list / scores / odds
+═══════════════════════════════════════════════ */
+const SPORT_STATE_FILE='live_state.json';
+const SPORT_EPOCH_MS = 2 * 60 * 60 * 1000; // 2-hour epoch
+const SPORT_LEAGUES = [
+  ['RSA','South Africa Premier Soccer League','South Africa','🇿🇦','#007a4d'],
+  ['EGY','Egyptian Premier League','Egypt','🇪🇬','#c8102e'],
+  ['MAR','Morocco Botola Pro','Morocco','🇲🇦','#c1272d'],
+  ['NGA','Nigeria Professional Football League','Nigeria','🇳🇬','#008751'],
+  ['TUN','Tunisia Ligue Professionnelle 1','Tunisia','🇹🇳','#e70013'],
+  ['ALG','Algeria Ligue Professionnelle 1','Algeria','🇩🇿','#006233'],
+  ['GHA','Ghana Premier League','Ghana','🇬🇭','#006b3f'],
+  ['KEN','Kenya Premier League','Kenya','🇰🇪','#006600'],
+  ['UGA','Uganda Premier League','Uganda','🇺🇬','#000000'],
+  ['TAN','Tanzania Ligi Kuu','Tanzania','🇹🇿','#1d9bf0'],
+  ['ETH','Ethiopian Premier League','Ethiopia','🇪🇹','#078930'],
+  ['RWA','Rwanda National League','Rwanda','🇷🇼','#20603d'],
+  ['ZAM','Zambia Super League','Zambia','🇿🇲','#198a00'],
+  ['SEN','Senegal Ligue 1','Senegal','🇸🇳','#00853f'],
+  ['MOZ','Mozambique Liga Moçambicana','Mozambique','🇲🇿','#009a44'],
+  ['ZIM','Zimbabwe Premier Soccer League','Zimbabwe','🇿🇼','#006400'],
+  ['MAL','Malawi Super League','Malawi','🇲🇼','#000080'],
+  ['ANG','Angola Girabola','Angola','🇦🇴','#cc0000'],
+  ['COD','DR Congo Linafoot','DR Congo','🇨🇩','#007fff'],
+  ['BUR','Burundi Primus League','Burundi','🇧🇮','#ce1126'],
+];
+const SPORT_TEAMS = {
+  RSA: [['Kaizer Chiefs','KCH'],['Orlando Pirates','ORL'],['Mamelodi Sundowns','SUN'],['SuperSport United','SSU'],['Cape Town City FC','CTC'],['Stellenbosch FC','STB'],['TS Galaxy','TSG'],['Sekhukhune United','SEK'],['Golden Arrows','GDA'],['Maritzburg United','MRZ']],
+  EGY: [['Al Ahly SC','AHL'],['Zamalek SC','ZAM'],['Pyramids FC','PYR'],['Ismaily SC','ISM'],['Future FC','FUT'],['Ceramica Cleopatra','CER'],['Smouha SC','SMH'],['National Bank of Egypt','NBE'],['El Entag El Harby','ENT'],['El Gouna FC','GON']],
+  MAR: [['Wydad AC','WAC'],['Raja Casablanca','RAJ'],['FUS Rabat','FUS'],['RS Berkane','RSB'],['Mouloudia Oujda','MOU'],['Hassania Agadir','HAS'],['Renaissance Berkane','RNB'],['Moghreb Tetouan','MOG'],['Difaa El Jadidi','DEJ'],['Ittihad Tanger','ITT']],
+  NGA: [['Rivers United','RVU'],['Plateau United','PLU'],['Kano Pillars','KNP'],['Shooting Stars','SHS'],['Lobi Stars','LBS'],['Remo Stars','RMS'],['Sunshine Stars','SUS'],['Akwa United','AKW'],['Rangers International','RNG'],['Nasarawa United','NSU']],
+  TUN: [['Espérance de Tunis','EST'],['Club Africain','CAF'],['CS Sfaxien','CSS'],['US Monastir','USM'],['Étoile du Sahel','EDS'],['Stade Tunisien','STT'],['Olympique Béja','OLB'],['AS Gabès','ASG'],['JS Kairouan','JSK'],['AS Marsa','ASM']],
+  ALG: [['CR Belouizdad','CRB'],['USM Alger','USM'],['MC Alger','MCA'],['JS Kabylie','JSK'],['ES Sétif','ESS'],['MC Oran','MCO'],['CS Constantine','CSC'],['Paradou AC','PAR'],['ASO Chlef','ASO'],['USM Bel-Abbès','UBA']],
+  GHA: [['Asante Kotoko SC','KOT'],['Hearts of Oak SC','HOA'],['Great Olympics FC','OLY'],['Medeama SC','MED'],['Aduana Stars','ADU'],['Legon Cities','LGN'],['King Faisal FC','KNF'],['Dreams FC','DRM'],['Bechem United','BEC'],['RTU FC','RTU']],
+  KEN: [['Gor Mahia FC','GOR'],['AFC Leopards','LEP'],['Tusker FC','TUS'],['Mathare United','MAT'],['Kakamega Homeboyz','KAK'],['Sofapaka FC','SOF'],['Bandari FC','BAN'],['KCB FC','KCB'],['Western Stima','WST'],['Posta Rangers','POS']],
+  UGA: [['KCCA FC','KCC'],['SC Villa','VIL'],['Vipers SC','VIP'],['Express FC','EXP'],['Wakiso Giants','WAK'],['Police FC','POL'],['Maroons FC','MAR'],['BUL FC','BUL'],['Mbarara City','MBA'],['MYDA FC','MYD']],
+  TAN: [['Simba SC','SIM'],['Young Africans SC','YNG'],['Azam FC','AZA'],['Coastal Union','CST'],['Biashara United','BIA'],['Singida United','SIN'],['Mtibwa Sugar','MTI'],['Ihefu FC','IHE'],['Mbeya City','MBY'],['Alliance FC','ALL']],
+  ETH: [['Ethiopian Coffee SC','ECF'],['St. George SC','STG'],['Fasil Kenema','FAS'],['Adama City FC','ADM'],['Dire Dawa Ketema','DDK'],['Wolaitta Dicha','WOL'],['Jimma AbaJifar','JIM'],['Sebeta Ketema','SEB'],['Hawassa Ketema','HAW'],['Dedebit FC','DED']],
+  RWA: [['APR FC','APR'],['Rayon Sports FC','RAY'],['AS Kigali','ASK'],['Police FC Rwanda','POR'],['Espoir FC','ESP'],['Bugesera FC','BUG'],['Gorilla FC','GRL'],['Marines FC','MRN'],['Etincelles FC','ETI'],['Sunrise FC','SRS']],
+  ZAM: [['Zesco United','ZES'],['Nkana FC','NKN'],['Forest Rangers','FOR'],['Green Eagles','GRE'],['Power Dynamos','POW'],['Buildcon FC','BLD'],['Lusaka Dynamos','LDA'],['Red Arrows','RDA'],['Zanaco FC','ZAN'],['Napsa Stars','NAP']],
+  SEN: [['AS Pikine','PIK'],['Jaraaf FC','JAR'],['Génération Foot','GEN'],['Casa Sports','CAS'],['Diambars FC','DIA'],['US Gorée','GOR'],['Teungueth FC','TEU'],['ASC Diaraf','DRF'],['Dakar Sacré-Cœur','DSC'],['AS Douanes','DOU']],
+  MOZ: [['Costa do Sol','COS'],['Ferroviário Maputo','FER'],['Black Bulls','BLK'],['UD do Songo','SON'],['Ferroviário Beira','FEB'],['Desportivo Maputo','DSP'],['Matchedje FC','MTC'],['Maxaquene FC','MAX'],['Vilankulo FC','VLK'],['Tete FC','TET']],
+  ZIM: [['Dynamos FC','DYN'],['CAPS United','CAP'],['Highlanders FC','HIG'],['Triangle United','TRI'],['FC Platinum','PLT'],['Manica Diamonds','MAN'],['Cranborne Bullets','CRN'],['Chicken Inn FC','CHK'],['Bulawayo Chiefs','BUL'],['Herentals FC','HER']],
+  MAL: [['Be Forward Wanderers','WAN'],['Nyasa Big Bullets','BIG'],['Silver Strikers','SIL'],['Mighty Wanderers','MMW'],['Blantyre United','BLU'],['Blue Eagles','BEG'],['Kamuzu Barracks','KAB'],['Rumphi United','RUM'],['Karonga United','KAR'],['Total Stars','TTS']],
+  ANG: [['Petro de Luanda','PET'],['Primeiro de Agosto','AGO'],['Sagrada Esperança','SAG'],['Recreativo do Libolo','REC'],['Interclube FC','INT'],['1º de Maio','MAI'],['Santa Rita de Cássia','SRC'],['Desportivo da Huíla','HUI'],['Kabuscorp SC','KAB'],['Wiliete FC','WIL']],
+  COD: [['TP Mazembe','TPM'],['AS Vita Club','VIT'],['AS Dragons','DRG'],['DC Motema Pembe','MTP'],['CS Don Bosco','DON'],['Saint-Eloi Lupopo','LUP'],['OC Bukavu Dawa','OCD'],['AS Nyuki','NYK'],['Sanga Balende','SNG'],['Renaissance du Congo','REN']],
+  BUR: [['Le Messager Ngozi','MNG'],['Vital-O FC','VTO'],['Athletic Club Gitega','ACG'],['Aigle Noir','AGL'],['Inter Star','INS'],['Prince Louis','PRL'],['Bujumbura City FC','BCF'],['Flambeau du Centre','FLC'],['KAC Kiremba','KAK'],['LLB Athletic','LLB']],
+};
+
+function mulberry32(seed) {
+  let s = seed >>> 0;
+  return function() {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return (((t ^ (t >>> 14)) >>> 0) / 4294967296);
+  };
+}
+
+function generateSportEpoch(epoch) {
+  const rng = mulberry32(epoch * 1009 + 7);
+  const all = [];
+  for (const [lid] of SPORT_LEAGUES) {
+    const teams = SPORT_TEAMS[lid] || [];
+    for (let i = 0; i < teams.length; i++) {
+      for (let j = i + 1; j < teams.length; j++) {
+        all.push({ leagueId: lid, h: teams[i], a: teams[j] });
+      }
+    }
+  }
+  // Shuffle deterministically
+  for (let i = all.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [all[i], all[j]] = [all[j], all[i]];
+  }
+  // Pick up to 30, ensuring no team appears twice in this epoch
+  const used = new Set();
+  const picked = [];
+  for (const m of all) {
+    if (used.has(m.h[0]) || used.has(m.a[0])) continue;
+    used.add(m.h[0]); used.add(m.a[0]);
+    picked.push(m);
+    if (picked.length >= 30) break;
+  }
+  const epochStart = epoch * SPORT_EPOCH_MS;
+  return picked.map((m, idx) => {
+    const seed = ((epoch * 1000 + idx) * 2654435761) >>> 0;
+    const rngM = mulberry32(seed);
+    // Stagger starts within first 25 minutes of epoch so all matches stay live during the 2h window
+    const offsetMs = Math.floor(rngM() * 25 * 60 * 1000);
+    return {
+      id: `e${epoch}_${idx}`,
+      seed,
+      leagueId: m.leagueId,
+      homeTeam: m.h[0],
+      homeAbbr: m.h[1],
+      awayTeam: m.a[0],
+      awayAbbr: m.a[1],
+      startedAt: epochStart + offsetMs,
+    };
+  });
+}
+
+function computeLiveMatch(meta, nowMs, ctrlMap) {
+  const rng = mulberry32(meta.seed);
+  // Pre-decide goal counts (skewed towards low scores)
+  const baseHome = Math.floor(rng() * rng() * 4.2);
+  const baseAway = Math.floor(rng() * rng() * 3.8);
+  // Pre-schedule goal minutes
+  let scheduled = [];
+  for (let i = 0; i < baseHome; i++) scheduled.push({ minute: 1 + Math.floor(rng() * 89), side: 'home' });
+  for (let i = 0; i < baseAway; i++) scheduled.push({ minute: 1 + Math.floor(rng() * 89), side: 'away' });
+  scheduled.sort((a, b) => a.minute - b.minute);
+
+  const ctrlKey = `${meta.homeTeam}:${meta.awayTeam}`;
+  const ctrl = ctrlMap.get(ctrlKey);
+
+  // Apply admin targetScore override
+  if (ctrl?.targetScore) {
+    const ts = ctrl.targetScore;
+    scheduled = [];
+    const ctrlRng = mulberry32(meta.seed ^ ((ts.h + 1) * 31 + (ts.a + 1) * 17 + (ctrl.startedAt || 0)));
+    for (let i = 0; i < ts.h; i++) scheduled.push({ minute: 5 + Math.floor(ctrlRng() * 80), side: 'home' });
+    for (let i = 0; i < ts.a; i++) scheduled.push({ minute: 5 + Math.floor(ctrlRng() * 80), side: 'away' });
+    scheduled.sort((a, b) => a.minute - b.minute);
+  }
+
+  // Compute clock from real elapsed time
+  const startedAt = ctrl?.startedAt || meta.startedAt;
+  const elapsedMin = (nowMs - startedAt) / 60000;
+  let minute, phase, status = 'live', finishedAt = null;
+  if (elapsedMin < 0)        { minute = 0; phase = 'first_half'; }
+  else if (elapsedMin < 45)  { minute = Math.floor(elapsedMin); phase = 'first_half'; }
+  else if (elapsedMin < 48)  { minute = 45; phase = 'ht_break'; }
+  else if (elapsedMin < 93)  { minute = 45 + Math.floor(elapsedMin - 48); phase = 'second_half'; }
+  else if (elapsedMin < 96)  { minute = 90; phase = 'ft_stoppage'; }
+  else                       { minute = 90; phase = 'finished'; status = 'finished'; finishedAt = startedAt + 96 * 60000; }
+
+  // Effective minute for goal counting: pause during HT break
+  const effMin = phase === 'ht_break' ? 45 : (phase === 'finished' || phase === 'ft_stoppage' ? 90 : minute);
+  let homeScore = 0, awayScore = 0;
+  const visibleEvents = [];
+  for (const g of scheduled) {
+    if (g.minute <= effMin) {
+      if (g.side === 'home') homeScore++; else awayScore++;
+      visibleEvents.push({ minute: g.minute, side: g.side, score: `${homeScore}–${awayScore}` });
+    }
+  }
+
+  // Apply targetResult late-game guarantee
+  if (ctrl?.targetResult && minute >= 88) {
+    if (ctrl.targetResult === '1' && homeScore <= awayScore) homeScore = awayScore + 1;
+    else if (ctrl.targetResult === '2' && awayScore <= homeScore) awayScore = homeScore + 1;
+    else if (ctrl.targetResult === 'X' && homeScore !== awayScore) {
+      const lo = Math.min(homeScore, awayScore);
+      homeScore = lo; awayScore = lo;
+    }
+  }
+
+  // Odds derived from seed + score state (changes when score changes)
+  const oddsRng = mulberry32((meta.seed ^ (homeScore * 7919 + awayScore * 6151 + Math.floor(minute / 10) * 521)) >>> 0);
+  const baseW1 = 1.4 + oddsRng() * 2.8;
+  const baseX  = 2.8 + oddsRng() * 2.2;
+  const baseW2 = 1.4 + oddsRng() * 2.8;
+  const lead = homeScore - awayScore;
+  const w1 = +(baseW1 * (lead > 0 ? 0.55 + 0.15 * Math.min(2, lead) : (lead < 0 ? 1.6 + 0.3 * Math.min(2, -lead) : 1))).toFixed(2);
+  const w2 = +(baseW2 * (lead < 0 ? 0.55 + 0.15 * Math.min(2, -lead) : (lead > 0 ? 1.6 + 0.3 * Math.min(2, lead) : 1))).toFixed(2);
+  const x  = +(baseX  * (Math.abs(lead) > 0 ? 1.6 : 1)).toFixed(2);
+
+  const total = homeScore + awayScore;
+  const line = total >= 4 ? 4.5 : total >= 3 ? 3.5 : total >= 1 ? 2.5 : 1.5;
+  const over  = +(1.55 + oddsRng() * 1.8).toFixed(2);
+  const under = +(1.55 + oddsRng() * 1.8).toFixed(2);
+
+  return {
+    id: meta.id,
+    leagueId: meta.leagueId,
+    homeTeam: meta.homeTeam, homeAbbr: meta.homeAbbr,
+    awayTeam: meta.awayTeam, awayAbbr: meta.awayAbbr,
+    startedAt, minute, phase, status,
+    homeScore, awayScore, finishedAt,
+    odds: { w1: Math.max(1.05, w1), x: Math.max(1.5, x), w2: Math.max(1.05, w2) },
+    totalOdds: { line, over: Math.max(1.1, over), under: Math.max(1.1, under) },
+    goalEvents: visibleEvents,
+    pinned: !!ctrl?.pinned,
+    hasAdminCtrl: !!ctrl,
+  };
+}
+
+async function getSportSnapshot(env) {
+  const now = Date.now();
+  const epoch = Math.floor(now / SPORT_EPOCH_MS);
+  let state = await stoDownload(CTRL_BUCKET, SPORT_STATE_FILE, env);
+  if (!state || state.epoch !== epoch || !Array.isArray(state.matches)) {
+    state = { epoch, matches: generateSportEpoch(epoch) };
+    await ensureBucket(CTRL_BUCKET, env);
+    await stoUpload(CTRL_BUCKET, SPORT_STATE_FILE, state, env);
+  }
+  const controls = await loadControls(env);
+  const ctrlMap = new Map();
+  for (const c of controls) ctrlMap.set(`${c.homeTeam}:${c.awayTeam}`, c);
+  return state.matches.map(m => computeLiveMatch(m, now, ctrlMap));
+}
+
+/* ═══════════════════════════════════════════════
    SPORT BETS
 ═══════════════════════════════════════════════ */
 const BETS_BUCKET='sport-bets-data';
@@ -596,6 +803,12 @@ export default {
       if (method==='GET' && path==='/tradfi-prices') {
         const syms = q.symbols ? q.symbols.split(',').map(s=>s.trim().toUpperCase()) : null;
         return ok(await getAllTradfiPrices(syms));
+      }
+
+      /* ── SPORT SNAPSHOT (single source of truth across all devices) ── */
+      if (method==='GET' && path==='/sport/snapshot') {
+        const matches = await getSportSnapshot(env);
+        return ok({ matches, serverTime: Date.now() });
       }
 
       /* ── PORTFOLIO VALUE (single source of truth across devices) ── */
