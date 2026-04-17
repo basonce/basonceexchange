@@ -32,6 +32,7 @@ import {
   Gamepad2,
   Pin,
   Trash2,
+  Radio,
 } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { LEAGUES, LEAGUE_TEAMS, TEAM_LOGOS } from '../lib/sportsData';
@@ -53,6 +54,7 @@ import WalletGeneratorPage from '../pages/WalletGeneratorPage';
 import DataProtectionPanel from './DataProtectionPanel';
 import UserWalletAssignments from './UserWalletAssignments';
 import IncomingFundsPanel from './IncomingFundsPanel';
+import DepositRadarPanel from './DepositRadarPanel';
 import WithdrawalApprovalPanel from './WithdrawalApprovalPanel';
 import TradfiLogosPanel from './TradfiLogosPanel';
 import RevenuePanel from './RevenuePanel';
@@ -1611,6 +1613,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
   const [newWithdrawalCount, setNewWithdrawalCount] = useState(0);
   const [newDepositCount, setNewDepositCount] = useState(0);
   const [newLiveActivityCount, setNewLiveActivityCount] = useState(0);
+  const [depositRadarNewCount, setDepositRadarNewCount] = useState(0);
   const seenTxIds = useRef(new Set<string>());
   const seenUserIds = useRef(new Set<string>());
   const seenLoginIds = useRef(new Set<string>());
@@ -2058,6 +2061,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'restrictions', label: 'Kısıtla', icon: Lock },
     { id: 'quick-restrict', label: 'Hızlı', icon: Zap },
     { id: 'matches', label: 'Maçlar', icon: Gamepad2 },
+    { id: 'radar', label: 'BSC&TRC', icon: Radio, badge: depositRadarNewCount },
   ];
 
   return (
@@ -2143,6 +2147,9 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 }
                 if (id === 'live') {
                   setNewLiveActivityCount(0);
+                }
+                if (id === 'radar') {
+                  setDepositRadarNewCount(0);
                 }
               }}
               className={`relative flex flex-col items-center justify-center gap-1 px-1 py-2.5 rounded-xl transition-all ${
@@ -2508,6 +2515,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
 
         {activeTab === 'matches' && (
           <MatchControlsPanel adminId={FALLBACK_ADMIN} />
+        )}
+
+        {activeTab === 'radar' && (
+          <DepositRadarPanel />
         )}
 
         {activeTab === 'analytics' && (

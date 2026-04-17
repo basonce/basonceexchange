@@ -384,6 +384,149 @@ function isAdmin(headers) {
 }
 
 /* ═══════════════════════════════════════════════
+   BSC / TRC-20 PARA RADARI
+═══════════════════════════════════════════════ */
+const USDT_BEP20 = '0x55d398326f99059fF775485246999027B3197955';
+const USDT_TRC20 = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+
+async function scanBscWallet(address, env) {
+  const apiKey = env.BSCSCAN_API_KEY || '';
+  const url = `https://api.bscscan.com/api?module=account&action=tokentx&contractaddress=${USDT_BEP20}&address=${address}&page=1&offset=20&sort=desc${apiKey?`&apikey=${apiKey}`:''}`;
+  try {
+    const r = await fetch(url, {signal: AbortSignal.timeout(10000)});
+    const data = await r.json();
+    if (data.status !== '1' || !Array.isArray(data.result)) return [];
+    return data.result
+      .filter(tx => tx.to && tx.to.toLowerCase() === address.toLowerCase())
+      .map(tx => ({
+        tx_hash: tx.hash,
+        from_address: tx.from,
+        to_address: tx.to,
+        amount: Number(tx.value) / Math.pow(10, Number(tx.tokenDecimal||18)),
+        block_number: Number(tx.blockNumber),
+        block_time: new Date(Number(tx.timeStamp)*1000).toISOString(),
+        confirmations: Number(tx.confirmations||0),
+      }));
+  } catch (e) { console.error('BSC scan error', address, e.message); return []; }
+}
+
+async function scanTronWallet(address, env) {
+  const url = `https://api.trongrid.io/v1/accounts/${address}/transactions/trc20?contract_address=${USDT_TRC20}&limit=20&only_to=true`;
+  try {
+    const headers = env.TRONGRID_API_KEY ? {'TRON-PRO-API-KEY': env.TRONGRID_API_KEY} : {};
+    const r = await fetch(url, {headers, signal: AbortSignal.timeout(10000)});
+    const data = await r.json();
+    if (!Array.isArray(data.data)) return [];
+    return data.data.map(tx => ({
+      tx_hash: tx.transaction_id,
+      from_address: tx.from,
+      to_address: tx.to,
+      amount: Number(tx.value) / Math.pow(10, Number(tx.token_info?.decimals||6)),
+      block_number: tx.block_timestamp ? null : null,
+      block_time: tx.block_timestamp ? new Date(tx.block_timestamp).toISOString() : null,
+      confirmations: 1,
+    }));
+  } catch (e) { console.error('TRON scan error', address, e.message); return []; }
+}
+
+async function sendTelegramAlert(text, env) {
+  if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_ADMIN_CHAT_ID) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        chat_id: env.TELEGRAM_ADMIN_CHAT_ID,
+        text,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch (e) { console.error('Telegram error', e.message); }
+}
+
+async function scanAllWallets(env) {
+  const headers = {Authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`, apikey:env.SUPABASE_SERVICE_ROLE_KEY};
+
+  // Load all assigned wallets
+  const wRes = await fetch(`${SUPABASE_URL}/rest/v1/wallet_pool?is_assigned=eq.true&select=id,address,network,assigned_to_user_id`, {headers});
+  const wallets = await wRes.json();
+  if (!Array.isArray(wallets)) return {error:'failed to load wallets', detail: wallets};
+
+  // Load existing tx hashes to dedupe
+  const exRes = await fetch(`${SUPABASE_URL}/rest/v1/blockchain_deposits?select=tx_hash`, {headers: {...headers, 'Range':'0-9999'}});
+  const existing = new Set(((await exRes.json())||[]).map(r=>r.tx_hash));
+
+  let scanned=0, found=0, inserted=0, errors=0;
+  const newOnes = [];
+
+  // Throttle: BscScan free = 5 req/sec; TRC has 15. Process serially with small delay.
+  for (const w of wallets) {
+    scanned++;
+    let txs = [];
+    if (w.network === 'BEP20' || w.network === 'BSC') txs = await scanBscWallet(w.address, env);
+    else if (w.network === 'TRC20' || w.network === 'TRON') txs = await scanTronWallet(w.address, env);
+    else continue;
+
+    found += txs.length;
+    for (const tx of txs) {
+      if (existing.has(tx.tx_hash)) continue;
+      // Insert new deposit
+      const ins = await fetch(`${SUPABASE_URL}/rest/v1/blockchain_deposits`, {
+        method:'POST',
+        headers:{...headers,'Content-Type':'application/json','Prefer':'return=representation'},
+        body: JSON.stringify({
+          user_id: w.assigned_to_user_id,
+          wallet_address_id: w.id,
+          tx_hash: tx.tx_hash,
+          network: w.network,
+          currency: 'USDT',
+          amount: tx.amount,
+          from_address: tx.from_address,
+          to_address: tx.to_address,
+          confirmations: tx.confirmations,
+          required_confirmations: w.network==='BEP20'?12:1,
+          status: 'new',
+          block_number: tx.block_number,
+        }),
+      });
+      if (ins.ok) {
+        inserted++;
+        existing.add(tx.tx_hash);
+        newOnes.push({...tx, network:w.network, wallet:w.address, user_id:w.assigned_to_user_id});
+      } else {
+        errors++;
+      }
+    }
+    // Small pacing
+    await new Promise(r=>setTimeout(r, 250));
+  }
+
+  // Telegram batch alert
+  if (newOnes.length && env.TELEGRAM_BOT_TOKEN) {
+    // Resolve emails
+    const userIds = [...new Set(newOnes.map(d=>d.user_id).filter(Boolean))];
+    let emails = {};
+    if (userIds.length) {
+      const uRes = await fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=in.(${userIds.join(',')})&select=id,email`, {headers});
+      const users = await uRes.json();
+      if (Array.isArray(users)) for (const u of users) emails[u.id] = u.email;
+    }
+    const total = newOnes.reduce((s,d)=>s+d.amount,0).toFixed(2);
+    let msg = `🔔 <b>Yeni Para Geldi!</b>\n\n${newOnes.length} işlem · Toplam <b>${total} USDT</b>\n\n`;
+    for (const d of newOnes.slice(0, 10)) {
+      const email = emails[d.user_id] || 'atanmamış';
+      msg += `💰 <b>${d.amount.toFixed(2)} USDT</b> (${d.network})\n👤 ${email}\n📥 <code>${d.wallet.slice(0,12)}...${d.wallet.slice(-6)}</code>\n\n`;
+    }
+    if (newOnes.length > 10) msg += `... ve ${newOnes.length-10} işlem daha`;
+    await sendTelegramAlert(msg, env);
+  }
+
+  return {ok:true, scanned, found, inserted, errors, new_deposits: newOnes.length};
+}
+
+/* ═══════════════════════════════════════════════
    MAIN CLOUDFLARE WORKER
 ═══════════════════════════════════════════════ */
 export default {
@@ -619,6 +762,13 @@ export default {
       }
       if (method==='POST' && path==='/push/clear') {
         await saveSubs([],env); return ok({ok:true});
+      }
+
+      /* ── BSC / TRC-20 PARA RADARI ── */
+      if (method==='POST' && path==='/scan-deposits') {
+        if (!isAdmin(request.headers)) return err(403,'Forbidden');
+        const result = await scanAllWallets(env);
+        return ok(result);
       }
 
       return err(404, `Not found: ${method} ${path}`);
