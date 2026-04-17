@@ -154,6 +154,7 @@ export default function DepositRadarPanel() {
     setScanning(true);
     try {
       const user = await getCurrentUser();
+      // Pass 1: BSC tokens + TRC-20 tokens (USDT, EARN vs.)
       const r = await fetch(`${WORKER_BASE}/scan-deposits`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-requester-id': user?.id || '' },
@@ -161,7 +162,25 @@ export default function DepositRadarPanel() {
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || data.message || 'Tarama başarısız');
-      setLastScan({ at: new Date().toISOString(), result: data });
+
+      // Pass 2: native TRX (separate invocation to stay under request limit)
+      let trxData: any = { found: 0, inserted: 0, new_deposits: 0 };
+      try {
+        const r2 = await fetch(`${WORKER_BASE}/scan-deposits-trx`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-requester-id': user?.id || '' },
+          body: '{}',
+        });
+        if (r2.ok) trxData = await r2.json();
+      } catch {}
+
+      const merged = {
+        ...data,
+        found: (data.found || 0) + (trxData.found || 0),
+        inserted: (data.inserted || 0) + (trxData.inserted || 0),
+        new_deposits: (data.new_deposits || 0) + (trxData.new_deposits || 0),
+      };
+      setLastScan({ at: new Date().toISOString(), result: merged });
       await loadDeposits();
       if (data.new_deposits > 0) {
         try { new Audio('data:audio/wav;base64,UklGRigBAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAP8A').play(); } catch {}

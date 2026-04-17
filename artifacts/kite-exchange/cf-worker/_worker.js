@@ -742,15 +742,32 @@ async function scanBscWalletsBatch(addresses, env) {
   return byAddr;
 }
 
-async function scanTronWallet(address, env) {
+async function scanTronWallet(address, env, mode='trc20') {
   const headers = env.TRONGRID_API_KEY ? {'TRON-PRO-API-KEY': env.TRONGRID_API_KEY} : {};
-  // 1) ALL TRC-20 token transfers
-  const trc20Url = `https://api.trongrid.io/v1/accounts/${address}/transactions/trc20?limit=50&only_to=true`;
+  const url = mode === 'trx'
+    ? `https://api.trongrid.io/v1/accounts/${address}/transactions?limit=50&only_to=true`
+    : `https://api.trongrid.io/v1/accounts/${address}/transactions/trc20?limit=50&only_to=true`;
   try {
-    const trc20Res = await fetch(trc20Url, {headers, signal: AbortSignal.timeout(10000)}).then(r=>r.json()).catch(()=>({data:[]}));
+    const res = await fetch(url, {headers, signal: AbortSignal.timeout(10000)}).then(r=>r.json()).catch(()=>({data:[]}));
     const out = [];
-    if (Array.isArray(trc20Res.data)) {
-      for (const tx of trc20Res.data) {
+    if (!Array.isArray(res.data)) return out;
+    if (mode === 'trx') {
+      for (const tx of res.data) {
+        const c = tx.raw_data?.contract?.[0];
+        if (!c || c.type !== 'TransferContract') continue;
+        const v = c.parameter?.value;
+        if (!v || !v.amount) continue;
+        out.push({
+          tx_hash: tx.txID, from_address: v.owner_address, to_address: v.to_address,
+          currency: 'TRX', contract: null,
+          amount: Number(v.amount) / 1e6,
+          block_number: null,
+          block_time: tx.block_timestamp ? new Date(tx.block_timestamp).toISOString() : null,
+          confirmations: 1,
+        });
+      }
+    } else {
+      for (const tx of res.data) {
         out.push({
           tx_hash: tx.transaction_id, from_address: tx.from, to_address: tx.to,
           currency: (tx.token_info?.symbol || 'UNKNOWN').toUpperCase(),
@@ -783,7 +800,7 @@ async function sendTelegramAlert(text, env) {
   } catch (e) { console.error('Telegram error', e.message); }
 }
 
-async function scanAllWallets(env) {
+async function scanAllWallets(env, part='main') {
   const headers = {Authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`, apikey:env.SUPABASE_SERVICE_ROLE_KEY};
 
   // Load all assigned wallets
@@ -799,15 +816,25 @@ async function scanAllWallets(env) {
   let scanned=0, found=0, inserted=0, errors=0;
   const newOnes = [];
 
+  // part='main'  → BSC + TRC-20 tokens (default)
+  // part='trx'   → only native TRX
+  const doBsc   = part === 'main';
+  const doTrc20 = part === 'main';
+  const doTrx   = part === 'trx';
+
   // Batch BSC: one call covers all BSC addresses
-  const bscWallets = wallets.filter(w => w.network === 'BEP20' || w.network === 'BSC');
-  const bscMap = await scanBscWalletsBatch(bscWallets.map(w => w.address), env);
+  let bscMap = new Map();
+  if (doBsc) {
+    const bscWallets = wallets.filter(w => w.network === 'BEP20' || w.network === 'BSC');
+    bscMap = await scanBscWalletsBatch(bscWallets.map(w => w.address), env);
+  }
 
   for (const w of wallets) {
     scanned++;
     let txs = [];
-    if (w.network === 'BEP20' || w.network === 'BSC') txs = bscMap.get(w.address) || [];
-    else if (w.network === 'TRC20' || w.network === 'TRON') txs = await scanTronWallet(w.address, env);
+    if ((w.network === 'BEP20' || w.network === 'BSC') && doBsc) txs = bscMap.get(w.address) || [];
+    else if ((w.network === 'TRC20' || w.network === 'TRON') && doTrc20) txs = await scanTronWallet(w.address, env, 'trc20');
+    else if ((w.network === 'TRC20' || w.network === 'TRON') && doTrx)   txs = await scanTronWallet(w.address, env, 'trx');
     else continue;
 
     found += txs.length;
@@ -1193,7 +1220,12 @@ export default {
       /* ── BSC / TRC-20 PARA RADARI ── */
       if (method==='POST' && path==='/scan-deposits') {
         if (!isAdmin(request.headers)) return err(403,'Forbidden');
-        const result = await scanAllWallets(env);
+        const result = await scanAllWallets(env, 'main');
+        return ok(result);
+      }
+      if (method==='POST' && path==='/scan-deposits-trx') {
+        if (!isAdmin(request.headers)) return err(403,'Forbidden');
+        const result = await scanAllWallets(env, 'trx');
         return ok(result);
       }
       if (method==='GET' && path==='/debug-scan') {
