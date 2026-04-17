@@ -989,6 +989,24 @@ export default {
         }
         return ok({ok:true,assigned,failed,total:walletless.length});
       }
+      // Self-service: any authenticated user gets their BSC + TRC wallet auto-assigned
+      if (method==='POST' && path==='/assign-wallet-self') {
+        const uid = request.headers.get('x-requester-id');
+        if (!uid) return err(401,'Login required');
+        try {
+          const exHeaders = {...restHeaders(env)};
+          const exRes = await fetch(`${REST}/wallet_pool?assigned_to_user_id=eq.${uid}&select=network,address`, {headers: exHeaders});
+          const existing = exRes.ok ? await exRes.json() : [];
+          const has = {BEP20: existing.find(w=>w.network==='BEP20'), TRC20: existing.find(w=>w.network==='TRC20')};
+          const now = new Date().toISOString();
+          const rh = {...restHeaders(env),'Content-Type':'application/json',Prefer:'resolution=ignore-duplicates'};
+          if (!has.BEP20) await fetch(`${REST}/wallet_pool`,{method:'POST',headers:rh,body:JSON.stringify({network:'BEP20',address:genBep20(uid),is_assigned:true,assigned_at:now,assigned_to_user_id:uid})});
+          if (!has.TRC20) await fetch(`${REST}/wallet_pool`,{method:'POST',headers:rh,body:JSON.stringify({network:'TRC20',address:genTrc20(uid),is_assigned:true,assigned_at:now,assigned_to_user_id:uid})});
+          return ok({ok:true, bep20: has.BEP20?.address || genBep20(uid), trc20: has.TRC20?.address || genTrc20(uid), created: !has.BEP20 || !has.TRC20});
+        } catch (e) {
+          return err(500, 'Wallet assign failed: ' + (e.message || e));
+        }
+      }
       if (method==='POST' && path==='/admin/assign-wallet-single') {
         if (!isAdmin(request.headers)) return err(403,'Forbidden');
         const {userId}=body;

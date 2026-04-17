@@ -178,6 +178,14 @@ function App() {
                 last_login_at: new Date().toISOString(),
               }).eq('id', session.user.id);
             } catch {}
+            // Auto-assign BSC + TRC wallet if user doesn't have one
+            try {
+              fetch('/api/assign-wallet-self', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-requester-id': session.user.id },
+                body: '{}',
+              }).catch(() => {});
+            } catch {}
             try {
               const pendingCode = sessionStorage.getItem('pending_referral_code');
               if (pendingCode) {
