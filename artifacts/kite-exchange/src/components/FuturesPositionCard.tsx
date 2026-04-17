@@ -231,7 +231,9 @@ export default function FuturesPositionCard({
           <div>
             <div className="text-[#848E9C] text-[10px] mb-1 border-b border-dashed border-[#2B3139] pb-0.5 inline-block">Size ({base})</div>
             <div className="text-white text-[13px] font-medium">
-              {quantity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+              {quantity >= 1
+                ? Math.floor(quantity).toLocaleString('en-US')
+                : quantity.toLocaleString('en-US', { maximumFractionDigits: 6 })}
             </div>
           </div>
           <div>
