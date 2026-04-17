@@ -119,6 +119,18 @@ body.deposit-modal-open .bottom-nav-bar {
   100% { left: 120%; }
 }
 
+@keyframes miningSwing {
+  0%, 100% { transform: rotate(-18deg); }
+  20%      { transform: rotate(22deg); }
+  40%      { transform: rotate(-12deg); }
+  60%      { transform: rotate(18deg); }
+  80%      { transform: rotate(-8deg); }
+}
+.mining-swing {
+  transform-origin: 50% 80%;
+  animation: miningSwing 1.6s ease-in-out infinite;
+}
+
 :root {
   --app-bg: #0B0E11;
   --app-card: #181A20;

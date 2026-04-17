@@ -63,15 +63,26 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
               ) : (
                 Icon && (
                   <div className="relative z-10">
+                    {tab.id === 'mining' && (
+                      <>
+                        <span className="absolute inset-0 -m-1 rounded-full bg-[#F0B90B]/40 animate-ping" />
+                        <span className="absolute inset-0 -m-0.5 rounded-full bg-[#F0B90B]/20 animate-pulse" />
+                      </>
+                    )}
                     <Icon
-                      className={`w-7 h-7 ${isActive ? 'text-[#F0B90B]' : 'text-gray-400'}`}
+                      className={`w-7 h-7 relative ${
+                        tab.id === 'mining'
+                          ? 'text-[#F0B90B] mining-swing'
+                          : isActive ? 'text-[#F0B90B]' : 'text-gray-400'
+                      }`}
+                      style={tab.id === 'mining' ? { filter: 'drop-shadow(0 0 6px rgba(240,185,11,0.85))' } : undefined}
                     />
                   </div>
                 )
               )}
               <span
                 className={`text-[10px] font-medium relative z-10 leading-tight ${
-                  isActive ? 'text-[#F0B90B]' : 'text-gray-400'
+                  tab.id === 'mining' ? 'text-[#F0B90B]' : isActive ? 'text-[#F0B90B]' : 'text-gray-400'
                 }`}
               >
                 {tab.label}
