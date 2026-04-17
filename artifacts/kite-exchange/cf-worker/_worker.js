@@ -626,11 +626,12 @@ const USDT_BEP20 = '0x55d398326f99059fF775485246999027B3197955';
 const USDT_TRC20 = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
 
 // BSC public RPC — no API key needed. Fallback list for reliability.
+// RPCs that allow eth_getLogs without API key (verified)
 const BSC_RPCS = [
+  'https://bsc-pokt.nodies.app',
+  'https://bsc.drpc.org',
+  'https://1rpc.io/bnb',
   'https://bsc-dataseed.binance.org/',
-  'https://bsc-dataseed1.defibit.io/',
-  'https://bsc-dataseed1.ninicoin.io/',
-  'https://rpc.ankr.com/bsc',
 ];
 async function bscRpc(method, params) {
   for (const url of BSC_RPCS) {
