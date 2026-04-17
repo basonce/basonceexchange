@@ -3,7 +3,9 @@ import { RefreshCw, CheckCircle, XCircle, ExternalLink, Wallet, Bell, AlertTrian
 import { supabase, getCurrentUser } from '../lib/supabase';
 
 const ADMIN_UUID = '88292f59-898a-4fef-a1c8-8813d7b60b61';
-const WORKER_BASE = '/api';
+const WORKER_BASE = (typeof window !== 'undefined' && /replit\.dev|localhost/.test(window.location.host))
+  ? 'https://basonce.com/api'
+  : '/api';
 
 interface Deposit {
   id: string;

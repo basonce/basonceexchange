@@ -180,7 +180,8 @@ function App() {
             } catch {}
             // Auto-assign BSC + TRC wallet if user doesn't have one
             try {
-              fetch('/api/assign-wallet-self', {
+              const apiBase = /replit\.dev|localhost/.test(window.location.host) ? 'https://basonce.com/api' : '/api';
+              fetch(`${apiBase}/assign-wallet-self`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-requester-id': session.user.id },
                 body: '{}',
