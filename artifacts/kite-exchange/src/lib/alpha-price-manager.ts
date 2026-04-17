@@ -36,28 +36,14 @@ class AlphaPriceManager {
   }
 
   private ensureSimulationRunning(): void {
-    if (this.simulationInterval) return;
-    this.simulationInterval = window.setInterval(() => {
-      this.tickPrices();
-    }, 3800);
-
+    if (this.dbSyncInterval) return;
+    // CLIENT-SIDE SIMULATION REMOVED — every device must show the SAME price.
+    // We only read from the DB now. The server-side `alpha-price-updater`
+    // edge function is the single source of truth for price movement.
+    this.syncFromDB();
     this.dbSyncInterval = window.setInterval(() => {
       this.syncFromDB();
-    }, 30000);
-  }
-
-  private tickPrices(): void {
-    const ids = Object.keys(this.prices);
-    if (ids.length === 0) return;
-
-    ids.forEach(id => {
-      const price = this.prices[id];
-      if (!price || price <= 0) return;
-      const drift = (Math.random() - 0.46) * 0.028;
-      this.prices[id] = Math.max(price * (1 + drift), price * 0.0001);
-    });
-
-    this.notifySubscribers();
+    }, 5000);
   }
 
   private async syncFromDB(): Promise<void> {
