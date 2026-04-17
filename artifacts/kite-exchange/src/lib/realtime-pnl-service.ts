@@ -149,6 +149,43 @@ class RealtimePnLService {
     const user = await getCurrentUser();
     if (!user) return { total: 0, spotBalances: [], futuresWallet: 0, futuresUnrealizedPnL: 0 };
 
+    // SERVER-SIDE COMPUTATION: single source of truth across all devices.
+    // Falls back to local computation only if the endpoint is unreachable.
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (token) {
+        const res = await fetch('/api/portfolio-value', {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(8000),
+        });
+        if (res.ok) {
+          const json = await res.json() as {
+            success: boolean;
+            data?: {
+              total: number;
+              spotTotal: number;
+              futuresWallet: number;
+              futuresUnrealizedPnL: number;
+              spotBalances: Array<{ symbol: string; balance: number }>;
+              missingPrices: string[];
+            };
+          };
+          if (json.success && json.data) {
+            return {
+              total: json.data.total,
+              spotBalances: json.data.spotBalances,
+              futuresWallet: json.data.futuresWallet,
+              futuresUnrealizedPnL: json.data.futuresUnrealizedPnL,
+            };
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[RealtimePnLService] server-side portfolio failed, falling back to local:', err);
+    }
+
+    // ─── FALLBACK: local computation (only if server endpoint unreachable) ───
     const { data: balanceRows } = await supabase
       .from('user_balances')
       .select('symbol, balance, futures_balance')
@@ -164,7 +201,6 @@ class RealtimePnLService {
     const usdtRow = rows.find(r => r.symbol === 'USDT');
     const futuresWallet = parseFloat(usdtRow?.futures_balance || '0') || 0;
 
-    // Exclude EQ/EQL from portfolio total — mined tokens must not inflate the display
     const spotValues = spotBalances
       .filter(b => b.symbol !== 'EQ' && b.symbol !== 'EQL')
       .map(b => b.balance * this.getPrice(b.symbol));
@@ -182,16 +218,11 @@ class RealtimePnLService {
       const currentPrice = this.getPrice(coinSymbol);
       const entryPrice = parseFloat(pos.entry_price) || 0;
       const positionSize = parseFloat(pos.position_size) || 0;
-
       if (entryPrice <= 0 || positionSize <= 0) continue;
-
       const quantity = positionSize / entryPrice;
-      let pnl = 0;
-      if (pos.side === 'LONG') {
-        pnl = (currentPrice - entryPrice) * quantity;
-      } else {
-        pnl = (entryPrice - currentPrice) * quantity;
-      }
+      const pnl = pos.side === 'LONG'
+        ? (currentPrice - entryPrice) * quantity
+        : (entryPrice - currentPrice) * quantity;
       futuresUnrealizedPnL += pnl;
     }
 

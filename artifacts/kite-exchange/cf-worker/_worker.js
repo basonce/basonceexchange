@@ -569,6 +569,67 @@ export default {
         return ok(await getAllTradfiPrices(syms));
       }
 
+      /* ── PORTFOLIO VALUE (single source of truth across devices) ── */
+      if (method==='GET' && path==='/portfolio-value') {
+        const auth = request.headers.get('authorization') || '';
+        const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+        if (!token) return err(401, 'Missing auth token');
+
+        const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          headers: { Authorization: `Bearer ${token}`, apikey: env.SUPABASE_SERVICE_ROLE_KEY },
+          signal: AbortSignal.timeout(8000),
+        });
+        if (!userRes.ok) return err(401, 'Invalid auth token');
+        const userJson = await userRes.json();
+        const userId = userJson?.id;
+        if (!userId) return err(401, 'Invalid user');
+
+        const [balanceRows, positions, cryptoPrices, tradfiPrices] = await Promise.all([
+          sbGet('user_balances', `?user_id=eq.${userId}&select=symbol,balance,futures_balance`, env).catch(()=>[]),
+          sbGet('futures_positions', `?user_id=eq.${userId}&status=eq.open&select=symbol,side,entry_price,position_size`, env).catch(()=>[]),
+          getAllKuCoinPrices().catch(()=>({})),
+          getAllTradfiPrices(null).catch(()=>({})),
+        ]);
+
+        const rows = balanceRows || [];
+        const spotBalances = rows.map(r => ({ symbol: r.symbol, balance: parseFloat(r.balance) || 0 }));
+        const usdtRow = rows.find(r => r.symbol === 'USDT');
+        const futuresWallet = parseFloat(usdtRow?.futures_balance || '0') || 0;
+
+        const getPrice = (sym) => {
+          if (sym === 'USDT') return 1;
+          if (sym === 'EQ' || sym === 'EQL') return 0;
+          if (cryptoPrices[sym]) return cryptoPrices[sym].price;
+          if (tradfiPrices[sym]) return tradfiPrices[sym].price;
+          return 0;
+        };
+
+        let spotTotal = 0;
+        const missingPrices = [];
+        for (const b of spotBalances) {
+          if (b.symbol === 'EQ' || b.symbol === 'EQL') continue;
+          if (b.balance <= 0) continue;
+          const p = getPrice(b.symbol);
+          if (p <= 0 && b.symbol !== 'USDT') { missingPrices.push(b.symbol); continue; }
+          spotTotal += b.balance * p;
+        }
+
+        let futuresUnrealizedPnL = 0;
+        for (const pos of (positions || [])) {
+          const coin = String(pos.symbol).replace(/usdt$/i, '');
+          const cur = getPrice(coin);
+          const entry = parseFloat(pos.entry_price) || 0;
+          const sz = parseFloat(pos.position_size) || 0;
+          if (entry <= 0 || sz <= 0 || cur <= 0) continue;
+          const qty = sz / entry;
+          const pnl = pos.side === 'LONG' ? (cur - entry) * qty : (entry - cur) * qty;
+          futuresUnrealizedPnL += pnl;
+        }
+
+        const total = spotTotal + futuresWallet + futuresUnrealizedPnL;
+        return ok({ total, spotTotal, futuresWallet, futuresUnrealizedPnL, spotBalances, missingPrices });
+      }
+
       /* ── TEAM LOGO (JSON) ── */
       if (method==='GET' && path==='/team-logo') {
         const name=(q.name||'').trim();
