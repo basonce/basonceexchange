@@ -79,11 +79,11 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
         currentTier: tier,
         requiredTier: {
           id: 'wagering',
-          name: `İşlem Hacmi Şartı`,
+          name: `Trading Volume Requirement`,
           price: wageringRemaining,
           tier: 5,
         },
-        message: `Bonus aldığınız için çekim öncesi $${wageringRequired.toFixed(2)} işlem hacmi tamamlamanız gerekiyor. Mevcut: $${wageringVolume.toFixed(2)} / $${wageringRequired.toFixed(2)} (Kalan: $${wageringRemaining.toFixed(2)})`,
+        message: `Because you received a bonus, you must complete $${wageringRequired.toFixed(2)} in trading volume before withdrawing. Current: $${wageringVolume.toFixed(2)} / $${wageringRequired.toFixed(2)} (Remaining: $${wageringRemaining.toFixed(2)})`,
       };
     }
 
