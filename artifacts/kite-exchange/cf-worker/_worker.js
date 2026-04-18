@@ -2053,6 +2053,67 @@ export default {
         return ok({...debug, scannedTxs: txs.length, sample: txs.slice(0,5)});
       }
 
+      /* ════════════════════════════════════════════════════════════════
+         SOCIAL MEDIA — single composer, multi-platform publishing
+         ════════════════════════════════════════════════════════════════ */
+      if (path === '/social/credentials' && method === 'GET') {
+        if (!isAdmin(request.headers)) return err(403, 'Forbidden');
+        const r = await fetch(`${REST}/social_credentials?id=eq.1&select=credentials`, { headers: restHeaders(env) });
+        const rows = await r.json().catch(() => []);
+        return ok({ credentials: rows?.[0]?.credentials || {} });
+      }
+      if (path === '/social/credentials' && method === 'POST') {
+        if (!isAdmin(request.headers)) return err(403, 'Forbidden');
+        const credentials = body?.credentials || {};
+        const r = await fetch(`${REST}/social_credentials?id=eq.1`, {
+          method: 'PATCH',
+          headers: { ...restHeaders(env), 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ credentials, updated_at: new Date().toISOString() }),
+        });
+        if (!r.ok) {
+          const t = await r.text().catch(() => '');
+          return err(500, 'Failed to save: ' + t.slice(0, 200));
+        }
+        return ok({ ok: true });
+      }
+      if (path === '/social/history' && method === 'GET') {
+        if (!isAdmin(request.headers)) return err(403, 'Forbidden');
+        const r = await fetch(`${REST}/social_posts?select=id,content,image_url,platforms,results,created_at&order=created_at.desc&limit=50`, { headers: restHeaders(env) });
+        const posts = await r.json().catch(() => []);
+        return ok({ posts: Array.isArray(posts) ? posts : [] });
+      }
+      if (path === '/social/post' && method === 'POST') {
+        if (!isAdmin(request.headers)) return err(403, 'Forbidden');
+        const { content, imageUrl, platforms } = body || {};
+        if (!content || !Array.isArray(platforms) || platforms.length === 0) {
+          return err(400, 'content and platforms[] required');
+        }
+        // Load credentials
+        const cRes = await fetch(`${REST}/social_credentials?id=eq.1&select=credentials`, { headers: restHeaders(env) });
+        const cRows = await cRes.json().catch(() => []);
+        const creds = cRows?.[0]?.credentials || {};
+
+        const results = {};
+        for (const plat of platforms) {
+          try {
+            results[plat] = await postToPlatform(plat, content, imageUrl, creds, env);
+          } catch (e) {
+            results[plat] = { ok: false, message: e?.message || 'Unknown error' };
+          }
+        }
+        const allOk = Object.values(results).every(r => r.ok);
+
+        // Persist history (best-effort)
+        const requesterId = request.headers.get('x-requester-id');
+        await fetch(`${REST}/social_posts`, {
+          method: 'POST',
+          headers: { ...restHeaders(env), 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ content, image_url: imageUrl || null, platforms, results, posted_by: requesterId }),
+        }).catch(() => {});
+
+        return ok({ allOk, results });
+      }
+
       return err(404, `Not found: ${method} ${path}`);
     } catch(e) {
       console.error('[worker]', e.message);
@@ -2060,3 +2121,159 @@ export default {
     }
   }
 };
+
+/* ════════════════════════════════════════════════════════════════════════
+   Social platform posting helpers
+   Each returns: { ok: boolean, message: string, url?: string }
+   ════════════════════════════════════════════════════════════════════════ */
+async function postToPlatform(platform, content, imageUrl, creds, env) {
+  if (platform === 'telegram') return postTelegram(content, imageUrl, creds.telegram, env);
+  if (platform === 'x')        return postX(content, imageUrl, creds.x);
+  if (platform === 'facebook') return postFacebook(content, imageUrl, creds.facebook);
+  if (platform === 'linkedin') return postLinkedIn(content, imageUrl, creds.linkedin);
+  if (platform === 'youtube')  return postYouTube(content, imageUrl, creds.youtube);
+  if (platform === 'medium')   return postMedium(content, imageUrl, creds.medium);
+  return { ok: false, message: 'Unknown platform' };
+}
+
+async function postTelegram(content, imageUrl, c, env) {
+  const token = env?.TELEGRAM_BOT_TOKEN;
+  const chatId = c?.chat_id;
+  if (!token)  return { ok: false, message: 'TELEGRAM_BOT_TOKEN secret not set on server' };
+  if (!chatId) return { ok: false, message: 'Telegram chat_id not configured' };
+  const api = `https://api.telegram.org/bot${token}`;
+  const endpoint = imageUrl ? `${api}/sendPhoto` : `${api}/sendMessage`;
+  const payload = imageUrl
+    ? { chat_id: chatId, photo: imageUrl, caption: content.slice(0, 1024) }
+    : { chat_id: chatId, text: content, disable_web_page_preview: false };
+  const r = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!j.ok) return { ok: false, message: j.description || `HTTP ${r.status}` };
+  const msgId = j.result?.message_id;
+  return { ok: true, message: 'Posted', url: msgId ? `https://t.me/c/${String(chatId).replace('-100','')}/${msgId}` : undefined };
+}
+
+async function postX(content, imageUrl, c) {
+  if (!c?.api_key || !c?.api_secret || !c?.access_token || !c?.access_secret) {
+    return { ok: false, message: 'X credentials missing — go to Bağlantılar' };
+  }
+  // OAuth 1.0a signing — implement when first credentials arrive
+  try {
+    const oauth = await buildOAuth1Header('POST', 'https://api.twitter.com/2/tweets', {}, c);
+    const r = await fetch('https://api.twitter.com/2/tweets', {
+      method: 'POST',
+      headers: { 'Authorization': oauth, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: content.slice(0, 280) }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return { ok: false, message: j?.detail || j?.title || `HTTP ${r.status}` };
+    const tweetId = j?.data?.id;
+    return { ok: true, message: 'Tweeted', url: tweetId ? `https://x.com/i/status/${tweetId}` : undefined };
+  } catch (e) {
+    return { ok: false, message: e?.message || 'X post failed' };
+  }
+}
+
+async function postFacebook(content, imageUrl, c) {
+  if (!c?.page_id || !c?.access_token) return { ok: false, message: 'Facebook credentials missing — go to Bağlantılar' };
+  const base = `https://graph.facebook.com/v20.0/${c.page_id}`;
+  const url = imageUrl ? `${base}/photos` : `${base}/feed`;
+  const payload = imageUrl
+    ? { url: imageUrl, caption: content, access_token: c.access_token }
+    : { message: content, access_token: c.access_token };
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j?.error) return { ok: false, message: j?.error?.message || `HTTP ${r.status}` };
+  const id = j?.post_id || j?.id;
+  return { ok: true, message: 'Posted to Facebook', url: id ? `https://facebook.com/${id}` : undefined };
+}
+
+async function postLinkedIn(content, imageUrl, c) {
+  if (!c?.author_urn || !c?.access_token) return { ok: false, message: 'LinkedIn credentials missing — go to Bağlantılar' };
+  const r = await fetch('https://api.linkedin.com/v2/ugcPosts', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${c.access_token}`,
+      'Content-Type': 'application/json',
+      'X-Restli-Protocol-Version': '2.0.0',
+    },
+    body: JSON.stringify({
+      author: c.author_urn,
+      lifecycleState: 'PUBLISHED',
+      specificContent: {
+        'com.linkedin.ugc.ShareContent': {
+          shareCommentary: { text: content },
+          shareMediaCategory: imageUrl ? 'IMAGE' : 'NONE',
+          ...(imageUrl ? { media: [{ status: 'READY', originalUrl: imageUrl }] } : {}),
+        },
+      },
+      visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' },
+    }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) return { ok: false, message: j?.message || `HTTP ${r.status}` };
+  const id = j?.id;
+  return { ok: true, message: 'Posted to LinkedIn', url: id ? `https://www.linkedin.com/feed/update/${id}` : undefined };
+}
+
+async function postYouTube(_content, _imageUrl, c) {
+  if (!c?.refresh_token || !c?.client_id || !c?.client_secret) {
+    return { ok: false, message: 'YouTube OAuth not configured — go to Bağlantılar' };
+  }
+  // YouTube Community Posts API requires a non-public partner endpoint.
+  // Public Data API v3 does NOT yet support creating community posts programmatically.
+  return { ok: false, message: 'YouTube Community Posts API is not publicly available — manual post required' };
+}
+
+async function postMedium(content, _imageUrl, c) {
+  if (!c?.user_id || !c?.integration_token) return { ok: false, message: 'Medium credentials missing — go to Bağlantılar' };
+  const r = await fetch(`https://api.medium.com/v1/users/${c.user_id}/posts`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${c.integration_token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify({
+      title: content.split('\n')[0].slice(0, 100) || 'BASONCE Update',
+      contentFormat: 'markdown',
+      content: content,
+      publishStatus: 'public',
+    }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) return { ok: false, message: j?.errors?.[0]?.message || `HTTP ${r.status}` };
+  const url = j?.data?.url;
+  return { ok: true, message: 'Published to Medium', url };
+}
+
+/* ── OAuth 1.0a header builder for X (Twitter) ─────────────────────── */
+async function buildOAuth1Header(method, url, params, c) {
+  const oauthParams = {
+    oauth_consumer_key: c.api_key,
+    oauth_nonce: crypto.randomUUID().replace(/-/g, ''),
+    oauth_signature_method: 'HMAC-SHA1',
+    oauth_timestamp: String(Math.floor(Date.now() / 1000)),
+    oauth_token: c.access_token,
+    oauth_version: '1.0',
+  };
+  const allParams = { ...oauthParams, ...params };
+  const paramString = Object.keys(allParams).sort()
+    .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(allParams[k])}`).join('&');
+  const baseString = `${method}&${encodeURIComponent(url)}&${encodeURIComponent(paramString)}`;
+  const signingKey = `${encodeURIComponent(c.api_secret)}&${encodeURIComponent(c.access_secret)}`;
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(signingKey), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(baseString));
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig)));
+  oauthParams.oauth_signature = sigB64;
+  return 'OAuth ' + Object.keys(oauthParams).sort()
+    .map(k => `${encodeURIComponent(k)}="${encodeURIComponent(oauthParams[k])}"`).join(', ');
+}

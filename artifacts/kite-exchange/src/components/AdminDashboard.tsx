@@ -58,6 +58,7 @@ import IncomingFundsPanel from './IncomingFundsPanel';
 import DepositRadarPanel from './DepositRadarPanel';
 import WithdrawalApprovalPanel from './WithdrawalApprovalPanel';
 import TradfiLogosPanel from './TradfiLogosPanel';
+import SocialMediaPanel from './SocialMediaPanel';
 import RevenuePanel from './RevenuePanel';
 import VisitorsPanel from './VisitorsPanel';
 import VipManagementPanel from './VipManagementPanel';
@@ -2133,6 +2134,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'quick-restrict', label: 'Hızlı', icon: Zap },
     { id: 'matches', label: 'Maçlar', icon: Gamepad2 },
     { id: 'radar', label: 'BSC&TRC', icon: Radio, badge: depositRadarNewCount },
+    { id: 'social', label: 'Sosyal Medya', icon: Send },
   ];
 
   return (
@@ -2590,6 +2592,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
 
         {activeTab === 'radar' && (
           <DepositRadarPanel />
+        )}
+
+        {activeTab === 'social' && (
+          <SocialMediaPanel />
         )}
 
         {activeTab === 'analytics' && (
