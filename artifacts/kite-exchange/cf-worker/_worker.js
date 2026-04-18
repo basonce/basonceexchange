@@ -1365,6 +1365,175 @@ export default {
       /* ── HEALTH ── */
       if (method==='GET' && path==='/healthz') return ok({status:'ok',platform:'cloudflare'});
 
+      /* ── SECURITY: SCAN MULTI-ACCOUNT (3+ signups from same IP in last 7 days) ──
+         Auto-locks all accounts from the offending IP, registers IP block,
+         sends Telegram alert. Called periodically by admin-monitor.
+         GATED: requires x-requester-id of an admin UUID. */
+      if (method==='POST' && path==='/security/scan-multi-account') {
+        if (!isAdmin(request.headers)) return err(403, 'Forbidden');
+        const sinceIso = new Date(Date.now() - 7*24*60*60*1000).toISOString();
+        // Pull recent signup-like activity rows that have an IP — wide net to catch all signal
+        const r = await fetch(
+          `${REST}/activity_log?created_at=gte.${encodeURIComponent(sinceIso)}&ip_address=not.is.null&select=user_id,ip_address,created_at&limit=10000`,
+          { headers: restHeaders(env) }
+        );
+        const rows = await r.json().catch(()=>[]);
+        if (!Array.isArray(rows)) return ok({ scanned: 0, locked: 0, ips: 0 });
+
+        // Group: ip → Set<user_id>
+        const ipToUsers = new Map();
+        for (const row of rows) {
+          if (!row.ip_address || !row.user_id) continue;
+          if (!ipToUsers.has(row.ip_address)) ipToUsers.set(row.ip_address, new Set());
+          ipToUsers.get(row.ip_address).add(row.user_id);
+        }
+
+        // Find IPs with 3+ distinct users (filter out admin UUIDs from locking pool)
+        const offendingIps = [];
+        for (const [ip, users] of ipToUsers.entries()) {
+          const nonAdminUsers = Array.from(users).filter(uid => !ADMIN_UUIDS.has(uid));
+          if (nonAdminUsers.length >= 3) {
+            offendingIps.push({ ip, count: nonAdminUsers.length, users: nonAdminUsers });
+          }
+        }
+
+        if (offendingIps.length === 0) return ok({ scanned: rows.length, locked: 0, ips: 0 });
+
+        // Skip ones already blocked recently
+        const existingBlocks = await fetch(
+          `${REST}/blocked_ips?is_active=eq.true&select=ip_address`,
+          { headers: restHeaders(env) }
+        ).then(x => x.json()).catch(() => []);
+        const alreadyBlocked = new Set((existingBlocks || []).map(b => b.ip_address));
+        const newOffenders = offendingIps.filter(o => !alreadyBlocked.has(o.ip));
+        if (newOffenders.length === 0) return ok({ scanned: rows.length, locked: 0, ips: 0, note: 'all already blocked' });
+
+        // Lock all the user accounts
+        let lockedCount = 0;
+        for (const offender of newOffenders) {
+          for (const uid of offender.users) {
+            const ur = await fetch(`${REST}/user_profiles?id=eq.${uid}`, {
+              method: 'PATCH',
+              headers: { ...restHeaders(env), 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+              body: JSON.stringify({ is_active: false }),
+            });
+            if (ur.ok) lockedCount++;
+          }
+          // Register IP block
+          await fetch(`${REST}/blocked_ips`, {
+            method: 'POST',
+            headers: { ...restHeaders(env), 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' },
+            body: JSON.stringify({
+              ip_address: offender.ip,
+              reason: `Auto-blocked: ${offender.count} accounts from same IP in 7 days`,
+              is_active: true,
+              created_at: new Date().toISOString(),
+            }),
+          });
+          // Admin action log
+          await fetch(`${REST}/admin_actions`, {
+            method: 'POST',
+            headers: { ...restHeaders(env), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action_type: 'auto_lock_multi_account',
+              details: { ip: offender.ip, account_count: offender.count, user_ids: offender.users },
+            }),
+          }).catch(() => {});
+        }
+
+        // Telegram alert
+        const lines = newOffenders.map(o =>
+          `🔒 <code>${o.ip}</code> — ${o.count} hesap`
+        ).join('\n');
+        await sendTelegramAlert(
+          `🚨 <b>OTOMATİK GÜVENLİK: Çoklu Hesap Tespit</b>\n\n${lines}\n\nToplam ${lockedCount} hesap kilitlendi, ${newOffenders.length} IP bloklandı.`,
+          env
+        );
+
+        return ok({ scanned: rows.length, locked: lockedCount, ips: newOffenders.length, offenders: newOffenders });
+      }
+
+      /* ── SECURITY: NOTIFY WITHDRAWAL ──
+         Called from kite-exchange right after a withdrawal_transactions insert.
+         GATED: requires the user's Supabase JWT in Authorization: Bearer <token>.
+         The worker independently verifies ownership of the withdrawal,
+         recomputes the USD value server-side, and FORCES status='hold' if >=$500.
+         Client-supplied status is ignored — server is the source of truth. */
+      if (method==='POST' && path==='/security/notify-withdrawal') {
+        const auth = request.headers.get('authorization') || '';
+        const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+        if (!token) return err(401, 'Missing auth token');
+
+        const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          headers: { Authorization: `Bearer ${token}`, apikey: env.SUPABASE_SERVICE_ROLE_KEY },
+          signal: AbortSignal.timeout(8000),
+        });
+        if (!userRes.ok) return err(401, 'Invalid token');
+        const userData = await userRes.json();
+        const callerId = userData?.id;
+        const callerEmail = userData?.email;
+        if (!callerId) return err(401, 'Invalid user');
+
+        const { withdrawal_id } = body || {};
+        if (!withdrawal_id) return err(400, 'withdrawal_id required');
+
+        // Pull the actual withdrawal row from DB (don't trust client)
+        const wRows = await fetch(
+          `${REST}/withdrawal_transactions?id=eq.${encodeURIComponent(withdrawal_id)}&select=id,user_id,coin_symbol,amount,destination_address,status&limit=1`,
+          { headers: restHeaders(env) }
+        ).then(x => x.json()).catch(() => []);
+        const w = Array.isArray(wRows) ? wRows[0] : null;
+        if (!w) return err(404, 'Withdrawal not found');
+        if (w.user_id !== callerId) return err(403, 'Not your withdrawal');
+
+        // Server-side USD computation — single source of truth
+        const STABLES = new Set(['USDT','USDC','BUSD','DAI','TUSD','USDP']);
+        const sym = String(w.coin_symbol || '').toUpperCase();
+        const amount = Number(w.amount || 0);
+        let price = 1;
+        if (!STABLES.has(sym)) {
+          try {
+            const all = await getAllKuCoinPrices();
+            price = Number(all?.[sym]?.price || 0);
+          } catch {}
+        }
+        const usdValue = price * amount;
+        const shouldHold = usdValue >= 500;
+
+        // FORCE the status server-side if needed
+        if (shouldHold && w.status !== 'hold') {
+          await fetch(`${REST}/withdrawal_transactions?id=eq.${encodeURIComponent(withdrawal_id)}`, {
+            method: 'PATCH',
+            headers: { ...restHeaders(env), 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+            body: JSON.stringify({ status: 'hold' }),
+          }).catch(() => {});
+        }
+
+        const finalStatus = shouldHold ? 'hold' : (w.status || 'pending');
+        const emoji = shouldHold ? '⏸️' : '💸';
+        const tag = shouldHold ? '<b>OTOMATİK BEKLEMEDE</b> (≥$500)' : 'Çekim Talebi';
+
+        const msg = `${emoji} <b>${tag}</b>\n\n` +
+          `👤 ${callerEmail || 'unknown'}\n` +
+          `💰 ${amount} ${sym} ≈ $${usdValue.toFixed(2)}\n` +
+          `📍 <code>${String(w.destination_address || '').slice(0, 50)}</code>\n` +
+          `🆔 <code>${String(withdrawal_id).slice(0, 8)}</code>\n` +
+          (shouldHold ? '\n⏸️ Onayınız bekleniyor — admin panelden inceleyin.' : '');
+
+        await sendTelegramAlert(msg, env);
+
+        await fetch(`${REST}/admin_actions`, {
+          method: 'POST',
+          headers: { ...restHeaders(env), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action_type: shouldHold ? 'auto_hold_withdrawal' : 'large_withdrawal_notice',
+            details: { withdrawal_id, user_email: callerEmail, amount, coin_symbol: sym, usd_value: usdValue, status: finalStatus },
+          }),
+        }).catch(() => {});
+
+        return ok({ notified: true, hold: shouldHold, usd_value: usdValue });
+      }
+
       /* ── AI TOGGLE ENFORCEMENT (server-side guard against cached clients) ──
          Deletes any AI-flagged admin messages inserted while the global toggle is OFF.
          Called by admin-monitor every few seconds. */

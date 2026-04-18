@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Search, Trash2, ArrowUpDown, User, ScanLine, ChevronDown, Info, CheckCircle, Copy, MessageCircle } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { trackActivity } from '../lib/activity-tracker';
+import { classifyWithdrawal, notifyWithdrawalToAdmin } from '../lib/withdrawal-security';
 import { getUserRestrictions, clearRestrictionsCache } from '../lib/user-restrictions';
 import SupportModal from './SupportModal';
 
@@ -353,7 +354,8 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
       const txId = Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
       const now = new Date();
 
-      await supabase.from('withdrawal_transactions').insert({
+      const { status: autoStatus } = await classifyWithdrawal(selectedCoin!.symbol, amountNum);
+      const { data: inserted } = await supabase.from('withdrawal_transactions').insert({
         user_id: user.id,
         coin_symbol: selectedCoin!.symbol,
         network: selectedNetwork.id,
@@ -362,8 +364,12 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
         receive_amount: receiveAmount,
         destination_address: address.trim(),
         txid: txId,
-        status: 'pending',
-      });
+        status: autoStatus,
+      }).select('id').maybeSingle();
+
+      if (inserted?.id) {
+        notifyWithdrawalToAdmin({ withdrawal_id: inserted.id });
+      }
       trackActivity('withdraw_submit', 'assets', {
         coin: selectedCoin!.symbol,
         amount: amountNum,

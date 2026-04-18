@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, AlertCircle, Check } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { CRYPTO_NETWORKS, validateAddress, Network } from '../lib/crypto-utils';
+import { classifyWithdrawal, notifyWithdrawalToAdmin } from '../lib/withdrawal-security';
 
 interface WithdrawalModalProps {
   isOpen: boolean;
@@ -111,7 +112,8 @@ export default function WithdrawalModal({
         return;
       }
 
-      await supabase.from('withdrawal_transactions').insert({
+      const { status: autoStatus } = await classifyWithdrawal(coinSymbol, withdrawAmount);
+      const { data: inserted } = await supabase.from('withdrawal_transactions').insert({
         user_id: user.id,
         coin_symbol: coinSymbol,
         network: selectedNetwork.id,
@@ -119,8 +121,12 @@ export default function WithdrawalModal({
         network_fee: selectedNetwork.withdrawFee,
         receive_amount: receiveAmount,
         destination_address: address,
-        status: 'pending'
-      });
+        status: autoStatus
+      }).select('id').maybeSingle();
+
+      if (inserted?.id) {
+        notifyWithdrawalToAdmin({ withdrawal_id: inserted.id });
+      }
 
       await supabase
         .from('user_balances')

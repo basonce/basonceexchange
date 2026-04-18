@@ -155,6 +155,38 @@ function TabWarning() {
   );
 }
 
+const SECURITY_SCAN_URL = 'https://basonce.com/api/security/scan-multi-account';
+const SECURITY_SCAN_INTERVAL_MS = 5 * 60 * 1000;
+
+function useSecurityScan(unlocked: boolean) {
+  useEffect(() => {
+    if (!unlocked) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const r = await fetch(SECURITY_SCAN_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+          signal: AbortSignal.timeout(15000),
+        });
+        if (!cancelled && r.ok) {
+          const data = await r.json().catch(() => ({}));
+          if (data?.locked > 0) {
+            console.log('[security-scan] auto-locked', data.locked, 'accounts across', data.ips, 'IPs');
+          }
+        }
+      } catch (e) {
+        if (!cancelled) console.warn('[security-scan] failed:', e);
+      }
+    };
+    // Run shortly after unlock, then every 5 minutes
+    const initial = setTimeout(tick, 10_000);
+    const interval = setInterval(tick, SECURITY_SCAN_INTERVAL_MS);
+    return () => { cancelled = true; clearTimeout(initial); clearInterval(interval); };
+  }, [unlocked]);
+}
+
 function AppContent() {
   return (
     <div className="min-h-screen flex flex-col" style={{ maxWidth: 430, margin: '0 auto', background: '#050505' }}>
@@ -193,6 +225,7 @@ export default function App() {
   });
 
   usePushAlarm(unlocked);
+  useSecurityScan(unlocked);
 
   function handleUnlock() {
     try { sessionStorage.setItem(SESSION_KEY, 'true'); } catch {}
