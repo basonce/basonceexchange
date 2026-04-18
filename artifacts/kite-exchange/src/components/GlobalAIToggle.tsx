@@ -20,13 +20,31 @@ export default function GlobalAIToggle() {
     loadSettings();
     loadStats();
 
+    const runCleanup = async () => {
+      try { await fetch('/api/ai-cleanup', { method: 'POST' }); } catch {}
+    };
+
     const channel = supabase
       .channel('ai_toggle_stats')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, () => loadStats())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'support_messages' }, () => loadStats())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages' }, (payload) => {
+        loadStats();
+        const m = payload.new as { sender_type?: string; original_language?: string };
+        // Instant kill: if a new AI-flagged admin message lands, fire cleanup (server checks toggle)
+        if (m?.sender_type === 'admin' && m?.original_language === 'ai') {
+          runCleanup();
+        }
+      })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // Safety net: poll every 4s — wipes any AI message that slipped past realtime
+    const cleanupInterval = setInterval(runCleanup, 4000);
+    runCleanup();
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(cleanupInterval);
+    };
   }, []);
 
   const loadSettings = async () => {

@@ -1365,6 +1365,28 @@ export default {
       /* ── HEALTH ── */
       if (method==='GET' && path==='/healthz') return ok({status:'ok',platform:'cloudflare'});
 
+      /* ── AI TOGGLE ENFORCEMENT (server-side guard against cached clients) ──
+         Deletes any AI-flagged admin messages inserted while the global toggle is OFF.
+         Called by admin-monitor every few seconds. */
+      if (method==='POST' && path==='/ai-cleanup') {
+        const setting = await sbGet('exchange_settings', `?key=eq.global_ai_support&select=value`, env).catch(()=>[]);
+        const enabled = setting?.[0]?.value?.enabled;
+        if (enabled === false) {
+          // Delete recent AI replies from the last 5 minutes (covers any cached client that bypasses the check)
+          const since = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+          const r = await fetch(
+            `${REST}/support_messages?sender_type=eq.admin&original_language=eq.ai&created_at=gte.${encodeURIComponent(since)}`,
+            { method: 'DELETE', headers: { ...restHeaders(env), Prefer: 'return=representation' } }
+          );
+          if (r.ok) {
+            const deleted = await r.json().catch(()=>[]);
+            return ok({ enforced: true, deleted: Array.isArray(deleted) ? deleted.length : 0 });
+          }
+          return ok({ enforced: true, deleted: 0, error: await r.text().catch(()=>'unknown') });
+        }
+        return ok({ enforced: false, ai_enabled: true });
+      }
+
       /* ── CRYPTO PRICES ── */
       if (method==='GET' && path==='/crypto-prices') {
         const all = await getAllKuCoinPrices();
