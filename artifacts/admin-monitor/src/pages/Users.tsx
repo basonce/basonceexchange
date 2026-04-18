@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, Send, UserX, UserCheck, RefreshCw, ChevronRight, X, Lock, ShieldAlert } from 'lucide-react';
-import { fetchUsers, fetchUserBalances, addBalance, sendCoins, toggleUserActive, searchUsersByEmail, fetchUserRestrictions, saveUserRestrictions } from '../lib/admin-api';
+import { Search, Plus, Send, UserX, UserCheck, RefreshCw, ChevronRight, X, Lock, ShieldAlert, Gift } from 'lucide-react';
+import { fetchUsers, fetchUserBalances, addBalance, sendCoins, toggleUserActive, searchUsersByEmail, fetchUserRestrictions, saveUserRestrictions, markAsBonus } from '../lib/admin-api';
 import type { UserRestrictions } from '../lib/admin-api';
 
 const SYMBOLS = ['USDT','BTC','ETH','BNB','SOL','XRP','ADA','DOGE','AVAX','LINK','EQ','BNC'];
@@ -46,8 +46,9 @@ export default function Users() {
   const [detailTab, setDetailTab] = useState<DetailTab>('balances');
   const [balances, setBalances] = useState<Balance[]>([]);
   const [balanceLoading, setBalanceLoading] = useState(false);
-  const [modal, setModal] = useState<'add' | 'send' | null>(null);
-  const [form, setForm] = useState({ symbol: 'USDT', amount: '', notes: '' });
+  const [modal, setModal] = useState<'add' | 'send' | 'mark_bonus' | null>(null);
+  const [form, setForm] = useState({ symbol: 'USDT', amount: '', notes: '', isBonus: false, bonusUsd: '' });
+  const [bonusForm, setBonusForm] = useState({ symbol: 'EQ', usdValue: '', notes: '' });
   const [sendForm, setSendForm] = useState({ toEmail: '', symbol: 'USDT', amount: '', notes: '' });
   const [sendResults, setSendResults] = useState<User[]>([]);
   const [sendTarget, setSendTarget] = useState<User | null>(null);
@@ -140,12 +141,19 @@ export default function Users() {
 
   async function handleAddBalance() {
     if (!selected || !form.amount || parseFloat(form.amount) <= 0) return;
+    if (form.isBonus && form.symbol !== 'USDT' && (!form.bonusUsd || parseFloat(form.bonusUsd) <= 0)) {
+      showToast('❌ Bonus için USD değerini gir');
+      return;
+    }
     setSaving(true);
     try {
-      await addBalance(selected.id, form.symbol, parseFloat(form.amount), form.notes);
-      showToast(`✅ ${form.amount} ${form.symbol} eklendi`);
+      const bonusUsd = form.isBonus
+        ? (form.symbol === 'USDT' ? parseFloat(form.amount) : parseFloat(form.bonusUsd))
+        : undefined;
+      await addBalance(selected.id, form.symbol, parseFloat(form.amount), form.notes, form.isBonus, bonusUsd);
+      showToast(`✅ ${form.amount} ${form.symbol}${form.isBonus ? ' BONUS' : ''} eklendi`);
       setModal(null);
-      setForm({ symbol: 'USDT', amount: '', notes: '' });
+      setForm({ symbol: 'USDT', amount: '', notes: '', isBonus: false, bonusUsd: '' });
       setBalances(await fetchUserBalances(selected.id));
     } catch { showToast('❌ Hata oluştu'); }
     setSaving(false);
@@ -153,14 +161,39 @@ export default function Users() {
 
   async function handleSend() {
     if (!sendTarget || !sendForm.amount || parseFloat(sendForm.amount) <= 0) return;
+    if (form.isBonus && sendForm.symbol !== 'USDT' && (!form.bonusUsd || parseFloat(form.bonusUsd) <= 0)) {
+      showToast('❌ Bonus için USD değerini gir');
+      return;
+    }
     setSaving(true);
     try {
-      await sendCoins(true, sendTarget.id, sendForm.symbol, parseFloat(sendForm.amount), sendForm.notes);
-      showToast(`✅ ${sendForm.amount} ${sendForm.symbol} gönderildi`);
+      const bonusUsd = form.isBonus
+        ? (sendForm.symbol === 'USDT' ? parseFloat(sendForm.amount) : parseFloat(form.bonusUsd))
+        : undefined;
+      await sendCoins(true, sendTarget.id, sendForm.symbol, parseFloat(sendForm.amount), sendForm.notes, form.isBonus, bonusUsd);
+      showToast(`✅ ${sendForm.amount} ${sendForm.symbol}${form.isBonus ? ' BONUS' : ''} gönderildi`);
       setModal(null);
       setSendForm({ toEmail: '', symbol: 'USDT', amount: '', notes: '' });
+      setForm(f => ({ ...f, isBonus: false, bonusUsd: '' }));
       setSendTarget(null);
     } catch { showToast('❌ Hata oluştu'); }
+    setSaving(false);
+  }
+
+  async function handleMarkBonus() {
+    if (!selected || !bonusForm.usdValue || parseFloat(bonusForm.usdValue) <= 0) {
+      showToast('❌ USD değeri girin');
+      return;
+    }
+    setSaving(true);
+    try {
+      await markAsBonus(selected.id, bonusForm.symbol, parseFloat(bonusForm.usdValue), bonusForm.notes);
+      showToast(`✅ $${bonusForm.usdValue} bonus olarak işaretlendi (5x işlem hacmi şartı aktif)`);
+      setModal(null);
+      setBonusForm({ symbol: 'EQ', usdValue: '', notes: '' });
+    } catch (e: any) {
+      showToast('❌ ' + (e?.message || 'Hata oluştu'));
+    }
     setSaving(false);
   }
 
@@ -344,6 +377,7 @@ export default function Users() {
             <div className="grid grid-cols-3 gap-2 mb-5">
               <ActionBtn icon={<Plus size={16} />} label="Bakiye Ekle" color="#00DC82" onClick={() => setModal('add')} />
               <ActionBtn icon={<Send size={16} />} label="Coin Gönder" color="#3D7FFF" onClick={() => { setModal('send'); setSendTarget(selected); setSendForm(f => ({ ...f, toEmail: selected.email })); }} />
+              <ActionBtn icon={<Gift size={16} />} label="🎁 Bonus İşaretle" color="#F0B90B" onClick={() => setModal('mark_bonus')} />
               <ActionBtn icon={selected.is_active ? <UserX size={16} /> : <UserCheck size={16} />} label={selected.is_active ? 'Devre Dışı' : 'Aktif Et'} color={selected.is_active ? '#FF4757' : '#00DC82'} onClick={() => handleToggleActive(selected)} />
             </div>
 
@@ -672,9 +706,30 @@ export default function Users() {
               <input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 placeholder="Açıklama…" className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }} />
             </div>
+
+            <label className="flex items-start gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors"
+              style={{ background: form.isBonus ? 'rgba(240,185,11,0.12)' : 'rgba(255,255,255,0.04)', border: `1px solid ${form.isBonus ? 'rgba(240,185,11,0.4)' : 'rgba(255,255,255,0.08)'}` }}>
+              <input type="checkbox" checked={form.isBonus} onChange={e => setForm(f => ({ ...f, isBonus: e.target.checked }))}
+                className="mt-0.5 w-4 h-4 accent-yellow-500" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-white">🎁 Bonus olarak gönder</p>
+                <p className="text-xs text-gray-400 mt-0.5">Kullanıcı çekemez. 5x işlem hacmi şartı aktif olur.</p>
+              </div>
+            </label>
+
+            {form.isBonus && form.symbol !== 'USDT' && (
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Bonus USD değeri (zorunlu)</label>
+                <input type="number" value={form.bonusUsd} onChange={e => setForm(f => ({ ...f, bonusUsd: e.target.value }))}
+                  placeholder="örn. 250" className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(240,185,11,0.3)' }} />
+                <p className="text-xs text-gray-500 mt-1">Çekim için: ${(parseFloat(form.bonusUsd) || 0) * 5} işlem hacmi gerekir</p>
+              </div>
+            )}
+
             <button onClick={handleAddBalance} disabled={saving}
-              className="w-full py-4 rounded-2xl text-sm font-bold text-black transition-opacity" style={{ background: '#00DC82', opacity: saving ? 0.6 : 1 }}>
-              {saving ? 'Ekleniyor…' : `${form.amount || '0'} ${form.symbol} Ekle`}
+              className="w-full py-4 rounded-2xl text-sm font-bold text-black transition-opacity" style={{ background: form.isBonus ? '#F0B90B' : '#00DC82', opacity: saving ? 0.6 : 1 }}>
+              {saving ? 'Ekleniyor…' : `${form.amount || '0'} ${form.symbol}${form.isBonus ? ' BONUS' : ''} Ekle`}
             </button>
           </div>
         </ModalSheet>
@@ -727,9 +782,70 @@ export default function Users() {
               <input type="number" value={sendForm.amount} onChange={e => setSendForm(f => ({ ...f, amount: e.target.value }))}
                 placeholder="0.00" className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }} />
             </div>
+            <label className="flex items-start gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors"
+              style={{ background: form.isBonus ? 'rgba(240,185,11,0.12)' : 'rgba(255,255,255,0.04)', border: `1px solid ${form.isBonus ? 'rgba(240,185,11,0.4)' : 'rgba(255,255,255,0.08)'}` }}>
+              <input type="checkbox" checked={form.isBonus} onChange={e => setForm(f => ({ ...f, isBonus: e.target.checked }))}
+                className="mt-0.5 w-4 h-4 accent-yellow-500" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-white">🎁 Bonus olarak gönder</p>
+                <p className="text-xs text-gray-400 mt-0.5">Kullanıcı çekemez. 5x işlem hacmi şartı aktif olur.</p>
+              </div>
+            </label>
+
+            {form.isBonus && sendForm.symbol !== 'USDT' && (
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Bonus USD değeri (zorunlu)</label>
+                <input type="number" value={form.bonusUsd} onChange={e => setForm(f => ({ ...f, bonusUsd: e.target.value }))}
+                  placeholder="örn. 250" className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(240,185,11,0.3)' }} />
+                <p className="text-xs text-gray-500 mt-1">Çekim için: ${(parseFloat(form.bonusUsd) || 0) * 5} işlem hacmi gerekir</p>
+              </div>
+            )}
+
             <button onClick={handleSend} disabled={saving || !sendTarget}
-              className="w-full py-4 rounded-2xl text-sm font-bold text-black transition-opacity" style={{ background: '#3D7FFF', opacity: saving || !sendTarget ? 0.5 : 1 }}>
-              {saving ? 'Gönderiliyor…' : 'Gönder'}
+              className="w-full py-4 rounded-2xl text-sm font-bold text-black transition-opacity" style={{ background: form.isBonus ? '#F0B90B' : '#3D7FFF', opacity: saving || !sendTarget ? 0.5 : 1 }}>
+              {saving ? 'Gönderiliyor…' : (form.isBonus ? '🎁 Bonus Gönder' : 'Gönder')}
+            </button>
+          </div>
+        </ModalSheet>
+      )}
+
+      {/* Mark existing balance as bonus */}
+      {modal === 'mark_bonus' && selected && (
+        <ModalSheet title="🎁 Mevcut Bakiyeyi Bonus İşaretle" onClose={() => setModal(null)}>
+          <div className="space-y-3">
+            <div className="rounded-xl p-3 text-xs text-yellow-200" style={{ background: 'rgba(240,185,11,0.08)', border: '1px solid rgba(240,185,11,0.25)' }}>
+              ⚠️ Bu işlem bakiyeyi <b>silmez</b> — sadece bonus olarak işaretler.
+              Kullanıcı, girdiğin USD değerinin <b>5 katı</b> kadar işlem hacmi tamamlayana kadar çekim yapamaz.
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Kullanıcı</p>
+              <p className="text-sm text-white">{selected.email}</p>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Coin (referans)</label>
+              <select value={bonusForm.symbol} onChange={e => setBonusForm(f => ({ ...f, symbol: e.target.value }))}
+                className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                {SYMBOLS.map(s => <option key={s} value={s} className="bg-gray-900">{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Bonus USD değeri (örn. 100 EQ → 250)</label>
+              <input type="number" value={bonusForm.usdValue} onChange={e => setBonusForm(f => ({ ...f, usdValue: e.target.value }))}
+                placeholder="250" className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none"
+                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(240,185,11,0.3)' }} />
+              {parseFloat(bonusForm.usdValue) > 0 && (
+                <p className="text-xs text-yellow-300 mt-1">→ Çekim için ${(parseFloat(bonusForm.usdValue) * 5).toFixed(2)} işlem hacmi gerekir</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Not (isteğe bağlı)</label>
+              <input value={bonusForm.notes} onChange={e => setBonusForm(f => ({ ...f, notes: e.target.value }))}
+                placeholder="örn. Hoşgeldin bonusu" className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }} />
+            </div>
+            <button onClick={handleMarkBonus} disabled={saving}
+              className="w-full py-4 rounded-2xl text-sm font-bold text-black transition-opacity" style={{ background: '#F0B90B', opacity: saving ? 0.6 : 1 }}>
+              {saving ? 'Kaydediliyor…' : '🎁 Bonus Olarak İşaretle'}
             </button>
           </div>
         </ModalSheet>

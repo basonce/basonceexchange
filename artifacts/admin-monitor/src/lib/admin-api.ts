@@ -19,7 +19,37 @@ export async function fetchUserBalances(userId: string) {
   return data || [];
 }
 
-export async function addBalance(userId: string, symbol: string, amount: number, notes: string) {
+// 5x wagering requirement (must match kite-exchange/src/lib/withdrawal-permission.ts)
+const BONUS_WAGERING_MULTIPLIER = 5;
+
+async function logBonusReceived(userId: string, amountUsdt: number, symbol: string, source: string, notes: string) {
+  if (!userId || !amountUsdt || amountUsdt <= 0) return;
+  try {
+    await supabase.from('activity_log').insert({
+      user_id: userId,
+      action: 'bonus_received',
+      page: 'admin',
+      metadata: {
+        amount_usdt: amountUsdt,
+        bonus_type: source,
+        symbol,
+        wagering_required: amountUsdt * BONUS_WAGERING_MULTIPLIER,
+        notes: notes || '',
+      },
+    });
+  } catch (e) {
+    console.warn('logBonusReceived failed', e);
+  }
+}
+
+export async function addBalance(
+  userId: string,
+  symbol: string,
+  amount: number,
+  notes: string,
+  isBonus: boolean = false,
+  bonusUsdValue?: number,
+) {
   const { data: existing } = await supabase
     .from('user_balances')
     .select('*')
@@ -40,18 +70,31 @@ export async function addBalance(userId: string, symbol: string, amount: number,
   }
 
   await supabase.from('transactions').insert({
-    user_id: userId, type: 'admin_credit', symbol, amount,
+    user_id: userId, type: isBonus ? 'admin_bonus' : 'admin_credit', symbol, amount,
     balance_before: before, balance_after: after,
-    notes: notes || `Admin credit: ${amount} ${symbol}`,
+    notes: notes || `${isBonus ? 'BONUS' : 'Admin credit'}: ${amount} ${symbol}`,
   });
 
   await supabase.from('admin_actions').insert({
-    action_type: 'credit_balance', target_user_id: userId,
-    details: { symbol, amount, notes },
+    action_type: isBonus ? 'credit_bonus' : 'credit_balance', target_user_id: userId,
+    details: { symbol, amount, notes, is_bonus: isBonus, bonus_usd_value: bonusUsdValue },
   });
+
+  if (isBonus) {
+    const usd = bonusUsdValue && bonusUsdValue > 0 ? bonusUsdValue : (symbol === 'USDT' ? amount : 0);
+    if (usd > 0) await logBonusReceived(userId, usd, symbol, 'admin_credit', notes);
+  }
 }
 
-export async function sendCoins(_: boolean, toUserId: string, symbol: string, amount: number, notes: string) {
+export async function sendCoins(
+  _: boolean,
+  toUserId: string,
+  symbol: string,
+  amount: number,
+  notes: string,
+  isBonus: boolean = false,
+  bonusUsdValue?: number,
+) {
   const { data: dest } = await supabase
     .from('user_balances').select('*')
     .eq('user_id', toUserId).eq('symbol', symbol).maybeSingle();
@@ -68,9 +111,30 @@ export async function sendCoins(_: boolean, toUserId: string, symbol: string, am
   }
 
   await supabase.from('transactions').insert({
-    user_id: toUserId, type: 'admin_send', symbol, amount,
+    user_id: toUserId, type: isBonus ? 'admin_bonus' : 'admin_send', symbol, amount,
     balance_before: before, balance_after: after,
-    notes: notes || `Admin send: ${amount} ${symbol}`,
+    notes: notes || `${isBonus ? 'BONUS' : 'Admin send'}: ${amount} ${symbol}`,
+  });
+
+  if (isBonus) {
+    const usd = bonusUsdValue && bonusUsdValue > 0 ? bonusUsdValue : (symbol === 'USDT' ? amount : 0);
+    if (usd > 0) await logBonusReceived(toUserId, usd, symbol, 'admin_send', notes);
+  }
+}
+
+/**
+ * Retroactively mark an existing balance as bonus.
+ * Does NOT change the balance — only adds a bonus_received log entry,
+ * which triggers the 5x wagering requirement before the user can withdraw.
+ */
+export async function markAsBonus(userId: string, symbol: string, usdValue: number, notes: string) {
+  if (!userId || !usdValue || usdValue <= 0) {
+    throw new Error('USD değeri 0\'dan büyük olmalı');
+  }
+  await logBonusReceived(userId, usdValue, symbol, 'retroactive_mark', notes);
+  await supabase.from('admin_actions').insert({
+    action_type: 'mark_as_bonus', target_user_id: userId,
+    details: { symbol, usd_value: usdValue, notes },
   });
 }
 
