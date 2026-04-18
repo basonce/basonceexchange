@@ -183,6 +183,11 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
             try {
               await supabase.rpc('complete_user_setup', { p_user_id: data.user.id });
             } catch (_) {}
+            // Bonus wagering takibi için signup bonusunu kaydet
+            try {
+              const { logBonusReceived } = await import('../lib/withdrawal-permission');
+              await logBonusReceived(data.user.id, 10, 'signup_welcome');
+            } catch (_) {}
           }
           fireGoogleAdsConversion();
           // Fire-and-forget Telegram alert to admin

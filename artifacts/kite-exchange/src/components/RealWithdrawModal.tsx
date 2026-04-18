@@ -31,6 +31,11 @@ export function RealWithdrawModal({
   const [blockMessage, setBlockMessage] = useState('');
   const [requiredTierPrice, setRequiredTierPrice] = useState(0);
   const [currentTier, setCurrentTier] = useState(0);
+  const [bonusReceived, setBonusReceived] = useState(0);
+  const [wageringVolume, setWageringVolume] = useState(0);
+  const [wageringRequired, setWageringRequired] = useState(0);
+  const [wageringRemaining, setWageringRemaining] = useState(0);
+  const [wageringProgress, setWageringProgress] = useState(0);
   const [assetLocked, setAssetLocked] = useState(false);
   const [allowedWithdrawalAsset, setAllowedWithdrawalAsset] = useState('BTC');
   const [customFeeUsdt, setCustomFeeUsdt] = useState(0);
@@ -48,6 +53,11 @@ export function RealWithdrawModal({
     if (!user) return;
 
     const permission = await checkWithdrawalPermission(user.id);
+    setBonusReceived(permission.bonusReceived || 0);
+    setWageringVolume(permission.wageringVolume || 0);
+    setWageringRequired(permission.wageringRequired || 0);
+    setWageringRemaining(permission.wageringRemaining || 0);
+    setWageringProgress(permission.progressPercentage || 0);
     if (!permission.allowed) {
       setIsBlocked(true);
       setBlockMessage(permission.message || '');
@@ -272,44 +282,97 @@ export function RealWithdrawModal({
               {blockMessage}
             </p>
 
-            <div className="bg-[#2B3139] rounded-lg p-4 mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-400 text-sm">Your Progress</span>
-                <span className="text-white font-semibold">Tier {currentTier}/5</span>
-              </div>
-              <div className="h-2 bg-[#1A1B23] rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-yellow-500 transition-all"
-                  style={{ width: `${(currentTier / 5) * 100}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
-              <div className="flex items-start gap-3">
-                <TrendingUp className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                <div className="text-left text-sm">
-                  <div className="font-semibold text-yellow-400 mb-1">
-                    Unlock Withdrawal Access
+            {bonusReceived > 0 ? (
+              <>
+                <div className="bg-[#2B3139] rounded-lg p-4 mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-400 text-sm">Wagering Progress</span>
+                    <span className="text-white font-semibold">{wageringProgress.toFixed(1)}%</span>
                   </div>
-                  <div className="text-gray-300">
-                    Upgrade to the next tier to continue earning and unlock withdrawal capabilities.
+                  <div className="h-2 bg-[#1A1B23] rounded-full overflow-hidden mb-3">
+                    <div
+                      className="h-full bg-yellow-500 transition-all"
+                      style={{ width: `${wageringProgress}%` }}
+                    />
                   </div>
-                  {requiredTierPrice > 0 && (
-                    <div className="mt-2 text-white font-semibold">
-                      Next upgrade: ${requiredTierPrice.toLocaleString()}
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-[#1A1B23] rounded p-2">
+                      <div className="text-gray-400">Completed</div>
+                      <div className="text-green-400 font-semibold">${wageringVolume.toFixed(2)}</div>
                     </div>
-                  )}
+                    <div className="bg-[#1A1B23] rounded p-2">
+                      <div className="text-gray-400">Required</div>
+                      <div className="text-white font-semibold">${wageringRequired.toFixed(2)}</div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            <button
-              onClick={onClose}
-              className="w-full bg-[#F0B90B] hover:bg-[#F0B90B]/90 text-black font-semibold py-3 rounded-lg transition-colors"
-            >
-              Go to Mining Shop
-            </button>
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <TrendingUp className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-left text-sm">
+                      <div className="font-semibold text-yellow-400 mb-1">
+                        Bonus Wagering Requirement
+                      </div>
+                      <div className="text-gray-300">
+                        You received <b>${bonusReceived.toFixed(2)}</b> in bonuses. To withdraw, you must complete <b>${wageringRequired.toFixed(2)}</b> in trading volume (5× your bonus).
+                      </div>
+                      <div className="mt-2 text-white font-semibold">
+                        Remaining: ${wageringRemaining.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={onClose}
+                  className="w-full bg-[#F0B90B] hover:bg-[#F0B90B]/90 text-black font-semibold py-3 rounded-lg transition-colors"
+                >
+                  Start Trading
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="bg-[#2B3139] rounded-lg p-4 mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-400 text-sm">Your Progress</span>
+                    <span className="text-white font-semibold">Tier {currentTier}/5</span>
+                  </div>
+                  <div className="h-2 bg-[#1A1B23] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-yellow-500 transition-all"
+                      style={{ width: `${(currentTier / 5) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <TrendingUp className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-left text-sm">
+                      <div className="font-semibold text-yellow-400 mb-1">
+                        Unlock Withdrawal Access
+                      </div>
+                      <div className="text-gray-300">
+                        Upgrade to the next tier to continue earning and unlock withdrawal capabilities.
+                      </div>
+                      {requiredTierPrice > 0 && (
+                        <div className="mt-2 text-white font-semibold">
+                          Next upgrade: ${requiredTierPrice.toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={onClose}
+                  className="w-full bg-[#F0B90B] hover:bg-[#F0B90B]/90 text-black font-semibold py-3 rounded-lg transition-colors"
+                >
+                  Go to Mining Shop
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
