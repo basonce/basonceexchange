@@ -38,6 +38,7 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
   const [vipMembership, setVipMembership] = useState<any>(null);
   const [balances, setBalances] = useState<any[]>([]);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [showQRModal, setShowQRModal] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
@@ -358,16 +359,23 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
             <p className="text-gray-400 mb-6">Log in to access your account and start trading</p>
 
             <button
-              onClick={() => setShowAuthModal(true)}
+              onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
               className="w-full bg-[#F0B90B] text-black font-semibold py-3 px-4 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[#F0B90B]/20 mb-3"
             >
               Log In / Sign Up
             </button>
 
+            <button
+              onClick={() => { setAuthMode('forgot'); setShowAuthModal(true); }}
+              className="text-sm text-gray-400 hover:text-[#F0B90B] font-medium transition-colors mt-1"
+            >
+              Forgot password?
+            </button>
+
             <p className="text-gray-500 mt-4">
               Don't have an account?{' '}
               <button
-                onClick={() => setShowAuthModal(true)}
+                onClick={() => { setAuthMode('register'); setShowAuthModal(true); }}
                 className="text-[#F0B90B] hover:text-[#F8D12F] font-medium transition-colors"
               >
                 Sign up now
