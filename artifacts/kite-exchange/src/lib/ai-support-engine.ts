@@ -201,6 +201,16 @@ export async function generateAIResponseFromOpenAI(
   context: ConversationContext
 ): Promise<string | null> {
   try {
+    // ★ SHORT-CIRCUIT: If we have authoritative local data (bonus + wagering blocking withdrawal),
+    // bypass OpenAI entirely so the user gets the EXACT amounts in their language.
+    // The remote Edge Function doesn't know about bonus_info and would give a generic template.
+    const bi = context.userContext?.bonus_info;
+    const msgLower = userMessage.toLowerCase();
+    const isWithdrawalQ = ['çek', 'withdraw', 'cash out', 'retirar', 'retrait', 'auszahl', 'вывод', 'سحب', '提现', '提款', 'saque', 'saca'].some(w => msgLower.includes(w));
+    if (isWithdrawalQ && bi && (bi.withdrawal_blocked || bi.total_bonus_usd > 0)) {
+      return null; // forces caller's fallback (generateAIResponse) which produces bonus-aware reply
+    }
+
     const allMessages = [
       ...context.messages.map(m => ({
         role: m.role === 'customer' ? 'user' : 'assistant',
@@ -208,6 +218,18 @@ export async function generateAIResponseFromOpenAI(
       })),
       { role: 'user', content: userMessage },
     ];
+
+    // Inject bonus + wagering facts into the userContext.profile so even an unmodified
+    // Edge Function GPT prompt sees them as part of the user profile blob.
+    const augmentedContext = context.userContext ? {
+      ...context.userContext,
+      profile: {
+        ...(context.userContext.profile || {}),
+        ...(bi ? {
+          _bonus_summary: `Total bonus: $${bi.total_bonus_usd.toFixed(2)}; Wagering required: $${bi.wagering_required.toFixed(2)}; Wagering done: $${bi.wagering_done.toFixed(2)}; Remaining: $${bi.wagering_remaining.toFixed(2)}; Progress: ${bi.progress_pct.toFixed(0)}%; Withdrawal blocked: ${bi.withdrawal_blocked}`,
+        } : {}),
+      },
+    } : null;
 
     const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-support-chat`, {
       method: 'POST',
@@ -220,7 +242,7 @@ export async function generateAIResponseFromOpenAI(
         agentName: context.agentName,
         customerLanguage: context.customerLanguage,
         userProfile: context.userProfile,
-        userContext: context.userContext || null,
+        userContext: augmentedContext || context.userContext || null,
       }),
     });
 
