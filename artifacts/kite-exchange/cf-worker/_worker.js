@@ -1218,6 +1218,23 @@ export default {
         await saveSubs([],env); return ok({ok:true});
       }
 
+      /* ── TELEGRAM YENİ KULLANICI / DEPOSIT BİLDİRİMİ ── */
+      if (method==='POST' && path==='/notify-event') {
+        try {
+          const token = env.TELEGRAM_BOT_TOKEN;
+          const chatId = env.TELEGRAM_ADMIN_CHAT_ID;
+          if (!token || !chatId) return ok({ok:false, reason:'no_telegram_config'});
+          const text = String(body?.text || '').slice(0, 3500);
+          if (!text) return err(400, 'text required');
+          const tg = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ chat_id: chatId, text, parse_mode:'HTML', disable_web_page_preview:true }),
+          });
+          const tgJson = await tg.json().catch(()=>({}));
+          return ok({ok: tgJson.ok === true, telegram: tgJson });
+        } catch (e) { return err(500, String(e?.message||e)); }
+      }
+
       /* ── BSC / TRC-20 PARA RADARI ── */
       if (method==='POST' && path==='/scan-deposits') {
         if (!isAdmin(request.headers)) return err(403,'Forbidden');
