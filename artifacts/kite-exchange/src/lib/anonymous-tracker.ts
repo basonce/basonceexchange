@@ -183,7 +183,7 @@ export function initAnonTracker(isLoggedIn: boolean): void {
           fetch('/api/notify-event', {
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ text, silent: true, channel: 'feed' })
+            body: JSON.stringify({ text, silent: false })
           }).catch(()=>{});
         })();
       }
