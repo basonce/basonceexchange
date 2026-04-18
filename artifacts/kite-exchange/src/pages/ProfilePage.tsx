@@ -38,7 +38,6 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
   const [vipMembership, setVipMembership] = useState<any>(null);
   const [balances, setBalances] = useState<any[]>([]);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [showQRModal, setShowQRModal] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
@@ -344,87 +343,63 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#0B0E11] pb-20">
-        <div className="bg-[#181A20] border-b border-[#2B3139] p-4">
-          <h1 className="font-bold text-[#F5F5F5]">Profil</h1>
+      <div className="min-h-screen bg-[#181A20] pb-20">
+        <div className="bg-[#181A20] border-gray-800 p-4">
+          <h1 className="font-bold text-[#F5F5F5]">Profile</h1>
         </div>
 
         <div className="max-w-md mx-auto px-4 py-8">
-          <div className="bg-gradient-to-br from-[#1E2329] to-[#181A20] rounded-2xl p-8 text-center shadow-2xl border border-[#2B3139]">
-            <div className="w-20 h-20 bg-gradient-to-br from-[#F0B90B] to-[#F8D12F] rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg shadow-[#F0B90B]/20">
-              <User className="w-10 h-10 text-black" />
+          <div className="bg-[#181A20] rounded-xl p-8 text-center shadow-xl">
+            <div className="w-20 h-20 bg-gradient-to-br from-[#2B3139] to-[#1E2329] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+              <User className="w-10 h-10 text-gray-300" />
             </div>
 
-            <h2 className="text-2xl font-bold text-[#F5F5F5] mb-2">BASONCE'a Hoş Geldiniz</h2>
-            <p className="text-gray-400 text-sm mb-6">Hesabınıza giriş yapın veya yeni bir hesap oluşturun</p>
+            <h2 className="font-bold text-[#F5F5F5] mb-2">Welcome</h2>
+            <p className="text-gray-400 mb-6">Log in to access your account and start trading</p>
 
             <button
-              onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
-              className="w-full bg-[#F0B90B] hover:bg-[#F8D12F] text-black font-bold py-3.5 px-4 rounded-xl transition-all active:scale-[0.98] shadow-lg shadow-[#F0B90B]/20 mb-3"
+              onClick={() => setShowAuthModal(true)}
+              className="w-full bg-[#F0B90B] text-black font-semibold py-3 px-4 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[#F0B90B]/20 mb-3"
             >
-              Giriş Yap
+              Log In / Sign Up
             </button>
 
-            <button
-              onClick={() => { setAuthMode('register'); setShowAuthModal(true); }}
-              className="w-full bg-transparent hover:bg-[#2B3139] border-2 border-[#2B3139] hover:border-[#F0B90B] text-[#F5F5F5] font-bold py-3.5 px-4 rounded-xl transition-all active:scale-[0.98] mb-4"
-            >
-              Üye Ol
-            </button>
-
-            <button
-              onClick={() => { setAuthMode('forgot'); setShowAuthModal(true); }}
-              className="text-sm text-gray-400 hover:text-[#F0B90B] font-medium transition-colors"
-            >
-              Şifremi unuttum?
-            </button>
-
-            <div className="mt-6 pt-5 border-t border-[#2B3139] flex items-center justify-center gap-3 flex-wrap">
-              <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                256-bit SSL
-              </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                2FA Korumalı
-              </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                Soğuk Cüzdan
-              </div>
-            </div>
+            <p className="text-gray-500 mt-4">
+              Don't have an account?{' '}
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="text-[#F0B90B] hover:text-[#F8D12F] font-medium transition-colors"
+              >
+                Sign up now
+              </button>
+            </p>
           </div>
 
-          <div className="mt-6 grid grid-cols-3 gap-2">
-            <div className="bg-[#181A20] rounded-xl p-3 text-center border border-[#2B3139]">
-              <div className="text-[#F0B90B] font-bold text-lg">258+</div>
-              <div className="text-[10px] text-gray-500 mt-0.5">Kripto Para</div>
+          <div className="mt-8 space-y-4">
+            <div className="bg-[#181A20] rounded-xl p-4 shadow-lg">
+              <h3 className="text-[#F5F5F5] font-semibold mb-3">Platform Benefits</h3>
+              <ul className="space-y-2 text-gray-400">
+                <li className="flex items-center">
+                  <span className="mr-2 font-bold text-base">✓</span>
+                  Secure crypto trading platform
+                </li>
+                <li className="flex items-center">
+                  <span className="mr-2 font-bold text-base">✓</span>
+                  Low fees and fast transactions
+                </li>
+                <li className="flex items-center">
+                  <span className="mr-2 font-bold text-base">✓</span>
+                  24/7 customer support
+                </li>
+              </ul>
             </div>
-            <div className="bg-[#181A20] rounded-xl p-3 text-center border border-[#2B3139]">
-              <div className="text-[#F0B90B] font-bold text-lg">0.1%</div>
-              <div className="text-[10px] text-gray-500 mt-0.5">Düşük Komisyon</div>
-            </div>
-            <div className="bg-[#181A20] rounded-xl p-3 text-center border border-[#2B3139]">
-              <div className="text-[#F0B90B] font-bold text-lg">24/7</div>
-              <div className="text-[10px] text-gray-500 mt-0.5">Destek</div>
-            </div>
-          </div>
-
-          <div className="mt-4 bg-[#181A20] rounded-xl p-4 border border-[#2B3139]">
-            <h3 className="text-[#F5F5F5] font-semibold mb-3 text-sm">Platform Avantajları</h3>
-            <ul className="space-y-2 text-gray-400 text-sm">
-              <li className="flex items-center"><span className="mr-2 text-green-500">✓</span>Spot, Vadeli ve B-DEX işlemler</li>
-              <li className="flex items-center"><span className="mr-2 text-green-500">✓</span>Anında para yatırma & çekme</li>
-              <li className="flex items-center"><span className="mr-2 text-green-500">✓</span>Cloud Mining & Stake ödülleri</li>
-              <li className="flex items-center"><span className="mr-2 text-green-500">✓</span>7/24 Türkçe destek</li>
-            </ul>
           </div>
         </div>
 
         <AuthModal
           isOpen={showAuthModal}
           onClose={() => setShowAuthModal(false)}
-          mode={authMode}
+          mode="login"
         />
       </div>
     );
