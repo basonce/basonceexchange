@@ -46,9 +46,32 @@ class PageErrorBoundary extends Component<{ children: ReactNode; name: string },
       const reloadKey = `chunk_reload_${this.props.name}`;
       const lastReload = parseInt(localStorage.getItem(reloadKey) || '0');
       const now = Date.now();
+      const cacheBust = () => {
+        // Best-effort: clear caches + unregister SW so the next load fetches fresh assets
+        try {
+          if ('caches' in window) {
+            caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
+          }
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations()
+              .then(regs => regs.forEach(r => r.unregister()))
+              .catch(() => {});
+          }
+        } catch {}
+        const url = new URL(window.location.href);
+        url.searchParams.set('_cb', String(now));
+        window.location.replace(url.toString());
+      };
       if (now - lastReload > 10000) {
         localStorage.setItem(reloadKey, String(now));
-        window.location.reload();
+        cacheBust();
+      } else {
+        // Throttled: still recover — schedule a reload so the user is never stuck on the spinner.
+        // Reset the counter after recovery so future deploys keep working.
+        setTimeout(() => {
+          try { localStorage.removeItem(reloadKey); } catch {}
+          cacheBust();
+        }, 3000);
       }
       return;
     }
