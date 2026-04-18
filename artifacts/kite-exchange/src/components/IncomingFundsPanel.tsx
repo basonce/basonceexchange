@@ -254,6 +254,25 @@ export default function IncomingFundsPanel() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [highlightNew, setHighlightNew] = useState<Set<string>>(new Set());
   const [expandedTx, setExpandedTx] = useState<string | null>(null);
+  const [mmModal, setMmModal] = useState<{ address: string; network: string; pk: string; loading: boolean; error?: string } | null>(null);
+  const [mmShowKey, setMmShowKey] = useState(false);
+
+  const openMetaMaskModal = async (address: string, network: string) => {
+    setMmShowKey(false);
+    setMmModal({ address, network, pk: '', loading: true });
+    try {
+      const { data, error } = await supabase
+        .from('wallet_pool')
+        .select('encrypted_private_key')
+        .ilike('address', address)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data?.encrypted_private_key) throw new Error('Private key bulunamadı');
+      setMmModal({ address, network, pk: data.encrypted_private_key, loading: false });
+    } catch (e: any) {
+      setMmModal({ address, network, pk: '', loading: false, error: e?.message || 'Hata' });
+    }
+  };
   const [autoScanStatus, setAutoScanStatus] = useState<AutoScanStatus | null>(null);
   const [autoScanLoading, setAutoScanLoading] = useState(false);
 
@@ -1063,6 +1082,11 @@ export default function IncomingFundsPanel() {
                               <a href={explorerUrl(tx.tx_hash, tx.network)} target="_blank" rel="noopener noreferrer" className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors" title="Explorer'da Gör">
                                 <ExternalLink className="w-3.5 h-3.5 text-gray-500" />
                               </a>
+                              {(tx.network === 'BEP20' || tx.network === 'TRC20') && (
+                                <button onClick={() => openMetaMaskModal(tx.wallet_address, tx.network)} className="p-1.5 bg-orange-100 hover:bg-orange-200 rounded-lg transition-colors" title="MetaMask'e Aktar (key + adım adım)">
+                                  <span className="text-sm leading-none">🦊</span>
+                                </button>
+                              )}
                               {tx.user_id && (
                                 <button onClick={() => openSendModal(tx.user_id!, tx.user_profiles?.email || '', tx)} className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700">
                                   <Send className="w-3.5 h-3.5" /> Aktar
@@ -1714,6 +1738,84 @@ export default function IncomingFundsPanel() {
                 {sendLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 {sendLoading ? 'Gönderiliyor...' : `${sendForm.amount || '0'} ${sendForm.symbol} Gönder`}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mmModal && (
+        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={() => setMmModal(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gradient-to-r from-orange-50 to-amber-50">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🦊</span>
+                <div>
+                  <h3 className="font-bold text-gray-900">MetaMask'e Aktar</h3>
+                  <p className="text-xs text-gray-600">{mmModal.network === 'BEP20' ? 'BNB Smart Chain (BSC)' : 'TRON (TRC20)'}</p>
+                </div>
+              </div>
+              <button onClick={() => setMmModal(null)} className="p-2 hover:bg-white/60 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              {mmModal.loading && <div className="flex items-center justify-center py-8"><RefreshCw className="w-6 h-6 animate-spin text-orange-500" /></div>}
+              {mmModal.error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{mmModal.error}</div>}
+
+              {!mmModal.loading && !mmModal.error && (
+                <>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 mb-1">Adres</p>
+                    <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg border border-gray-200">
+                      <span className="font-mono text-xs text-gray-800 break-all flex-1">{mmModal.address}</span>
+                      <button onClick={() => copyToClipboard(mmModal.address)} className="flex-shrink-0 px-2 py-1 bg-white border border-gray-200 rounded text-xs font-semibold hover:bg-gray-100"><Copy className="w-3.5 h-3.5 inline" /> Kopyala</button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs font-semibold text-gray-500">Private Key</p>
+                      <button onClick={() => setMmShowKey(s => !s)} className="text-xs text-orange-600 hover:text-orange-700 font-semibold flex items-center gap-1">
+                        {mmShowKey ? <><EyeOff className="w-3 h-3" /> Gizle</> : <><Eye className="w-3 h-3" /> Göster</>}
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 p-2.5 bg-orange-50 rounded-lg border border-orange-200">
+                      <span className="font-mono text-xs text-orange-900 break-all flex-1">
+                        {mmShowKey ? mmModal.pk : '•'.repeat(64)}
+                      </span>
+                      <button onClick={() => copyToClipboard(mmModal.pk)} className="flex-shrink-0 px-2 py-1 bg-orange-600 text-white rounded text-xs font-semibold hover:bg-orange-700"><Copy className="w-3.5 h-3.5 inline" /> Kopyala</button>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-xs font-bold text-red-800 mb-1 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" /> KRİTİK UYARI</p>
+                    <p className="text-xs text-red-700">MetaMask'te <b>"Secret Recovery Phrase"</b> alanına ASLA yapıştırma. Sadece <b>"Import Account → Private Key"</b> alanına yapıştır.</p>
+                  </div>
+
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs font-bold text-blue-900 mb-2">📋 Adım Adım MetaMask</p>
+                    <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside">
+                      <li>MetaMask aç → sağ üstteki <b>hesap dairesine</b> tıkla</li>
+                      <li><b>"Add account or hardware wallet"</b> seç</li>
+                      <li><b>"Import account"</b> seç (Recovery Phrase DEĞİL!)</li>
+                      <li>Type: <b>Private Key</b> (varsayılan)</li>
+                      <li>Yukarıdaki key'i yapıştır → <b>Import</b></li>
+                      <li>Network'ü <b>{mmModal.network === 'BEP20' ? 'BNB Smart Chain' : 'TRON'}</b> yap</li>
+                    </ol>
+                  </div>
+
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs font-bold text-amber-900 mb-1">💡 "Duplicate" hatası alırsan</p>
+                    <p className="text-xs text-amber-800">Hesap zaten MetaMask'inde var demektir. Avatar menüsünden <b>{mmModal.address.slice(0, 6)}...{mmModal.address.slice(-4)}</b> ile biten hesabı seç.</p>
+                  </div>
+
+                  {mmModal.network === 'BEP20' && (
+                    <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                      <p className="text-xs font-bold text-gray-900 mb-1">🟡 BSC Network Bilgileri</p>
+                      <p className="text-xs text-gray-700">Yoksa: Settings → Networks → Add Network → "BNB Smart Chain"<br/>RPC: <span className="font-mono">https://bsc-dataseed.binance.org</span> · Chain ID: <span className="font-mono">56</span> · Symbol: BNB</p>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
