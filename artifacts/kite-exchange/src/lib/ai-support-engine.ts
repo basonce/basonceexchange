@@ -674,13 +674,89 @@ function getPersonalizedFinancialResponse(
     return responses.balance_locked;
   }
 
-  if (isSwap) {
+  if (isSwap || isMining) {
+    // Smart EQ-aware pitch: detect EQ balance + active mining + suggest concrete next step
+    const eqBal = userContext?.balances?.find(b => (b.symbol as string) === 'EQ');
+    const eqAmount = eqBal ? Number(eqBal.balance || 0) : 0;
+    const activeRigs = (userContext?.active_mining || []).length;
+    const hasUsdt = (usdtBalance ? Number(usdtBalance.balance || 0) : 0) >= 100;
+
+    const tt = (en: string, tr: string, es?: string, fr?: string, de?: string, ru?: string, ar?: string, zh?: string, pt?: string) => {
+      const map: Record<string, string> = { en, tr, es: es || en, fr: fr || en, de: de || en, ru: ru || en, ar: ar || en, zh: zh || en, pt: pt || en };
+      return map[lang] || en;
+    };
+
+    let smartLine = '';
+    if (isSwap) {
+      // Swap-specific
+      if (eqAmount >= 10) {
+        smartLine = tt(
+          `💱 You have ${eqAmount.toFixed(2)} EQ ready to swap. Mining > Swap → enter the amount → confirm rate. Conversion is instant and the USDT lands in your Spot wallet immediately.`,
+          `💱 ${eqAmount.toFixed(2)} EQ'nuz takasa hazır. Mining > Swap → miktarı girin → kuru onaylayın. Dönüşüm anında, USDT direkt Spot cüzdanınıza düşer.`,
+          `💱 Tienes ${eqAmount.toFixed(2)} EQ listos. Mining > Swap → cantidad → confirma. Conversión instantánea, USDT al Spot.`,
+          `💱 Vous avez ${eqAmount.toFixed(2)} EQ prêts. Mining > Swap → montant → confirmez. Conversion instantanée, USDT vers Spot.`,
+          `💱 Sie haben ${eqAmount.toFixed(2)} EQ bereit. Mining > Swap → Betrag → bestätigen. Sofort, USDT direkt zu Spot.`,
+          `💱 У вас ${eqAmount.toFixed(2)} EQ готово. Mining > Swap → сумма → подтвердить. Мгновенно, USDT в Spot.`,
+          `💱 لديك ${eqAmount.toFixed(2)} EQ جاهزة. Mining > Swap → المبلغ → تأكيد. تحويل فوري إلى USDT في Spot.`,
+          `💱 您有 ${eqAmount.toFixed(2)} EQ 可兑换。Mining > Swap → 金额 → 确认。即时到账 Spot。`,
+          `💱 Você tem ${eqAmount.toFixed(2)} EQ prontos. Mining > Swap → valor → confirme. Conversão instantânea, USDT no Spot.`
+        );
+      } else {
+        smartLine = tt(
+          `💱 Your current EQ balance is ${eqAmount.toFixed(2)} — too low for a meaningful swap. Mining is the EQ source: keep your free CPU Miner Pro running and consider buying a stronger rig (GPU/ASIC) to grow EQ ~10× faster, then swap to USDT in one click.`,
+          `💱 EQ bakiyeniz ${eqAmount.toFixed(2)} — anlamlı bir takas için düşük. EQ'nun kaynağı mining: ücretsiz CPU Miner Pro'nuzu açık tutun ve EQ üretiminizi ~10× artırmak için daha güçlü ekipman (GPU/ASIC) almayı düşünün, sonra tek tıkla USDT'ye çevirin.`,
+          `💱 Tu EQ es ${eqAmount.toFixed(2)} — bajo para swap real. Manten tu CPU Miner Pro activo y considera GPU/ASIC para ~10× más EQ, luego swap a USDT.`,
+          `💱 Votre EQ ${eqAmount.toFixed(2)} — trop faible. Gardez CPU Miner Pro actif, envisagez GPU/ASIC pour ~10× plus d'EQ, puis swap USDT.`,
+          `💱 Ihr EQ ${eqAmount.toFixed(2)} — zu wenig. CPU Miner Pro laufen lassen, GPU/ASIC für ~10× mehr EQ, dann Swap zu USDT.`,
+          `💱 Ваш EQ ${eqAmount.toFixed(2)} — мало для свопа. Держите CPU Miner Pro, рассмотрите GPU/ASIC для ~10× EQ, затем своп в USDT.`,
+          `💱 رصيد EQ لديك ${eqAmount.toFixed(2)} — قليل. أبقِ CPU Miner Pro يعمل وفكر في GPU/ASIC لـ~10× EQ، ثم بدّل إلى USDT.`,
+          `💱 您的 EQ 余额 ${eqAmount.toFixed(2)} — 偏低。保持 CPU Miner Pro 运行, 考虑 GPU/ASIC 提升 ~10× EQ 产出, 再兑换 USDT。`,
+          `💱 Seu EQ ${eqAmount.toFixed(2)} — baixo. Mantenha CPU Miner Pro ativo, considere GPU/ASIC para ~10× mais EQ, depois swap USDT.`
+        );
+      }
+    } else {
+      // Mining-specific
+      if (activeRigs === 0) {
+        smartLine = tt(
+          `⛏️ You have no active rigs yet. Start free: Mining > Equipment → activate <b>CPU Miner Pro</b> (0 cost). It mines ~1-2 EQ/day. To earn 10-50× more, upgrade to GPU Miner ($120) or ASIC Pro ($350) — both pay back in 7-14 days from EQ→USDT swaps.`,
+          `⛏️ Aktif ekipmanınız yok. Ücretsiz başlayın: Mining > Equipment → <b>CPU Miner Pro</b>'yu aktive edin (bedava). Günde ~1-2 EQ kazandırır. 10-50× daha fazla için GPU Miner ($120) veya ASIC Pro ($350) — ikisi de 7-14 günde EQ→USDT swap'larından kendini öder.`,
+          `⛏️ Sin equipos activos. Empieza gratis: Mining > Equipment → activa <b>CPU Miner Pro</b>. ~1-2 EQ/día. Para 10-50× más: GPU Miner ($120) o ASIC Pro ($350) — se pagan en 7-14 días.`,
+          `⛏️ Aucun équipement actif. Démarrez gratuitement: Mining > Equipment → activez <b>CPU Miner Pro</b>. ~1-2 EQ/jour. Pour 10-50× plus: GPU Miner ($120) ou ASIC Pro ($350) — rentables en 7-14 jours.`,
+          `⛏️ Keine aktiven Geräte. Kostenlos starten: Mining > Equipment → <b>CPU Miner Pro</b> aktivieren. ~1-2 EQ/Tag. Für 10-50× mehr: GPU ($120) oder ASIC ($350) — Amortisation 7-14 Tage.`,
+          `⛏️ Нет активного оборудования. Начните бесплатно: Mining > Equipment → активируйте <b>CPU Miner Pro</b>. ~1-2 EQ/день. Для 10-50× больше: GPU ($120) или ASIC ($350) — окупаются за 7-14 дней.`,
+          `⛏️ لا معدات نشطة. ابدأ مجانًا: Mining > Equipment → فعّل <b>CPU Miner Pro</b>. ~1-2 EQ يوميًا. لـ10-50× أكثر: GPU ($120) أو ASIC ($350) — يستردان في 7-14 يومًا.`,
+          `⛏️ 暂无活跃设备。免费开始: Mining > Equipment → 激活 <b>CPU Miner Pro</b>。每日 ~1-2 EQ。提升 10-50× 倍: GPU ($120) 或 ASIC ($350) — 7-14 天回本。`,
+          `⛏️ Sem equipamentos ativos. Comece grátis: Mining > Equipment → ative <b>CPU Miner Pro</b>. ~1-2 EQ/dia. Para 10-50× mais: GPU ($120) ou ASIC ($350) — pagam-se em 7-14 dias.`
+        );
+      } else if (hasUsdt) {
+        smartLine = tt(
+          `⛏️ You have ${activeRigs} active rig${activeRigs > 1 ? 's' : ''} and enough USDT to upgrade. Adding a GPU Miner ($120) on top of your current setup multiplies daily EQ by ~5×, and ASIC Pro ($350) by ~15×. Both ROI in 7-14 days. Mining > Equipment.`,
+          `⛏️ ${activeRigs} aktif ekipmanınız var ve yükseltmek için yeterli USDT'niz var. Mevcut kurulumunuza GPU Miner ($120) eklemek günlük EQ'yu ~5× katlar, ASIC Pro ($350) ise ~15×. İkisi de 7-14 günde kendini öder. Mining > Equipment.`,
+          `⛏️ Tienes ${activeRigs} equipo(s) y USDT suficiente. Añadir GPU Miner ($120) multiplica EQ diario ~5×, ASIC Pro ($350) ~15×. ROI 7-14 días. Mining > Equipment.`,
+          `⛏️ Vous avez ${activeRigs} équipement(s) et assez d'USDT. GPU Miner ($120) multiplie l'EQ quotidien par ~5×, ASIC Pro ($350) par ~15×. ROI 7-14 jours. Mining > Equipment.`,
+          `⛏️ ${activeRigs} aktive Geräte und genug USDT. GPU ($120) multipliziert tägliches EQ ~5×, ASIC ($350) ~15×. ROI 7-14 Tage. Mining > Equipment.`,
+          `⛏️ У вас ${activeRigs} активн. оборуд. и достаточно USDT. GPU ($120) даёт ~5× больше EQ, ASIC ($350) ~15×. Окупаемость 7-14 дней.`,
+          `⛏️ لديك ${activeRigs} معدات نشطة وUSDT كافٍ. GPU ($120) يضاعف EQ ~5×، ASIC ($350) ~15×. عائد في 7-14 يومًا.`,
+          `⛏️ 您有 ${activeRigs} 台活跃设备和足够 USDT。GPU ($120) 将每日 EQ 提升 ~5×, ASIC ($350) ~15×。7-14 天回本。`,
+          `⛏️ Você tem ${activeRigs} equipamento(s) e USDT suficiente. GPU ($120) multiplica EQ diário ~5×, ASIC ($350) ~15×. ROI 7-14 dias.`
+        );
+      } else {
+        smartLine = tt(
+          `⛏️ You have ${activeRigs} active rig${activeRigs > 1 ? 's' : ''} mining slowly. To 5-15× your daily EQ output, top up $120 USDT (GPU Miner) or $350 USDT (ASIC Pro). Both pay back from EQ→USDT swaps within 7-14 days, then everything after that is pure profit.`,
+          `⛏️ ${activeRigs} aktif ekipmanınız yavaş kazıyor. Günlük EQ üretiminizi 5-15× katlamak için $120 USDT (GPU Miner) veya $350 USDT (ASIC Pro) yatırın. İkisi de 7-14 günde EQ→USDT swap'larından kendini öder, sonrası tamamen kâr.`,
+          `⛏️ Tienes ${activeRigs} equipo(s) lentos. Para 5-15× EQ diario: deposita $120 USDT (GPU) o $350 USDT (ASIC). Se pagan en 7-14 días vía swaps EQ→USDT.`,
+          `⛏️ Vous avez ${activeRigs} équipement(s) lents. Pour 5-15× EQ/jour: déposez $120 USDT (GPU) ou $350 USDT (ASIC). Rentables en 7-14 jours.`,
+          `⛏️ ${activeRigs} langsame Geräte. Für 5-15× tägliches EQ: $120 USDT (GPU) oder $350 USDT (ASIC). Amortisation 7-14 Tage.`,
+          `⛏️ ${activeRigs} медленных оборуд. Для 5-15× EQ/день: внесите $120 USDT (GPU) или $350 USDT (ASIC). Окупаемость 7-14 дней.`,
+          `⛏️ ${activeRigs} معدات بطيئة. لـ5-15× EQ يوميًا: أودع $120 USDT (GPU) أو $350 USDT (ASIC). يستردان في 7-14 يومًا.`,
+          `⛏️ ${activeRigs} 台慢速设备。提升 5-15× EQ 产出: 充值 $120 USDT (GPU) 或 $350 USDT (ASIC)。7-14 天回本。`,
+          `⛏️ ${activeRigs} equipamento(s) lentos. Para 5-15× EQ/dia: deposite $120 USDT (GPU) ou $350 USDT (ASIC). Pagam-se em 7-14 dias.`
+        );
+      }
+    }
+
     const pitch = buildConversionPitch(userContext, lang);
-    return pitch ? `${responses.eq_swap}\n\n${pitch}` : responses.eq_swap;
-  }
-  if (isMining) {
-    const pitch = buildConversionPitch(userContext, lang);
-    return pitch ? `${responses.mining_general}\n\n${pitch}` : responses.mining_general;
+    return pitch ? `${smartLine}\n\n${pitch}` : smartLine;
   }
 
   return null;

@@ -1534,6 +1534,129 @@ export default {
         return ok({ notified: true, hold: shouldHold, usd_value: usdValue });
       }
 
+      /* ── SECURITY: DAILY TELEGRAM SUMMARY (idempotent, fires once between 09:00-09:30 server-time) ──
+         Called frequently by admin-monitor; only acts in the morning window AND
+         only if today's summary hasn't been logged in admin_actions yet. */
+      if (method==='POST' && path==='/security/daily-summary') {
+        // ── ADMIN GATE: only admin-monitor (with x-requester-id) may trigger ──
+        if (!isAdmin(request.headers)) return err(403, 'Forbidden');
+
+        const now = new Date();
+        const hour = now.getUTCHours();
+        // Server time is UTC; Turkey = UTC+3 → 09:00-09:30 TR = 06:00-06:30 UTC
+        const inWindow = (hour === 6 && now.getUTCMinutes() < 30);
+        const force = body?.force === true; // admin-only by virtue of gate above
+        if (!inWindow && !force) return ok({ skipped: true, reason: 'outside_window', utc_hour: hour });
+
+        const todayStart = new Date(now);
+        todayStart.setUTCHours(0, 0, 0, 0);
+        const dateStr = now.toISOString().slice(0, 10);
+
+        // ── Pre-check: short-circuit if today's summary already exists ──
+        const existing = await fetch(
+          `${REST}/admin_actions?action_type=eq.daily_telegram_summary&created_at=gte.${encodeURIComponent(todayStart.toISOString())}&select=id,created_at&order=created_at.asc&limit=5`,
+          { headers: restHeaders(env) }
+        ).then(x => x.ok ? x.json() : []).catch(() => []);
+        if (Array.isArray(existing) && existing.length > 0 && !force) {
+          return ok({ skipped: true, reason: 'already_sent_today' });
+        }
+
+        // ── ATOMIC CLAIM: insert a claim row FIRST, then verify we won the race ──
+        const claimResp = await fetch(`${REST}/admin_actions?select=id,created_at`, {
+          method: 'POST',
+          headers: { ...restHeaders(env), 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+          body: JSON.stringify({
+            action_type: 'daily_telegram_summary',
+            details: { date: dateStr, status: 'claiming' },
+          }),
+        });
+        if (!claimResp.ok) {
+          const t = await claimResp.text().catch(() => '');
+          return ok({ skipped: true, reason: 'claim_insert_failed', status: claimResp.status, body: t.slice(0, 200) });
+        }
+        const claimRows = await claimResp.json().catch(() => []);
+        const myClaim = Array.isArray(claimRows) ? claimRows[0] : null;
+        if (!myClaim?.id) return ok({ skipped: true, reason: 'no_claim_id' });
+
+        // Re-query and abort if another row beat us (lower created_at OR lower id at same ts)
+        const allToday = await fetch(
+          `${REST}/admin_actions?action_type=eq.daily_telegram_summary&created_at=gte.${encodeURIComponent(todayStart.toISOString())}&select=id,created_at&order=created_at.asc,id.asc&limit=5`,
+          { headers: restHeaders(env) }
+        ).then(x => x.ok ? x.json() : []).catch(() => []);
+        const winner = Array.isArray(allToday) && allToday.length > 0 ? allToday[0] : null;
+        if (!winner || winner.id !== myClaim.id) {
+          return ok({ skipped: true, reason: 'lost_race', winner_id: winner?.id });
+        }
+
+        // ── Pull metrics in parallel with strict status checks ──
+        const safeJson = async (url) => {
+          try {
+            const r = await fetch(url, { headers: restHeaders(env) });
+            if (!r.ok) return { ok: false, data: null, status: r.status };
+            return { ok: true, data: await r.json() };
+          } catch (e) { return { ok: false, data: null, error: String(e) }; }
+        };
+        const [signupsR, kycR, depositsR, pendingR, completedR, topR] = await Promise.all([
+          safeJson(`${REST}/user_profiles?created_at=gte.${encodeURIComponent(todayStart.toISOString())}&is_real_user=eq.true&select=id&limit=1000`),
+          safeJson(`${REST}/user_profiles?verification_status=eq.verified&updated_at=gte.${encodeURIComponent(todayStart.toISOString())}&select=id&limit=1000`),
+          safeJson(`${REST}/transactions?type=eq.deposit&status=eq.completed&created_at=gte.${encodeURIComponent(todayStart.toISOString())}&select=amount,user_id&limit=2000`),
+          safeJson(`${REST}/withdrawal_transactions?status=in.(pending,hold)&select=id,amount,coin_symbol&limit=500`),
+          safeJson(`${REST}/withdrawal_transactions?status=eq.completed&reviewed_at=gte.${encodeURIComponent(todayStart.toISOString())}&select=amount,coin_symbol&limit=500`),
+          safeJson(`${REST}/transactions?type=eq.deposit&status=eq.completed&created_at=gte.${encodeURIComponent(todayStart.toISOString())}&select=amount,user_id&order=amount.desc&limit=5`),
+        ]);
+
+        const errs = [signupsR, kycR, depositsR, pendingR, completedR, topR].filter(r => !r.ok).length;
+        const sumAmt = (r) => r.ok && Array.isArray(r.data) ? r.data.reduce((s, x) => s + Number(x?.amount || 0), 0) : 0;
+        const cnt = (r) => r.ok && Array.isArray(r.data) ? r.data.length : 0;
+        const depositsUsd = sumAmt(depositsR);
+        const withdrawalsCompletedUsd = sumAmt(completedR);
+        const pendingUsd = sumAmt(pendingR);
+        const signupsCount = cnt(signupsR);
+        const kycCount = cnt(kycR);
+        const depositCount = cnt(depositsR);
+        const pendingCount = cnt(pendingR);
+
+        // Top depositors: separate query for emails (relationship embed not guaranteed)
+        let topLines = '—';
+        if (topR.ok && Array.isArray(topR.data) && topR.data.length > 0) {
+          const userIds = [...new Set(topR.data.map(d => d.user_id).filter(Boolean))];
+          const emailsR = userIds.length > 0
+            ? await safeJson(`${REST}/user_profiles?id=in.(${userIds.join(',')})&select=id,email`)
+            : { ok: true, data: [] };
+          const emailMap = {};
+          if (emailsR.ok && Array.isArray(emailsR.data)) {
+            for (const u of emailsR.data) emailMap[u.id] = u.email;
+          }
+          topLines = topR.data.slice(0, 5)
+            .map((d, i) => `${i + 1}. ${emailMap[d.user_id] || (d.user_id || '?').slice(0, 8)} — $${Number(d?.amount || 0).toFixed(2)}`)
+            .join('\n');
+        }
+
+        const errLine = errs > 0 ? `\n\n⚠️ <b>${errs}</b> sorgu başarısız oldu — sayılar eksik olabilir.` : '';
+        const msg = `📊 <b>GÜNLÜK ÖZET</b> — ${dateStr}\n\n` +
+          `👥 Yeni kayıt: <b>${signupsCount}</b>\n` +
+          `✅ KYC tamamlanan: <b>${kycCount}</b>\n` +
+          `💰 Yatırım: <b>${depositCount}</b> işlem / <b>$${depositsUsd.toFixed(2)}</b>\n` +
+          `💸 Çekim (tamamlanan): <b>$${withdrawalsCompletedUsd.toFixed(2)}</b>\n` +
+          `⏸️ Bekleyen çekim: <b>${pendingCount}</b> talep / <b>$${pendingUsd.toFixed(2)}</b>\n\n` +
+          `🏆 <b>TOP 5 YATIRIMCI</b>\n${topLines}\n\n` +
+          (pendingCount > 0 ? `⚠️ ${pendingCount} bekleyen çekim onayınızı bekliyor.` : '✨ Onay bekleyen çekim yok.') +
+          errLine;
+
+        await sendTelegramAlert(msg, env);
+
+        // Update claim row with final metrics
+        await fetch(`${REST}/admin_actions?id=eq.${myClaim.id}`, {
+          method: 'PATCH',
+          headers: { ...restHeaders(env), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            details: { date: dateStr, status: 'sent', signups: signupsCount, kyc: kycCount, deposits_usd: depositsUsd, withdrawals_completed_usd: withdrawalsCompletedUsd, pending_count: pendingCount, pending_usd: pendingUsd, query_errors: errs },
+          }),
+        }).catch(() => {});
+
+        return ok({ sent: true, signups: signupsCount, kyc: kycCount, deposits_usd: depositsUsd, pending: pendingCount, query_errors: errs });
+      }
+
       /* ── AI TOGGLE ENFORCEMENT (server-side guard against cached clients) ──
          Deletes any AI-flagged admin messages inserted while the global toggle is OFF.
          Called by admin-monitor every few seconds. */

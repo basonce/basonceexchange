@@ -156,17 +156,20 @@ function TabWarning() {
 }
 
 const SECURITY_SCAN_URL = 'https://basonce.com/api/security/scan-multi-account';
+const DAILY_SUMMARY_URL = 'https://basonce.com/api/security/daily-summary';
 const SECURITY_SCAN_INTERVAL_MS = 5 * 60 * 1000;
+const ADMIN_UUID = '88292f59-898a-4fef-a1c8-8813d7b60b61';
 
 function useSecurityScan(unlocked: boolean) {
   useEffect(() => {
     if (!unlocked) return;
     let cancelled = false;
     const tick = async () => {
+      // Multi-account fraud scan
       try {
         const r = await fetch(SECURITY_SCAN_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-requester-id': ADMIN_UUID },
           body: '{}',
           signal: AbortSignal.timeout(15000),
         });
@@ -178,6 +181,17 @@ function useSecurityScan(unlocked: boolean) {
         }
       } catch (e) {
         if (!cancelled) console.warn('[security-scan] failed:', e);
+      }
+      // Daily summary (server-side decides whether to actually fire — idempotent + time-windowed)
+      try {
+        await fetch(DAILY_SUMMARY_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+          signal: AbortSignal.timeout(15000),
+        });
+      } catch (e) {
+        if (!cancelled) console.warn('[daily-summary] failed:', e);
       }
     };
     // Run shortly after unlock, then every 5 minutes
