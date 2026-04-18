@@ -303,6 +303,17 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
   ) => {
     // Module-level guard — one reply per ticket at a time, survives StrictMode remounts
     if (_ticketsBeingReplied.has(tickId)) return;
+    // GLOBAL AI TOGGLE — if admin disabled AI, do NOT auto-reply
+    try {
+      const { data: aiSetting } = await supabase
+        .from('exchange_settings')
+        .select('value')
+        .eq('key', 'global_ai_support')
+        .maybeSingle();
+      if (aiSetting?.value && (aiSetting.value as { enabled?: boolean }).enabled === false) {
+        return;
+      }
+    } catch {}
     _ticketsBeingReplied.add(tickId);
     setIsAgentTyping(true);
     try {

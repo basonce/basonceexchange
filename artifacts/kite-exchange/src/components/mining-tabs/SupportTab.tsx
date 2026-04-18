@@ -265,6 +265,17 @@ export default function SupportTab() {
     lang: string
   ) => {
     if (_miningTicketsBeingReplied.has(tickId)) return;
+    try {
+      const { data: aiSetting } = await supabase
+        .from('exchange_settings')
+        .select('value')
+        .eq('key', 'global_ai_support')
+        .maybeSingle();
+      if (aiSetting?.value && (aiSetting.value as { enabled?: boolean }).enabled === false) {
+        setIsAgentTyping(false);
+        return;
+      }
+    } catch {}
     _miningTicketsBeingReplied.add(tickId);
     setIsAgentTyping(true);
     try {
