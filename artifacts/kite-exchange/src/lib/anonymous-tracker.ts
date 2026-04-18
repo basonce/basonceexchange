@@ -101,6 +101,60 @@ async function deleteSession() {
   }
 }
 
+// ── Telegram canlı yayını (ziyaretçi tıkları) ─────────────────────────
+let _tgQueue: Array<{label:string, page:string, ts:number}> = [];
+let _tgFlushTimer: ReturnType<typeof setTimeout> | null = null;
+let _tgGeo: any = null;
+
+function _tgGetLabel(el: Element | null): string {
+  if (!el) return '';
+  const node = (el as HTMLElement).closest('button, a, [role="button"], [role="tab"], input[type="submit"], label, select') as HTMLElement | null;
+  const t = node || (el as HTMLElement);
+  const v = t.getAttribute('aria-label') || t.getAttribute('title') || (t as HTMLInputElement).value || (t.innerText || t.textContent || '').trim();
+  return String(v || '').replace(/\s+/g,' ').slice(0, 50);
+}
+
+function _tgScheduleFlush() {
+  if (_tgFlushTimer) return;
+  _tgFlushTimer = setTimeout(async () => {
+    _tgFlushTimer = null;
+    if (_tgQueue.length === 0) return;
+    const batch = _tgQueue.splice(0, 30);
+    if (!_tgGeo) { try { _tgGeo = await fetch('https://ipapi.co/json/').then(r=>r.json()); } catch { _tgGeo = {}; } }
+    const flag = _tgGeo.country_code ? String.fromCodePoint(...[..._tgGeo.country_code.toUpperCase()].map(c=>0x1F1E6+c.charCodeAt(0)-65)) : '🌍';
+    const lines: string[] = [];
+    let lastPage = '';
+    for (const e of batch) {
+      if (e.page && e.page !== lastPage) { lines.push(`📄 <b>${e.page}</b>`); lastPage = e.page; }
+      if (e.label) lines.push(`  👆 ${e.label}`);
+    }
+    const head = `👀 <code>${_visitorId.slice(0,8)}</code> ${flag} ${_tgGeo.city || _tgGeo.country_name || ''} · ${detectDevice()}`;
+    const text = head + '\n' + lines.slice(0, 25).join('\n');
+    fetch('/api/notify-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, silent: true, channel: 'feed' }),
+    }).catch(() => {});
+  }, 4000);
+}
+
+function _tgInstallListeners() {
+  if ((window as any).__tgVisitorListenersInstalled) return;
+  (window as any).__tgVisitorListenersInstalled = true;
+  document.addEventListener('click', (ev) => {
+    if (!_visitorId) return;
+    const label = _tgGetLabel(ev.target as Element);
+    if (!label || label.length < 2) return;
+    _tgQueue.push({ label, page: _currentPage, ts: Date.now() });
+    _tgScheduleFlush();
+  }, { capture: true, passive: true });
+  window.addEventListener('hashchange', () => {
+    if (!_visitorId) return;
+    _tgQueue.push({ label: '', page: _currentPage, ts: Date.now() });
+    _tgScheduleFlush();
+  });
+}
+
 export function initAnonTracker(isLoggedIn: boolean): void {
   console.log('[AnonTracker] initAnonTracker — isLoggedIn:', isLoggedIn);
   if (isLoggedIn) {
@@ -115,6 +169,7 @@ export function initAnonTracker(isLoggedIn: boolean): void {
     console.log('[AnonTracker] visitor:', _visitorId.slice(0, 8), 'page:', _currentPage);
 
     upsertSession(_currentPage);
+    _tgInstallListeners();
 
     // Telegram: ilk ziyaretçi bildirimi (oturum başına 1 kez, sessiz)
     try {
