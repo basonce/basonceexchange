@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Wallet, Database, Users, TrendingUp, RefreshCw, Plus, Upload, Trash2, X, CheckCircle, AlertCircle, FileText } from 'lucide-react';
+import { Wallet, Database, Users, TrendingUp, RefreshCw, Plus, Upload, Trash2, X, CheckCircle, AlertCircle, FileText, Copy, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface WalletStats {
@@ -485,6 +485,24 @@ export default function WalletPoolManagement() {
 }
 
 function WalletRow({ wallet, onDelete }: { wallet: WalletPoolItem; onDelete: () => void }) {
+  const [mmOpen, setMmOpen] = useState(false);
+  const [mmPk, setMmPk] = useState('');
+  const [mmLoading, setMmLoading] = useState(false);
+  const [mmError, setMmError] = useState('');
+  const [mmShowKey, setMmShowKey] = useState(false);
+
+  const openMm = async () => {
+    setMmOpen(true); setMmShowKey(false); setMmLoading(true); setMmError(''); setMmPk('');
+    try {
+      const { data, error } = await supabase.from('wallet_pool').select('encrypted_private_key').eq('id', wallet.id).maybeSingle();
+      if (error) throw error;
+      const pk = data?.encrypted_private_key || '';
+      if (!pk || pk === 'admin-added-no-key' || pk.length < 30) throw new Error('Bu cüzdanın private keyi sistemde yok (sadece adres eklendi)');
+      setMmPk(pk);
+    } catch (e: any) { setMmError(e?.message || 'Hata'); }
+    setMmLoading(false);
+  };
+  const copy = (t: string) => { navigator.clipboard?.writeText(t); };
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async () => {
@@ -544,16 +562,111 @@ function WalletRow({ wallet, onDelete }: { wallet: WalletPoolItem; onDelete: () 
         )}
       </td>
       <td className="px-6 py-4">
-        {!wallet.is_assigned && (
+        <div className="flex items-center gap-1">
           <button
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+            onClick={openMm}
+            className="p-2 bg-orange-100 hover:bg-orange-200 rounded-lg transition-colors"
+            title="MetaMask'e Aktar (key + adım adım)"
           >
-            <Trash2 className="w-4 h-4" />
+            <span className="text-base leading-none">🦊</span>
           </button>
-        )}
+          {!wallet.is_assigned && (
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+              title="Sil"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </td>
+
+      {mmOpen && (
+        <td className="hidden">
+          <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={() => setMmOpen(false)}>
+            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto text-left" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gradient-to-r from-orange-50 to-amber-50">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">🦊</span>
+                  <div>
+                    <h3 className="font-bold text-gray-900">MetaMask'e Aktar</h3>
+                    <p className="text-xs text-gray-600">{wallet.network === 'BEP20' ? 'BNB Smart Chain (BSC)' : 'TRON (TRC20)'} {wallet.is_assigned ? '· ATANMIŞ' : '· BOŞTA'}</p>
+                  </div>
+                </div>
+                <button onClick={() => setMmOpen(false)} className="p-2 hover:bg-white/60 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
+              </div>
+
+              <div className="p-4 space-y-4">
+                {mmLoading && <div className="flex items-center justify-center py-8"><RefreshCw className="w-6 h-6 animate-spin text-orange-500" /></div>}
+                {mmError && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{mmError}</div>}
+
+                {!mmLoading && !mmError && mmPk && (
+                  <>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 mb-1">Adres</p>
+                      <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg border border-gray-200">
+                        <span className="font-mono text-xs text-gray-800 break-all flex-1">{wallet.address}</span>
+                        <button onClick={() => copy(wallet.address)} className="flex-shrink-0 px-2 py-1 bg-white border border-gray-200 rounded text-xs font-semibold hover:bg-gray-100"><Copy className="w-3.5 h-3.5 inline" /> Kopyala</button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-semibold text-gray-500">Private Key</p>
+                        <button onClick={() => setMmShowKey(s => !s)} className="text-xs text-orange-600 hover:text-orange-700 font-semibold flex items-center gap-1">
+                          {mmShowKey ? <><EyeOff className="w-3 h-3" /> Gizle</> : <><Eye className="w-3 h-3" /> Göster</>}
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 p-2.5 bg-orange-50 rounded-lg border border-orange-200">
+                        <span className="font-mono text-xs text-orange-900 break-all flex-1">{mmShowKey ? mmPk : '•'.repeat(64)}</span>
+                        <button onClick={() => copy(mmPk)} className="flex-shrink-0 px-2 py-1 bg-orange-600 text-white rounded text-xs font-semibold hover:bg-orange-700"><Copy className="w-3.5 h-3.5 inline" /> Kopyala</button>
+                      </div>
+                    </div>
+
+                    {wallet.user_profiles && (
+                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs">
+                        <p className="font-bold text-emerald-900">👤 Atanmış kullanıcı</p>
+                        <p className="text-emerald-800 mt-0.5">{wallet.user_profiles.email}{wallet.user_profiles.full_name ? ` · ${wallet.user_profiles.full_name}` : ''}</p>
+                      </div>
+                    )}
+
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-xs font-bold text-red-800 mb-1 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" /> KRİTİK UYARI</p>
+                      <p className="text-xs text-red-700">MetaMask'te <b>"Secret Recovery Phrase"</b> alanına ASLA yapıştırma. Sadece <b>"Import Account → Private Key"</b> alanına yapıştır.</p>
+                    </div>
+
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-xs font-bold text-blue-900 mb-2">📋 Adım Adım MetaMask</p>
+                      <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside">
+                        <li>MetaMask aç → sağ üstteki <b>hesap dairesine</b> tıkla</li>
+                        <li><b>"Add account or hardware wallet"</b> seç</li>
+                        <li><b>"Import account"</b> seç (Recovery Phrase DEĞİL!)</li>
+                        <li>Type: <b>Private Key</b> (varsayılan)</li>
+                        <li>Yukarıdaki key'i yapıştır → <b>Import</b></li>
+                        <li>Network'ü <b>{wallet.network === 'BEP20' ? 'BNB Smart Chain' : 'TRON'}</b> yap</li>
+                      </ol>
+                    </div>
+
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-xs font-bold text-amber-900 mb-1">💡 "Duplicate" hatası alırsan</p>
+                      <p className="text-xs text-amber-800">Hesap zaten MetaMask'inde var demektir. Avatar menüsünden <b>{wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}</b> ile biten hesabı seç.</p>
+                    </div>
+
+                    {wallet.network === 'BEP20' && (
+                      <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                        <p className="text-xs font-bold text-gray-900 mb-1">🟡 BSC Network Bilgileri</p>
+                        <p className="text-xs text-gray-700">Yoksa: Settings → Networks → Add Network → "BNB Smart Chain"<br/>RPC: <span className="font-mono">https://bsc-dataseed.binance.org</span> · Chain ID: <span className="font-mono">56</span> · Symbol: BNB</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </td>
+      )}
     </tr>
   );
 }
