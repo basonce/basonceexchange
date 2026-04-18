@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, CheckCircle, XCircle, ExternalLink, Wallet, Bell, AlertTriangle } from 'lucide-react';
+import { RefreshCw, CheckCircle, XCircle, ExternalLink, Wallet, Bell, AlertTriangle, Copy, Eye, EyeOff, X } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 
 const ADMIN_UUID = '88292f59-898a-4fef-a1c8-8813d7b60b61';
@@ -48,6 +48,19 @@ export default function DepositRadarPanel() {
   const [walletsLoading, setWalletsLoading] = useState(false);
   const [walletQuery, setWalletQuery] = useState('');
   const [autoAssigning, setAutoAssigning] = useState(false);
+  const [mm, setMm] = useState<{ address: string; network: string; pk: string; loading: boolean; error?: string } | null>(null);
+  const [mmShow, setMmShow] = useState(false);
+  const openMm = async (address: string, network: string) => {
+    setMmShow(false); setMm({ address, network, pk: '', loading: true });
+    try {
+      const { data, error } = await supabase.from('wallet_pool').select('encrypted_private_key').ilike('address', address).maybeSingle();
+      if (error) throw error;
+      const pk = data?.encrypted_private_key || '';
+      if (!pk || pk === 'admin-added-no-key' || pk.length < 30) throw new Error('Bu cüzdanın private keyi sistemde yok');
+      setMm({ address, network, pk, loading: false });
+    } catch (e: any) { setMm({ address, network, pk: '', loading: false, error: e?.message || 'Hata' }); }
+  };
+  const cp = (t: string) => navigator.clipboard?.writeText(t);
 
   const loadWallets = useCallback(async () => {
     setWalletsLoading(true);
@@ -482,6 +495,13 @@ export default function DepositRadarPanel() {
                           <ExternalLink className="w-3 h-3" />
                           {w.network === 'BEP20' ? 'BscScan' : 'TronScan'}
                         </a>
+                        <button
+                          onClick={() => openMm(w.address, w.network)}
+                          className="px-2 py-1 bg-orange-100 hover:bg-orange-200 rounded text-[12px] font-bold whitespace-nowrap"
+                          title="MetaMask'e Aktar"
+                        >
+                          🦊
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -556,6 +576,15 @@ export default function DepositRadarPanel() {
                 <a href={explorer(d)} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1 px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[11px] font-semibold">
                   <ExternalLink className="w-3 h-3" /> TX
                 </a>
+                {d.wallet_address && (d.network === 'BEP20' || d.network === 'TRC20') && (
+                  <button
+                    onClick={() => openMm(d.wallet_address!, d.network)}
+                    className="flex items-center justify-center gap-1 px-3 py-1 bg-orange-100 hover:bg-orange-200 rounded-lg text-[11px] font-bold whitespace-nowrap"
+                    title="MetaMask'e Aktar"
+                  >
+                    🦊 MetaMask
+                  </button>
+                )}
               </div>
             </div>
             {!d.user_id && d.status === 'new' && (
@@ -567,6 +596,75 @@ export default function DepositRadarPanel() {
         ))}
       </div>
       </>)}
+
+      {mm && (
+        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={() => setMm(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gradient-to-r from-orange-50 to-amber-50">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🦊</span>
+                <div>
+                  <h3 className="font-bold text-gray-900">MetaMask'e Aktar</h3>
+                  <p className="text-xs text-gray-600">{mm.network === 'BEP20' ? 'BNB Smart Chain (BSC)' : 'TRON (TRC20)'}</p>
+                </div>
+              </div>
+              <button onClick={() => setMm(null)} className="p-2 hover:bg-white/60 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
+            </div>
+            <div className="p-4 space-y-4">
+              {mm.loading && <div className="flex items-center justify-center py-8"><RefreshCw className="w-6 h-6 animate-spin text-orange-500" /></div>}
+              {mm.error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{mm.error}</div>}
+              {!mm.loading && !mm.error && mm.pk && (
+                <>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 mb-1">Adres</p>
+                    <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg border border-gray-200">
+                      <span className="font-mono text-xs text-gray-800 break-all flex-1">{mm.address}</span>
+                      <button onClick={() => cp(mm.address)} className="flex-shrink-0 px-2 py-1 bg-white border border-gray-200 rounded text-xs font-semibold hover:bg-gray-100"><Copy className="w-3.5 h-3.5 inline" /> Kopyala</button>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs font-semibold text-gray-500">Private Key</p>
+                      <button onClick={() => setMmShow(s => !s)} className="text-xs text-orange-600 hover:text-orange-700 font-semibold flex items-center gap-1">
+                        {mmShow ? <><EyeOff className="w-3 h-3" /> Gizle</> : <><Eye className="w-3 h-3" /> Göster</>}
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 p-2.5 bg-orange-50 rounded-lg border border-orange-200">
+                      <span className="font-mono text-xs text-orange-900 break-all flex-1">{mmShow ? mm.pk : '•'.repeat(64)}</span>
+                      <button onClick={() => cp(mm.pk)} className="flex-shrink-0 px-2 py-1 bg-orange-600 text-white rounded text-xs font-semibold hover:bg-orange-700"><Copy className="w-3.5 h-3.5 inline" /> Kopyala</button>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-xs font-bold text-red-800 mb-1 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" /> KRİTİK UYARI</p>
+                    <p className="text-xs text-red-700">MetaMask'te <b>"Secret Recovery Phrase"</b> alanına ASLA yapıştırma. Sadece <b>"Import Account → Private Key"</b> alanına yapıştır.</p>
+                  </div>
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs font-bold text-blue-900 mb-2">📋 Adım Adım MetaMask</p>
+                    <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside">
+                      <li>MetaMask aç → sağ üstteki <b>hesap dairesine</b> tıkla</li>
+                      <li><b>"Add account or hardware wallet"</b> seç</li>
+                      <li><b>"Import account"</b> seç (Recovery Phrase DEĞİL!)</li>
+                      <li>Type: <b>Private Key</b> (varsayılan)</li>
+                      <li>Yukarıdaki key'i yapıştır → <b>Import</b></li>
+                      <li>Network: <b>{mm.network === 'BEP20' ? 'BNB Smart Chain' : 'TRON'}</b></li>
+                    </ol>
+                  </div>
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs font-bold text-amber-900 mb-1">💡 "Duplicate" hatası alırsan</p>
+                    <p className="text-xs text-amber-800">Hesap zaten MetaMask'inde var demektir. Avatar menüsünden <b>{mm.address.slice(0, 6)}...{mm.address.slice(-4)}</b> ile biten hesabı seç.</p>
+                  </div>
+                  {mm.network === 'BEP20' && (
+                    <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                      <p className="text-xs font-bold text-gray-900 mb-1">🟡 BSC Network Bilgileri</p>
+                      <p className="text-xs text-gray-700">Yoksa: Settings → Networks → Add Network → "BNB Smart Chain"<br/>RPC: <span className="font-mono">https://bsc-dataseed.binance.org</span> · Chain ID: <span className="font-mono">56</span> · Symbol: BNB</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
