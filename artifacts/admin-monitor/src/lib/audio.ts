@@ -24,9 +24,13 @@ function tone(freq: number, duration: number, type: OscillatorType = 'sine', gai
 // ── Sound effects (single play) ───────────────────────────────
 export const sounds = {
   newUser: () => {
-    tone(523, 0.15, 'sine', 0.25, 0);
-    tone(659, 0.15, 'sine', 0.25, 0.1);
-    tone(784, 0.25, 'sine', 0.3, 0.2);
+    // LOUD two-tone police siren — 5 seconds, max gain
+    // Alternates 900Hz / 650Hz square waves (much more cutting than sine)
+    const STEP = 0.32;
+    const REPS = 16; // ~5.1s
+    for (let i = 0; i < REPS; i++) {
+      tone(i % 2 === 0 ? 900 : 650, STEP, 'square', 0.95, i * STEP);
+    }
   },
   deposit: () => {
     tone(1046, 0.1, 'sine', 0.2, 0);
