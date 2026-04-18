@@ -1351,7 +1351,20 @@ export default {
 
     // Only handle /api/* routes; everything else = static assets
     if (!url.pathname.startsWith('/api/')) {
-      return env.ASSETS.fetch(request);
+      const assetRes = await env.ASSETS.fetch(request);
+      const ct = assetRes.headers.get('content-type') || '';
+      // Never cache HTML at the edge — otherwise users keep loading old chunks after deploys
+      // and end up stuck on the "Güncelleniyor..." spinner. Hashed JS/CSS in /assets/ stay cached.
+      if (ct.includes('text/html')) {
+        const h = new Headers(assetRes.headers);
+        h.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        h.set('CDN-Cache-Control', 'no-store');
+        h.set('Cloudflare-CDN-Cache-Control', 'no-store');
+        h.set('Pragma', 'no-cache');
+        h.set('Expires', '0');
+        return new Response(assetRes.body, { status: assetRes.status, headers: h });
+      }
+      return assetRes;
     }
 
     let body = {};
