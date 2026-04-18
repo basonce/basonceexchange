@@ -908,7 +908,15 @@ async function tgApi(env, method, payload) {
   return r.json().catch(()=>({}));
 }
 async function tgSendMessage(env, text, opts={}) {
-  const chat_id = opts.chatId || env.TELEGRAM_ADMIN_CHAT_ID;
+  // 'feed' kanalı varsa oraya, yoksa main'e yolla
+  let chat_id = opts.chatId;
+  if (!chat_id) {
+    if (opts.channel === 'feed' && env.TELEGRAM_FEED_CHAT_ID) {
+      chat_id = env.TELEGRAM_FEED_CHAT_ID;
+    } else {
+      chat_id = env.TELEGRAM_ADMIN_CHAT_ID;
+    }
+  }
   if (!chat_id) return { ok:false, reason:'no_chat_id' };
   const payload = {
     chat_id,
@@ -918,6 +926,7 @@ async function tgSendMessage(env, text, opts={}) {
   };
   if (opts.keyboard) payload.reply_markup = opts.keyboard;
   if (opts.replyTo) payload.reply_to_message_id = opts.replyTo;
+  if (opts.silent) payload.disable_notification = true;
   return tgApi(env, 'sendMessage', payload);
 }
 async function tgAnswerCallback(env, callback_query_id, text='', alert=false) {
@@ -1659,7 +1668,9 @@ export default {
           const text = String(body?.text || '').slice(0, 3900);
           if (!text) return err(400, 'text required');
           const keyboard = body?.keyboard || null;
-          const result = await tgSendMessage(env, text, { keyboard });
+          const silent = body?.silent === true;
+          const channel = body?.channel || 'main'; // 'main' | 'feed'
+          const result = await tgSendMessage(env, text, { keyboard, silent, channel });
           return ok({ok: result.ok === true, telegram: result });
         } catch (e) { return err(500, String(e?.message||e)); }
       }

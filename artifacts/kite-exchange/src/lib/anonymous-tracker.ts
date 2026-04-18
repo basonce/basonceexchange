@@ -116,6 +116,24 @@ export function initAnonTracker(isLoggedIn: boolean): void {
 
     upsertSession(_currentPage);
 
+    // Telegram: ilk ziyaretçi bildirimi (oturum başına 1 kez, sessiz)
+    try {
+      const NOTIFIED_KEY = 'basonce_visitor_notified';
+      if (!sessionStorage.getItem(NOTIFIED_KEY)) {
+        sessionStorage.setItem(NOTIFIED_KEY, '1');
+        (async () => {
+          let geo: any = {};
+          try { geo = await fetch('https://ipapi.co/json/').then(r=>r.json()); } catch {}
+          const text = `👀 <b>ZİYARETÇİ</b>\n\n🌍 ${geo.country_name || '?'} / ${geo.city || '?'}\n📡 ${geo.ip || '?'}\n📱 ${detectDevice()} · ${detectBrowser()} · ${detectOS()}\n📄 ${_currentPage}\n🆔 <code>${_visitorId.slice(0,8)}</code>`;
+          fetch('/api/notify-event', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ text, silent: true, channel: 'feed' })
+          }).catch(()=>{});
+        })();
+      }
+    } catch {}
+
     if (!_intervalId) {
       _intervalId = setInterval(() => {
         upsertSession(_currentPage);
