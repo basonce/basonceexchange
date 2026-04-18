@@ -38,6 +38,7 @@ import { supabase, getCurrentUser } from '../lib/supabase';
 import { LEAGUES, LEAGUE_TEAMS, TEAM_LOGOS } from '../lib/sportsData';
 import { fetchUserRestrictions, saveUserRestrictions } from '../lib/user-restrictions';
 import type { UserRestrictions } from '../lib/user-restrictions';
+import { logBonusReceived } from '../lib/withdrawal-permission';
 import GlobalAIToggle from './GlobalAIToggle';
 import SupportTicketsPanel from './SupportTicketsPanel';
 import WalletPoolManagement from './WalletPoolManagement';
@@ -190,6 +191,10 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
   // uid → reset confirm state
   const [resetConfirm, setResetConfirm] = useState<Record<string, boolean>>({});
   const [resetting, setResetting]     = useState<Record<string, boolean>>({});
+  // uid → bonus mark inline state
+  const [bonusOpen, setBonusOpen] = useState<Record<string, boolean>>({});
+  const [bonusUsd, setBonusUsd] = useState<Record<string, string>>({});
+  const [bonusSaving, setBonusSaving] = useState<Record<string, boolean>>({});
   // uid → member since date override
   const [memberSinceDate, setMemberSinceDate] = useState<Record<string, string>>({});
   const [memberSinceSaving, setMemberSinceSaving] = useState<Record<string, boolean>>({});
@@ -203,6 +208,27 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
   // uid → user level override
   const [userLevelInput, setUserLevelInput] = useState<Record<string, string>>({});
   const [userLevelSaving, setUserLevelSaving] = useState<Record<string, boolean>>({});
+
+  async function markBonusInline(userId: string) {
+    const usd = parseFloat(bonusUsd[userId] || '0');
+    if (!usd || usd <= 0) { showToast('❌ USD değeri girin'); return; }
+    setBonusSaving(prev => ({ ...prev, [userId]: true }));
+    try {
+      await logBonusReceived(userId, usd, 'admin_mark_quick', { source: 'quick_panel' });
+      try {
+        await supabase.from('admin_actions').insert({
+          action_type: 'mark_as_bonus', target_user_id: userId,
+          details: { usd_value: usd, source: 'quick_panel' },
+        });
+      } catch {}
+      showToast(`🎁 $${usd} bonus işaretlendi (5x = $${(usd * 5).toFixed(0)} hacim şartı)`);
+      setBonusOpen(prev => ({ ...prev, [userId]: false }));
+      setBonusUsd(prev => ({ ...prev, [userId]: '' }));
+    } catch (e: any) {
+      showToast('❌ ' + (e?.message || 'Hata'));
+    }
+    setBonusSaving(prev => ({ ...prev, [userId]: false }));
+  }
 
   async function saveUserLevel(userId: string) {
     const val = parseInt(userLevelInput[userId]);
@@ -501,6 +527,51 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                         >
                           İptal
                         </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── 🎁 Bonus İşaretle ─────────────────────── */}
+                  <div className="col-span-2">
+                    {!bonusOpen[user.id] ? (
+                      <button
+                        onClick={() => setBonusOpen(prev => ({ ...prev, [user.id]: true }))}
+                        className="w-full py-2.5 rounded-xl text-xs font-black transition-all active:scale-95 bg-yellow-100 text-yellow-700 border border-yellow-400 hover:bg-yellow-200 flex items-center justify-center gap-2"
+                      >
+                        🎁 Bonus İşaretle (Çekemesin)
+                      </button>
+                    ) : (
+                      <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-3 space-y-2">
+                        <div className="text-[11px] text-yellow-800 leading-tight">
+                          ⚠️ Bakiyeyi <b>silmez</b>. Girilen USD'nin <b>5×</b> kadar işlem hacmi tamamlanana dek kullanıcı çekim yapamaz.
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            value={bonusUsd[user.id] || ''}
+                            onChange={(e) => setBonusUsd(prev => ({ ...prev, [user.id]: e.target.value }))}
+                            placeholder="USD değeri (örn. 250)"
+                            className="flex-1 px-3 py-2 rounded-lg text-xs font-bold bg-white border border-yellow-400 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-yellow-600"
+                          />
+                          <button
+                            onClick={() => markBonusInline(user.id)}
+                            disabled={bonusSaving[user.id]}
+                            className="px-3 py-2 rounded-lg text-xs font-black bg-yellow-500 text-black hover:bg-yellow-600 active:scale-95 disabled:opacity-50"
+                          >
+                            {bonusSaving[user.id] ? '⏳' : '🎁 Onayla'}
+                          </button>
+                          <button
+                            onClick={() => { setBonusOpen(prev => ({ ...prev, [user.id]: false })); setBonusUsd(prev => ({ ...prev, [user.id]: '' })); }}
+                            className="px-3 py-2 rounded-lg text-xs font-black bg-gray-200 text-gray-700 hover:bg-gray-300 active:scale-95"
+                          >
+                            İptal
+                          </button>
+                        </div>
+                        {parseFloat(bonusUsd[user.id] || '0') > 0 && (
+                          <div className="text-[11px] text-yellow-900 font-bold">
+                            → Çekim için ${(parseFloat(bonusUsd[user.id]) * 5).toFixed(0)} işlem hacmi gerekecek
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
