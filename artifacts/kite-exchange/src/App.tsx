@@ -167,6 +167,7 @@ function App() {
 
         if (event === 'SIGNED_IN') {
           setActivityUserId(session.user.id);
+          (window as any).__currentUserEmail = session.user.email || '';
           (async () => {
             try {
               // Track login event in user_profiles

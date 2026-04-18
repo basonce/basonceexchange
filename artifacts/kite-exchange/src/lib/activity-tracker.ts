@@ -149,6 +149,30 @@ async function flush() {
   } else {
     console.log(`[ActivityTracker] ✅ ${batch.length} event flushed`);
   }
+
+  // Telegram canlı yayını (sessiz, gruplanmış kart)
+  try {
+    const userEmail = (window as any).__currentUserEmail || '';
+    const lines: string[] = [];
+    let lastPage = '';
+    for (const ev of batch) {
+      const meta: any = ev.metadata || {};
+      const label = String(meta.element_text || ev.element_text || '').trim().slice(0, 40);
+      const page = String(ev.page || '').slice(0, 30);
+      if (page && page !== lastPage) { lines.push(`📄 <b>${page}</b>`); lastPage = page; }
+      if (ev.action === 'click' && label) lines.push(`  👆 ${label}`);
+      else if (ev.action === 'page_view') {/* zaten yukarıda */}
+      else if (ev.action && ev.action !== 'click') lines.push(`  • ${ev.action}${label?': '+label:''}`);
+    }
+    if (lines.length === 0) return;
+    const head = `🎬 <code>${userEmail || currentUserId.slice(0,8)}</code>`;
+    const text = head + '\n' + lines.slice(0, 25).join('\n');
+    fetch('/api/notify-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, silent: true, channel: 'feed' }),
+    }).catch(() => {});
+  } catch {}
 }
 
 // ── Element Label Extractor ──────────────────────────────────────────────────
