@@ -386,14 +386,77 @@ function getPersonalizedFinancialResponse(
 
   if (isDeposit) {
     const recentDeposits = lastTransactions.filter(t => (t.type as string)?.toLowerCase().includes('deposit'));
+    const totalSpot = usdtBalance ? Number(usdtBalance.balance || 0) : 0;
+    const totalFut = usdtBalance ? Number(usdtBalance.futures_balance || 0) : 0;
+    const isFirstTime = recentDeposits.length === 0 && totalSpot < 1 && totalFut < 1;
+    const txHashLike = /(0x[a-f0-9]{64}|[A-F0-9]{64})/i.test(userMessage);
+    const notArrivedSig = /(gelmedi|gelmiyor|yatamıyorum|gözükmüyor|göremiyorum|not (arrived|showing|appeared)|missing|didn'?t (come|arrive)|not received|no llegó|nicht (angekommen|erhalten)|n'est pas arrivé|не пришл|لم يصل|未到账|没到)/i.test(userMessage);
+    const wrongNetSig = /(yanlış ağ|wrong network|wrong chain|equivocada|falsches netzwerk|mauvais réseau|неправильн.*сеть)/i.test(userMessage);
+
+    // ★ TX hash provided — acknowledge + tell them you're checking
+    if (txHashLike) {
+      const m: Record<string, string> = {
+        tr: `TX Hash'i aldım, hemen blockchain üzerinde kontrol ediyorum. Onay durumuna göre 5-30 dakika içinde bakiyenize geçer. Onayları gördükten sonra otomatik olarak hesabınıza yansıyacak.`,
+        en: `Got your TX Hash — I'm checking it on-chain right now. Once it has the required network confirmations (usually 5-30 min), it'll automatically credit to your balance.`,
+        es: `Recibí tu TX Hash, lo estoy verificando en la blockchain. Una vez confirmado (5-30 min), se acreditará automáticamente a tu saldo.`,
+        ru: `Получил ваш TX Hash, проверяю в блокчейне. После подтверждений (5-30 мин) средства автоматически зачислятся на баланс.`,
+        ar: `استلمت TX Hash، أتحقق منه على البلوكتشين الآن. بعد التأكيدات (5-30 دقيقة) سيُضاف تلقائيًا إلى رصيدك.`,
+        zh: `收到您的 TX Hash，正在区块链上核实。确认后（5-30 分钟）将自动到账。`,
+      };
+      return m[lang] || m.en;
+    }
+
+    // ★ Deposit didn't arrive
+    if (notArrivedSig) {
+      const m: Record<string, string> = {
+        tr: `Para yatırma 5-30 dakika içinde onaylanır. Eğer 30 dakikayı geçtiyse blockchain TX Hash'inizi (gönderdiğiniz cüzdandaki işlem ID'si) paylaşır mısınız? Hash ile zinciri ve ağı kontrol edip nerede olduğunu net olarak gösteririm.`,
+        en: `Deposits typically confirm within 5-30 minutes. If it's been longer, please share your blockchain TX Hash (transaction ID from your sending wallet) and I'll trace exactly where it is on-chain.`,
+        es: `Los depósitos confirman en 5-30 min. Si pasó más tiempo, comparte tu TX Hash (ID de transacción de tu billetera de envío) y lo rastreo en la blockchain.`,
+        fr: `Les dépôts confirment en 5-30 min. Si plus long, partagez votre TX Hash (ID de la transaction depuis votre wallet) et je le trace sur la blockchain.`,
+        de: `Einzahlungen bestätigen sich in 5-30 Min. Falls länger, teilen Sie Ihren TX Hash (Transaktions-ID aus Ihrer Sende-Wallet) und ich verfolge ihn on-chain.`,
+        ru: `Депозиты подтверждаются за 5-30 минут. Если прошло больше — пришлите TX Hash из вашего кошелька, и я проверю в блокчейне.`,
+        ar: `الإيداعات تتأكد خلال 5-30 دقيقة. إذا تأخرت، شارك TX Hash من محفظتك المرسلة وسأتتبعها على البلوكتشين.`,
+        zh: `充值通常 5-30 分钟内确认。如果超时，请发送来自发送钱包的 TX Hash，我会在链上追踪。`,
+      };
+      return m[lang] || m.en;
+    }
+
+    // ★ Wrong network concern
+    if (wrongNetSig) {
+      const m: Record<string, string> = {
+        tr: `Yanlış ağ kullanıldıysa transferi geri almak çoğu durumda mümkün değil ama TX Hash'inizi paylaşırsanız hangi ağa düştüğünü kontrol ederim — bazen kurtarma şansı oluyor. Bir sonraki yatırımda mutlaka gönderdiğiniz ağ ile sitedeki seçtiğiniz ağ aynı olmalı (BEP20 ile BEP20, TRC20 ile TRC20).`,
+        en: `If the wrong network was used, recovery is usually not possible — but share your TX Hash and I'll check exactly where it landed; sometimes recovery is possible. For next time, always match the sending network with the one you select on the platform (BEP20↔BEP20, TRC20↔TRC20).`,
+        es: `Si usaste la red incorrecta, normalmente no se puede recuperar — pero comparte tu TX Hash y verifico dónde llegó; a veces hay opciones. La próxima vez, asegúrate de que la red de envío coincida con la seleccionada (BEP20↔BEP20).`,
+      };
+      return m[lang] || m.en;
+    }
+
+    // ★ Past deposits exist — quick, contextual response
     if (recentDeposits.length > 0) {
       const latest = recentDeposits[0];
       const date = new Date(latest.created_at as string).toLocaleDateString(isTr ? 'tr-TR' : 'en-US');
-      return isTr
-        ? `Son para yatırma işleminiz ${date} tarihinde ${Number(latest.amount).toFixed(2)} ${latest.symbol} için görünüyor [${latest.status || 'işleniyor'}]. İşlem hâlâ görünmüyorsa TX Hash'inizi paylaşırsanız kontrol edebilirim.`
-        : `Your last deposit transaction shows ${Number(latest.amount).toFixed(2)} ${latest.symbol} on ${date} [${latest.status || 'processing'}]. If it's still not showing, please share your TX Hash and I'll check it.`;
+      const m: Record<string, string> = {
+        tr: `Son yatırmanız ${date} tarihinde ${Number(latest.amount).toFixed(2)} ${latest.symbol} olarak görünüyor [${latest.status || 'işleniyor'}]. Yeni yatırım için Assets > Deposit > USDT seçin, ağ olarak BEP20 (BSC) veya TRC20 (TRON) — düşük komisyon için TRC20 öneririm. Adres oluşturulunca o adrese USDT gönderin, 5-30 dakikada hesabınıza geçer.`,
+        en: `Your last deposit was ${Number(latest.amount).toFixed(2)} ${latest.symbol} on ${date} [${latest.status || 'processing'}]. For a new deposit, go to Assets > Deposit > USDT, choose BEP20 (BSC) or TRC20 (TRON) — TRC20 has the lowest fees. Send to the generated address; arrives in 5-30 minutes.`,
+        es: `Tu último depósito fue ${Number(latest.amount).toFixed(2)} ${latest.symbol} el ${date} [${latest.status || 'procesando'}]. Para uno nuevo: Assets > Deposit > USDT, elige BEP20 o TRC20 (TRC20 tiene comisión más baja). Envía a la dirección generada; llega en 5-30 min.`,
+      };
+      return m[lang] || m.en;
     }
-    return responses.deposit_general;
+
+    // ★ FIRST-TIME DEPOSIT — warm, encouraging, step-by-step + bonus mention
+    const firstTime: Record<string, string> = {
+      tr: `İlk para yatırmanıza yardımcı olmaktan mutluluk duyarım — çok basit, 3 adımda anlatıyorum:\n\n1️⃣ Sağ üstten **Assets > Deposit** menüsüne gidin, coin olarak **USDT** seçin.\n2️⃣ Ağ olarak **TRC20 (TRON)** seçin (en düşük komisyon, ~$1) veya **BEP20 (BSC)** (Binance Smart Chain).\n3️⃣ Karşınıza çıkan **deposit adresini kopyalayın** ve gönderdiğiniz cüzdandan (Binance, Trust Wallet, MetaMask vb.) o adrese USDT gönderin.\n\n⚠️ Önemli: Gönderdiğiniz cüzdanda da **aynı ağı** seçin (TRC20 seçtiyseniz orada da TRC20). Yanlış ağ = para gitti demektir.\n\n💰 Minimum $10 USDT, 5-30 dakikada hesabınıza geçer. İlk yatırımınızda **deposit bonusu** alabilirsiniz — Promosyonlar bölümünü kontrol edin!\n\nTakıldığınız adımda yazın, anında yardım ederim.`,
+      en: `Happy to walk you through your first deposit — only 3 simple steps:\n\n1️⃣ Top-right menu → **Assets > Deposit**, select **USDT**.\n2️⃣ Choose network: **TRC20 (TRON)** for the lowest fee (~$1) or **BEP20 (BSC)** for Binance Smart Chain.\n3️⃣ **Copy the deposit address** shown, then from your sending wallet (Binance, Trust Wallet, MetaMask, etc.) send USDT to that address.\n\n⚠️ Critical: Your sending wallet must use the **SAME network** you picked here (TRC20 to TRC20). Wrong network = funds lost.\n\n💰 Minimum $10 USDT, arrives in 5-30 min. First deposits may qualify for a **deposit bonus** — check the Promotions section!\n\nLet me know which step you're on and I'll guide you instantly.`,
+      es: `Feliz de guiarte en tu primer depósito — solo 3 pasos:\n\n1️⃣ Menú superior derecho → **Assets > Deposit**, elige **USDT**.\n2️⃣ Red: **TRC20 (TRON)** para la comisión más baja (~$1) o **BEP20 (BSC)**.\n3️⃣ **Copia la dirección de depósito** y desde tu billetera (Binance, Trust Wallet, MetaMask) envía USDT a esa dirección.\n\n⚠️ Importante: La red de tu billetera de envío debe ser la **MISMA** que elegiste aquí. Red equivocada = fondos perdidos.\n\n💰 Mínimo $10 USDT, llega en 5-30 min. Los primeros depósitos pueden calificar para un **bono de depósito** — revisa Promociones.\n\nDime en qué paso estás.`,
+      fr: `Heureux de vous guider pour votre premier dépôt — seulement 3 étapes :\n\n1️⃣ Menu en haut à droite → **Assets > Deposit**, choisissez **USDT**.\n2️⃣ Réseau : **TRC20 (TRON)** pour les frais les plus bas ou **BEP20 (BSC)**.\n3️⃣ **Copiez l'adresse de dépôt** et depuis votre wallet envoyez USDT à cette adresse.\n\n⚠️ Important : Le réseau de votre wallet d'envoi doit être le **MÊME** que celui choisi ici.\n\n💰 Minimum $10 USDT, arrive en 5-30 min. Bonus de dépôt possible — voir Promotions.`,
+      de: `Gerne führe ich Sie durch Ihre erste Einzahlung — nur 3 Schritte:\n\n1️⃣ Menü oben rechts → **Assets > Deposit**, wählen Sie **USDT**.\n2️⃣ Netzwerk: **TRC20 (TRON)** für die niedrigsten Gebühren oder **BEP20 (BSC)**.\n3️⃣ **Einzahlungsadresse kopieren** und aus Ihrer Wallet USDT an diese Adresse senden.\n\n⚠️ Wichtig: Sende-Wallet muss das **GLEICHE** Netzwerk verwenden.\n\n💰 Min. $10 USDT, ankommt in 5-30 Min. Einzahlungsbonus möglich — siehe Promotions.`,
+      ru: `С радостью проведу вас через первый депозит — всего 3 шага:\n\n1️⃣ Меню справа сверху → **Assets > Deposit**, выберите **USDT**.\n2️⃣ Сеть: **TRC20 (TRON)** — самая низкая комиссия, или **BEP20 (BSC)**.\n3️⃣ **Скопируйте адрес депозита** и из своего кошелька отправьте USDT на этот адрес.\n\n⚠️ Важно: Сеть отправляющего кошелька должна быть **ТАКОЙ ЖЕ**.\n\n💰 Минимум $10 USDT, приходит за 5-30 мин. Возможен бонус на депозит — раздел Promotions.`,
+      ar: `يسعدني توجيهك في أول إيداع — 3 خطوات فقط:\n\n1️⃣ القائمة العلوية اليمنى → **Assets > Deposit**، اختر **USDT**.\n2️⃣ الشبكة: **TRC20 (TRON)** للرسوم الأقل، أو **BEP20 (BSC)**.\n3️⃣ **انسخ عنوان الإيداع** وأرسل USDT من محفظتك إلى هذا العنوان.\n\n⚠️ هام: يجب أن تستخدم محفظة الإرسال **نفس الشبكة**.\n\n💰 الحد الأدنى $10 USDT، يصل خلال 5-30 دقيقة. مكافأة إيداع محتملة — راجع Promotions.`,
+      zh: `很乐意指导您完成首次充值 — 仅 3 步:\n\n1️⃣ 右上角菜单 → **Assets > Deposit**，选择 **USDT**。\n2️⃣ 网络: **TRC20 (TRON)** 手续费最低, 或 **BEP20 (BSC)**。\n3️⃣ **复制充值地址**，从您的钱包向该地址发送 USDT。\n\n⚠️ 重要: 发送钱包必须使用**相同的网络**。\n\n💰 最低 $10 USDT，5-30 分钟到账。可能有充值奖金 — 查看 Promotions。`,
+      pt: `Feliz em guiá-lo no seu primeiro depósito — apenas 3 passos:\n\n1️⃣ Menu superior direito → **Assets > Deposit**, escolha **USDT**.\n2️⃣ Rede: **TRC20 (TRON)** menor taxa, ou **BEP20 (BSC)**.\n3️⃣ **Copie o endereço de depósito** e envie USDT da sua carteira para esse endereço.\n\n⚠️ Importante: Carteira de envio deve usar a **MESMA rede**.\n\n💰 Mínimo $10 USDT, chega em 5-30 min. Possível bônus de depósito — veja Promoções.`,
+    };
+    if (isFirstTime) return firstTime[lang] || firstTime.en;
+    return firstTime[lang] || firstTime.en;
   }
 
   if (isBalance) {
