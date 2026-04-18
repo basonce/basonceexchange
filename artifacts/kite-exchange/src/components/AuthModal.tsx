@@ -18,13 +18,15 @@ function fireGoogleAdsConversion() {
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  mode?: 'login' | 'register';
+  mode?: 'login' | 'register' | 'forgot';
   title?: string;
   subtitle?: string;
 }
 
 export default function AuthModal({ isOpen, onClose, mode: initialMode = 'register', title, subtitle }: AuthModalProps) {
-  const [mode, setMode] = useState<'login' | 'register'>(initialMode);
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(initialMode);
+  useEffect(() => { if (isOpen) setMode(initialMode); }, [isOpen, initialMode]);
+  const [resetSending, setResetSending] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -39,6 +41,21 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
   const [mfaCode, setMfaCode] = useState('');
   const [mfaError, setMfaError] = useState('');
   const [mfaBusy, setMfaBusy] = useState(false);
+
+  const sendReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) { setError('Lütfen e-posta adresinizi girin'); return; }
+    setError(''); setSuccess(''); setResetSending(true);
+    try {
+      const { error: rErr } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/#reset-password`,
+      });
+      if (rErr) throw rErr;
+      setSuccess('Şifre sıfırlama bağlantısı e-posta adresinize gönderildi. Gelen kutunuzu (ve spam klasörünü) kontrol edin.');
+    } catch (err: any) {
+      setError(err?.message || 'Bağlantı gönderilemedi. Lütfen tekrar deneyin.');
+    } finally { setResetSending(false); }
+  };
 
   // Auto-close if a session already exists (prevents stale modal over logged-in profile)
   useEffect(() => {
@@ -321,12 +338,12 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
         <div className="flex items-center justify-between p-6 border-[#2B3139]">
           <div>
             <h2 className="font-bold text-white">
-              {title || (mode === 'login' ? 'Welcome Back' : 'Create Account')}
+              {title || (mode === 'login' ? 'Tekrar Hoş Geldiniz' : mode === 'register' ? 'Hesap Oluştur' : 'Şifremi Sıfırla')}
             </h2>
             <p className="text-gray-400 mt-1">
               {subtitle || (mode === 'login'
-                ? 'Login to access your account'
-                : 'Sign up to start trading')}
+                ? 'Hesabınıza giriş yapın'
+                : mode === 'register' ? 'İşlem yapmaya başlamak için kayıt olun' : 'E-posta adresinize sıfırlama bağlantısı gönderelim')}
             </p>
           </div>
           <button
@@ -337,6 +354,53 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
           </button>
         </div>
 
+        {mode === 'forgot' ? (
+          <form onSubmit={sendReset} className="p-6 space-y-5">
+            <div>
+              <label className="block text-sm font-medium mb-2 text-gray-300">E-posta Adresi</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-[#181A20] border border-[#2B3139] rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-[#F0B90B] transition-colors"
+                placeholder="kayitli@eposta.com"
+                required
+              />
+            </div>
+            {error && (
+              <div className="bg-red-500/10 border border-red-500 rounded-lg p-3 flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <span className="text-sm text-red-300">{error}</span>
+              </div>
+            )}
+            {success && (
+              <div className="bg-green-500/10 border border-green-500 rounded-lg p-3 flex items-start gap-2">
+                <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                <span className="text-sm text-green-300">{success}</span>
+              </div>
+            )}
+            <button
+              type="submit"
+              disabled={resetSending}
+              className="w-full py-3.5 bg-[#F0B90B] hover:bg-[#F0B90B]/90 text-black font-semibold rounded-lg transition-colors disabled:opacity-60"
+            >
+              {resetSending ? (
+                <div className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin" /> Gönderiliyor...
+                </div>
+              ) : 'Sıfırlama Bağlantısı Gönder'}
+            </button>
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => { setMode('login'); setError(''); setSuccess(''); }}
+                className="text-[#F0B90B] hover:text-[#F8D12F] font-semibold text-sm"
+              >
+                ← Girişe Dön
+              </button>
+            </div>
+          </form>
+        ) : (
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div>
             <label className="block text-sm font-medium mb-2">
@@ -482,10 +546,23 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
               }}
               className="text-[#F0B90B] hover:text-[#F0B90B] font-semibold"
             >
-              {mode === 'login' ? 'Sign Up' : 'Login'}
+              {mode === 'login' ? 'Üye Ol' : 'Giriş Yap'}
             </button>
           </div>
+
+          {mode === 'login' && (
+            <div className="text-center -mt-2">
+              <button
+                type="button"
+                onClick={() => { setMode('forgot'); setError(''); setSuccess(''); }}
+                className="text-sm text-gray-400 hover:text-[#F0B90B] transition-colors"
+              >
+                Şifremi unuttum?
+              </button>
+            </div>
+          )}
         </form>
+        )}
       </div>
     </div>
   );
