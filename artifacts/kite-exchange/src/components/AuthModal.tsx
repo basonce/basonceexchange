@@ -29,7 +29,9 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
   const [resetSending, setResetSending] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -129,6 +131,11 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters');
+      return;
+    }
+
+    if (mode === 'register' && password !== confirmPassword) {
+      setError('Passwords do not match. Please retype them.');
       return;
     }
 
@@ -456,6 +463,47 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
               </div>
             )}
           </div>
+
+          {mode === 'register' && (
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={`w-full bg-[#181A20] border rounded-lg px-4 py-3 pr-12 text-white placeholder-gray-500 focus:outline-none transition-colors ${
+                    confirmPassword.length > 0 && confirmPassword !== password
+                      ? 'border-red-500 focus:border-red-500'
+                      : confirmPassword.length > 0 && confirmPassword === password
+                      ? 'border-green-500 focus:border-green-500'
+                      : 'border-[#2B3139] focus:border-[#F0B90B]'
+                  }`}
+                  placeholder="Re-enter your password"
+                  required
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+              {confirmPassword.length > 0 && (
+                <p className={`text-xs mt-1.5 flex items-center gap-1 ${confirmPassword === password ? 'text-green-500' : 'text-red-400'}`}>
+                  {confirmPassword === password ? (
+                    <><CheckCircle2 className="w-3 h-3" /> Passwords match</>
+                  ) : (
+                    <><AlertCircle className="w-3 h-3" /> Passwords do not match</>
+                  )}
+                </p>
+              )}
+            </div>
+          )}
 
           {mode === 'register' && (
             <>
