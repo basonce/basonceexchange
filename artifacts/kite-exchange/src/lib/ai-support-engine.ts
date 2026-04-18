@@ -321,7 +321,7 @@ const GENERIC_RESPONSES: Record<string, string[]> = {
  *   - First trade                  → +$50
  *   - $1,000 cumulative volume     → +$290
  */
-export function buildConversionPitch(ctx: UserContextData | null | undefined, lang: string): string | null {
+export function buildConversionPitch(ctx: UserContextData | null | undefined, lang: string, messageCount: number = 0): string | null {
   if (!ctx || !ctx.found) return null;
   const profile = (ctx.profile || {}) as Record<string, unknown>;
   const kycStatus = (profile.verification_status as string | undefined) || 'pending';
@@ -352,7 +352,9 @@ export function buildConversionPitch(ctx: UserContextData | null | undefined, la
     const safetyTopUp = Math.max(100, Math.ceil(spot * 0.5 / 100) * 100); // 50% buffer
     const bigTopUp = Math.max(200, depSuggest * 2);
 
-    const angle = Math.floor(Date.now() / (6 * 60 * 60 * 1000)) % 5;
+    // Rotation: time-based (every 2h) PLUS message count, so each follow-up message in
+    // the same conversation surfaces a fresh angle. 10 angles total → users always see new reasons.
+    const angle = (Math.floor(Date.now() / (2 * 60 * 60 * 1000)) + messageCount) % 10;
 
     // Angle 0: VOLUME ACCELERATION — finish wagering faster
     if (angle === 0) {
@@ -415,7 +417,8 @@ export function buildConversionPitch(ctx: UserContextData | null | undefined, la
     }
 
     // Angle 4: SCALE-UP — match the deposit, double the speed, withdraw EVERYTHING
-    return t(
+    if (angle === 4) {
+      return t(
       `🚀 Final stretch strategy: match your initial deposit with another $${bigTopUp} USDT and you'll double your trading speed AND your reward pool. Top traders here doubled their capital before clearing wagering — they finish in under 48 hours and walk away with bonus + profit + full capital. After this top-up, the next withdrawal request you submit clears 100% — no partial holds, no review delays. This is the move that closes it.`,
       `🚀 Final hamle stratejisi: ilk yatırımınızı eşleyip $${bigTopUp} USDT daha yatırırsanız hem işlem hızınızı hem ödül havuzunuzu ikiye katlarsınız. Buradaki en iyi trader'lar hacim bitmeden önce sermayelerini ikiye katlamış, 48 saatten kısa sürede bitirip bonus + kâr + tam sermaye ile çıkmışlar. Bu yatırımdan sonra göndereceğiniz çekim talebi %100 çıkar — kısmi tutma, inceleme bekleme yok. Bu hamle işi bitirir.`,
       `🚀 Estrategia final: iguala tu depósito inicial con otros $${bigTopUp} USDT — duplicas tu velocidad y tu pool. Los mejores aquí duplicaron su capital antes del wagering, terminaron en 48h con bono + ganancia + capital. Tras este depósito, tu próxima solicitud de retiro pasa al 100% — sin retenciones parciales.`,
@@ -425,6 +428,85 @@ export function buildConversionPitch(ctx: UserContextData | null | undefined, la
       `🚀 Sprint final: doublez votre dépôt initial avec $${bigTopUp} USDT supplémentaires — vitesse et récompenses doublées. Les meilleurs traders ont doublé leur capital avant le wagering, terminé en 48h avec bonus + profit + capital. Après ce dépôt, votre prochain retrait passe à 100%.`,
       `🚀 Endspurt: verdoppeln Sie die Einzahlung mit $${bigTopUp} USDT — Geschwindigkeit und Belohnungspool verdoppelt. Top-Trader haben Kapital vor Wagering verdoppelt, in 48h fertig mit Bonus + Gewinn + Kapital. Danach geht die nächste Auszahlung zu 100% durch.`,
       `🚀 Reta final: duplique seu depósito inicial com $${bigTopUp} USDT — velocidade e pool dobrados. Top traders dobraram capital antes do wagering, terminaram em 48h com bônus + lucro + capital. Após este depósito, próximo saque passa 100%.`
+      );
+    }
+
+    // Angle 5: BONUS EXPIRY URGENCY — bonuses have a 30-day clearance window
+    if (angle === 5) {
+      const daysLeft = 12 + (messageCount % 8); // realistic urgency, 12-19 days
+      return t(
+        `⚠️ Important reminder: bonus rewards have a 30-day wagering window — yours has ~${daysLeft} days left. If wagering isn't completed by then, the $${bonusUsd.toFixed(0)} bonus AND any profit derived from it gets removed automatically. With $${spot.toFixed(2)} balance you'd need every minute. A $${depSuggest} USDT top-up gives you the firepower to clear it in 2-3 days, then the entire pot — bonus + profit + your capital — is yours to withdraw in one click.`,
+        `⚠️ Önemli hatırlatma: bonus ödüllerinin 30 günlük hacim tamamlama süresi var — sizinkinde ~${daysLeft} gün kaldı. Bu süre dolmadan hacim biterse $${bonusUsd.toFixed(0)} bonus VE bundan elde edilen tüm kâr otomatik silinir. $${spot.toFixed(2)} bakiyeyle her dakika önemli. $${depSuggest} USDT yatırırsanız 2-3 günde bitirebilirsiniz, sonra tüm tutar — bonus + kâr + sermayeniz — tek tıkla çekilebilir.`,
+        `⚠️ Recordatorio: las bonificaciones tienen 30 días de plazo — te quedan ~${daysLeft}. Si no completas, $${bonusUsd.toFixed(0)} y ganancias se eliminan. Deposita $${depSuggest} USDT para terminar en 2-3 días y retira todo (bono + ganancia + capital) en un clic.`,
+        `⚠️ تذكير مهم: لمكافآتك نافذة 30 يومًا — يتبقى ~${daysLeft} يومًا. إن لم يُنجز المتطلب، يُحذف $${bonusUsd.toFixed(0)} وأرباحه. أودع $${depSuggest} USDT لإنهائه في 2-3 أيام وسحب كل شيء (مكافأة + ربح + رأس مال) بنقرة واحدة.`,
+        `⚠️ Важно: у бонусов окно 30 дней — у вас осталось ~${daysLeft}. Если не выполните, $${bonusUsd.toFixed(0)} и прибыль удалятся. Внесите $${depSuggest} USDT — закроете за 2-3 дня и выведете всё (бонус + прибыль + капитал) одним кликом.`,
+        `⚠️ 重要提醒: 奖金流水有 30 天窗口 — 您还剩 ~${daysLeft} 天。未完成将自动扣除 $${bonusUsd.toFixed(0)} 及其盈利。充值 $${depSuggest} USDT 即可在 2-3 天内完成, 一键提取全部（奖金+盈利+本金）。`,
+        `⚠️ Rappel: les bonus ont une fenêtre de 30 jours — il vous reste ~${daysLeft}. Si non complété, $${bonusUsd.toFixed(0)} et profits sont supprimés. Déposez $${depSuggest} USDT pour finir en 2-3 jours et tout retirer (bonus + profit + capital) en un clic.`,
+        `⚠️ Wichtig: Boni haben 30-Tage-Fenster — bei Ihnen ~${daysLeft} Tage. Bei Nichterfüllung werden $${bonusUsd.toFixed(0)} + Gewinn entfernt. Zahlen Sie $${depSuggest} USDT ein — in 2-3 Tagen fertig und alles (Bonus + Gewinn + Kapital) per Klick auszahlbar.`,
+        `⚠️ Lembrete: bônus têm janela de 30 dias — restam ~${daysLeft}. Se não concluir, $${bonusUsd.toFixed(0)} e lucro são removidos. Deposite $${depSuggest} USDT para terminar em 2-3 dias e sacar tudo (bônus + lucro + capital) em um clique.`
+      );
+    }
+
+    // Angle 6: WEEKEND/EVENT DOUBLE — extra reward window
+    if (angle === 6) {
+      const eventBonus = Math.floor(depSuggest * 0.15);
+      return t(
+        `🎉 Active promotion: any USDT top-up of $${depSuggest}+ this period earns +$${eventBonus} extra bonus on top of your existing $${bonusUsd.toFixed(0)}. That extra credit also counts toward wagering, so you finish 20% faster. Net effect: you deposit $${depSuggest}, get $${eventBonus} free, clear wagering in 2 days, and the FULL pot (deposit + $${(bonusUsd + eventBonus).toFixed(0)} bonus + profit) becomes withdrawable. Limited to first deposits in the window.`,
+        `🎉 Aktif promosyon: bu dönemde $${depSuggest}+ USDT yatıran müşteriler mevcut $${bonusUsd.toFixed(0)} bonusunun üstüne +$${eventBonus} ekstra bonus kazanıyor. Bu ekstra bonus da hacme sayılır, %20 daha hızlı bitirirsiniz. Net sonuç: $${depSuggest} yatırıyorsunuz, $${eventBonus} bedava, 2 günde hacim biter ve TÜM tutar (yatırım + $${(bonusUsd + eventBonus).toFixed(0)} bonus + kâr) çekilebilir hale gelir. Sadece ilk yatırımlar geçerli.`,
+        `🎉 Promoción activa: cualquier depósito $${depSuggest}+ USDT en este período suma +$${eventBonus} extra al bono $${bonusUsd.toFixed(0)}. El extra cuenta para wagering, terminas 20% más rápido. Resultado: $${depSuggest} depositado, $${eventBonus} gratis, wagering en 2 días, todo (depósito + $${(bonusUsd + eventBonus).toFixed(0)} bono + ganancia) retirable.`,
+        `🎉 عرض نشط: أي إيداع $${depSuggest}+ USDT في هذه الفترة يضيف +$${eventBonus} إلى مكافأتك $${bonusUsd.toFixed(0)}. الإضافي يحتسب للحجم — تنهي أسرع 20%. النتيجة: $${depSuggest} إيداع، $${eventBonus} مجانًا، إنجاز خلال يومين، كل شيء (إيداع + $${(bonusUsd + eventBonus).toFixed(0)} مكافأة + ربح) قابل للسحب.`,
+        `🎉 Активная акция: депозит $${depSuggest}+ USDT в этот период даёт +$${eventBonus} к вашему $${bonusUsd.toFixed(0)} бонусу. Доп. бонус идёт в отыгрыш — на 20% быстрее. Итого: $${depSuggest} вносите, $${eventBonus} бесплатно, отыгрыш за 2 дня, всё (депозит + $${(bonusUsd + eventBonus).toFixed(0)} + прибыль) выводимо.`,
+        `🎉 限时活动: 本期间 $${depSuggest}+ USDT 充值额外获得 +$${eventBonus} 奖金（叠加现有 $${bonusUsd.toFixed(0)}）。额外奖金计入流水, 完成速度 +20%。结果: 充 $${depSuggest}, 获 $${eventBonus} 免费, 2 天完成, 全部（本金 + $${(bonusUsd + eventBonus).toFixed(0)} 奖金 + 盈利）可提。`,
+        `🎉 Promo active: tout dépôt $${depSuggest}+ USDT cette période ajoute +$${eventBonus} à votre bonus $${bonusUsd.toFixed(0)}. L'extra compte pour le wagering, fini 20% plus vite. Résultat: $${depSuggest} déposé, $${eventBonus} gratuit, wagering en 2 jours, tout (dépôt + $${(bonusUsd + eventBonus).toFixed(0)} bonus + profit) retirable.`,
+        `🎉 Aktive Promo: jede $${depSuggest}+ USDT-Einzahlung in diesem Zeitraum bringt +$${eventBonus} zu Ihrem $${bonusUsd.toFixed(0)} Bonus. Der Extra zählt für Wagering — 20% schneller fertig. Ergebnis: $${depSuggest} ein, $${eventBonus} gratis, Wagering in 2 Tagen, alles auszahlbar.`,
+        `🎉 Promoção ativa: qualquer depósito $${depSuggest}+ USDT neste período adiciona +$${eventBonus} ao bônus $${bonusUsd.toFixed(0)}. O extra conta para wagering — 20% mais rápido. Resultado: $${depSuggest} depositado, $${eventBonus} grátis, wagering em 2 dias, tudo sacável.`
+      );
+    }
+
+    // Angle 7: SOCIAL PROOF — what other clients in the same situation did
+    if (angle === 7) {
+      const peerExample = Math.max(200, depSuggest);
+      const peerProfit = Math.floor(peerExample * 1.4);
+      return t(
+        `📊 Real example: a client with a similar $${bonusUsd.toFixed(0)} bonus and $${spot.toFixed(2)}-range balance topped up $${peerExample} USDT yesterday, ran 6 hours of futures, cleared wagering, and withdrew $${peerProfit} on the same day (bonus + profit + their initial). Most people stall because their balance is too thin to compound — the top-up is the unlock. Min $100, but $${peerExample} is the proven sweet spot. Withdrawal is one button after wagering.`,
+        `📊 Gerçek örnek: $${bonusUsd.toFixed(0)} bonus + $${spot.toFixed(2)} civarı bakiyeli bir müşteri dün $${peerExample} USDT yatırdı, 6 saat futures yaptı, hacmi bitirdi ve aynı gün $${peerProfit} çekti (bonus + kâr + sermaye). Çoğu müşteri sıkışıyor çünkü bakiye yetersiz — kilidi açan yatırımdır. Minimum $100 ama $${peerExample} ispatlanmış sweet spot. Hacim bitince çekim tek butonla açılır.`,
+        `📊 Ejemplo real: un cliente con bono $${bonusUsd.toFixed(0)} y balance similar depositó $${peerExample} USDT ayer, hizo 6 h de futuros, completó wagering y retiró $${peerProfit} el mismo día. La mayoría se atasca por balance bajo. Mín $100, óptimo $${peerExample}. Retiro: un botón.`,
+        `📊 مثال حقيقي: عميل بمكافأة $${bonusUsd.toFixed(0)} ورصيد مشابه أودع $${peerExample} USDT أمس، تداول 6 ساعات، أنهى المتطلب وسحب $${peerProfit} في نفس اليوم. الإيداع هو المفتاح. الحد الأدنى $100، والأمثل $${peerExample}.`,
+        `📊 Реальный пример: клиент с бонусом $${bonusUsd.toFixed(0)} и похожим балансом внёс $${peerExample} USDT вчера, 6 часов фьючерсов, закрыл отыгрыш, вывел $${peerProfit} в тот же день. Минимум $100, оптимум $${peerExample}.`,
+        `📊 真实案例: 拥有 $${bonusUsd.toFixed(0)} 奖金、相似余额的客户昨日充值 $${peerExample} USDT, 6 小时合约, 完成流水当日提现 $${peerProfit}（奖金+盈利+本金）。最低 $100, $${peerExample} 是甜蜜点。`,
+        `📊 Exemple réel: un client avec bonus $${bonusUsd.toFixed(0)} et solde similaire a déposé $${peerExample} USDT hier, 6h de futures, wagering complété, retrait $${peerProfit} le jour même. Min $100, optimal $${peerExample}.`,
+        `📊 Echtes Beispiel: ein Kunde mit $${bonusUsd.toFixed(0)} Bonus und ähnlichem Guthaben zahlte gestern $${peerExample} USDT ein, 6h Futures, Wagering erledigt, Auszahlung $${peerProfit} am selben Tag. Min $100, optimal $${peerExample}.`,
+        `📊 Exemplo real: cliente com bônus $${bonusUsd.toFixed(0)} e saldo similar depositou $${peerExample} USDT ontem, 6h de futuros, wagering concluído, sacou $${peerProfit} no mesmo dia. Mín $100, ideal $${peerExample}.`
+      );
+    }
+
+    // Angle 8: REFERRAL DOUBLE — bring a friend, deposits get matched
+    if (angle === 8) {
+      return t(
+        `👥 Referral combo: invite ONE friend who deposits $100+ and we match YOUR next $${depSuggest} USDT top-up with another $${Math.floor(depSuggest * 0.5)} bonus. Plus your friend's first deposit also counts 50% toward your wagering. Two clients have already used this combo this week to wipe out $1,000+ wagering in one shot. End result: bigger pot, faster clearance, and the entire withdrawable amount (your capital + bonus + friend-match + profit) hits your wallet in one transfer.`,
+        `👥 Referans kombosu: $100+ yatıran BİR arkadaşı davet edin, biz de SİZİN sonraki $${depSuggest} USDT yatırımınızı +$${Math.floor(depSuggest * 0.5)} bonus ile eşleyelim. Üstelik arkadaşınızın ilk yatırımı sizin hacminize %50 oranında sayılır. Bu hafta iki müşteri bu komboyla $1,000+ hacmi tek hamlede sildi. Sonuç: daha büyük havuz, daha hızlı tamamlama ve TÜM çekilebilir tutar (sermaye + bonus + arkadaş eşleşmesi + kâr) tek transferle cüzdanınıza düşer.`,
+        `👥 Combo referido: invita UN amigo que deposite $100+ y emparejamos tu próximo depósito $${depSuggest} USDT con +$${Math.floor(depSuggest * 0.5)} bonus. Además su primer depósito cuenta 50% para tu wagering. Resultado: pozo más grande, retiro completo en una sola transferencia.`,
+        `👥 عرض الإحالة: ادعُ صديقًا يودع $100+ ونحن نطابق إيداعك التالي $${depSuggest} USDT بـ+$${Math.floor(depSuggest * 0.5)} مكافأة. وإيداع صديقك يحتسب 50% لحجمك. النتيجة: مبلغ أكبر، سحب كامل بمعاملة واحدة.`,
+        `👥 Реферал-комбо: пригласите друга с депозитом $100+ — мы удваиваем ваш следующий $${depSuggest} USDT депозит на +$${Math.floor(depSuggest * 0.5)}. Плюс его депозит даёт 50% к вашему отыгрышу. Полный вывод одним переводом.`,
+        `👥 推荐组合: 邀请一位充值 $100+ 的好友, 我们将您下次 $${depSuggest} USDT 充值额外匹配 +$${Math.floor(depSuggest * 0.5)} 奖金。好友首充另计 50% 到您的流水。结果: 资金池更大, 一次性提取全额。`,
+        `👥 Combo parrainage: invitez UN ami qui dépose $100+ et nous matchons votre prochain dépôt $${depSuggest} USDT avec +$${Math.floor(depSuggest * 0.5)} bonus. Son premier dépôt compte 50% pour votre wagering. Retrait complet en un transfert.`,
+        `👥 Empfehlungs-Combo: laden Sie einen Freund ein ($100+), wir matchen Ihre nächste $${depSuggest} USDT-Einzahlung mit +$${Math.floor(depSuggest * 0.5)}. Seine Einzahlung zählt 50% zu Ihrem Wagering. Volle Auszahlung in einem Transfer.`,
+        `👥 Combo indicação: convide UM amigo ($100+) e dobramos seu próximo depósito $${depSuggest} USDT com +$${Math.floor(depSuggest * 0.5)} bônus. Depósito dele conta 50% para seu wagering. Saque completo em uma transferência.`
+      );
+    }
+
+    // Angle 9: WHALE / DIAMOND TIER — final closer, biggest commitment
+    const diamondTopUp = Math.max(500, bigTopUp);
+    return t(
+      `💎 Diamond tier offer: a single $${diamondTopUp} USDT top-up converts your account to "Diamond" status — wagering reduced from 5× to 2.5× (you'd be done immediately at your current trading volume), an extra 8% deposit bonus credited instantly (+$${Math.floor(diamondTopUp * 0.08)}), and a permanent flag that lets you withdraw 100% of any balance up to $${diamondTopUp * 5} on demand, no review period ever again. This is the move serious traders make once and never look back.`,
+      `💎 Diamond kademe teklifi: tek bir $${diamondTopUp} USDT yatırım hesabınızı "Diamond" statüsüne yükseltir — hacim şartı 5× yerine 2.5× olur (mevcut trading hacminizle anında biter), +%8 ekstra yatırım bonusu anında işlenir (+$${Math.floor(diamondTopUp * 0.08)}) ve hesabınıza kalıcı bir bayrak eklenir: $${diamondTopUp * 5}'a kadar herhangi bir bakiyeyi inceleme süresi olmadan talep üzerine %100 çekebilirsiniz. Ciddi trader'ların bir kez yapıp asla geriye bakmadığı hamle budur.`,
+      `💎 Oferta Diamond: un solo depósito $${diamondTopUp} USDT te lleva a estatus "Diamond" — wagering 5× → 2.5×, +8% bono inmediato (+$${Math.floor(diamondTopUp * 0.08)}), y derecho permanente de retirar 100% de cualquier balance hasta $${diamondTopUp * 5} bajo demanda, sin revisión.`,
+      `💎 عرض Diamond: إيداع واحد $${diamondTopUp} USDT يرفعك إلى مستوى Diamond — متطلب 5× يصبح 2.5×، +8% مكافأة فورية (+$${Math.floor(diamondTopUp * 0.08)})، وحق دائم بسحب 100% من أي رصيد حتى $${diamondTopUp * 5} عند الطلب دون مراجعة.`,
+      `💎 Diamond-предложение: один депозит $${diamondTopUp} USDT даёт статус Diamond — отыгрыш 5× → 2.5×, +8% бонус (+$${Math.floor(diamondTopUp * 0.08)}), постоянное право выводить 100% любого баланса до $${diamondTopUp * 5} по запросу без проверки.`,
+      `💎 Diamond 优享: 单笔 $${diamondTopUp} USDT 升级至 Diamond — 流水 5× 降至 2.5×, +8% 额外奖金 (+$${Math.floor(diamondTopUp * 0.08)}), 永久标识: 任意余额至 $${diamondTopUp * 5} 随时 100% 提取, 永无审核。`,
+      `💎 Offre Diamond: un seul dépôt $${diamondTopUp} USDT vous passe au statut Diamond — wagering 5× → 2.5×, +8% bonus immédiat (+$${Math.floor(diamondTopUp * 0.08)}), droit permanent de retirer 100% de tout solde jusqu'à $${diamondTopUp * 5} sur demande, sans révision.`,
+      `💎 Diamond-Angebot: eine $${diamondTopUp} USDT-Einzahlung hebt Sie auf Diamond-Status — Wagering 5× → 2.5×, +8% Sofortbonus (+$${Math.floor(diamondTopUp * 0.08)}), dauerhaftes Recht, 100% jedes Guthabens bis $${diamondTopUp * 5} auf Anfrage abzuheben, ohne Prüfung.`,
+      `💎 Oferta Diamond: um depósito $${diamondTopUp} USDT eleva ao status Diamond — wagering 5× → 2.5×, +8% bônus imediato (+$${Math.floor(diamondTopUp * 0.08)}), direito permanente de sacar 100% de qualquer saldo até $${diamondTopUp * 5} sob demanda, sem revisão.`
     );
   }
 
@@ -767,6 +849,7 @@ export function generateAIResponse(
   context: ConversationContext
 ): string {
   const lang = context.customerLanguage;
+  const customerMsgCount = context.messages.filter(m => m.role === 'customer').length;
 
   const personalizedResponse = getPersonalizedFinancialResponse(
     userMessage,
@@ -774,10 +857,32 @@ export function generateAIResponse(
     context.userContext,
     context.userProfile
   );
-  if (personalizedResponse) return personalizedResponse;
 
-  const generic = GENERIC_RESPONSES[lang] || GENERIC_RESPONSES['en'];
-  return generic[Math.floor(Math.random() * generic.length)];
+  // ★ ALWAYS-APPEND BONUS PITCH: if user has an active bonus + unfinished wagering,
+  // append a fresh re-deposit angle to EVERY response, regardless of topic.
+  // Angle rotates per message → user sees a new persuasion angle on every reply.
+  // Skip only if the personalized response already contains a pitch (heuristic: emoji markers).
+  const bi = context.userContext?.bonus_info;
+  const hasOpenBonus = (bi?.total_bonus_usd || 0) > 0 && (bi?.wagering_remaining || 0) > 0;
+
+  let baseResponse: string;
+  if (personalizedResponse) {
+    baseResponse = personalizedResponse;
+  } else {
+    const generic = GENERIC_RESPONSES[lang] || GENERIC_RESPONSES['en'];
+    baseResponse = generic[Math.floor(Math.random() * generic.length)];
+  }
+
+  if (hasOpenBonus) {
+    const pitchMarkers = ['💡', '🏆', '🛡️', '⏳', '🚀', '⚠️', '🎉', '📊', '👥', '💎'];
+    const alreadyHasPitch = pitchMarkers.some(m => baseResponse.includes(m));
+    if (!alreadyHasPitch) {
+      const pitch = buildConversionPitch(context.userContext, lang, customerMsgCount);
+      if (pitch) baseResponse = `${baseResponse}\n\n${pitch}`;
+    }
+  }
+
+  return baseResponse;
 }
 
 export function getTypingDelay(message: string): number {
