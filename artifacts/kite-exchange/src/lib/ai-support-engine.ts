@@ -342,16 +342,105 @@ export function buildConversionPitch(ctx: UserContextData | null | undefined, la
     return map[lang] || en;
   };
 
-  // ★ State 1: Bonus active + wagering not done — push deposit to FUEL the wagering
+  // ★ State 1: Bonus active + wagering not done — ROTATE through 5 persuasion angles.
+  // Bonus customers are a focus segment: keep finding new reasons to top up.
+  // Min top-up always $100. Reason rotates every 6 hours so user sees a fresh angle each session.
   if (hasBonus && wageringLeft > 0) {
-    const depSuggest = Math.max(50, Math.ceil(wageringLeft / 10 / 10) * 10);
+    const bonusUsd = bi?.total_bonus_usd || 0;
+    const depSuggest = Math.max(100, Math.ceil(wageringLeft / 10 / 10) * 10);
+    const lifetimeToVip1 = Math.max(100, 1000 - volume); // assume VIP1 at $1k cumulative
+    const safetyTopUp = Math.max(100, Math.ceil(spot * 0.5 / 100) * 100); // 50% buffer
+    const bigTopUp = Math.max(200, depSuggest * 2);
+
+    const angle = Math.floor(Date.now() / (6 * 60 * 60 * 1000)) % 5;
+
+    // Angle 0: VOLUME ACCELERATION — finish wagering faster
+    if (angle === 0) {
+      return t(
+        `💡 Pro tip: with $${spot.toFixed(2)} balance, completing $${wageringLeft.toFixed(0)} volume can take days of small trades. If you top up just $${depSuggest} more USDT, you'll trade with bigger position sizes and finish the wagering in a few hours instead. The moment it's done, your $${bonusUsd.toFixed(0)} bonus + all profits become fully withdrawable — no more waiting.`,
+        `💡 İpucu: $${spot.toFixed(2)} bakiyeyle $${wageringLeft.toFixed(0)} hacmi küçük işlemlerle yapmak günler sürer. $${depSuggest} USDT daha yatırırsanız daha büyük pozisyonlarla aynı hacmi birkaç saatte bitirirsiniz. Hacim biter bitmez $${bonusUsd.toFixed(0)} bonus + tüm kârınız tamamen çekilebilir hale gelir — bekleme bitti demektir.`,
+        `💡 Consejo: con $${spot.toFixed(2)} de saldo, completar $${wageringLeft.toFixed(0)} de volumen lleva días. Si depositas $${depSuggest} USDT más, puedes operar con posiciones mayores y terminar en horas. Al terminar, tu bono $${bonusUsd.toFixed(0)} + ganancias quedan totalmente retirables.`,
+        `💡 نصيحة: برصيد $${spot.toFixed(2)}، إكمال حجم $${wageringLeft.toFixed(0)} يستغرق أيامًا. أودع $${depSuggest} USDT إضافية لتداول بأحجام أكبر وإنهاء المتطلب خلال ساعات. ثم مكافأتك $${bonusUsd.toFixed(0)} + الأرباح قابلة للسحب بالكامل.`,
+        `💡 Совет: с балансом $${spot.toFixed(2)} закрыть объём $${wageringLeft.toFixed(0)} долго. Внесите ещё $${depSuggest} USDT — крупнее позиции, быстрее выполнение. Бонус $${bonusUsd.toFixed(0)} + прибыль станут полностью выводимыми.`,
+        `💡 提示: 余额 $${spot.toFixed(2)}, 完成 $${wageringLeft.toFixed(0)} 交易量需数天。再充值 $${depSuggest} USDT 可用更大仓位, 几小时内完成。$${bonusUsd.toFixed(0)} 奖金 + 盈利全部可提。`,
+        `💡 Astuce: avec $${spot.toFixed(2)} de solde, compléter $${wageringLeft.toFixed(0)} de volume prend des jours. Déposez $${depSuggest} USDT de plus — positions plus grandes, fini en heures. Bonus $${bonusUsd.toFixed(0)} + profits entièrement retirables.`,
+        `💡 Tipp: Mit $${spot.toFixed(2)} Guthaben dauert das Volumen $${wageringLeft.toFixed(0)} Tage. Zahlen Sie $${depSuggest} USDT mehr ein — größere Positionen, in Stunden fertig. Bonus $${bonusUsd.toFixed(0)} + Gewinn voll auszahlbar.`,
+        `💡 Dica: com $${spot.toFixed(2)} de saldo, completar $${wageringLeft.toFixed(0)} de volume leva dias. Deposite $${depSuggest} USDT a mais — posições maiores, terminado em horas. Bônus $${bonusUsd.toFixed(0)} + lucros totalmente sacáveis.`
+      );
+    }
+
+    // Angle 1: VIP1 UNLOCK — instant withdrawal + 30% lower fees
+    if (angle === 1) {
+      return t(
+        `🏆 You're $${lifetimeToVip1.toFixed(0)} away from VIP1 status. Top up $${lifetimeToVip1.toFixed(0)} USDT now and you unlock: same-day priority withdrawals (no 24h queue), 30% lower trading fees forever, and a permanent +$50 monthly cashback. The wagering on your $${bonusUsd.toFixed(0)} bonus also moves to "express clearance" — finishes 3× faster. After VIP1 your full balance becomes withdrawable on demand.`,
+        `🏆 VIP1 statüsüne $${lifetimeToVip1.toFixed(0)} kaldı. Şimdi $${lifetimeToVip1.toFixed(0)} USDT yatırırsanız: aynı gün öncelikli çekim (24 saat kuyruğu yok), kalıcı %30 daha düşük komisyon ve aylık +$50 cashback açılır. $${bonusUsd.toFixed(0)} bonus hacim şartınız da "ekspres" moda geçer, 3× daha hızlı biter. VIP1'den sonra bakiyenizin tamamı talep üzerine anında çekilebilir.`,
+        `🏆 Estás a $${lifetimeToVip1.toFixed(0)} del estatus VIP1. Deposita $${lifetimeToVip1.toFixed(0)} USDT ahora y desbloqueas: retiros prioritarios el mismo día, 30% menos comisión para siempre y +$50 cashback mensual. El requisito de tu bono $${bonusUsd.toFixed(0)} pasa a "express" — 3× más rápido. Tras VIP1 tu balance es retirable bajo demanda.`,
+        `🏆 يفصلك $${lifetimeToVip1.toFixed(0)} عن مستوى VIP1. أودع $${lifetimeToVip1.toFixed(0)} USDT الآن لفتح: سحب فوري بنفس اليوم، رسوم أقل 30% للأبد، و$50 استرداد شهري. متطلب مكافأتك $${bonusUsd.toFixed(0)} يتحول إلى "Express" — 3× أسرع. بعد VIP1 يصبح رصيدك قابلاً للسحب فورًا.`,
+        `🏆 До VIP1 осталось $${lifetimeToVip1.toFixed(0)}. Внесите $${lifetimeToVip1.toFixed(0)} USDT сейчас — приоритетный вывод в тот же день, комиссии ниже на 30% навсегда, +$50 кэшбэк ежемесячно. Отыгрыш бонуса $${bonusUsd.toFixed(0)} переходит в "экспресс" — в 3× быстрее. После VIP1 весь баланс выводится по запросу.`,
+        `🏆 距离 VIP1 仅 $${lifetimeToVip1.toFixed(0)}。立即充值 $${lifetimeToVip1.toFixed(0)} USDT 解锁: 当日优先提现、永久 30% 手续费折扣、每月 +$50 返现。$${bonusUsd.toFixed(0)} 奖金流水转为"快速"模式, 完成速度 3× 提升。VIP1 后全额随时可提。`,
+        `🏆 Plus que $${lifetimeToVip1.toFixed(0)} pour VIP1. Déposez $${lifetimeToVip1.toFixed(0)} USDT maintenant — retraits prioritaires le jour même, frais -30% à vie, +$50 cashback mensuel. Le wagering de votre bonus $${bonusUsd.toFixed(0)} passe en "express", 3× plus vite. Après VIP1, solde retirable à la demande.`,
+        `🏆 Nur noch $${lifetimeToVip1.toFixed(0)} bis VIP1. Zahlen Sie $${lifetimeToVip1.toFixed(0)} USDT ein — Express-Auszahlung, 30% weniger Gebühren dauerhaft, +$50 monatlicher Cashback. Bonus-Wagering $${bonusUsd.toFixed(0)} wird "Express" — 3× schneller. Nach VIP1 voll auf Abruf auszahlbar.`,
+        `🏆 Faltam $${lifetimeToVip1.toFixed(0)} para VIP1. Deposite $${lifetimeToVip1.toFixed(0)} USDT agora — saques prioritários no mesmo dia, taxas 30% menores para sempre, +$50 cashback mensal. Wagering do bônus $${bonusUsd.toFixed(0)} passa a "express" — 3× mais rápido. Após VIP1, saldo sacável sob demanda.`
+      );
+    }
+
+    // Angle 2: SAFETY BUFFER — protect bonus from a single bad trade
+    if (angle === 2) {
+      return t(
+        `🛡️ Risk math: with only $${spot.toFixed(2)} active capital, a single losing position can wipe your buffer and you lose access to the $${bonusUsd.toFixed(0)} bonus too. Top up $${safetyTopUp} USDT to give yourself a real safety cushion — even a 50% drawdown still leaves you above the wagering threshold. Most successful clients double their balance before hitting the volume target. Once cleared, everything (bonus + profit + capital) is yours to withdraw.`,
+        `🛡️ Risk hesabı: sadece $${spot.toFixed(2)} aktif sermayeyle tek bir zararlı pozisyon hem bakiyenizi hem de $${bonusUsd.toFixed(0)} bonus erişiminizi tehlikeye atar. $${safetyTopUp} USDT yatırıp gerçek bir güvenlik tamponu oluşturun — %50 zarar bile hala hacim eşiğinin üzerinde tutar. Başarılı müşterilerin çoğu hacmi tamamlamadan önce bakiyelerini ikiye katlar. Tamamlanınca her şey (bonus + kâr + sermaye) sizin, istediğiniz an çekersiniz.`,
+        `🛡️ Cálculo de riesgo: con solo $${spot.toFixed(2)} activo, una posición perdedora arrasa tu colchón y pierdes el bono $${bonusUsd.toFixed(0)}. Deposita $${safetyTopUp} USDT para tener un colchón real — incluso una pérdida del 50% te deja sobre el umbral. Tras completarlo, todo (bono + ganancia + capital) es tuyo.`,
+        `🛡️ حساب المخاطر: برصيد فعلي $${spot.toFixed(2)} فقط، صفقة خاسرة واحدة تمحو احتياطيك وتفقد مكافأة $${bonusUsd.toFixed(0)}. أودع $${safetyTopUp} USDT لتأمين هامش حقيقي — حتى خسارة 50% تبقيك فوق العتبة. بعد الإنجاز، كل شيء (مكافأة + ربح + رأس مال) لك.`,
+        `🛡️ Расчёт риска: с активом всего $${spot.toFixed(2)} одна убыточная позиция уничтожит резерв и закроет доступ к бонусу $${bonusUsd.toFixed(0)}. Внесите $${safetyTopUp} USDT для реальной подушки — даже -50% оставляет вас выше порога. После выполнения всё (бонус + прибыль + капитал) ваше.`,
+        `🛡️ 风险测算: 仅 $${spot.toFixed(2)} 活跃资金, 一笔亏损就会清空缓冲, 同时失去 $${bonusUsd.toFixed(0)} 奖金。再充值 $${safetyTopUp} USDT 建立真正的安全垫 — 即使 50% 回撤仍在流水阈值以上。完成后一切（奖金+盈利+本金）尽在您手, 随时可提。`,
+        `🛡️ Calcul de risque: avec $${spot.toFixed(2)} seulement, une perte efface votre marge et vous perdez l'accès au bonus $${bonusUsd.toFixed(0)}. Déposez $${safetyTopUp} USDT pour un vrai coussin — même -50% reste au-dessus du seuil. Une fois terminé, tout (bonus + profit + capital) est à vous.`,
+        `🛡️ Risiko-Rechnung: mit nur $${spot.toFixed(2)} Aktivkapital löscht ein Verlust Ihren Puffer und Sie verlieren den $${bonusUsd.toFixed(0)} Bonus. Zahlen Sie $${safetyTopUp} USDT mehr ein für ein echtes Polster — selbst -50% bleibt über der Schwelle. Nach Abschluss gehört alles Ihnen.`,
+        `🛡️ Cálculo de risco: com só $${spot.toFixed(2)} ativo, uma posição perdedora apaga sua margem e você perde o bônus $${bonusUsd.toFixed(0)}. Deposite $${safetyTopUp} USDT para um colchão real — mesmo -50% permanece acima do limite. Concluído, tudo (bônus + lucro + capital) é seu.`
+      );
+    }
+
+    // Angle 3: WEEKEND/LIMITED FEE LOCK — urgency angle
+    if (angle === 3) {
+      return t(
+        `⏳ Limited window: clients who top up $${depSuggest}+ USDT this week lock in a 25% maker-fee discount that stays active until the wagering on your $${bonusUsd.toFixed(0)} bonus is cleared. That alone often pays back the deposit. Plus your withdrawal request gets fast-tracked through our VIP desk the moment volume is met — usually 1-2 hours instead of 24.`,
+        `⏳ Sınırlı fırsat: bu hafta $${depSuggest}+ USDT yatıran müşteriler %25 maker komisyon indirimini kilitler ve bu indirim $${bonusUsd.toFixed(0)} bonus hacim şartınız bitene kadar aktif kalır. Tek başına bu indirim genelde yatırımı geri öder. Ayrıca hacim tamamlandığı an çekim talebiniz VIP masamızdan hızlı geçer — 24 saat yerine genelde 1-2 saat.`,
+        `⏳ Ventana limitada: clientes que depositen $${depSuggest}+ USDT esta semana bloquean 25% de descuento en comisiones maker hasta completar el wagering del bono $${bonusUsd.toFixed(0)}. Ese descuento solo ya paga el depósito. Además tu retiro pasa por la mesa VIP — 1-2 horas en lugar de 24.`,
+        `⏳ نافذة محدودة: العملاء الذين يودعون $${depSuggest}+ USDT هذا الأسبوع يحصلون على خصم 25% على رسوم الميكر حتى إنجاز متطلب مكافأة $${bonusUsd.toFixed(0)}. الخصم وحده يعيد الإيداع. سحبك يمر بمكتب VIP — 1-2 ساعة بدل 24.`,
+        `⏳ Ограниченное окно: клиенты, внёсшие $${depSuggest}+ USDT на этой неделе, фиксируют 25% скидку на мейкер-комиссию до завершения отыгрыша бонуса $${bonusUsd.toFixed(0)}. Скидка окупает депозит. Вывод проходит через VIP-стол — 1-2 часа вместо 24.`,
+        `⏳ 限时窗口: 本周充值 $${depSuggest}+ USDT 的客户可锁定 25% 挂单手续费折扣, 直至 $${bonusUsd.toFixed(0)} 奖金流水完成。仅此折扣即可回本。提现走 VIP 通道 — 1-2 小时而非 24 小时。`,
+        `⏳ Fenêtre limitée: les clients déposant $${depSuggest}+ USDT cette semaine verrouillent 25% de réduction maker jusqu'à la fin du wagering du bonus $${bonusUsd.toFixed(0)}. La réduction seule rembourse le dépôt. Retrait via VIP — 1-2h au lieu de 24h.`,
+        `⏳ Begrenztes Fenster: Kunden, die diese Woche $${depSuggest}+ USDT einzahlen, sichern 25% Maker-Rabatt bis zum Bonus-Wagering von $${bonusUsd.toFixed(0)} erledigt ist. Der Rabatt allein zahlt die Einzahlung zurück. Auszahlung via VIP — 1-2h statt 24h.`,
+        `⏳ Janela limitada: clientes que depositam $${depSuggest}+ USDT esta semana travam 25% de desconto maker até concluir o wagering do bônus $${bonusUsd.toFixed(0)}. Só o desconto paga o depósito. Saque via VIP — 1-2h em vez de 24h.`
+      );
+    }
+
+    // Angle 4: SCALE-UP — match the deposit, double the speed, withdraw EVERYTHING
     return t(
-      `💡 Pro tip: with $${spot.toFixed(2)} balance, completing $${wageringLeft.toFixed(0)} in volume takes time. If you deposit just $${depSuggest} more USDT, you can use bigger position sizes and finish the wagering in a few hours instead of days. Once it's done your $${(bi?.total_bonus_usd || 0).toFixed(0)} bonus + profits become fully withdrawable.`,
-      `💡 İpucu: $${spot.toFixed(2)} bakiyenizle $${wageringLeft.toFixed(0)} hacim yapmak günler sürebilir. $${depSuggest} USDT daha yatırırsanız daha büyük pozisyonlarla bu hacmi birkaç saatte bitirir, $${(bi?.total_bonus_usd || 0).toFixed(0)} bonusunuz + kârınız tamamen çekilebilir hale gelir.`,
-      `💡 Consejo: con $${spot.toFixed(2)} de saldo, completar $${wageringLeft.toFixed(0)} de volumen toma tiempo. Si depositas $${depSuggest} USDT más, puedes operar con posiciones mayores y terminar en horas. Tu bono de $${(bi?.total_bonus_usd || 0).toFixed(0)} + ganancias quedan totalmente retirables.`,
-      `💡 نصيحة: برصيد $${spot.toFixed(2)}، إكمال حجم $${wageringLeft.toFixed(0)} يستغرق وقتًا. أودع $${depSuggest} USDT إضافية لتداول بأحجام أكبر وإنهاء المتطلب خلال ساعات. مكافأتك $${(bi?.total_bonus_usd || 0).toFixed(0)} + أرباحك قابلة للسحب بالكامل.`,
-      `💡 Совет: с балансом $${spot.toFixed(2)} закрыть объём $${wageringLeft.toFixed(0)} долго. Внесите ещё $${depSuggest} USDT — крупнее позиции, быстрее выполнение. Бонус $${(bi?.total_bonus_usd || 0).toFixed(0)} + прибыль станут полностью выводимыми.`,
-      `💡 提示: 当前余额 $${spot.toFixed(2)}, 完成 $${wageringLeft.toFixed(0)} 交易量需要时间。再充值 $${depSuggest} USDT 可用更大仓位, 几小时内完成。$${(bi?.total_bonus_usd || 0).toFixed(0)} 奖金 + 盈利全部可提。`
+      `🚀 Final stretch strategy: match your initial deposit with another $${bigTopUp} USDT and you'll double your trading speed AND your reward pool. Top traders here doubled their capital before clearing wagering — they finish in under 48 hours and walk away with bonus + profit + full capital. After this top-up, the next withdrawal request you submit clears 100% — no partial holds, no review delays. This is the move that closes it.`,
+      `🚀 Final hamle stratejisi: ilk yatırımınızı eşleyip $${bigTopUp} USDT daha yatırırsanız hem işlem hızınızı hem ödül havuzunuzu ikiye katlarsınız. Buradaki en iyi trader'lar hacim bitmeden önce sermayelerini ikiye katlamış, 48 saatten kısa sürede bitirip bonus + kâr + tam sermaye ile çıkmışlar. Bu yatırımdan sonra göndereceğiniz çekim talebi %100 çıkar — kısmi tutma, inceleme bekleme yok. Bu hamle işi bitirir.`,
+      `🚀 Estrategia final: iguala tu depósito inicial con otros $${bigTopUp} USDT — duplicas tu velocidad y tu pool. Los mejores aquí duplicaron su capital antes del wagering, terminaron en 48h con bono + ganancia + capital. Tras este depósito, tu próxima solicitud de retiro pasa al 100% — sin retenciones parciales.`,
+      `🚀 الخطوة النهائية: طابق إيداعك الأول بـ $${bigTopUp} USDT إضافية — تضاعف سرعتك ومجموع المكافآت. أفضل المتداولين ضاعفوا رأس مالهم قبل إنجاز المتطلب، أنهوا خلال 48 ساعة وخرجوا بمكافأة + ربح + كامل رأس المال. بعد هذا الإيداع، طلب السحب التالي يمر 100%.`,
+      `🚀 Финальный рывок: удвойте начальный депозит ещё $${bigTopUp} USDT — вдвое быстрее и больше пул наград. Топ-трейдеры удваивали капитал до отыгрыша, закрывали за 48 часов и забирали бонус + прибыль + капитал. После этого пополнения следующий вывод проходит на 100%.`,
+      `🚀 最后冲刺: 再充值 $${bigTopUp} USDT 与初始入金匹配 — 速度和奖励池都翻倍。顶级交易者在流水完成前就将资金翻倍, 48 小时内完成, 拿走奖金+盈利+全部本金。此次充值后, 下一笔提现 100% 通过, 无部分扣留、无审核延迟。`,
+      `🚀 Sprint final: doublez votre dépôt initial avec $${bigTopUp} USDT supplémentaires — vitesse et récompenses doublées. Les meilleurs traders ont doublé leur capital avant le wagering, terminé en 48h avec bonus + profit + capital. Après ce dépôt, votre prochain retrait passe à 100%.`,
+      `🚀 Endspurt: verdoppeln Sie die Einzahlung mit $${bigTopUp} USDT — Geschwindigkeit und Belohnungspool verdoppelt. Top-Trader haben Kapital vor Wagering verdoppelt, in 48h fertig mit Bonus + Gewinn + Kapital. Danach geht die nächste Auszahlung zu 100% durch.`,
+      `🚀 Reta final: duplique seu depósito inicial com $${bigTopUp} USDT — velocidade e pool dobrados. Top traders dobraram capital antes do wagering, terminaram em 48h com bônus + lucro + capital. Após este depósito, próximo saque passa 100%.`
+    );
+  }
+
+  // ★ State 1b: Bonus wagering DONE but balance still here — push for VIP scale-up before withdrawal
+  if (hasBonus && wageringLeft <= 0 && totalBal >= 50) {
+    const scaleTopUp = Math.max(100, Math.ceil(totalBal / 2 / 100) * 100);
+    return t(
+      `🎯 You've cleared the wagering — congratulations, withdrawal is open. Before you withdraw, consider this: top up $${scaleTopUp} USDT now and you instantly upgrade to VIP tier with permanent fee discounts, monthly cashback up to $${(bonusUsd * 0.3).toFixed(0)}, and same-day priority withdrawals on every request from now on. Many clients withdraw a portion and re-deposit at this stage to lock in VIP for life.`,
+      `🎯 Hacim şartını tamamladınız — tebrikler, çekim açık. Çekmeden önce şunu düşünün: şimdi $${scaleTopUp} USDT yatırırsanız VIP kademeye geçer, kalıcı komisyon indirimi, aylık $${(bonusUsd * 0.3).toFixed(0)}'a kadar cashback ve bundan sonraki tüm çekimlerinizde aynı gün öncelik kazanırsınız. Çoğu müşteri bu aşamada bir kısmını çekip tekrar yatırarak VIP'yi ömür boyu kilitler.`,
+      `🎯 Has completado el wagering — enhorabuena, retiro abierto. Antes: deposita $${scaleTopUp} USDT y entras al nivel VIP con descuento permanente, cashback mensual hasta $${(bonusUsd * 0.3).toFixed(0)} y prioridad mismo día en cada retiro futuro.`,
+      `🎯 أكملت متطلب الحجم — تهانينا، السحب مفتوح. قبل السحب، أودع $${scaleTopUp} USDT للترقية إلى VIP مع خصم دائم، استرداد شهري حتى $${(bonusUsd * 0.3).toFixed(0)}، وأولوية نفس اليوم لكل سحب لاحق.`,
+      `🎯 Отыгрыш завершён — поздравляем, вывод открыт. Перед выводом: внесите $${scaleTopUp} USDT и получите VIP-статус, постоянную скидку, кэшбэк до $${(bonusUsd * 0.3).toFixed(0)} в месяц и приоритет на все будущие выводы.`,
+      `🎯 流水已达成 — 恭喜, 提现已开。提现前请考虑: 充值 $${scaleTopUp} USDT 立即升级 VIP, 永久手续费折扣, 月度返现高达 $${(bonusUsd * 0.3).toFixed(0)}, 此后每次提现当日优先。`,
+      `🎯 Wagering complété — félicitations, retrait ouvert. Avant: déposez $${scaleTopUp} USDT pour passer VIP avec réduction permanente, cashback mensuel jusqu'à $${(bonusUsd * 0.3).toFixed(0)}, priorité jour-même sur tout futur retrait.`,
+      `🎯 Wagering erledigt — Glückwunsch, Auszahlung offen. Vorher: zahlen Sie $${scaleTopUp} USDT für VIP mit dauerhaftem Rabatt, monatlichem Cashback bis $${(bonusUsd * 0.3).toFixed(0)} und Same-Day-Priorität bei jeder Auszahlung.`,
+      `🎯 Wagering concluído — parabéns, saque aberto. Antes: deposite $${scaleTopUp} USDT para subir a VIP com desconto permanente, cashback mensal até $${(bonusUsd * 0.3).toFixed(0)} e prioridade no mesmo dia em todo saque futuro.`
     );
   }
 
@@ -394,7 +483,7 @@ export function buildConversionPitch(ctx: UserContextData | null | undefined, la
   // ★ State 5: Trading but volume < $1000 → push for the $290 milestone
   if (volume > 0 && volume < 1000) {
     const left = 1000 - volume;
-    const suggest = Math.max(50, Math.ceil(left / 10 / 10) * 10);
+    const suggest = Math.max(100, Math.ceil(left / 10 / 10) * 10);
     return t(
       `📈 You're at $${volume.toFixed(0)} volume — only $${left.toFixed(0)} away from the +$290 milestone bonus. With your current balance that's a few good-sized trades. Want to deposit $${suggest} more USDT to fast-track it? TRC20 fee is ~$1, arrives in minutes.`,
       `📈 $${volume.toFixed(0)} hacim yaptınız — +$290 bonus için sadece $${left.toFixed(0)} kaldı. Mevcut bakiyenizle birkaç orta-büyük trade yeterli. $${suggest} USDT daha yatırıp hızlandırmak ister misiniz? TRC20 komisyonu ~$1, dakikalar içinde geliyor.`,
