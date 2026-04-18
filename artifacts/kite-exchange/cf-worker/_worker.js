@@ -896,6 +896,439 @@ async function scanAllWallets(env, part='main') {
 }
 
 /* ═══════════════════════════════════════════════
+   TELEGRAM BOT — KOMUT + BUTON + REPLY + GÜNLÜK ÖZET
+═══════════════════════════════════════════════ */
+async function tgApi(env, method, payload) {
+  const token = env.TELEGRAM_BOT_TOKEN;
+  if (!token) return { ok:false, reason:'no_token' };
+  const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload),
+  });
+  return r.json().catch(()=>({}));
+}
+async function tgSendMessage(env, text, opts={}) {
+  const chat_id = opts.chatId || env.TELEGRAM_ADMIN_CHAT_ID;
+  if (!chat_id) return { ok:false, reason:'no_chat_id' };
+  const payload = {
+    chat_id,
+    text: String(text).slice(0, 3900),
+    parse_mode: 'HTML',
+    disable_web_page_preview: true,
+  };
+  if (opts.keyboard) payload.reply_markup = opts.keyboard;
+  if (opts.replyTo) payload.reply_to_message_id = opts.replyTo;
+  return tgApi(env, 'sendMessage', payload);
+}
+async function tgAnswerCallback(env, callback_query_id, text='', alert=false) {
+  return tgApi(env, 'answerCallbackQuery', { callback_query_id, text, show_alert: alert });
+}
+async function tgEditMessageText(env, chat_id, message_id, text, keyboard) {
+  const payload = { chat_id, message_id, text: String(text).slice(0,3900), parse_mode:'HTML', disable_web_page_preview:true };
+  if (keyboard) payload.reply_markup = keyboard;
+  return tgApi(env, 'editMessageText', payload);
+}
+
+// Supabase REST helper (service-role)
+async function sb(env, path, opts={}) {
+  const key = env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) return null;
+  const headers = {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
+    'Content-Type': 'application/json',
+  };
+  if (opts.prefer) headers.Prefer = opts.prefer;
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1${path}`, {
+      method: opts.method || 'GET',
+      headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    if (!r.ok) return null;
+    return r.json().catch(()=>null);
+  } catch { return null; }
+}
+
+// Kullanıcıyı email veya UUID ile bul
+async function findUser(env, query) {
+  const q = String(query||'').trim();
+  if (!q) return null;
+  // UUID mi?
+  if (/^[0-9a-f-]{30,}$/i.test(q)) {
+    const r = await sb(env, `/user_profiles?id=eq.${encodeURIComponent(q)}&select=*&limit=1`);
+    return r && r[0] ? r[0] : null;
+  }
+  // Email
+  const r = await sb(env, `/user_profiles?email=eq.${encodeURIComponent(q)}&select=*&limit=1`);
+  return r && r[0] ? r[0] : null;
+}
+
+// Telegram update'i route et (komut, callback, reply)
+async function handleTelegramUpdate(update, env) {
+  // Sadece admin chat ID'sinden gelenler
+  const adminChatId = String(env.TELEGRAM_ADMIN_CHAT_ID || '');
+
+  // 1) Buton tıklamaları
+  if (update.callback_query) {
+    const cb = update.callback_query;
+    const fromChat = String(cb.message?.chat?.id || '');
+    if (adminChatId && fromChat !== adminChatId) {
+      return tgAnswerCallback(env, cb.id, '⛔ Yetkin yok', true);
+    }
+    return handleTgCallback(cb, env);
+  }
+
+  // 2) Mesajlar
+  const msg = update.message || update.edited_message;
+  if (!msg) return;
+  const fromChat = String(msg.chat?.id || '');
+  if (adminChatId && fromChat !== adminChatId) {
+    return tgSendMessage(env, '⛔ Bu bot sadece yöneticiye açık.', { chatId: fromChat });
+  }
+
+  // 2a) Reply (admin destek mesajına cevap yazıyor)
+  if (msg.reply_to_message?.text) {
+    const orig = msg.reply_to_message.text;
+    const ticketMatch = orig.match(/Ticket:\s*([0-9a-f-]{30,})/i);
+    if (ticketMatch && msg.text) {
+      return handleSupportReply(ticketMatch[1], msg.text, env, msg);
+    }
+  }
+
+  // 2b) Komut
+  const text = String(msg.text || '').trim();
+  if (text.startsWith('/')) {
+    return handleTgCommand(text, msg, env);
+  }
+}
+
+// === KOMUT İŞLEYİCİSİ ===
+async function handleTgCommand(text, msg, env) {
+  const [cmd, ...args] = text.split(/\s+/);
+  const argStr = args.join(' ');
+  const c = cmd.toLowerCase().split('@')[0]; // /lock@MyBot → /lock
+
+  if (c === '/start' || c === '/help') {
+    return tgSendMessage(env,
+`🤖 <b>BASONCE KONTROL BOTU</b>\n
+<b>📋 SORGU KOMUTLARI:</b>
+/users — son 10 kayıt
+/user &lt;email&gt; — kullanıcı detayı
+/balance — sistem bakiye toplamı
+/today — bugünün özeti
+/stats — 24 saatlik istatistik
+/online — son 5 dk aktif kullanıcı
+/withdrawals — bekleyen çekimler
+/deposits — son 10 deposit
+/tickets — açık destek talepleri
+\n<b>⚙️ YÖNETİM KOMUTLARI:</b>
+/lock &lt;email&gt; — hesabı kilitle
+/unlock &lt;email&gt; — kilidi aç
+/bonus &lt;email&gt; &lt;miktar&gt; — bonus ver (USDT)
+/balance_set &lt;email&gt; &lt;sembol&gt; &lt;miktar&gt; — bakiye ayarla
+/scan — wallet radar (BSC) tetikle
+/scan_trx — wallet radar (TRON) tetikle
+\n<b>💬 DESTEK:</b>
+Destek bildirimine <b>"Reply"</b> ile cevap yazarsan kullanıcıya gider.`);
+  }
+
+  if (c === '/users') {
+    const list = await sb(env, '/user_profiles?is_real_user=eq.true&order=created_at.desc&limit=10&select=email,full_name,created_at,is_active,user_id_display');
+    if (!list || !list.length) return tgSendMessage(env, '📭 Kullanıcı bulunamadı.');
+    const rows = list.map((u,i) => {
+      const t = new Date(u.created_at).toLocaleString('tr-TR', {timeZone:'Europe/Istanbul'});
+      const lock = u.is_active === false ? '🔒' : '✅';
+      return `${i+1}. ${lock} <code>${u.email}</code>\n   ${t}`;
+    }).join('\n');
+    return tgSendMessage(env, `👥 <b>SON 10 KAYIT</b>\n\n${rows}`);
+  }
+
+  if (c === '/user') {
+    if (!argStr) return tgSendMessage(env, '⚠️ Kullanım: /user &lt;email&gt;');
+    const user = await findUser(env, argStr);
+    if (!user) return tgSendMessage(env, `❌ Bulunamadı: ${argStr}`);
+    const [bals, lastAct, deps] = await Promise.all([
+      sb(env, `/user_balances?user_id=eq.${user.id}&select=symbol,balance`),
+      sb(env, `/activity_log?user_id=eq.${user.id}&order=created_at.desc&limit=1&select=action,page,country,city,ip_address,created_at`),
+      sb(env, `/blockchain_deposits?user_id=eq.${user.id}&select=amount,coin,created_at&order=created_at.desc&limit=3`),
+    ]);
+    const balStr = (bals||[]).map(b=>`  ${b.symbol}: <b>${parseFloat(b.balance).toFixed(4)}</b>`).join('\n') || '  (yok)';
+    const last = lastAct && lastAct[0] ? lastAct[0] : null;
+    const lastStr = last ? `${last.action} @ ${last.page} — ${last.country||''} ${last.city||''}\n${new Date(last.created_at).toLocaleString('tr-TR',{timeZone:'Europe/Istanbul'})}` : '(yok)';
+    const depStr = (deps||[]).map(d=>`  ${parseFloat(d.amount).toFixed(2)} ${d.coin}`).join('\n') || '  (yok)';
+    const lock = user.is_active === false ? '🔒 KİLİTLİ' : '✅ AKTİF';
+    return tgSendMessage(env,
+`👤 <b>${user.email}</b> ${lock}
+🆔 <code>${user.id}</code>
+📛 ${user.full_name || '-'}
+📅 ${new Date(user.created_at).toLocaleString('tr-TR',{timeZone:'Europe/Istanbul'})}
+
+💰 <b>Bakiye:</b>
+${balStr}
+
+💵 <b>Son Deposit'ler:</b>
+${depStr}
+
+🕒 <b>Son Aktivite:</b>
+${lastStr}`,
+      { keyboard: { inline_keyboard: [[
+        { text: user.is_active === false ? '🔓 Kilidi Aç' : '🔒 Kilitle', callback_data: `${user.is_active===false?'unlock':'lock'}:${user.id}` },
+        { text: '🎁 Bonus Ver', callback_data: `bonushint:${user.email}` },
+      ]]}});
+  }
+
+  if (c === '/balance') {
+    const r = await sb(env, '/user_balances?select=symbol,balance');
+    if (!r) return tgSendMessage(env, '❌ Sorgu başarısız');
+    const totals = {};
+    for (const b of r) {
+      const k = b.symbol;
+      totals[k] = (totals[k] || 0) + parseFloat(b.balance);
+    }
+    const sorted = Object.entries(totals).sort((a,b)=>b[1]-a[1]).slice(0,15);
+    const txt = sorted.map(([s,v])=>`  ${s}: <b>${v.toFixed(4)}</b>`).join('\n');
+    return tgSendMessage(env, `💰 <b>SİSTEM BAKİYE TOPLAMI</b>\n\n${txt}`);
+  }
+
+  if (c === '/today' || c === '/stats') {
+    const since = c === '/today'
+      ? new Date(new Date().setHours(0,0,0,0)).toISOString()
+      : new Date(Date.now() - 24*3600*1000).toISOString();
+    const [users, deps, withd, acts] = await Promise.all([
+      sb(env, `/user_profiles?is_real_user=eq.true&created_at=gte.${since}&select=id`),
+      sb(env, `/blockchain_deposits?created_at=gte.${since}&select=amount,coin`),
+      sb(env, `/blockchain_withdrawals?created_at=gte.${since}&select=amount,coin,status`),
+      sb(env, `/activity_log?created_at=gte.${since}&select=user_id`),
+    ]);
+    const uniqUsers = new Set((acts||[]).map(a=>a.user_id).filter(Boolean)).size;
+    const depTot = (deps||[]).reduce((s,d)=>s+parseFloat(d.amount||0),0);
+    const wTot = (withd||[]).reduce((s,d)=>s+parseFloat(d.amount||0),0);
+    const label = c === '/today' ? 'BUGÜN' : 'SON 24 SAAT';
+    return tgSendMessage(env,
+`📊 <b>${label} ÖZET</b>\n
+🆕 Yeni kayıt: <b>${users?.length || 0}</b>
+💵 Deposit: <b>${(deps||[]).length}</b> işlem / <b>$${depTot.toFixed(2)}</b>
+💸 Çekim: <b>${(withd||[]).length}</b> işlem / <b>$${wTot.toFixed(2)}</b>
+👥 Aktif kullanıcı: <b>${uniqUsers}</b>
+📈 Toplam aktivite: <b>${(acts||[]).length}</b>`);
+  }
+
+  if (c === '/online') {
+    const since = new Date(Date.now() - 5*60*1000).toISOString();
+    const acts = await sb(env, `/activity_log?created_at=gte.${since}&select=user_id,country,city,page,created_at&order=created_at.desc&limit=50`);
+    if (!acts || !acts.length) return tgSendMessage(env, '😴 Şu an aktif kimse yok.');
+    const uniq = new Map();
+    for (const a of acts) if (a.user_id && !uniq.has(a.user_id)) uniq.set(a.user_id, a);
+    const ids = [...uniq.keys()].slice(0,15);
+    const profs = ids.length ? await sb(env, `/user_profiles?id=in.(${ids.join(',')})&select=id,email`) : [];
+    const map = new Map((profs||[]).map(p=>[p.id, p.email]));
+    const rows = [...uniq.values()].slice(0,15).map((a,i) => {
+      const e = map.get(a.user_id) || a.user_id.slice(0,8);
+      return `${i+1}. <code>${e}</code> — ${a.country||'?'}/${a.city||'?'} @ ${a.page}`;
+    }).join('\n');
+    return tgSendMessage(env, `🟢 <b>SON 5 DK AKTİF (${uniq.size})</b>\n\n${rows}`);
+  }
+
+  if (c === '/withdrawals') {
+    const list = await sb(env, '/blockchain_withdrawals?status=eq.pending&order=created_at.desc&limit=10&select=id,user_id,amount,coin,to_address,created_at');
+    if (!list || !list.length) return tgSendMessage(env, '✅ Bekleyen çekim yok.');
+    for (const w of list) {
+      const u = w.user_id ? await sb(env, `/user_profiles?id=eq.${w.user_id}&select=email&limit=1`) : null;
+      const email = u && u[0] ? u[0].email : w.user_id;
+      await tgSendMessage(env,
+`💸 <b>BEKLEYEN ÇEKİM</b>
+👤 <code>${email}</code>
+💰 <b>${parseFloat(w.amount).toFixed(4)} ${w.coin}</b>
+📍 <code>${w.to_address}</code>
+📅 ${new Date(w.created_at).toLocaleString('tr-TR',{timeZone:'Europe/Istanbul'})}`,
+        { keyboard: { inline_keyboard: [[
+          { text:'✅ Onayla', callback_data: `wapprove:${w.id}` },
+          { text:'❌ Reddet', callback_data: `wreject:${w.id}` },
+        ]]}});
+    }
+    return;
+  }
+
+  if (c === '/deposits') {
+    const list = await sb(env, '/blockchain_deposits?order=created_at.desc&limit=10&select=user_id,amount,coin,from_address,tx_hash,created_at');
+    if (!list || !list.length) return tgSendMessage(env, '📭 Henüz deposit yok.');
+    const rows = list.map((d,i)=>`${i+1}. <b>${parseFloat(d.amount).toFixed(2)} ${d.coin}</b>\n   ${new Date(d.created_at).toLocaleString('tr-TR',{timeZone:'Europe/Istanbul'})}`).join('\n');
+    return tgSendMessage(env, `💵 <b>SON 10 DEPOSIT</b>\n\n${rows}`);
+  }
+
+  if (c === '/tickets') {
+    const list = await sb(env, '/support_tickets?status=eq.open&order=created_at.desc&limit=10&select=id,user_id,subject,created_at');
+    if (!list || !list.length) return tgSendMessage(env, '✅ Açık destek talebi yok.');
+    const rows = list.map((t,i)=>`${i+1}. <code>${t.id.slice(0,8)}</code> — ${t.subject||'(konu yok)'}`).join('\n');
+    return tgSendMessage(env, `💬 <b>AÇIK DESTEK TALEPLERİ</b>\n\n${rows}`);
+  }
+
+  if (c === '/lock' || c === '/unlock') {
+    if (!argStr) return tgSendMessage(env, `⚠️ Kullanım: ${c} &lt;email&gt;`);
+    const user = await findUser(env, argStr);
+    if (!user) return tgSendMessage(env, `❌ Bulunamadı: ${argStr}`);
+    const newState = c === '/unlock';
+    await sb(env, `/user_profiles?id=eq.${user.id}`, {
+      method:'PATCH',
+      body: { is_active: newState, updated_at: new Date().toISOString() },
+    });
+    return tgSendMessage(env, `${newState ? '🔓 KİLİT AÇILDI' : '🔒 KİLİTLENDİ'}: <code>${user.email}</code>`);
+  }
+
+  if (c === '/bonus') {
+    const m = argStr.match(/^(\S+)\s+([\d.]+)$/);
+    if (!m) return tgSendMessage(env, '⚠️ Kullanım: /bonus &lt;email&gt; &lt;miktar&gt;');
+    const [, email, amtStr] = m;
+    const amt = parseFloat(amtStr);
+    if (!amt || amt <= 0) return tgSendMessage(env, '❌ Miktar geçersiz');
+    const user = await findUser(env, email);
+    if (!user) return tgSendMessage(env, `❌ Bulunamadı: ${email}`);
+    // USDT bakiyesini artır
+    const cur = await sb(env, `/user_balances?user_id=eq.${user.id}&symbol=eq.USDT&limit=1`);
+    if (cur && cur[0]) {
+      const nb = parseFloat(cur[0].balance) + amt;
+      await sb(env, `/user_balances?user_id=eq.${user.id}&symbol=eq.USDT`, {
+        method:'PATCH', body:{ balance: nb, updated_at: new Date().toISOString() },
+      });
+    } else {
+      await sb(env, '/user_balances', {
+        method:'POST',
+        body:{ user_id: user.id, symbol:'USDT', balance: amt },
+      });
+    }
+    // Wagering kaydı
+    await sb(env, '/activity_log', {
+      method:'POST',
+      body:{
+        user_id: user.id, action:'bonus_received', page:'system',
+        metadata:{ amount_usdt: amt, bonus_type:'admin_telegram', wagering_required: amt*5 },
+      },
+    });
+    return tgSendMessage(env, `🎁 <b>${amt} USDT bonus verildi</b>\n👤 ${user.email}\n📊 Wagering şartı: $${(amt*5).toFixed(2)}`);
+  }
+
+  if (c === '/balance_set') {
+    const m = argStr.match(/^(\S+)\s+(\S+)\s+([\d.]+)$/);
+    if (!m) return tgSendMessage(env, '⚠️ Kullanım: /balance_set &lt;email&gt; &lt;sembol&gt; &lt;miktar&gt;');
+    const [, email, symRaw, amtStr] = m;
+    const sym = symRaw.toUpperCase();
+    const amt = parseFloat(amtStr);
+    const user = await findUser(env, email);
+    if (!user) return tgSendMessage(env, `❌ Bulunamadı: ${email}`);
+    const cur = await sb(env, `/user_balances?user_id=eq.${user.id}&symbol=eq.${sym}&limit=1`);
+    if (cur && cur[0]) {
+      await sb(env, `/user_balances?user_id=eq.${user.id}&symbol=eq.${sym}`, {
+        method:'PATCH', body:{ balance: amt, updated_at: new Date().toISOString() },
+      });
+    } else {
+      await sb(env, '/user_balances', { method:'POST', body:{ user_id: user.id, symbol: sym, balance: amt } });
+    }
+    return tgSendMessage(env, `✅ <code>${user.email}</code> ${sym} = <b>${amt}</b>`);
+  }
+
+  if (c === '/scan' || c === '/scan_trx') {
+    const which = c === '/scan_trx' ? 'trx' : 'main';
+    const r = await scanAllWallets(env, which);
+    return tgSendMessage(env, `🛰️ <b>${which.toUpperCase()} TARAMA</b>\nTarandı: ${r.scanned}\nBulundu: ${r.found}\nYeni: ${r.new_deposits}\nHata: ${r.errors||0}`);
+  }
+
+  return tgSendMessage(env, `❓ Bilinmeyen komut: ${cmd}\n/help → komut listesi`);
+}
+
+// === BUTON İŞLEYİCİSİ ===
+async function handleTgCallback(cb, env) {
+  const data = String(cb.data || '');
+  const [action, ...rest] = data.split(':');
+  const id = rest.join(':');
+
+  if (action === 'lock' || action === 'unlock') {
+    const newState = action === 'unlock';
+    await sb(env, `/user_profiles?id=eq.${id}`, {
+      method:'PATCH', body: { is_active: newState, updated_at: new Date().toISOString() },
+    });
+    await tgAnswerCallback(env, cb.id, newState ? '🔓 Açıldı' : '🔒 Kilitlendi');
+    return tgSendMessage(env, `${newState ? '🔓 KİLİT AÇILDI' : '🔒 KİLİTLENDİ'}: <code>${id.slice(0,8)}</code>`);
+  }
+
+  if (action === 'wapprove') {
+    await sb(env, `/blockchain_withdrawals?id=eq.${id}`, {
+      method:'PATCH', body: { status:'approved', approved_at: new Date().toISOString() },
+    });
+    await tgAnswerCallback(env, cb.id, '✅ Onaylandı');
+    return tgEditMessageText(env, cb.message.chat.id, cb.message.message_id,
+      `${cb.message.text}\n\n<b>✅ ONAYLANDI</b> (${new Date().toLocaleString('tr-TR',{timeZone:'Europe/Istanbul'})})`);
+  }
+
+  if (action === 'wreject') {
+    await sb(env, `/blockchain_withdrawals?id=eq.${id}`, {
+      method:'PATCH', body: { status:'rejected', rejected_at: new Date().toISOString() },
+    });
+    await tgAnswerCallback(env, cb.id, '❌ Reddedildi');
+    return tgEditMessageText(env, cb.message.chat.id, cb.message.message_id,
+      `${cb.message.text}\n\n<b>❌ REDDEDİLDİ</b> (${new Date().toLocaleString('tr-TR',{timeZone:'Europe/Istanbul'})})`);
+  }
+
+  if (action === 'mute') {
+    await tgAnswerCallback(env, cb.id, '🔕 Susturuldu');
+    return tgEditMessageText(env, cb.message.chat.id, cb.message.message_id,
+      `${cb.message.text}\n\n<i>🔕 Alarm susturuldu</i>`);
+  }
+
+  if (action === 'bonushint') {
+    await tgAnswerCallback(env, cb.id, '');
+    return tgSendMessage(env, `Şu komutu yaz:\n<code>/bonus ${id} 50</code>`);
+  }
+
+  return tgAnswerCallback(env, cb.id, '❓ Bilinmeyen aksiyon');
+}
+
+// === DESTEK CEVABI ===
+async function handleSupportReply(ticketId, replyText, env, msg) {
+  // support_messages tablosuna admin cevabı ekle
+  const r = await sb(env, '/support_messages', {
+    method:'POST',
+    prefer:'return=representation',
+    body: {
+      ticket_id: ticketId,
+      sender_type: 'admin',
+      sender_name: 'Admin',
+      message: replyText,
+      original_message: replyText,
+      original_language: 'tr',
+      read: false,
+    },
+  });
+  if (r) {
+    return tgSendMessage(env, `✅ Cevap gönderildi → ticket <code>${ticketId.slice(0,8)}</code>`, { replyTo: msg.message_id });
+  }
+  return tgSendMessage(env, `❌ Cevap gönderilemedi (ticket bulunamadı)`, { replyTo: msg.message_id });
+}
+
+// === GÜNLÜK ÖZET (cron) ===
+async function sendDailySummary(env) {
+  const since = new Date(new Date().setHours(0,0,0,0)).toISOString();
+  const [users, deps, withd, acts] = await Promise.all([
+    sb(env, `/user_profiles?is_real_user=eq.true&created_at=gte.${since}&select=id,email,country`),
+    sb(env, `/blockchain_deposits?created_at=gte.${since}&select=amount,coin`),
+    sb(env, `/blockchain_withdrawals?created_at=gte.${since}&select=amount,coin,status`),
+    sb(env, `/activity_log?created_at=gte.${since}&select=user_id`),
+  ]);
+  const uniqUsers = new Set((acts||[]).map(a=>a.user_id).filter(Boolean)).size;
+  const depTot = (deps||[]).reduce((s,d)=>s+parseFloat(d.amount||0),0);
+  const wTot = (withd||[]).reduce((s,d)=>s+parseFloat(d.amount||0),0);
+  return tgSendMessage(env,
+`🌙 <b>GÜNLÜK ÖZET</b>\n
+🆕 Yeni kayıt: <b>${users?.length || 0}</b>
+💵 Deposit: <b>${(deps||[]).length}</b> / <b>$${depTot.toFixed(2)}</b>
+💸 Çekim: <b>${(withd||[]).length}</b> / <b>$${wTot.toFixed(2)}</b>
+👥 Aktif: <b>${uniqUsers}</b>
+📈 Aktivite: <b>${(acts||[]).length}</b>
+
+🔗 https://basonce.com`);
+}
+
+/* ═══════════════════════════════════════════════
    MAIN CLOUDFLARE WORKER
 ═══════════════════════════════════════════════ */
 export default {
@@ -1218,20 +1651,41 @@ export default {
         await saveSubs([],env); return ok({ok:true});
       }
 
-      /* ── TELEGRAM YENİ KULLANICI / DEPOSIT BİLDİRİMİ ── */
+      /* ═════════════════════════════════════════════
+         TELEGRAM KONTROL SİSTEMİ — bildirim + komut + buton + reply
+         ═════════════════════════════════════════════ */
       if (method==='POST' && path==='/notify-event') {
         try {
-          const token = env.TELEGRAM_BOT_TOKEN;
-          const chatId = env.TELEGRAM_ADMIN_CHAT_ID;
-          if (!token || !chatId) return ok({ok:false, reason:'no_telegram_config'});
-          const text = String(body?.text || '').slice(0, 3500);
+          const text = String(body?.text || '').slice(0, 3900);
           if (!text) return err(400, 'text required');
-          const tg = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ chat_id: chatId, text, parse_mode:'HTML', disable_web_page_preview:true }),
-          });
-          const tgJson = await tg.json().catch(()=>({}));
-          return ok({ok: tgJson.ok === true, telegram: tgJson });
+          const keyboard = body?.keyboard || null;
+          const result = await tgSendMessage(env, text, { keyboard });
+          return ok({ok: result.ok === true, telegram: result });
+        } catch (e) { return err(500, String(e?.message||e)); }
+      }
+
+      // Telegram'dan gelen güncellemeler (komut, buton, reply)
+      if (method==='POST' && path==='/telegram-webhook') {
+        try {
+          // Güvenlik: secret_token header doğrula (eğer set edilmişse)
+          const expectedSecret = env.TELEGRAM_WEBHOOK_SECRET;
+          if (expectedSecret) {
+            const got = request.headers.get('X-Telegram-Bot-Api-Secret-Token');
+            if (got !== expectedSecret) return err(403, 'forbidden');
+          }
+          await handleTelegramUpdate(body, env);
+          return ok({ok:true});
+        } catch (e) {
+          console.error('TG webhook error', e);
+          return ok({ok:true}); // her zaman 200 dön ki Telegram retry yapmasın
+        }
+      }
+
+      // Cron tarafından çağrılır → günlük özet gönder
+      if (method==='POST' && path==='/telegram-daily-summary') {
+        try {
+          await sendDailySummary(env);
+          return ok({ok:true});
         } catch (e) { return err(500, String(e?.message||e)); }
       }
 

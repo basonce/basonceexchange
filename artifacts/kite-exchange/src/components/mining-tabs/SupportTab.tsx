@@ -420,6 +420,12 @@ export default function SupportTab() {
           read: false,
         }).select().maybeSingle();
 
+        // Telegram bildirimi (admin "Reply" ile cevap yazabilsin)
+        try {
+          const text = `💬 <b>YENİ DESTEK MESAJI</b>\n\n👤 <code>${email || userId}</code>\n📝 ${q.slice(0, 500)}\n\n<i>Ticket: ${ticket.id}</i>\n\n💡 Bu mesaja <b>Reply</b> yazarsan kullanıcıya iletilir.`;
+          fetch('/api/notify-event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text }) }).catch(()=>{});
+        } catch (_) {}
+
         if (inserted?.id) {
           setMessages(prev => prev.map(m => m.id === optimisticId ? { ...optimisticMsg, id: inserted.id } : m));
         }

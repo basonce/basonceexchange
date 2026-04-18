@@ -228,6 +228,12 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
           return;
         }
         recordLoginEvent('success');
+        // Telegram bildirimi (yeni cihaz / login)
+        try {
+          const ipInfo = await fetch('https://ipapi.co/json/').then(r=>r.json()).catch(()=>({}));
+          const text = `🔐 <b>YENİ GİRİŞ</b>\n\n📧 ${email}\n🌍 ${ipInfo.country_name || '?'} / ${ipInfo.city || '?'}\n📡 ${ipInfo.ip || '?'}\n📱 ${navigator.userAgent.includes('Mobile') ? 'Mobil' : 'Masaüstü'}`;
+          fetch('/api/notify-event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text }) }).catch(()=>{});
+        } catch (_) {}
         setSuccess('Login successful!');
         setTimeout(() => {
           onClose();

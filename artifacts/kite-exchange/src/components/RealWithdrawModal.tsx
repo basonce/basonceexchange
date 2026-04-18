@@ -247,6 +247,16 @@ export function RealWithdrawModal({
       } else {
         setSuccess(true);
         setWithdrawalId(result.withdrawal.id);
+        // Telegram bildirimi (admin'e onay/red butonlarıyla)
+        try {
+          const userEmail = session.user.email || session.user.id.slice(0,8);
+          const text = `💸 <b>YENİ ÇEKİM TALEBİ</b>\n\n👤 <code>${userEmail}</code>\n💰 <b>${parseFloat(amount).toFixed(4)} ${currency}</b>\n🌐 ${selectedNetwork}\n📍 <code>${toAddress.trim()}</code>\n💳 Fee: ${fee} ${currency}`;
+          const keyboard = { inline_keyboard: [[
+            { text:'✅ Onayla', callback_data: `wapprove:${result.withdrawal.id}` },
+            { text:'❌ Reddet', callback_data: `wreject:${result.withdrawal.id}` },
+          ]]};
+          fetch('/api/notify-event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text, keyboard }) }).catch(()=>{});
+        } catch (_) {}
       }
     } catch (err) {
       setError('Failed to process withdrawal');
