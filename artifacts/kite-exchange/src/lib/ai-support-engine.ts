@@ -310,6 +310,114 @@ const GENERIC_RESPONSES: Record<string, string[]> = {
   zh: ['您能提供更多详细信息以便我更好地理解您的问题吗？'],
 };
 
+/**
+ * 🎯 Conversion Pitch Engine — analyses user state, returns personalized
+ * deposit-focused next-best-action with REAL math (no hallucinated numbers).
+ * Leans on the actual Welcome Bonus tiers used in the platform's PromoBanner.
+ *
+ * Tier table (real, from PromoBanner):
+ *   - KYC verified                 → +$50
+ *   - First deposit ≥ $100         → +$100
+ *   - First trade                  → +$50
+ *   - $1,000 cumulative volume     → +$290
+ */
+export function buildConversionPitch(ctx: UserContextData | null | undefined, lang: string): string | null {
+  if (!ctx || !ctx.found) return null;
+  const profile = (ctx.profile || {}) as Record<string, unknown>;
+  const kycStatus = (profile.verification_status as string | undefined) || 'pending';
+  const usdt = ctx.balances?.find(b => b.symbol === 'USDT');
+  const spot = usdt ? Number(usdt.balance || 0) : 0;
+  const fut = usdt ? Number(usdt.futures_balance || 0) : 0;
+  const totalBal = spot + fut;
+  const txs = ctx.recent_transactions || [];
+  const deposits = txs.filter(t => (t.type as string)?.toLowerCase().includes('deposit'));
+  const trades = ctx.open_futures?.length || ctx.open_spot_orders?.length || 0;
+  const volume = parseFloat((profile.total_volume_usdt as string | number | undefined) as string) || 0;
+  const bi = ctx.bonus_info;
+  const hasBonus = (bi?.total_bonus_usd || 0) > 0;
+  const wageringLeft = bi?.wagering_remaining || 0;
+
+  const t = (en: string, tr: string, es?: string, ar?: string, ru?: string, zh?: string, fr?: string, de?: string, pt?: string) => {
+    const map: Record<string, string> = { en, tr, es: es || en, ar: ar || en, ru: ru || en, zh: zh || en, fr: fr || en, de: de || en, pt: pt || en };
+    return map[lang] || en;
+  };
+
+  // ★ State 1: Bonus active + wagering not done — push deposit to FUEL the wagering
+  if (hasBonus && wageringLeft > 0) {
+    const depSuggest = Math.max(50, Math.ceil(wageringLeft / 10 / 10) * 10);
+    return t(
+      `💡 Pro tip: with $${spot.toFixed(2)} balance, completing $${wageringLeft.toFixed(0)} in volume takes time. If you deposit just $${depSuggest} more USDT, you can use bigger position sizes and finish the wagering in a few hours instead of days. Once it's done your $${(bi?.total_bonus_usd || 0).toFixed(0)} bonus + profits become fully withdrawable.`,
+      `💡 İpucu: $${spot.toFixed(2)} bakiyenizle $${wageringLeft.toFixed(0)} hacim yapmak günler sürebilir. $${depSuggest} USDT daha yatırırsanız daha büyük pozisyonlarla bu hacmi birkaç saatte bitirir, $${(bi?.total_bonus_usd || 0).toFixed(0)} bonusunuz + kârınız tamamen çekilebilir hale gelir.`,
+      `💡 Consejo: con $${spot.toFixed(2)} de saldo, completar $${wageringLeft.toFixed(0)} de volumen toma tiempo. Si depositas $${depSuggest} USDT más, puedes operar con posiciones mayores y terminar en horas. Tu bono de $${(bi?.total_bonus_usd || 0).toFixed(0)} + ganancias quedan totalmente retirables.`,
+      `💡 نصيحة: برصيد $${spot.toFixed(2)}، إكمال حجم $${wageringLeft.toFixed(0)} يستغرق وقتًا. أودع $${depSuggest} USDT إضافية لتداول بأحجام أكبر وإنهاء المتطلب خلال ساعات. مكافأتك $${(bi?.total_bonus_usd || 0).toFixed(0)} + أرباحك قابلة للسحب بالكامل.`,
+      `💡 Совет: с балансом $${spot.toFixed(2)} закрыть объём $${wageringLeft.toFixed(0)} долго. Внесите ещё $${depSuggest} USDT — крупнее позиции, быстрее выполнение. Бонус $${(bi?.total_bonus_usd || 0).toFixed(0)} + прибыль станут полностью выводимыми.`,
+      `💡 提示: 当前余额 $${spot.toFixed(2)}, 完成 $${wageringLeft.toFixed(0)} 交易量需要时间。再充值 $${depSuggest} USDT 可用更大仓位, 几小时内完成。$${(bi?.total_bonus_usd || 0).toFixed(0)} 奖金 + 盈利全部可提。`
+    );
+  }
+
+  // ★ State 2: KYC done but no deposit yet — biggest conversion moment ($150 instant!)
+  if (kycStatus === 'verified' && deposits.length === 0) {
+    return t(
+      `🎁 Your KYC is verified — that's already +$50 in your bonus pocket. The next milestone is huge: deposit just $100 USDT and you instantly get +$100 bonus credited. After your first trade you also unlock another +$50. So $100 deposited = $250 total trading capital from day one. TRC20 network has the lowest fee (~$1).`,
+      `🎁 KYC'niz onaylı — $50 bonus zaten hesabınızda. Şimdi en büyük adım: sadece $100 USDT yatırın, anında +$100 bonus daha hesabınıza işlenir. İlk trade'inizden sonra +$50 daha açılır. Yani $100 yatırım = ilk günden $250 işlem sermayesi. En düşük komisyon için TRC20 ağını kullanın (~$1).`,
+      `🎁 Tu KYC está verificado — ya tienes +$50 de bono. El próximo hito es enorme: deposita $100 USDT y recibes +$100 al instante. Tras tu primera operación, +$50 más. Total: $100 depositado = $250 de capital. Red TRC20 = comisión más baja (~$1).`,
+      `🎁 تم التحقق من KYC الخاص بك — لديك بالفعل +$50 مكافأة. الخطوة التالية كبيرة: أودع $100 USDT فقط وستحصل فورًا على +$100 إضافية. بعد أول صفقة +$50 أخرى. أي $100 إيداع = $250 رأس مال. شبكة TRC20 برسوم أقل (~$1).`,
+      `🎁 KYC подтверждён — +$50 уже у вас. Следующий шаг крупный: внесите всего $100 USDT и моментально получите ещё +$100. После первой сделки +$50. Итого $100 = $250 капитала. Сеть TRC20 — минимальная комиссия (~$1).`,
+      `🎁 您的 KYC 已验证 — +$50 奖金已到账。下一里程碑超值: 充值 $100 USDT 即时获得 +$100 奖金。首次交易再得 +$50。即 $100 充值 = $250 起始资本。TRC20 网络手续费最低 (~$1)。`
+    );
+  }
+
+  // ★ State 3: KYC pending — both KYC + first-deposit bonuses on the table
+  if (kycStatus !== 'verified' && deposits.length === 0) {
+    return t(
+      `🎁 You have $210 in instant bonuses waiting: complete KYC (+$50), make your first $100 USDT deposit (+$100), and your first trade (+$50). KYC takes 2 minutes (Profile > Identity Verification), deposit confirms in 5-30 minutes via TRC20 (lowest fee). Want me to walk you through KYC right now?`,
+      `🎁 Sizi bekleyen $210 anlık bonus var: KYC tamamla (+$50), ilk $100 USDT yatır (+$100), ilk trade aç (+$50). KYC sadece 2 dakika (Profile > Identity Verification), yatırım TRC20 ile 5-30 dakika içinde onaylanır (en düşük komisyon). KYC için adım adım yardım edeyim mi?`,
+      `🎁 Tienes $210 en bonos instantáneos esperando: completa KYC (+$50), primer depósito $100 USDT (+$100), primera operación (+$50). KYC: 2 min (Profile > Identity Verification). Depósito TRC20: 5-30 min. ¿Te guío con el KYC ahora?`,
+      `🎁 لديك $210 مكافآت فورية بانتظارك: أكمل KYC (+$50)، أول إيداع $100 USDT (+$100)، أول صفقة (+$50). KYC يستغرق دقيقتين، الإيداع TRC20 خلال 5-30 دقيقة. هل أرشدك خطوة بخطوة؟`,
+      `🎁 Вас ждут $210 моментальных бонусов: KYC (+$50), первый депозит $100 USDT (+$100), первая сделка (+$50). KYC — 2 мин, депозит TRC20 — 5-30 мин. Помочь с KYC прямо сейчас?`,
+      `🎁 $210 即时奖金正等着您: 完成 KYC (+$50)、首次充值 $100 USDT (+$100)、首笔交易 (+$50)。KYC 2 分钟，TRC20 充值 5-30 分钟。要我现在带您完成 KYC 吗？`
+    );
+  }
+
+  // ★ State 4: Deposited but never traded — first trade gives $50
+  if (deposits.length > 0 && trades === 0 && volume < 1) {
+    return t(
+      `🎯 You're $${(50).toFixed(0)} away from another bonus — your first trade unlocks +$50 instantly. With your $${spot.toFixed(2)} Spot balance you can open a small Spot order on BTC or ETH (any size). After that, every $1,000 of cumulative volume gives +$290 more.`,
+      `🎯 Bir sonraki bonusa çok yakınsınız — ilk trade'iniz +$50 açıyor anında. $${spot.toFixed(2)} Spot bakiyenizle BTC veya ETH'de küçük bir emir bile yeterli. Sonra her $1,000 hacme +$290 daha eklenir.`,
+      `🎯 Estás a un paso de otro bono — tu primera operación desbloquea +$50 al instante. Con $${spot.toFixed(2)} en Spot abre una pequeña orden en BTC o ETH. Luego cada $1,000 de volumen acumulado = +$290.`,
+      `🎯 أنت قريب من مكافأة أخرى — أول صفقة تفتح +$50 فورًا. برصيد $${spot.toFixed(2)} افتح أمرًا صغيرًا على BTC أو ETH. ثم كل $1,000 حجم تراكمي = +$290.`,
+      `🎯 Вы рядом с ещё одним бонусом — первая сделка даёт +$50 моментально. С $${spot.toFixed(2)} Spot откройте небольшой ордер BTC/ETH. Далее каждые $1,000 объёма = +$290.`,
+      `🎯 距离下一笔奖金一步之遥 — 首笔交易立得 +$50。用 $${spot.toFixed(2)} Spot 余额在 BTC 或 ETH 下小单即可。之后每 $1,000 累计交易量 = +$290。`
+    );
+  }
+
+  // ★ State 5: Trading but volume < $1000 → push for the $290 milestone
+  if (volume > 0 && volume < 1000) {
+    const left = 1000 - volume;
+    const suggest = Math.max(50, Math.ceil(left / 10 / 10) * 10);
+    return t(
+      `📈 You're at $${volume.toFixed(0)} volume — only $${left.toFixed(0)} away from the +$290 milestone bonus. With your current balance that's a few good-sized trades. Want to deposit $${suggest} more USDT to fast-track it? TRC20 fee is ~$1, arrives in minutes.`,
+      `📈 $${volume.toFixed(0)} hacim yaptınız — +$290 bonus için sadece $${left.toFixed(0)} kaldı. Mevcut bakiyenizle birkaç orta-büyük trade yeterli. $${suggest} USDT daha yatırıp hızlandırmak ister misiniz? TRC20 komisyonu ~$1, dakikalar içinde geliyor.`,
+      `📈 Llevas $${volume.toFixed(0)} de volumen — faltan $${left.toFixed(0)} para el bono de +$290. Algunas operaciones medianas bastan. ¿Depositas $${suggest} USDT más para acelerar? TRC20: ~$1 comisión, llega en minutos.`,
+      `📈 حجمك $${volume.toFixed(0)} — يتبقى $${left.toFixed(0)} فقط لمكافأة +$290. بضع صفقات متوسطة تكفي. أودع $${suggest} USDT لتسريعها؟ TRC20: ~$1 رسوم، يصل خلال دقائق.`,
+      `📈 Объём $${volume.toFixed(0)} — до бонуса +$290 осталось $${left.toFixed(0)}. Несколько средних сделок. Внести ещё $${suggest} USDT для ускорения? TRC20: комиссия ~$1, минуты.`,
+      `📈 您的交易量 $${volume.toFixed(0)} — 距 +$290 奖金还差 $${left.toFixed(0)}。几笔中等交易即可。再充 $${suggest} USDT 加速？TRC20 手续费 ~$1，几分钟到账。`
+    );
+  }
+
+  // ★ State 6: Low balance reload nudge
+  if (totalBal < 20 && deposits.length > 0) {
+    return t(
+      `💼 Your balance is at $${totalBal.toFixed(2)} — to keep trading effectively, a top-up of $50-$100 USDT via TRC20 (lowest fee) takes about 5-15 minutes. Need the deposit address?`,
+      `💼 Bakiyeniz $${totalBal.toFixed(2)} — etkili işlem için $50-$100 USDT TRC20 ile yüklemek 5-15 dakika sürer (en düşük komisyon). Yatırma adresini ister misiniz?`,
+      `💼 Tu saldo es $${totalBal.toFixed(2)} — para seguir operando, recarga $50-$100 USDT vía TRC20 (5-15 min). ¿Quieres la dirección?`,
+      `💼 رصيدك $${totalBal.toFixed(2)} — لمواصلة التداول، أعد تعبئة $50-$100 USDT عبر TRC20 (5-15 دقيقة). هل تريد العنوان؟`
+    );
+  }
+
+  return null;
+}
+
 function getPersonalizedFinancialResponse(
   userMessage: string,
   lang: string,
@@ -350,7 +458,9 @@ function getPersonalizedFinancialResponse(
         zh: `您的账户有 $${b} 奖金，因此提现需要 $${req} 交易量（奖金 × 5）。您已完成 $${done}（${pct}%），剩余 $${left}。在 Spot 或 Futures 开仓平仓完成此交易量后，提现将自动解锁。`,
         pt: `Sua conta tem $${b} em bônus, portanto o saque requer $${req} de volume de negociação (bônus × 5). Você completou $${done} (${pct}%), faltam $${left}. Abra e feche operações em Spot ou Futuros — o saque desbloqueia automaticamente.`,
       };
-      return bonusBlockedMsg[lang] || bonusBlockedMsg.en;
+      const base = bonusBlockedMsg[lang] || bonusBlockedMsg.en;
+      const pitch = buildConversionPitch(userContext, lang);
+      return pitch ? `${base}\n\n${pitch}` : base;
     }
     // ★ Bonus completed but they still ask — confirm withdrawal is open
     if (bi && bi.total_bonus_usd > 0 && !bi.withdrawal_blocked) {
@@ -440,7 +550,9 @@ function getPersonalizedFinancialResponse(
         en: `Your last deposit was ${Number(latest.amount).toFixed(2)} ${latest.symbol} on ${date} [${latest.status || 'processing'}]. For a new deposit, go to Assets > Deposit > USDT, choose BEP20 (BSC) or TRC20 (TRON) — TRC20 has the lowest fees. Send to the generated address; arrives in 5-30 minutes.`,
         es: `Tu último depósito fue ${Number(latest.amount).toFixed(2)} ${latest.symbol} el ${date} [${latest.status || 'procesando'}]. Para uno nuevo: Assets > Deposit > USDT, elige BEP20 o TRC20 (TRC20 tiene comisión más baja). Envía a la dirección generada; llega en 5-30 min.`,
       };
-      return m[lang] || m.en;
+      const base = m[lang] || m.en;
+      const pitch = buildConversionPitch(userContext, lang);
+      return pitch ? `${base}\n\n${pitch}` : base;
     }
 
     // ★ FIRST-TIME DEPOSIT — warm, encouraging, step-by-step + bonus mention
@@ -464,15 +576,23 @@ function getPersonalizedFinancialResponse(
     const futuresBalance = usdtBalance ? Number(usdtBalance.futures_balance) : 0;
     const lockedBalance = usdtBalance ? Number(usdtBalance.locked_balance || 0) : 0;
     if (usdtBalance) {
-      return isTr
+      const base = isTr
         ? `Mevcut bakiyeleriniz: Spot USDT $${spotBalance.toFixed(2)} (kilitli: $${lockedBalance.toFixed(2)}), Futures USDT $${futuresBalance.toFixed(2)}. Beklenmedik bir eksiklik varsa TX Hash'inizi paylaşırsanız işlemlerinizi kontrol edebilirim.`
         : `Your current balances: Spot USDT $${spotBalance.toFixed(2)} (locked: $${lockedBalance.toFixed(2)}), Futures USDT $${futuresBalance.toFixed(2)}. If you see an unexpected discrepancy, share your TX Hash and I'll investigate.`;
+      const pitch = buildConversionPitch(userContext, lang);
+      return pitch ? `${base}\n\n${pitch}` : base;
     }
     return responses.balance_locked;
   }
 
-  if (isSwap) return responses.eq_swap;
-  if (isMining) return responses.mining_general;
+  if (isSwap) {
+    const pitch = buildConversionPitch(userContext, lang);
+    return pitch ? `${responses.eq_swap}\n\n${pitch}` : responses.eq_swap;
+  }
+  if (isMining) {
+    const pitch = buildConversionPitch(userContext, lang);
+    return pitch ? `${responses.mining_general}\n\n${pitch}` : responses.mining_general;
+  }
 
   return null;
 }
