@@ -9,6 +9,17 @@ export interface UserProfile {
   lastTopic?: string;
 }
 
+export interface BonusInfo {
+  total_bonus_usd: number;
+  wagering_required: number;
+  wagering_done: number;
+  wagering_remaining: number;
+  progress_pct: number;
+  withdrawal_blocked: boolean;
+  bonus_count: number;
+  last_bonus_at?: string | null;
+}
+
 export interface UserContextData {
   found: boolean;
   error?: string | null;
@@ -20,6 +31,7 @@ export interface UserContextData {
   recent_futures_history?: Array<Record<string, unknown>>;
   open_spot_orders?: Array<Record<string, unknown>>;
   mining_summary?: Record<string, unknown>;
+  bonus_info?: BonusInfo | null;
 }
 
 interface ConversationMessage {
@@ -85,6 +97,80 @@ export function analyzeUserProfile(
     messageCount: messages.filter(m => m.role === 'customer').length,
     lastTopic,
   };
+}
+
+/**
+ * Enrich existing userContext with bonus + wagering info pulled directly from Supabase.
+ * Adds bonus_info field so AI can give personalized, accurate withdrawal answers.
+ */
+export async function enrichUserContextWithBonus(
+  ctx: UserContextData,
+  supabaseClient: { from: (t: string) => { select: (c: string) => { eq: (col: string, val: unknown) => Promise<{ data: unknown[] | null }> & { maybeSingle?: () => Promise<{ data: unknown }> } } } }
+): Promise<UserContextData> {
+  try {
+    const profile = ctx.profile as Record<string, unknown> | undefined;
+    const userId = (profile?.id || profile?.user_id) as string | undefined;
+    if (!userId) return { ...ctx, bonus_info: null };
+
+    const bonusRowsRes = await supabaseClient
+      .from('activity_log')
+      .select('metadata,created_at')
+      .eq('user_id', userId);
+    const bonusRows = ((bonusRowsRes as { data: Array<{ metadata?: Record<string, unknown>; created_at?: string; action?: string }> | null }).data || []);
+    const bonusOnly = bonusRows.filter(r => (r as Record<string, unknown>).action === 'bonus_received' || (r.metadata as Record<string, unknown> | undefined)?.bonus_type);
+
+    let totalBonus = 0;
+    let lastBonusAt: string | null = null;
+    for (const row of bonusOnly) {
+      const md = (row.metadata || {}) as Record<string, unknown>;
+      const amt = parseFloat((md.amount_usdt ?? md.amount ?? 0) as string);
+      if (!isNaN(amt) && amt > 0) totalBonus += amt;
+      if (row.created_at && (!lastBonusAt || row.created_at > lastBonusAt)) lastBonusAt = row.created_at;
+    }
+
+    const totalVolumeRaw = (profile?.total_volume_usdt as string | number | undefined) ?? 0;
+    const wageringDone = parseFloat(String(totalVolumeRaw)) || 0;
+    const wageringRequired = totalBonus * 5;
+    const wageringRemaining = Math.max(0, wageringRequired - wageringDone);
+    const progressPct = wageringRequired > 0 ? Math.min(100, (wageringDone / wageringRequired) * 100) : 100;
+
+    const bonus_info: BonusInfo = {
+      total_bonus_usd: totalBonus,
+      wagering_required: wageringRequired,
+      wagering_done: wageringDone,
+      wagering_remaining: wageringRemaining,
+      progress_pct: progressPct,
+      withdrawal_blocked: totalBonus > 0 && wageringDone < wageringRequired,
+      bonus_count: bonusOnly.length,
+      last_bonus_at: lastBonusAt,
+    };
+    return { ...ctx, bonus_info };
+  } catch {
+    return { ...ctx, bonus_info: null };
+  }
+}
+
+/**
+ * Detect language from a single message (latin, cyrillic, arabic, chinese, korean).
+ * Used per-message so we always answer in the customer's CURRENT language.
+ */
+export function detectMessageLanguage(text: string): string {
+  const t = (text || '').toLowerCase();
+  if (/[\u0600-\u06ff]/.test(t)) return 'ar';
+  if (/[\u4e00-\u9fff]/.test(t)) return 'zh';
+  if (/[\uac00-\ud7af]/.test(t)) return 'ko';
+  if (/[\u0400-\u04ff]/.test(t)) return 'ru';
+  // Turkish-specific markers (chars + common words)
+  if (/[ğüşöçı]/i.test(text) || /\b(merhaba|nasıl|para|çek|yatır|bakiye|hesap|teşekkür|nerede|niye|olmadı|olmuyor|bonus aldım|ne yapacağım|yardım|nasilsin)\b/.test(t)) return 'tr';
+  // Spanish
+  if (/[ñ¿¡]/.test(text) || /\b(hola|gracias|cómo|cuándo|dinero|saldo|retirar|depósito|ayuda)\b/.test(t)) return 'es';
+  // French
+  if (/\b(bonjour|merci|comment|argent|solde|retrait|dépôt|aide|pourquoi)\b/.test(t)) return 'fr';
+  // German
+  if (/[ßäöü]/.test(text) || /\b(hallo|danke|wie|geld|guthaben|abheben|einzahlung|hilfe)\b/.test(t)) return 'de';
+  // Portuguese
+  if (/\b(olá|obrigado|como|dinheiro|saldo|retirar|depósito|ajuda)\b/.test(t)) return 'pt';
+  return 'en';
 }
 
 export async function verifyUserAndGetContext(userId: string): Promise<UserContextData | null> {
@@ -223,11 +309,49 @@ function getPersonalizedFinancialResponse(
   const isSwap = ['swap', 'takas', 'dönüştür', 'convert', 'eq usdt'].some(w => msg.includes(w));
 
   if (isWithdrawal) {
+    // ★ HIGHEST PRIORITY: Bonus + Wagering check — explains EXACT amounts in customer's language
+    const bi = userContext?.bonus_info;
+    if (bi && bi.withdrawal_blocked) {
+      const b = bi.total_bonus_usd.toFixed(2);
+      const req = bi.wagering_required.toFixed(2);
+      const done = bi.wagering_done.toFixed(2);
+      const left = bi.wagering_remaining.toFixed(2);
+      const pct = bi.progress_pct.toFixed(0);
+      const bonusBlockedMsg: Record<string, string> = {
+        tr: `Hesabınızda toplam $${b} bonus var, bu yüzden çekim için $${req} işlem hacmi (bonus × 5) yapmanız gerekiyor. Şu ana kadar $${done} hacim yaptınız (%${pct}), $${left} daha kalmış. Spot veya Futures'ta işlem açıp kapatarak bu hacmi tamamlayabilirsiniz. Tamamlanınca çekim otomatik açılır.`,
+        en: `Your account has $${b} in total bonuses, so withdrawal requires $${req} in trading volume (bonus × 5). You've completed $${done} so far (${pct}%), with $${left} remaining. Open and close trades on Spot or Futures to complete this volume — withdrawal unlocks automatically when finished.`,
+        es: `Tu cuenta tiene $${b} en bonos, por lo que el retiro requiere $${req} de volumen de operaciones (bono × 5). Has completado $${done} (${pct}%), faltan $${left}. Abre y cierra operaciones en Spot o Futuros para completar este volumen — el retiro se desbloquea automáticamente.`,
+        fr: `Votre compte a $${b} de bonus, le retrait nécessite donc $${req} de volume de trading (bonus × 5). Vous avez fait $${done} (${pct}%), il reste $${left}. Ouvrez et fermez des positions sur Spot ou Futures — le retrait se débloque automatiquement.`,
+        de: `Ihr Konto hat $${b} Bonus, daher erfordert die Auszahlung $${req} Handelsvolumen (Bonus × 5). Sie haben $${done} (${pct}%) abgeschlossen, $${left} verbleiben. Eröffnen und schließen Sie Trades auf Spot oder Futures — die Auszahlung wird automatisch freigeschaltet.`,
+        ru: `На вашем счёте бонусов на $${b}, для вывода нужен торговый объём $${req} (бонус × 5). Вы выполнили $${done} (${pct}%), осталось $${left}. Открывайте и закрывайте сделки на Spot или Futures — вывод откроется автоматически.`,
+        ar: `حسابك يحتوي على $${b} مكافآت، لذا يتطلب السحب حجم تداول $${req} (المكافأة × 5). أكملت $${done} (${pct}%)، تبقى $${left}. افتح وأغلق الصفقات على Spot أو Futures وسيتم فتح السحب تلقائيًا.`,
+        zh: `您的账户有 $${b} 奖金，因此提现需要 $${req} 交易量（奖金 × 5）。您已完成 $${done}（${pct}%），剩余 $${left}。在 Spot 或 Futures 开仓平仓完成此交易量后，提现将自动解锁。`,
+        pt: `Sua conta tem $${b} em bônus, portanto o saque requer $${req} de volume de negociação (bônus × 5). Você completou $${done} (${pct}%), faltam $${left}. Abra e feche operações em Spot ou Futuros — o saque desbloqueia automaticamente.`,
+      };
+      return bonusBlockedMsg[lang] || bonusBlockedMsg.en;
+    }
+    // ★ Bonus completed but they still ask — confirm withdrawal is open
+    if (bi && bi.total_bonus_usd > 0 && !bi.withdrawal_blocked) {
+      const b = bi.total_bonus_usd.toFixed(2);
+      const okMsg: Record<string, string> = {
+        tr: `Tebrikler! $${b} bonus için gereken işlem hacmini tamamlamışsınız, çekim hakkınız açık. Assets > Withdraw bölümünden çekim talebinizi oluşturabilirsiniz. KYC tamamlanmış ise işlem 1-24 saat içinde tamamlanır.`,
+        en: `Great news — you've completed the trading volume for your $${b} bonus, withdrawal is unlocked. Go to Assets > Withdraw to submit a request. If KYC is verified, processing takes 1-24 hours.`,
+      };
+      return okMsg[lang] || okMsg.en;
+    }
     if (kycStatus && kycStatus !== 'verified') {
-      const kycMsg = isTr
-        ? `Hesabınızda KYC durumunuz "${kycStatus}" — tam çekim hakları için doğrulamanızı tamamlamanız gerekiyor. Profile > Identity Verification bölümüne gidin, kimlik belgelerinizi yükleyin. Onay 1-3 iş günü içinde tamamlanır.`
-        : `Your KYC status is "${kycStatus}" — full withdrawal access requires completing verification. Go to Profile > Identity Verification to upload your documents. Approval takes 1-3 business days.`;
-      return kycMsg;
+      const kycMsg: Record<string, string> = {
+        tr: `Hesabınızda KYC durumunuz "${kycStatus}" — tam çekim hakları için doğrulamanızı tamamlamanız gerekiyor. Profile > Identity Verification bölümüne gidin, kimlik belgelerinizi yükleyin. Onay 1-3 iş günü içinde tamamlanır.`,
+        en: `Your KYC status is "${kycStatus}" — full withdrawal access requires completing verification. Go to Profile > Identity Verification to upload your documents. Approval takes 1-3 business days.`,
+        es: `Tu estado KYC es "${kycStatus}". Para retiros completos, completa la verificación en Profile > Identity Verification. Aprobación en 1-3 días hábiles.`,
+        fr: `Votre statut KYC est "${kycStatus}". Pour les retraits complets, complétez la vérification dans Profile > Identity Verification. Approbation en 1-3 jours ouvrables.`,
+        de: `Ihr KYC-Status ist "${kycStatus}". Für vollständige Auszahlungen vervollständigen Sie die Verifizierung unter Profile > Identity Verification. Genehmigung in 1-3 Werktagen.`,
+        ru: `Ваш статус KYC: "${kycStatus}". Для полного вывода завершите верификацию в Profile > Identity Verification. Одобрение 1-3 рабочих дня.`,
+        ar: `حالة KYC: "${kycStatus}". لإمكانية السحب الكاملة، أكمل التحقق في Profile > Identity Verification. الموافقة خلال 1-3 أيام عمل.`,
+        zh: `您的 KYC 状态："${kycStatus}"。要完整提现权限，请在 Profile > Identity Verification 完成验证。审批 1-3 个工作日。`,
+        pt: `Seu status KYC é "${kycStatus}". Para saques completos, conclua a verificação em Profile > Identity Verification. Aprovação em 1-3 dias úteis.`,
+      };
+      return kycMsg[lang] || kycMsg.en;
     }
     const lockedBalance = usdtBalance ? Number(usdtBalance.locked_balance || 0) : 0;
     if (lockedBalance > 0) {

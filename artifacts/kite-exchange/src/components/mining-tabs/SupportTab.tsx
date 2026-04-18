@@ -5,6 +5,7 @@ import { detectUserCountry } from '../../lib/geolocation';
 import { assignBestAgent, type Agent } from '../../lib/agent-assignment';
 import {
   verifyUserAndGetContext,
+  enrichUserContextWithBonus,
   generateAIResponseFromOpenAI,
   generateAIResponse,
   analyzeUserProfile,
@@ -170,7 +171,9 @@ export default function SupportTab() {
       const ctx = await verifyUserAndGetContext(customerId.trim());
       setIdVerifying(false);
       if (ctx && ctx.found) {
-        setVerifiedUser(ctx);
+        const enriched = await enrichUserContextWithBonus(ctx, supabase as unknown as Parameters<typeof enrichUserContextWithBonus>[1]);
+        setVerifiedUser(enriched);
+        userContextRef.current = enriched;
         setFormError('');
       } else {
         setVerifiedUser(null);
