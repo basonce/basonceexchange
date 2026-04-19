@@ -15,6 +15,7 @@ import AssetsPage from './pages/AssetsPage';
 import AIBotPage from './pages/AIBotPage';
 import ProfilePage from './pages/ProfilePage';
 import SocialProfilePage from './pages/SocialProfilePage';
+import ResetPasswordModal from './components/ResetPasswordModal';
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 
 // ── Güvenlik: Admin paneline erişebilecek UUID listesi ──────
@@ -382,6 +383,7 @@ function App() {
           )}
         </div>
       </div>
+      <ResetPasswordModal />
     </ExchangeModeProvider>
   );
 }
