@@ -72,6 +72,17 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
     return () => { cancelled = true; sub.subscription.unsubscribe(); };
   }, [isOpen, onClose]);
 
+  // Hide bottom nav while modal is open (reuses existing mechanism in BottomNav)
+  useEffect(() => {
+    if (!isOpen) return;
+    document.body.classList.add('auth-modal-open');
+    document.body.classList.add('deposit-modal-open');
+    return () => {
+      document.body.classList.remove('auth-modal-open');
+      document.body.classList.remove('deposit-modal-open');
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const submitMfa = async () => {
@@ -340,8 +351,9 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-      <div className="bg-[#181A20] rounded-2xl max-w-md w-full border border-[#2B3139] shadow-2xl">
+    <div className="fixed inset-0 bg-black/80 z-50 overflow-y-auto overscroll-contain">
+      <div className="min-h-full flex items-start sm:items-center justify-center p-4 pb-24 sm:pb-4">
+      <div className="bg-[#181A20] rounded-2xl max-w-md w-full border border-[#2B3139] shadow-2xl my-auto">
         <div className="flex items-center justify-between p-6 border-[#2B3139]">
           <div>
             <h2 className="font-bold text-white">
@@ -611,6 +623,7 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
           )}
         </form>
         )}
+      </div>
       </div>
     </div>
   );
