@@ -407,7 +407,7 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
         <AuthModal
           isOpen={showAuthModal}
           onClose={() => setShowAuthModal(false)}
-          mode="login"
+          mode={authMode}
         />
       </div>
     );
