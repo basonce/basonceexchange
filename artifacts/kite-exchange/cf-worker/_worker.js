@@ -968,6 +968,28 @@ async function tgApi(env, method, payload) {
   });
   return r.json().catch(()=>({}));
 }
+// ── Otomatik İngilizce → Türkçe çeviri (Google Translate ücretsiz endpoint) ──
+const TR_CACHE = new Map();
+async function translateToTurkish(text) {
+  try {
+    if (!text) return text;
+    const trimmed = String(text).slice(0, 3500);
+    if (TR_CACHE.has(trimmed)) return TR_CACHE.get(trimmed);
+    // HTML etiketlerini ve emojileri koru — sadece düz metin parçalarını gönder
+    // Google translate HTML'i tanır, etiketleri korur
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=tr&dt=t&q=${encodeURIComponent(trimmed)}`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    if (!r.ok) return text;
+    const j = await r.json();
+    // j[0] = [[ "translated", "original", ... ], ...]
+    const out = (j[0] || []).map(seg => seg[0] || '').join('');
+    const result = out || text;
+    if (TR_CACHE.size > 500) TR_CACHE.clear();
+    TR_CACHE.set(trimmed, result);
+    return result;
+  } catch { return text; }
+}
+
 async function tgSendMessage(env, text, opts={}) {
   // 'feed' kanalı varsa oraya, yoksa main'e yolla
   let chat_id = opts.chatId;
@@ -2214,11 +2236,15 @@ export default {
          ═════════════════════════════════════════════ */
       if (method==='POST' && path==='/notify-event') {
         try {
-          const text = String(body?.text || '').slice(0, 3900);
+          let text = String(body?.text || '').slice(0, 3900);
           if (!text) return err(400, 'text required');
           const keyboard = body?.keyboard || null;
           const silent = body?.silent === true;
           const channel = body?.channel || 'main'; // 'main' | 'feed'
+          // Otomatik Türkçeye çevir (İngilizce UI metinleri için)
+          if (body?.translate !== false) {
+            text = await translateToTurkish(text);
+          }
           const result = await tgSendMessage(env, text, { keyboard, silent, channel });
           return ok({ok: result.ok === true, telegram: result });
         } catch (e) { return err(500, String(e?.message||e)); }
