@@ -102,6 +102,30 @@ force = true
 [redirects.headers]
 
 [[redirects]]
+from = "/reklam"
+to = "/reklam.html"
+status = 200.0
+force = true
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/reklam/"
+to = "/reklam.html"
+status = 200.0
+force = true
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
 from = "/api-server/*"
 to = "/.netlify/functions/api-proxy"
 status = 200.0
