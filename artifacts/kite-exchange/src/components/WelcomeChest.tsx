@@ -28,12 +28,14 @@ export default function WelcomeChest() {
     const load = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) { setState(null); return; }
-        const { data, error } = await supabase.rpc('welcome_chest_status');
+        if (!session?.access_token) { setState(null); return; }
+        const r = await fetch('/api/welcome-chest/status', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
         if (cancelled) return;
-        if (error) { setState(null); return; }
-        const row = Array.isArray(data) ? data[0] : data;
-        if (row) setState(row as ChestState);
+        if (!r.ok) { setState(null); return; }
+        const data = await r.json();
+        if (data && data.status) setState(data as ChestState);
       } catch {
         // silent — chest is non-critical UI
       }
@@ -81,10 +83,18 @@ export default function WelcomeChest() {
     setOpening(true);
     setError('');
     try {
-      const { data, error } = await supabase.rpc('claim_welcome_chest');
-      if (error) throw error;
-      const result = Array.isArray(data) ? data[0] : data;
-      if (!result?.success) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setError('Please sign in again');
+        setOpening(false);
+        return;
+      }
+      const r = await fetch('/api/welcome-chest/claim', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const result = await r.json().catch(() => ({}));
+      if (!r.ok || !result?.success) {
         setError(result?.message || 'Could not open chest');
         setOpening(false);
         return;

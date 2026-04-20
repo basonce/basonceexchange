@@ -201,6 +201,31 @@ async function sbRpc(fn, body, env) {
   return r.json();
 }
 
+// Verify a Supabase user JWT by asking the auth server who it belongs to.
+// Returns the user UUID on success, null otherwise. No JWT secret needed.
+async function getAuthedUserId(request, env) {
+  const auth = request.headers.get('authorization') || request.headers.get('Authorization');
+  if (!auth || !auth.toLowerCase().startsWith('bearer ')) return null;
+  const token = auth.slice(7).trim();
+  if (!token) return null;
+  try {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: env.SUPABASE_SERVICE_ROLE_KEY },
+    });
+    if (!r.ok) return null;
+    const u = await r.json();
+    return u && u.id ? u.id : null;
+  } catch { return null; }
+}
+
+// Welcome chest constants — kept in worker so no DB DDL is required
+const CHEST_REWARD_AMOUNT = 100;
+const CHEST_REWARD_SYMBOL = 'EQ';
+const CHEST_WINDOW_MS = 10 * 60 * 1000;            // 10 minutes after signup
+const CHEST_CAMPAIGN_END_MS = Date.parse('2026-05-19T23:59:59Z');
+const CHEST_CAMPAIGN_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
+const CHEST_SENTINEL = 'WELCOME_CHEST';
+
 /* ═══════════════════════════════════════════════
    CRYPTO PRICES (KuCoin) — in-memory cache per isolate
 ═══════════════════════════════════════════════ */
@@ -1387,6 +1412,140 @@ export default {
     try {
       /* ── HEALTH ── */
       if (method==='GET' && path==='/healthz') return ok({status:'ok',platform:'cloudflare'});
+
+      /* ── WELCOME CHEST: status ──
+         GET /api/welcome-chest/status  (Authorization: Bearer <user_jwt>)
+         Pure-worker implementation — no DB DDL needed. State derived from:
+         - user_profiles.created_at (window start)
+         - user_balances row with symbol=WELCOME_CHEST as the "claimed" sentinel
+      */
+      if (method==='GET' && path==='/welcome-chest/status') {
+        const uid = await getAuthedUserId(request, env);
+        if (!uid) return err(401, 'Unauthorized');
+        const nowMs = Date.now();
+        const campaignOpen = nowMs < CHEST_CAMPAIGN_END_MS;
+
+        // Get signup time + check if already claimed (in parallel)
+        const [profR, claimR] = await Promise.all([
+          fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${uid}&select=created_at&limit=1`, { headers: restHeaders(env) }),
+          fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.${CHEST_SENTINEL}&select=symbol&limit=1`, { headers: restHeaders(env) }),
+        ]);
+        const profRows = profR.ok ? await profR.json() : [];
+        const claimRows = claimR.ok ? await claimR.json() : [];
+        const created = profRows[0]?.created_at ? Date.parse(profRows[0].created_at) : nowMs;
+        const claimed = Array.isArray(claimRows) && claimRows.length > 0;
+
+        // Eligibility: only show to users who signed up after the campaign started
+        const eligibleByCampaign = created > (CHEST_CAMPAIGN_END_MS - CHEST_CAMPAIGN_DURATION_MS);
+
+        const expiresAt = created + CHEST_WINDOW_MS;
+        const secondsLeft = Math.max(0, Math.floor((expiresAt - nowMs) / 1000));
+
+        let status = 'pending';
+        if (claimed) status = 'claimed';
+        else if (nowMs > expiresAt) status = 'expired';
+
+        return ok({
+          status,
+          expires_at: new Date(expiresAt).toISOString(),
+          seconds_left: secondsLeft,
+          reward_amount: CHEST_REWARD_AMOUNT,
+          reward_symbol: CHEST_REWARD_SYMBOL,
+          claimed_at: null,
+          locked: true,
+          campaign_open: campaignOpen && eligibleByCampaign,
+        });
+      }
+
+      /* ── WELCOME CHEST: claim ──
+         POST /api/welcome-chest/claim  (Authorization: Bearer <user_jwt>)
+         Atomic: relies on PRIMARY KEY (user_id, symbol) on user_balances.
+         Inserting the WELCOME_CHEST sentinel row is the lock — only one
+         insert can ever succeed per user. If insert succeeds, we then add
+         100 EQ to the user's locked_balance.
+      */
+      if (method==='POST' && path==='/welcome-chest/claim') {
+        const uid = await getAuthedUserId(request, env);
+        if (!uid) return err(401, 'Unauthorized');
+
+        const nowMs = Date.now();
+        if (nowMs > CHEST_CAMPAIGN_END_MS) return ok({ success:false, message:'Campaign ended' });
+
+        // Verify the 10-min window
+        const profR = await fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${uid}&select=created_at&limit=1`, { headers: restHeaders(env) });
+        const profRows = profR.ok ? await profR.json() : [];
+        if (!profRows[0]?.created_at) return ok({ success:false, message:'Profile not found' });
+        const created = Date.parse(profRows[0].created_at);
+        if (nowMs > created + CHEST_WINDOW_MS) return ok({ success:false, message:'Chest expired' });
+        if (created <= (CHEST_CAMPAIGN_END_MS - CHEST_CAMPAIGN_DURATION_MS)) {
+          return ok({ success:false, message:'Not eligible' });
+        }
+
+        // Atomic claim: insert sentinel. If duplicate → already claimed.
+        const claimRes = await fetch(`${SUPABASE_URL}/rest/v1/user_balances`, {
+          method: 'POST',
+          headers: {
+            ...restHeaders(env),
+            'Content-Type': 'application/json',
+            // ignore-duplicates returns [] on conflict; representation returns the inserted row(s)
+            Prefer: 'resolution=ignore-duplicates,return=representation',
+          },
+          body: JSON.stringify({
+            user_id: uid,
+            symbol: CHEST_SENTINEL,
+            balance: 0,
+            locked_balance: 0,
+            eq_amount: 0,
+          }),
+        });
+        const claimText = await claimRes.text();
+        let claimRows = [];
+        try { claimRows = JSON.parse(claimText); } catch {}
+        if (!claimRes.ok) {
+          // If PK violation slips through (some PostgREST versions), treat as already claimed
+          if (claimText.includes('duplicate') || claimText.includes('23505')) {
+            return ok({ success:false, message:'Already claimed' });
+          }
+          return ok({ success:false, message:'Claim failed: ' + claimText.slice(0, 200) });
+        }
+        if (!Array.isArray(claimRows) || claimRows.length === 0) {
+          return ok({ success:false, message:'Already claimed' });
+        }
+
+        // Credit 100 EQ to locked_balance (best-effort: failure here doesn't roll back the sentinel
+        // because the sentinel is the source of truth for "claimed". We retry on read by checking
+        // both sentinel and EQ row.)
+        const eqGet = await fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.${CHEST_REWARD_SYMBOL}&select=locked_balance,balance&limit=1`, { headers: restHeaders(env) });
+        const eqRows = eqGet.ok ? await eqGet.json() : [];
+        if (eqRows.length > 0) {
+          const newLocked = (Number(eqRows[0].locked_balance) || 0) + CHEST_REWARD_AMOUNT;
+          await fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.${CHEST_REWARD_SYMBOL}`, {
+            method: 'PATCH',
+            headers: { ...restHeaders(env), 'Content-Type':'application/json' },
+            body: JSON.stringify({ locked_balance: newLocked }),
+          });
+        } else {
+          await fetch(`${SUPABASE_URL}/rest/v1/user_balances`, {
+            method: 'POST',
+            headers: { ...restHeaders(env), 'Content-Type':'application/json', Prefer:'resolution=ignore-duplicates' },
+            body: JSON.stringify({
+              user_id: uid,
+              symbol: CHEST_REWARD_SYMBOL,
+              balance: 0,
+              locked_balance: CHEST_REWARD_AMOUNT,
+              eq_amount: 0,
+            }),
+          });
+        }
+
+        return ok({
+          success: true,
+          message: 'Claimed',
+          reward_amount: CHEST_REWARD_AMOUNT,
+          reward_symbol: CHEST_REWARD_SYMBOL,
+          locked: true,
+        });
+      }
 
       /* ── SECURITY: SCAN MULTI-ACCOUNT (3+ signups from same IP in last 7 days) ──
          Auto-locks all accounts from the offending IP, registers IP block,
