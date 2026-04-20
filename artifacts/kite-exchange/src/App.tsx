@@ -16,6 +16,7 @@ import AIBotPage from './pages/AIBotPage';
 import ProfilePage from './pages/ProfilePage';
 import SocialProfilePage from './pages/SocialProfilePage';
 import ResetPasswordModal from './components/ResetPasswordModal';
+import WelcomeChest from './components/WelcomeChest';
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 
 // ── Güvenlik: Admin paneline erişebilecek UUID listesi ──────
@@ -384,6 +385,11 @@ function App() {
         </div>
       </div>
       <ResetPasswordModal />
+      <div className="fixed inset-x-0 top-0 z-[60] mx-auto max-w-[480px] pointer-events-none">
+        <div className="pointer-events-auto">
+          <WelcomeChest />
+        </div>
+      </div>
     </ExchangeModeProvider>
   );
 }
