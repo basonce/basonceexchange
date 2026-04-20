@@ -227,31 +227,29 @@ const CHEST_ELIGIBILITY_DAYS = 30;                 // rolling: user must have si
 const CHEST_SENTINEL_CLAIMED = 'WELCOME_CHEST';        // exists => already claimed
 const CHEST_SENTINEL_SEEN = 'WELCOME_CHEST_SEEN';      // exists => first-view recorded; balance col = window_start_ms
 
-// Insert a sentinel row in user_balances for the welcome-chest mechanism.
-// Returns the row that ended up in the DB (existing or new). Atomic via PK (user_id, symbol).
+// Get-or-create a "first viewed" sentinel row in user_balances. Returns window_start_ms.
+// Note: user_balances has no UNIQUE(user_id, symbol) constraint, so we read first to avoid duplicates.
 async function chestUpsertSeen(uid, env) {
   const nowMs = Date.now();
-  // Try to insert; if it already exists, ignore.
+  // Check if a SEEN row already exists
+  const existR = await fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.${CHEST_SENTINEL_SEEN}&select=balance&limit=1`, { headers: restHeaders(env) });
+  if (existR.ok) {
+    const rows = await existR.json();
+    if (rows.length > 0) return Number(rows[0].balance) || nowMs;
+  }
+  // Insert new SEEN row
   await fetch(`${SUPABASE_URL}/rest/v1/user_balances`, {
     method: 'POST',
-    headers: {
-      ...restHeaders(env),
-      'Content-Type': 'application/json',
-      Prefer: 'resolution=ignore-duplicates',
-    },
+    headers: { ...restHeaders(env), 'Content-Type': 'application/json' },
     body: JSON.stringify({
       user_id: uid,
       symbol: CHEST_SENTINEL_SEEN,
-      balance: nowMs,            // store window start as unix ms
+      balance: nowMs,
       locked_balance: 0,
       eq_amount: 0,
     }),
   });
-  // Read back whatever is there now
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.${CHEST_SENTINEL_SEEN}&select=balance&limit=1`, { headers: restHeaders(env) });
-  if (!r.ok) return nowMs;
-  const rows = await r.json();
-  return rows[0]?.balance ? Number(rows[0].balance) : nowMs;
+  return nowMs;
 }
 
 /* ═══════════════════════════════════════════════
@@ -1521,35 +1519,28 @@ export default {
         const windowStart = Math.max(created, seenStart);
         if (nowMs > windowStart + CHEST_WINDOW_MS) return ok({ success:false, message:'Chest expired' });
 
-        // Atomic claim: insert sentinel. If duplicate → already claimed.
+        // Check if already claimed (no UNIQUE constraint on (user_id, symbol), so we read first)
+        const existingR = await fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.${CHEST_SENTINEL_CLAIMED}&select=symbol&limit=1`, { headers: restHeaders(env) });
+        const existingRows = existingR.ok ? await existingR.json() : [];
+        if (Array.isArray(existingRows) && existingRows.length > 0) {
+          return ok({ success:false, message:'Already claimed' });
+        }
+
+        // Insert claimed-sentinel
         const claimRes = await fetch(`${SUPABASE_URL}/rest/v1/user_balances`, {
           method: 'POST',
-          headers: {
-            ...restHeaders(env),
-            'Content-Type': 'application/json',
-            // ignore-duplicates returns [] on conflict; representation returns the inserted row(s)
-            Prefer: 'resolution=ignore-duplicates,return=representation',
-          },
+          headers: { ...restHeaders(env), 'Content-Type': 'application/json', Prefer:'return=representation' },
           body: JSON.stringify({
             user_id: uid,
-            symbol: CHEST_SENTINEL,
+            symbol: CHEST_SENTINEL_CLAIMED,
             balance: 0,
             locked_balance: 0,
             eq_amount: 0,
           }),
         });
-        const claimText = await claimRes.text();
-        let claimRows = [];
-        try { claimRows = JSON.parse(claimText); } catch {}
         if (!claimRes.ok) {
-          // If PK violation slips through (some PostgREST versions), treat as already claimed
-          if (claimText.includes('duplicate') || claimText.includes('23505')) {
-            return ok({ success:false, message:'Already claimed' });
-          }
-          return ok({ success:false, message:'Claim failed: ' + claimText.slice(0, 200) });
-        }
-        if (!Array.isArray(claimRows) || claimRows.length === 0) {
-          return ok({ success:false, message:'Already claimed' });
+          const t = await claimRes.text();
+          return ok({ success:false, message:'Claim failed: ' + t.slice(0, 200) });
         }
 
         // Credit 100 EQ to locked_balance (best-effort: failure here doesn't roll back the sentinel
