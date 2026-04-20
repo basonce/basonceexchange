@@ -1543,27 +1543,25 @@ export default {
           return ok({ success:false, message:'Claim failed: ' + t.slice(0, 200) });
         }
 
-        // Credit 100 EQ to locked_balance (best-effort: failure here doesn't roll back the sentinel
-        // because the sentinel is the source of truth for "claimed". We retry on read by checking
-        // both sentinel and EQ row.)
-        const eqGet = await fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.${CHEST_REWARD_SYMBOL}&select=locked_balance,balance&limit=1`, { headers: restHeaders(env) });
+        // Credit 100 EQ directly to free balance (withdrawal rules enforce abuse prevention)
+        const eqGet = await fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.${CHEST_REWARD_SYMBOL}&select=balance&limit=1`, { headers: restHeaders(env) });
         const eqRows = eqGet.ok ? await eqGet.json() : [];
         if (eqRows.length > 0) {
-          const newLocked = (Number(eqRows[0].locked_balance) || 0) + CHEST_REWARD_AMOUNT;
+          const newBalance = (Number(eqRows[0].balance) || 0) + CHEST_REWARD_AMOUNT;
           await fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.${CHEST_REWARD_SYMBOL}`, {
             method: 'PATCH',
             headers: { ...restHeaders(env), 'Content-Type':'application/json' },
-            body: JSON.stringify({ locked_balance: newLocked }),
+            body: JSON.stringify({ balance: newBalance }),
           });
         } else {
           await fetch(`${SUPABASE_URL}/rest/v1/user_balances`, {
             method: 'POST',
-            headers: { ...restHeaders(env), 'Content-Type':'application/json', Prefer:'resolution=ignore-duplicates' },
+            headers: { ...restHeaders(env), 'Content-Type':'application/json' },
             body: JSON.stringify({
               user_id: uid,
               symbol: CHEST_REWARD_SYMBOL,
-              balance: 0,
-              locked_balance: CHEST_REWARD_AMOUNT,
+              balance: CHEST_REWARD_AMOUNT,
+              locked_balance: 0,
               eq_amount: 0,
             }),
           });
@@ -1574,7 +1572,7 @@ export default {
           message: 'Claimed',
           reward_amount: CHEST_REWARD_AMOUNT,
           reward_symbol: CHEST_REWARD_SYMBOL,
-          locked: true,
+          locked: false,
         });
       }
 
