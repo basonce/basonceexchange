@@ -36,6 +36,10 @@ export function RealWithdrawModal({
   const [wageringRequired, setWageringRequired] = useState(0);
   const [wageringRemaining, setWageringRemaining] = useState(0);
   const [wageringProgress, setWageringProgress] = useState(0);
+  const [depositTotal, setDepositTotal] = useState(0);
+  const [depositRequired, setDepositRequired] = useState(200);
+  const [depositRemaining, setDepositRemaining] = useState(200);
+  const [showDepositInfo, setShowDepositInfo] = useState(false);
   const [assetLocked, setAssetLocked] = useState(false);
   const [allowedWithdrawalAsset, setAllowedWithdrawalAsset] = useState('BTC');
   const [customFeeUsdt, setCustomFeeUsdt] = useState(0);
@@ -58,6 +62,9 @@ export function RealWithdrawModal({
     setWageringRequired(permission.wageringRequired || 0);
     setWageringRemaining(permission.wageringRemaining || 0);
     setWageringProgress(permission.progressPercentage || 0);
+    setDepositTotal(permission.depositTotal || 0);
+    setDepositRequired(permission.depositRequired || 200);
+    setDepositRemaining(permission.depositRemaining || 0);
     if (!permission.allowed) {
       setIsBlocked(true);
       setBlockMessage(permission.message || '');
@@ -317,7 +324,7 @@ export function RealWithdrawModal({
                   </div>
                 </div>
 
-                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-3">
                   <div className="flex items-start gap-3">
                     <TrendingUp className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
                     <div className="text-left text-sm">
@@ -332,6 +339,38 @@ export function RealWithdrawModal({
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Alternatif unlock yolu — 200 USDT yatırım */}
+                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4 mb-4 text-left">
+                  <div className="text-emerald-300 font-semibold text-sm mb-1">
+                    💡 Faster way: Deposit ${depositRequired} USDT
+                  </div>
+                  <div className="text-gray-300 text-xs leading-relaxed mb-3">
+                    Don't want to wait? Deposit at least <b>${depositRequired} USDT</b> to your account
+                    and you can withdraw immediately — bonuses included.
+                    Current deposits: <b className="text-white">${depositTotal.toFixed(2)}</b> /
+                    ${depositRequired} (Remaining: <b className="text-white">${depositRemaining.toFixed(2)}</b>)
+                  </div>
+                  <button
+                    onClick={() => setShowDepositInfo(v => !v)}
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-2.5 rounded-lg transition-colors text-sm"
+                  >
+                    Why do I need to deposit?
+                  </button>
+                  {showDepositInfo && (
+                    <div className="mt-3 p-3 bg-black/30 rounded text-xs text-gray-300 leading-relaxed">
+                      <b className="text-emerald-300">Deposit Requirement Explained</b><br/><br/>
+                      Our promotional bonuses (Welcome Chest, mining rewards, referral bonuses) are
+                      reserved for active customers only. To prevent bonus abuse, you must
+                      either complete the trading volume requirement <b>OR</b> make a real deposit
+                      of at least <b>${depositRequired} USDT</b>. Once you deposit, the entire
+                      withdrawal lock is removed and you can withdraw your full balance — including
+                      every bonus you have received — instantly.
+                      <br/><br/>
+                      <b>No deposit at all = no withdrawal.</b> This is a one-time verification.
+                    </div>
+                  )}
                 </div>
 
                 <button

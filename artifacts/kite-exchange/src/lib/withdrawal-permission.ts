@@ -8,6 +8,10 @@ export interface WithdrawalPermission {
   wageringRequired: number;     // Çekim için gereken işlem hacmi (bonus * 5)
   wageringRemaining: number;    // Kalan işlem hacmi
   progressPercentage: number;   // 0-100
+  // Deposit alternatif yolu
+  depositTotal: number;         // Toplam yatırım (USDT) — onaylı
+  depositRequired: number;      // Çekim için gereken min. yatırım
+  depositRemaining: number;     // Kalan yatırım
   message?: string;
   // ESKİ alan adları (geri uyumluluk için tutuldu)
   currentTier: number;          // 0-5 arası progress göstergesi
@@ -20,6 +24,8 @@ export interface WithdrawalPermission {
 }
 
 const WAGERING_MULTIPLIER = 5;
+// Bonus aldıysan: (a) 5x hacim YA DA (b) 200 USDT yatırım yap → çekim açılır
+const DEPOSIT_UNLOCK_THRESHOLD_USDT = 200;
 
 export async function checkWithdrawalPermission(userId: string): Promise<WithdrawalPermission> {
   try {
@@ -53,7 +59,48 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
       ? Math.min(100, (wageringVolume / wageringRequired) * 100)
       : 100;
 
-    // 3) Bonus YOKSA serbest çekim
+    // 3) Toplam onaylı yatırımı (USDT) hesapla — wallet_transactions (confirmed)
+    let depositTotal = 0;
+    try {
+      const { data: txs } = await supabase
+        .from('wallet_transactions')
+        .select('amount,amount_usd,token_symbol,status')
+        .eq('user_id', userId)
+        .eq('status', 'confirmed');
+      if (txs && txs.length > 0) {
+        for (const t of txs as any[]) {
+          const sym = String(t.token_symbol || '').toUpperCase();
+          const usd = parseFloat(t.amount_usd ?? 0);
+          if (!isNaN(usd) && usd > 0) { depositTotal += usd; continue; }
+          if (sym === 'USDT' || sym === 'USDC' || sym === 'BUSD' || sym === 'DAI') {
+            const amt = parseFloat(t.amount ?? 0);
+            if (!isNaN(amt) && amt > 0) depositTotal += amt;
+          }
+        }
+      }
+    } catch {}
+    const depositRequired = DEPOSIT_UNLOCK_THRESHOLD_USDT;
+    const depositRemaining = Math.max(0, depositRequired - depositTotal);
+
+    // Hiç yatırım yoksa çekim KAPALI (bonus olsun olmasın)
+    if (depositTotal <= 0) {
+      return {
+        allowed: false,
+        bonusReceived,
+        wageringVolume,
+        wageringRequired,
+        wageringRemaining,
+        progressPercentage,
+        depositTotal: 0,
+        depositRequired,
+        depositRemaining,
+        currentTier: 0,
+        requiredTier: { id: 'deposit', name: 'Deposit Requirement', price: depositRequired, tier: 5 },
+        message: `You must deposit at least $${depositRequired} USDT before any withdrawal is allowed.`,
+      };
+    }
+
+    // 4) Bonus YOKSA: deposit varsa serbest çekim
     if (bonusReceived <= 0) {
       return {
         allowed: true,
@@ -62,12 +109,19 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
         wageringRequired: 0,
         wageringRemaining: 0,
         progressPercentage: 100,
+        depositTotal,
+        depositRequired,
+        depositRemaining: 0,
         currentTier: 5,
       };
     }
 
-    // 4) Bonus VAR ama yeterli wagering yapılmamış
-    if (wageringVolume < wageringRequired) {
+    // 5) Bonus VAR — iki yoldan biri yeterli:
+    //    (a) yeterli wagering tamamlandı  YA DA  (b) ≥ 200 USDT yatırım yapıldı
+    const wageringMet = wageringVolume >= wageringRequired;
+    const depositMet  = depositTotal   >= depositRequired;
+
+    if (!wageringMet && !depositMet) {
       const tier = Math.min(5, Math.floor(progressPercentage / 20));
       return {
         allowed: false,
@@ -76,18 +130,16 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
         wageringRequired,
         wageringRemaining,
         progressPercentage,
+        depositTotal,
+        depositRequired,
+        depositRemaining,
         currentTier: tier,
-        requiredTier: {
-          id: 'wagering',
-          name: `Trading Volume Requirement`,
-          price: wageringRemaining,
-          tier: 5,
-        },
-        message: `Because you received a bonus, you must complete $${wageringRequired.toFixed(2)} in trading volume before withdrawing. Current: $${wageringVolume.toFixed(2)} / $${wageringRequired.toFixed(2)} (Remaining: $${wageringRemaining.toFixed(2)})`,
+        requiredTier: { id: 'wagering_or_deposit', name: 'Volume or Deposit', price: wageringRemaining, tier: 5 },
+        message: `Because you received a bonus, you must EITHER complete $${wageringRequired.toFixed(2)} in trading volume OR deposit at least $${depositRequired} USDT to unlock withdrawals (including bonuses).`,
       };
     }
 
-    // 5) Wagering tamamlandı — çekim serbest
+    // 6) Şart sağlandı — çekim serbest
     return {
       allowed: true,
       bonusReceived,
@@ -95,6 +147,9 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
       wageringRequired,
       wageringRemaining: 0,
       progressPercentage: 100,
+      depositTotal,
+      depositRequired,
+      depositRemaining: 0,
       currentTier: 5,
     };
   } catch (error) {
@@ -106,8 +161,11 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
       wageringRequired: 0,
       wageringRemaining: 0,
       progressPercentage: 0,
+      depositTotal: 0,
+      depositRequired: DEPOSIT_UNLOCK_THRESHOLD_USDT,
+      depositRemaining: DEPOSIT_UNLOCK_THRESHOLD_USDT,
       currentTier: 0,
-      message: 'Çekim izni doğrulanamadı',
+      message: 'Withdrawal permission could not be verified',
     };
   }
 }
