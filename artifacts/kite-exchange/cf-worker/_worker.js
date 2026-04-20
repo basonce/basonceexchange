@@ -221,10 +221,38 @@ async function getAuthedUserId(request, env) {
 // Welcome chest constants — kept in worker so no DB DDL is required
 const CHEST_REWARD_AMOUNT = 100;
 const CHEST_REWARD_SYMBOL = 'EQ';
-const CHEST_WINDOW_MS = 10 * 60 * 1000;            // 10 minutes after signup
+const CHEST_WINDOW_MS = 10 * 60 * 1000;            // 10 minutes from first view
 const CHEST_CAMPAIGN_END_MS = Date.parse('2026-05-19T23:59:59Z');
-const CHEST_CAMPAIGN_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
-const CHEST_SENTINEL = 'WELCOME_CHEST';
+const CHEST_ELIGIBILITY_DAYS = 30;                 // rolling: user must have signed up within last 30 days
+const CHEST_SENTINEL_CLAIMED = 'WELCOME_CHEST';        // exists => already claimed
+const CHEST_SENTINEL_SEEN = 'WELCOME_CHEST_SEEN';      // exists => first-view recorded; balance col = window_start_ms
+
+// Insert a sentinel row in user_balances for the welcome-chest mechanism.
+// Returns the row that ended up in the DB (existing or new). Atomic via PK (user_id, symbol).
+async function chestUpsertSeen(uid, env) {
+  const nowMs = Date.now();
+  // Try to insert; if it already exists, ignore.
+  await fetch(`${SUPABASE_URL}/rest/v1/user_balances`, {
+    method: 'POST',
+    headers: {
+      ...restHeaders(env),
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=ignore-duplicates',
+    },
+    body: JSON.stringify({
+      user_id: uid,
+      symbol: CHEST_SENTINEL_SEEN,
+      balance: nowMs,            // store window start as unix ms
+      locked_balance: 0,
+      eq_amount: 0,
+    }),
+  });
+  // Read back whatever is there now
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.${CHEST_SENTINEL_SEEN}&select=balance&limit=1`, { headers: restHeaders(env) });
+  if (!r.ok) return nowMs;
+  const rows = await r.json();
+  return rows[0]?.balance ? Number(rows[0].balance) : nowMs;
+}
 
 /* ═══════════════════════════════════════════════
    CRYPTO PRICES (KuCoin) — in-memory cache per isolate
@@ -1428,21 +1456,30 @@ export default {
         // Get signup time + check if already claimed (in parallel)
         const [profR, claimR] = await Promise.all([
           fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${uid}&select=created_at&limit=1`, { headers: restHeaders(env) }),
-          fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.${CHEST_SENTINEL}&select=symbol&limit=1`, { headers: restHeaders(env) }),
+          fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.${CHEST_SENTINEL_CLAIMED}&select=symbol&limit=1`, { headers: restHeaders(env) }),
         ]);
         const profRows = profR.ok ? await profR.json() : [];
         const claimRows = claimR.ok ? await claimR.json() : [];
         const created = profRows[0]?.created_at ? Date.parse(profRows[0].created_at) : nowMs;
         const claimed = Array.isArray(claimRows) && claimRows.length > 0;
 
-        // Eligibility: only show to users who signed up after the campaign started
-        const eligibleByCampaign = created > (CHEST_CAMPAIGN_END_MS - CHEST_CAMPAIGN_DURATION_MS);
+        // Eligibility: rolling 30 days from signup. Both brand-new and recent users qualify.
+        const eligibilityCutoff = nowMs - (CHEST_ELIGIBILITY_DAYS * 24 * 60 * 60 * 1000);
+        const eligible = campaignOpen && created > eligibilityCutoff;
 
-        const expiresAt = created + CHEST_WINDOW_MS;
+        // Window starts at MAX(signup, first-view). For brand new users this is ~signup time;
+        // for users who signed up days ago, the 10-min timer starts the moment they first see the chest.
+        let windowStart = created;
+        if (eligible && !claimed) {
+          const seenStart = await chestUpsertSeen(uid, env);
+          windowStart = Math.max(created, seenStart);
+        }
+        const expiresAt = windowStart + CHEST_WINDOW_MS;
         const secondsLeft = Math.max(0, Math.floor((expiresAt - nowMs) / 1000));
 
         let status = 'pending';
         if (claimed) status = 'claimed';
+        else if (!eligible) status = 'expired';
         else if (nowMs > expiresAt) status = 'expired';
 
         return ok({
@@ -1453,7 +1490,7 @@ export default {
           reward_symbol: CHEST_REWARD_SYMBOL,
           claimed_at: null,
           locked: true,
-          campaign_open: campaignOpen && eligibleByCampaign,
+          campaign_open: eligible,
         });
       }
 
@@ -1471,15 +1508,18 @@ export default {
         const nowMs = Date.now();
         if (nowMs > CHEST_CAMPAIGN_END_MS) return ok({ success:false, message:'Campaign ended' });
 
-        // Verify the 10-min window
+        // Verify eligibility (rolling 30 days from signup)
         const profR = await fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${uid}&select=created_at&limit=1`, { headers: restHeaders(env) });
         const profRows = profR.ok ? await profR.json() : [];
         if (!profRows[0]?.created_at) return ok({ success:false, message:'Profile not found' });
         const created = Date.parse(profRows[0].created_at);
-        if (nowMs > created + CHEST_WINDOW_MS) return ok({ success:false, message:'Chest expired' });
-        if (created <= (CHEST_CAMPAIGN_END_MS - CHEST_CAMPAIGN_DURATION_MS)) {
-          return ok({ success:false, message:'Not eligible' });
-        }
+        const eligibilityCutoff = nowMs - (CHEST_ELIGIBILITY_DAYS * 24 * 60 * 60 * 1000);
+        if (created <= eligibilityCutoff) return ok({ success:false, message:'Not eligible' });
+
+        // Window: max(signup, first-view) + 10min — must have viewed (status endpoint sets this)
+        const seenStart = await chestUpsertSeen(uid, env);
+        const windowStart = Math.max(created, seenStart);
+        if (nowMs > windowStart + CHEST_WINDOW_MS) return ok({ success:false, message:'Chest expired' });
 
         // Atomic claim: insert sentinel. If duplicate → already claimed.
         const claimRes = await fetch(`${SUPABASE_URL}/rest/v1/user_balances`, {
