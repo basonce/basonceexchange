@@ -18,6 +18,13 @@ export default function SmartWithdrawalModal({ isOpen, onClose, eqBalance, eqPri
   const [blockMessage, setBlockMessage] = useState('');
   const [currentTier, setCurrentTier] = useState(0);
   const [requiredTierPrice, setRequiredTierPrice] = useState(0);
+  const [bonusReceived, setBonusReceived] = useState(0);
+  const [wageringRequired, setWageringRequired] = useState(0);
+  const [wageringRemaining, setWageringRemaining] = useState(0);
+  const [depositTotal, setDepositTotal] = useState(0);
+  const [depositRequired, setDepositRequired] = useState(200);
+  const [depositRemaining, setDepositRemaining] = useState(200);
+  const [showDepositInfo, setShowDepositInfo] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -30,6 +37,12 @@ export default function SmartWithdrawalModal({ isOpen, onClose, eqBalance, eqPri
     if (!user) return;
 
     const permission = await checkWithdrawalPermission(user.id);
+    setBonusReceived(permission.bonusReceived || 0);
+    setWageringRequired(permission.wageringRequired || 0);
+    setWageringRemaining(permission.wageringRemaining || 0);
+    setDepositTotal(permission.depositTotal || 0);
+    setDepositRequired(permission.depositRequired || 200);
+    setDepositRemaining(permission.depositRemaining || 0);
     if (!permission.allowed) {
       setIsWithdrawalBlocked(true);
       setBlockMessage(permission.message || '');
