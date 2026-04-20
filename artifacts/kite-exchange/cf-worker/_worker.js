@@ -219,11 +219,8 @@ async function getAuthedUserId(request, env) {
 }
 
 // Welcome chest constants — kept in worker so no DB DDL is required
-// Reward is a fixed USD value — actual EQ amount is computed at claim time from current price.
-const CHEST_REWARD_USD = 10;
+const CHEST_REWARD_AMOUNT = 100;
 const CHEST_REWARD_SYMBOL = 'EQ';
-const CHEST_MIN_EQ = 1;          // never give less than 1 EQ even if price spikes
-const CHEST_MAX_EQ = 100000;     // safety cap if price collapses to ~0
 const CHEST_WINDOW_MS = 10 * 60 * 1000;            // 10 minutes from first view
 const CHEST_CAMPAIGN_END_MS = Date.parse('2026-05-19T23:59:59Z');
 const CHEST_ELIGIBILITY_DAYS = 30;                 // rolling: user must have signed up within last 30 days
