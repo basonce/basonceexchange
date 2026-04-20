@@ -649,6 +649,11 @@ export default function AssetsPage() {
                       <div className="text-white font-semibold">
                         {hideBalance ? '****' : coin.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
+                      {coin.locked_balance > 0 && !hideBalance && (
+                        <div className="text-xs text-[#F0B90B]">
+                          🔒 {coin.locked_balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} locked
+                        </div>
+                      )}
                       <div className="text-sm text-gray-400">
                         {coin.symbol === 'USDT'
                           ? '1.00 USDT'
