@@ -1439,6 +1439,30 @@ export default {
       /* ── HEALTH ── */
       if (method==='GET' && path==='/healthz') return ok({status:'ok',platform:'cloudflare'});
 
+      // Telegram bot self-test (admin only) — verifies bot delivers messages
+      if (method==='POST' && path==='/telegram-test') {
+        const auth = request.headers.get('Authorization') || '';
+        const bearer = auth.replace(/^Bearer\s+/i, '');
+        const isServiceRole = bearer && bearer === env.SUPABASE_SERVICE_ROLE_KEY;
+        if (!isServiceRole) {
+          const uid = await getAuthedUserId(request, env);
+          if (!uid || !ADMIN_UUIDS.has(uid)) return err(401, 'Admin only');
+        }
+        if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_ADMIN_CHAT_ID) {
+          return ok({ success:false, message:'Bot token or chat id missing in worker env' });
+        }
+        let body = {};
+        try { body = await request.json(); } catch {}
+        const text = (body && body.text) || '🟢 BASONCE bot test — alarmlar normal modda çalışıyor.';
+        const r = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({ chat_id: env.TELEGRAM_ADMIN_CHAT_ID, text, parse_mode: 'HTML' }),
+        });
+        const j = await r.json().catch(()=>({}));
+        return ok({ success: !!j.ok, telegram_response: j });
+      }
+
       /* ── WELCOME CHEST: status ──
          GET /api/welcome-chest/status  (Authorization: Bearer <user_jwt>)
          Pure-worker implementation — no DB DDL needed. State derived from:
