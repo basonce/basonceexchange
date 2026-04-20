@@ -150,19 +150,24 @@ async function flush() {
     console.log(`[ActivityTracker] ✅ ${batch.length} event flushed`);
   }
 
-  // Telegram canlı yayını (sessiz, gruplanmış kart)
+  // Telegram canlı yayını (sessiz, gruplanmış kart) — Türkçe çeviri ile
   try {
     const userEmail = (window as any).__currentUserEmail || '';
     const lines: string[] = [];
     let lastPage = '';
     for (const ev of batch) {
       const meta: any = ev.metadata || {};
-      const label = String(meta.element_text || ev.element_text || '').trim().slice(0, 40);
+      const rawLabel = String(meta.element_text || ev.element_text || '').trim().slice(0, 60);
+      const label = translateLabel(rawLabel);
       const page = String(ev.page || '').slice(0, 30);
-      if (page && page !== lastPage) { lines.push(`📄 <b>${page}</b>`); lastPage = page; }
+      const pageLabel = PAGE_LABELS[page] || page;
+      if (page && page !== lastPage) { lines.push(`📄 <b>${pageLabel}</b>`); lastPage = page; }
       if (ev.action === 'click' && label) lines.push(`  👆 ${label}`);
       else if (ev.action === 'page_view') {/* zaten yukarıda */}
-      else if (ev.action && ev.action !== 'click') lines.push(`  • ${ev.action}${label?': '+label:''}`);
+      else if (ev.action === 'page_leave') lines.push(`  ⬅️ ${TR_ACTIONS.page_leave}`);
+      else if (ev.action === 'page_focus') lines.push(`  🟢 ${TR_ACTIONS.page_focus}`);
+      else if (ev.action === 'page_blur')  lines.push(`  ⚫ ${TR_ACTIONS.page_blur}`);
+      else if (ev.action && ev.action !== 'click') lines.push(`  • ${TR_ACTIONS[ev.action] || ev.action}${label?': '+label:''}`);
     }
     if (lines.length === 0) return;
     const head = `🎬 <code>${userEmail || currentUserId.slice(0,8)}</code>`;
@@ -212,6 +217,47 @@ function classifyElement(el: HTMLElement): { type: string; icon: string } {
   if (tag === 'select') return { type: 'select', icon: '📋' };
   if (role === 'tab') return { type: 'tab', icon: '📑' };
   return { type: 'click', icon: '👆' };
+}
+
+// Action type translations (for telegram alerts)
+const TR_ACTIONS: Record<string, string> = {
+  page_leave: 'Sayfadan ayrıldı',
+  page_focus: 'Sayfaya geri döndü',
+  page_blur:  'Sekmeyi/uygulamayı küçülttü',
+  page_view:  'Sayfayı açtı',
+  click:      'Tıkladı',
+  input:      'Yazı girdi',
+  scroll:     'Aşağı kaydırdı',
+  submit:     'Form gönderdi',
+};
+
+// English UI label → Türkçe (en sık görülen ifadeler)
+const LABEL_TR: Record<string, string> = {
+  // Mining FAQ
+  'how do i convert eq to usdt?':         'EQ\'yu USDT\'ye nasıl çeviririm?',
+  'how long does equipment last?':        'Ekipman ne kadar dayanır?',
+  'is my mining income guaranteed?':      'Mining gelirim garanti mi?',
+  'why is my equipment not earning?':     'Ekipmanım neden kazanmıyor?',
+  // Top-level nav
+  'home': 'Ana Sayfa', 'markets': 'Piyasalar', 'trade': 'Trade',
+  'futures': 'Futures', 'mining': 'Mining', 'assets': 'Varlıklar', 'profile': 'Profil',
+  'wallet': 'Cüzdan', 'deposit': 'Para Yatır', 'withdraw': 'Para Çek',
+  'send': 'Gönder', 'receive': 'Al', 'transfer': 'Transfer',
+  'add funds': 'Para Yatır', 'claim': 'Talep Et',
+  'sign in': 'Giriş Yap', 'sign up': 'Kayıt Ol', 'log in': 'Giriş Yap', 'log out': 'Çıkış Yap',
+  'open chest': 'Sandığı Aç', 'crypto': 'Kripto', 'positions': 'Pozisyonlar',
+  'trades': 'İşlemler', 'blockchain': 'Blokzincir',
+  'referral': 'Davet', 'earn': 'Kazan', 'edit': 'Düzenle',
+  'shop': 'Mağaza', 'support': 'Destek', 'mine': 'Madencilik',
+  'buy': 'Al', 'sell': 'Sat', 'long': 'Long', 'short': 'Short',
+  'confirm': 'Onayla', 'cancel': 'İptal', 'continue': 'Devam',
+  'submit': 'Gönder', 'next': 'İleri', 'back': 'Geri',
+};
+
+function translateLabel(s: string): string {
+  if (!s) return '';
+  const key = s.toLowerCase().trim();
+  return LABEL_TR[key] || s;
 }
 
 // Page label mapping
