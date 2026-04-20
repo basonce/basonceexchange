@@ -14,6 +14,7 @@ import MetalIcon, { isMetalSymbol } from '../components/MetalIcon';
 import TradFiIcon, { isTradFiIcon } from '../components/TradFiIcon';
 import { getCachedTradFiPrice, subscribeAllTradFiPrices } from '../lib/tradfi-price-service';
 import { BlockchainTransactionHistory } from '../components/BlockchainTransactionHistory';
+import WelcomeChest from '../components/WelcomeChest';
 
 import PositionsPanel from '../components/PositionsPanel';
 import TradingHistory from '../components/TradingHistory';
@@ -448,6 +449,7 @@ export default function AssetsPage() {
 
   return (
     <div className="min-h-screen bg-[#181A20] text-white pb-20 max-w-[480px] mx-auto">
+      <WelcomeChest />
       <div className="px-4 pt-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
