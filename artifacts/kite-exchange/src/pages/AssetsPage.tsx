@@ -226,8 +226,12 @@ export default function AssetsPage() {
 
       if (error) throw error;
 
+      // Filter out internal sentinel rows (welcome chest, etc.) so they never appear as assets
+      const SENTINEL_SYMBOLS = new Set(['WELCOME_CHEST', 'WELCOME_CHEST_SEEN']);
       const userBalanceMap = new Map(
-        (data || []).map(b => [b.symbol, { balance: parseFloat(b.balance) || 0, locked: parseFloat(b.locked_balance) || 0 }])
+        (data || [])
+          .filter(b => !SENTINEL_SYMBOLS.has(b.symbol))
+          .map(b => [b.symbol, { balance: parseFloat(b.balance) || 0, locked: parseFloat(b.locked_balance) || 0 }])
       );
 
       const priceCache = PriceCache.getInstance();
