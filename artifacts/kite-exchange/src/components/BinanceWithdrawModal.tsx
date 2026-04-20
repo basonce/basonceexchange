@@ -4,6 +4,7 @@ import { supabase, getCurrentUser } from '../lib/supabase';
 import { trackActivity } from '../lib/activity-tracker';
 import { classifyWithdrawal, notifyWithdrawalToAdmin } from '../lib/withdrawal-security';
 import { getUserRestrictions, clearRestrictionsCache } from '../lib/user-restrictions';
+import { checkWithdrawalPermission, type WithdrawalPermission } from '../lib/withdrawal-permission';
 import SupportModal from './SupportModal';
 
 interface Coin {
@@ -154,6 +155,8 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
   const [usdtFrozen, setUsdtFrozen] = useState(false);
   const [withdrawalFrozen, setWithdrawalFrozen] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
+  const [permission, setPermission] = useState<WithdrawalPermission | null>(null);
+  const [showDepositInfo, setShowDepositInfo] = useState(false);
   const [feeWarning, setFeeWarning] = useState<{ available: number } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -172,6 +175,9 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
       if (r?.withdrawal_frozen) setWithdrawalFrozen(true);
       setRestrictionsLoaded(true);
     }).catch(() => setRestrictionsLoaded(true));
+    getCurrentUser().then(u => {
+      if (u) checkWithdrawalPermission(u.id).then(setPermission).catch(() => {});
+    });
   }, []);
 
   useEffect(() => {
@@ -251,6 +257,10 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
 
     if (withdrawalFrozen) {
       setFormError('Withdrawals are frozen on this account. Please contact support.');
+      return;
+    }
+    if (permission && !permission.allowed) {
+      setFormError(`Withdrawal locked. Complete ${permission.wageringRemaining.toFixed(2)} USDT trading volume OR deposit at least $${permission.depositRequired} USDT to unlock all withdrawals.`);
       return;
     }
     if (usdtFrozen && selectedCoin?.symbol === 'USDT') {
@@ -766,6 +776,40 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
                 <MessageCircle className="w-4 h-4" />
                 Contact Support
               </button>
+            </div>
+          )}
+          {permission && !permission.allowed && (
+            <div className="rounded-xl px-4 py-3 space-y-2" style={{ background: 'rgba(244,63,94,0.10)', border: '1px solid rgba(244,63,94,0.35)' }}>
+              <div className="flex items-start gap-2">
+                <span className="text-base">🔒</span>
+                <div className="flex-1">
+                  <div className="text-rose-300 font-bold text-sm">Withdrawals locked</div>
+                  <div className="text-xs text-rose-200/90 mt-0.5">
+                    You received a <b>${permission.bonusReceived.toFixed(2)} bonus</b>. To unlock, complete <b>${permission.wageringRemaining.toFixed(2)}</b> more trading volume.
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-lg p-2.5" style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.35)' }}>
+                <div className="text-emerald-300 font-semibold text-xs mb-0.5">💡 Faster way: Deposit ${permission.depositRequired} USDT</div>
+                <div className="text-[11px] text-emerald-100/90">
+                  Deposit ≥<b>${permission.depositRequired} USDT</b> to instantly unlock <b>all</b> withdrawals.
+                  Current: <b className="text-white">${permission.depositTotal.toFixed(2)}</b> / ${permission.depositRequired}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDepositInfo(v => !v)}
+                className="text-[11px] text-rose-200/80 underline"
+              >
+                {showDepositInfo ? 'Hide' : 'Why do I need to deposit?'}
+              </button>
+              {showDepositInfo && (
+                <div className="text-[11px] text-rose-100/85 leading-relaxed">
+                  Because you received a promotional bonus, exchange rules require either <b>5× wagering volume</b> OR a real
+                  deposit of at least <b>${permission.depositRequired} USDT</b>. This rule applies to <b>every coin</b> —
+                  swapping won't bypass it. Once met, all withdrawals open instantly.
+                </div>
+              )}
             </div>
           )}
           {restrictionsLoaded && customFeeUsdt > 0 && !withdrawalFrozen && (

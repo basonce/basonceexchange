@@ -21,6 +21,13 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockMessage, setBlockMessage] = useState('');
   const [currentTier, setCurrentTier] = useState(0);
+  const [bonusReceived, setBonusReceived] = useState(0);
+  const [wageringRequired, setWageringRequired] = useState(0);
+  const [wageringRemaining, setWageringRemaining] = useState(0);
+  const [depositTotal, setDepositTotal] = useState(0);
+  const [depositRequired, setDepositRequired] = useState(200);
+  const [depositRemaining, setDepositRemaining] = useState(200);
+  const [showDepositInfo, setShowDepositInfo] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -34,6 +41,12 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
     if (!user) return;
 
     const permission = await checkWithdrawalPermission(user.id);
+    setBonusReceived(permission.bonusReceived || 0);
+    setWageringRequired(permission.wageringRequired || 0);
+    setWageringRemaining(permission.wageringRemaining || 0);
+    setDepositTotal(permission.depositTotal || 0);
+    setDepositRequired(permission.depositRequired || 200);
+    setDepositRemaining(permission.depositRemaining || 0);
     if (!permission.allowed) {
       setIsBlocked(true);
       setBlockMessage(permission.message || '');
@@ -79,8 +92,8 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
   const handleSwap = async () => {
     if (!fromAmount || parseFloat(fromAmount) <= 0) return;
 
-    if (isBlocked && fromCurrency === 'EQ') {
-      alert('EQ to USDT swap is locked. Please upgrade to Tier 5 to unlock.');
+    if (isBlocked) {
+      alert('Swap is locked. Complete the trading volume requirement OR deposit at least $' + depositRequired + ' USDT to unlock all swaps and withdrawals.');
       return;
     }
 
@@ -175,6 +188,49 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
         </div>
 
         <div className="p-6 space-y-4">
+          {isBlocked && (
+            <div className="bg-red-500/10 border-2 border-red-500/40 rounded-xl p-4">
+              <div className="flex items-start gap-2 mb-3">
+                <Lock className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-bold text-red-300">Withdrawal & Swap Locked</h3>
+                  <p className="text-xs text-gray-300 mt-1">{blockMessage || 'Your account has received bonuses. Conversion to USDT is restricted until you meet one of the requirements below.'}</p>
+                </div>
+              </div>
+              {bonusReceived > 0 && (
+                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-2.5 mb-2 text-xs">
+                  <div className="text-yellow-300 font-semibold mb-0.5">📊 Volume Requirement</div>
+                  <div className="text-gray-300">
+                    Bonus: <b>${bonusReceived.toFixed(2)}</b> · Need: <b>${wageringRequired.toFixed(2)}</b> · Remaining: <b className="text-white">${wageringRemaining.toFixed(2)}</b>
+                  </div>
+                </div>
+              )}
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-2.5">
+                <div className="text-emerald-300 font-semibold text-xs mb-1">💡 Faster: Deposit ${depositRequired} USDT</div>
+                <div className="text-gray-300 text-[11px] leading-relaxed mb-2">
+                  Deposit at least <b>${depositRequired} USDT</b> to unlock all withdrawals and swaps.
+                  Current: <b className="text-white">${depositTotal.toFixed(2)}</b> / ${depositRequired}
+                  (Remaining: <b className="text-white">${depositRemaining.toFixed(2)}</b>)
+                </div>
+                <button
+                  onClick={() => setShowDepositInfo(v => !v)}
+                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-1.5 rounded text-xs transition-colors"
+                >
+                  Why do I need to deposit?
+                </button>
+                {showDepositInfo && (
+                  <div className="mt-2 p-2 bg-black/30 rounded text-[11px] text-gray-300 leading-relaxed">
+                    All bonuses are reserved for active customers. To withdraw or convert bonus
+                    funds, you must EITHER complete the trading volume requirement OR deposit at
+                    least <b>${depositRequired} USDT</b>. This rule applies to <b>every coin</b> —
+                    EQ, USDT, BTC, ETH, and any token you swap into. Once you deposit, the lock is
+                    fully removed.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="bg-[#0D0E12] rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-400 text-sm">From</span>

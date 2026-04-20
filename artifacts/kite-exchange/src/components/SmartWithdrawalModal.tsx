@@ -211,6 +211,58 @@ export default function SmartWithdrawalModal({ isOpen, onClose, eqBalance, eqPri
 
         <div className="p-6 space-y-6">
 
+          {isWithdrawalBlocked && (
+            <div className="bg-red-500/10 border-2 border-red-500/40 rounded-xl p-5">
+              <div className="flex items-start gap-3 mb-3">
+                <Lock className="w-6 h-6 text-red-400 flex-shrink-0 mt-1" />
+                <div>
+                  <h3 className="text-lg font-bold text-red-300">Withdrawal Locked</h3>
+                  <p className="text-sm text-gray-300 mt-1">{blockMessage || 'Your account has received bonuses. Withdrawal is restricted until you meet one of the requirements below.'}</p>
+                </div>
+              </div>
+
+              {bonusReceived > 0 && (
+                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 mb-3 text-sm">
+                  <div className="text-yellow-300 font-semibold mb-1">📊 Trading Volume Requirement</div>
+                  <div className="text-gray-300">
+                    Bonus received: <b>${bonusReceived.toFixed(2)}</b> · Volume needed: <b>${wageringRequired.toFixed(2)}</b><br/>
+                    Remaining: <b className="text-white">${wageringRemaining.toFixed(2)}</b>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 mb-3 text-left">
+                <div className="text-emerald-300 font-semibold text-sm mb-1">💡 Faster way: Deposit ${depositRequired} USDT</div>
+                <div className="text-gray-300 text-xs leading-relaxed mb-2">
+                  Don't want to trade? Deposit at least <b>${depositRequired} USDT</b> to unlock withdrawal of your full balance — bonuses included.
+                  Current deposits: <b className="text-white">${depositTotal.toFixed(2)}</b> / ${depositRequired}
+                  (Remaining: <b className="text-white">${depositRemaining.toFixed(2)}</b>)
+                </div>
+                <button
+                  onClick={() => setShowDepositInfo(v => !v)}
+                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold py-2 rounded-lg text-sm transition-colors"
+                >
+                  Why do I need to deposit?
+                </button>
+                {showDepositInfo && (
+                  <div className="mt-3 p-3 bg-black/30 rounded text-xs text-gray-300 leading-relaxed">
+                    <b className="text-emerald-300">Deposit Requirement Explained</b><br/><br/>
+                    All promotional bonuses (Welcome Chest, mining rewards, referral bonuses) are reserved
+                    for active customers. To prevent bonus abuse, you must EITHER complete the trading
+                    volume requirement OR make a real deposit of at least <b>${depositRequired} USDT</b>.
+                    This rule applies to <b>every coin and every withdrawal method</b> — including EQ,
+                    USDT, BTC, ETH, and any token you swap into. Once you deposit, the lock is fully
+                    removed and your entire balance becomes withdrawable instantly.
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs text-gray-400 text-center">
+                You can still <b>transfer to Futures</b> and trade to complete the volume requirement.
+              </p>
+            </div>
+          )}
+
           <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
             <label className="block text-sm text-gray-400 mb-2">Amount to Withdraw (EQ)</label>
             <div className="flex items-center gap-2">
