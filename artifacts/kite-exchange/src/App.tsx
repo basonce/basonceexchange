@@ -249,9 +249,25 @@ function App() {
     trackActivityPage(mobileTab);
     const newHash = `#${mobileTab}`;
     if (window.location.hash !== newHash) {
-      window.history.replaceState(null, '', newHash);
+      // pushState so the OS/browser back button navigates between tabs
+      // instead of leaving the site on the very first back press.
+      window.history.pushState({ tab: mobileTab }, '', newHash);
     }
   }, [mobileTab]);
+
+  // Sync state back when user uses browser/OS back/forward buttons
+  useEffect(() => {
+    const onPop = () => {
+      const t = getTabFromHash();
+      setMobileTab(prev => (prev === t ? prev : t));
+    };
+    window.addEventListener('popstate', onPop);
+    window.addEventListener('hashchange', onPop);
+    return () => {
+      window.removeEventListener('popstate', onPop);
+      window.removeEventListener('hashchange', onPop);
+    };
+  }, []);
 
   useEffect(() => {
     const handleNavigateToTrade = async (e: any) => {
