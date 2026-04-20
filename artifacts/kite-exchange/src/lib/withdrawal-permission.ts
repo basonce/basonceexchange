@@ -82,25 +82,8 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
     const depositRequired = DEPOSIT_UNLOCK_THRESHOLD_USDT;
     const depositRemaining = Math.max(0, depositRequired - depositTotal);
 
-    // Hiç yatırım yoksa çekim KAPALI (bonus olsun olmasın)
-    if (depositTotal <= 0) {
-      return {
-        allowed: false,
-        bonusReceived,
-        wageringVolume,
-        wageringRequired,
-        wageringRemaining,
-        progressPercentage,
-        depositTotal: 0,
-        depositRequired,
-        depositRemaining,
-        currentTier: 0,
-        requiredTier: { id: 'deposit', name: 'Deposit Requirement', price: depositRequired, tier: 5 },
-        message: `You must deposit at least $${depositRequired} USDT before any withdrawal is allowed.`,
-      };
-    }
-
-    // 4) Bonus YOKSA: deposit varsa serbest çekim
+    // 4) Bonus YOKSA → admin işaretlememiş, hiç bonus almamış: çekim TAMAMEN serbest
+    //    (deposit şartı yalnız bonus alan / admin tarafından işaretlenen kullanıcılara uygulanır)
     if (bonusReceived <= 0) {
       return {
         allowed: true,
@@ -111,7 +94,7 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
         progressPercentage: 100,
         depositTotal,
         depositRequired,
-        depositRemaining: 0,
+        depositRemaining,
         currentTier: 5,
       };
     }
