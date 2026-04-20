@@ -58,12 +58,10 @@ export default function WelcomeChest() {
   }, [state]);
 
   if (!state || hidden) return null;
-  if (!state.campaign_open && state.status !== 'claimed') return null;
   if (state.status === 'expired') return null;
-  if (state.status === 'claimed' && opened === false && !sessionStorage.getItem('chest_celebrated')) {
-    // Already claimed in a previous session — don't show again
-    return null;
-  }
+  // Once claimed, never show again (celebration only displays right after the click in this session)
+  if (state.status === 'claimed' && !opened) return null;
+  if (!state.campaign_open) return null;
 
   const expiresAt = state.expires_at ? new Date(state.expires_at).getTime() : 0;
   const secondsLeft = state.status === 'pending'

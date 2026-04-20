@@ -420,11 +420,14 @@ export default function AssetsPage() {
     }));
   }
 
-  const totalValueUSDT = realtimePnL.currentTotalValue > 0
+  const eqHoldingsUSDT = balances
+    .filter(b => b.symbol === 'EQ' || b.symbol === 'EQL')
+    .reduce((sum, b) => sum + (b.balance * b.price), 0);
+  const totalValueUSDT = (realtimePnL.currentTotalValue > 0
     ? realtimePnL.currentTotalValue
     : balances
         .filter(b => b.symbol !== 'EQ' && b.symbol !== 'EQL')
-        .reduce((sum, b) => sum + (b.balance * b.price), 0);
+        .reduce((sum, b) => sum + (b.balance * b.price), 0)) + eqHoldingsUSDT;
 
   const getCurrencyPrice = (currency: CurrencyType): number => {
     if (currency === 'USDT') return 1;
