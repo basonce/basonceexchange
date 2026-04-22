@@ -699,10 +699,13 @@ const BSC_RPCS = [
   'https://bsc-dataseed.binance.org',
 ];
 
-// Known BEP-20 tokens we monitor for incoming deposits.
-// Adding `address` to eth_getLogs is required by publicnode.com and
-// dramatically speeds up the query on every RPC.
-const BSC_WATCHED_TOKENS = [
+// We accept ANY BEP-20 token transfer (USDT, BUSD, USDC, EARN, EQ, BNC,
+// or any custom token the user receives). The scanner does not pre-filter
+// by token contract; it captures every Transfer event going to the
+// watched wallet addresses and resolves the symbol/decimals on the fly.
+// Reserved address-list (used only as a fallback retry on RPCs that
+// require an `address` field, e.g. publicnode.com).
+const BSC_FALLBACK_TOKENS = [
   '0x55d398326f99059fF775485246999027B3197955', // USDT
   '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56', // BUSD
   '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', // USDC
@@ -781,7 +784,7 @@ async function scanBscWalletsBatch(addresses, env) {
   const currentHex = await bscRpc('eth_blockNumber', []);
   if (!currentHex) return new Map();
   const currentBlock = parseInt(currentHex, 16);
-  // Public BSC RPCs accept ~5000 blocks per call when filtered by `address`.
+  // Public BSC RPCs accept ~5000 blocks per call.
   // 5 chunks × 4500 = 22500 blocks ≈ 18.75 hours of coverage.
   const TOTAL_BLOCKS = 22500, CHUNK = 4500;
   const logs = [];
@@ -789,12 +792,25 @@ async function scanBscWalletsBatch(addresses, env) {
     const hi = Math.max(currentBlock - off, 0);
     const lo = Math.max(hi - CHUNK, 0);
     if (hi <= 0) break;
-    const part = await bscRpc('eth_getLogs', [{
+    // First try without `address` filter — captures EVERY token transfer
+    // (USDT, BUSD, EARN, EQ, BNC, custom tokens). Works on drpc.org and 1rpc.io.
+    let part = await bscRpc('eth_getLogs', [{
       fromBlock: '0x' + lo.toString(16),
       toBlock: '0x' + hi.toString(16),
-      address: BSC_WATCHED_TOKENS,
       topics: [TRANSFER_SIG, null, paddedList],
     }], { expectArray: true });
+    // Fallback: some RPCs (publicnode) require an `address` field. If the
+    // first call returned nothing, retry with the stablecoin allow-list so
+    // we still catch USDT/BUSD/USDC even if those RPCs are the only working ones.
+    if (!Array.isArray(part) || part.length === 0) {
+      const partB = await bscRpc('eth_getLogs', [{
+        fromBlock: '0x' + lo.toString(16),
+        toBlock: '0x' + hi.toString(16),
+        address: BSC_FALLBACK_TOKENS,
+        topics: [TRANSFER_SIG, null, paddedList],
+      }], { expectArray: true });
+      if (Array.isArray(partB) && partB.length) part = partB;
+    }
     if (Array.isArray(part) && part.length) logs.push(...part);
   }
   // Resolve unique tokens
