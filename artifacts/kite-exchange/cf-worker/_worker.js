@@ -690,15 +690,27 @@ const USDT_BEP20 = '0x55d398326f99059fF775485246999027B3197955';
 const USDT_TRC20 = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
 
 // BSC public RPC — no API key needed. Fallback list for reliability.
-// RPCs that allow eth_getLogs without API key (verified)
+// RPCs that allow eth_getLogs WITH `address` filter and 5000-block range.
+// Ordered by reliability for large eth_getLogs queries.
 const BSC_RPCS = [
-  'https://bsc-pokt.nodies.app',
   'https://bsc.drpc.org',
   'https://1rpc.io/bnb',
-  'https://bsc-dataseed.binance.org/',
+  'https://bsc-rpc.publicnode.com',
+  'https://bsc-dataseed.binance.org',
+];
+
+// Known BEP-20 tokens we monitor for incoming deposits.
+// Adding `address` to eth_getLogs is required by publicnode.com and
+// dramatically speeds up the query on every RPC.
+const BSC_WATCHED_TOKENS = [
+  '0x55d398326f99059fF775485246999027B3197955', // USDT
+  '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56', // BUSD
+  '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', // USDC
 ];
 let rpcDebug = [];
-async function bscRpc(method, params) {
+async function bscRpc(method, params, opts={}) {
+  // For eth_getLogs we accept empty arrays as valid; for other methods a defined result is enough.
+  const expectArray = opts.expectArray === true;
   for (const url of BSC_RPCS) {
     try {
       const r = await fetch(url, {
@@ -706,12 +718,19 @@ async function bscRpc(method, params) {
         body: JSON.stringify({jsonrpc:'2.0',id:1,method,params}),
         signal: AbortSignal.timeout(10000),
       });
-      const j = await r.json();
-      if (j.result !== undefined) return j.result;
-      rpcDebug.push({url, method, error: j.error?.message || 'no result'});
+      if (!r.ok) { rpcDebug.push({url, method, http: r.status}); continue; }
+      const j = await r.json().catch(()=>({}));
+      if (j.error) { rpcDebug.push({url, method, error: j.error?.message || 'rpc error'}); continue; }
+      if (expectArray) {
+        if (Array.isArray(j.result)) return j.result;
+        rpcDebug.push({url, method, error: 'expected array, got '+typeof j.result});
+        continue;
+      }
+      if (j.result !== undefined && j.result !== null) return j.result;
+      rpcDebug.push({url, method, error: 'no result'});
     } catch (e) { rpcDebug.push({url, method, fetchError: e.message}); }
   }
-  return null;
+  return expectArray ? [] : null;
 }
 
 // Token symbol/decimals cache (per worker invocation)
@@ -762,7 +781,9 @@ async function scanBscWalletsBatch(addresses, env) {
   const currentHex = await bscRpc('eth_blockNumber', []);
   if (!currentHex) return new Map();
   const currentBlock = parseInt(currentHex, 16);
-  const TOTAL_BLOCKS = 30000, CHUNK = 9900;
+  // Public BSC RPCs accept ~5000 blocks per call when filtered by `address`.
+  // 5 chunks × 4500 = 22500 blocks ≈ 18.75 hours of coverage.
+  const TOTAL_BLOCKS = 22500, CHUNK = 4500;
   const logs = [];
   for (let off = 0; off < TOTAL_BLOCKS; off += CHUNK) {
     const hi = Math.max(currentBlock - off, 0);
@@ -771,9 +792,10 @@ async function scanBscWalletsBatch(addresses, env) {
     const part = await bscRpc('eth_getLogs', [{
       fromBlock: '0x' + lo.toString(16),
       toBlock: '0x' + hi.toString(16),
+      address: BSC_WATCHED_TOKENS,
       topics: [TRANSFER_SIG, null, paddedList],
-    }]);
-    if (Array.isArray(part)) logs.push(...part);
+    }], { expectArray: true });
+    if (Array.isArray(part) && part.length) logs.push(...part);
   }
   // Resolve unique tokens
   const uniq = [...new Set(logs.map(l => l.address.toLowerCase()))];
@@ -895,11 +917,11 @@ async function scanAllWallets(env, part='main', opts={}) {
             offset, next_offset: nextOffset, total, done:true};
   }
 
-  // Load existing tx hashes ONLY for this chunk's wallets (saves on row scan)
-  const addrList = wallets.map(w => `"${w.address}"`).join(',');
+  // Load existing tx hashes (most recent 2000 deposits) for dedupe.
+  // Single fetch, covers all chunks reliably regardless of address casing.
   const exRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/blockchain_deposits?to_address=in.(${encodeURIComponent(addrList)})&select=tx_hash`,
-    {headers: {...headers, 'Range':'0-9999'}}
+    `${SUPABASE_URL}/rest/v1/blockchain_deposits?select=tx_hash&order=created_at.desc&limit=2000`,
+    {headers}
   );
   const existing = new Set(((await exRes.json())||[]).map(r=>r.tx_hash));
 
