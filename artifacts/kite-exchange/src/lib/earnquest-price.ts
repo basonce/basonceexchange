@@ -1,6 +1,6 @@
 import { loadSnapshot, saveSnapshot, saveCycleStart, loadCycleStart } from './price-persist';
 
-const STORAGE_KEY = 'EQ_v7';
+const STORAGE_KEY = 'EQ_v8';
 const CYCLE_MS    = 10 * 60 * 60 * 1000; // 10 hours
 const MIN_PRICE   = 0.01;
 const MAX_PRICE   = 1.63;
@@ -32,17 +32,26 @@ class EarnQuestPriceManager {
   private updateInterval: number | null  = null;
 
   private constructor() {
-    // Restore or start cycle
+    // Restore or start cycle. NEVER start at t=0 (price would show $0.01 / 0% — boring).
+    // Always seed fresh visitors / expired cycles into the exciting mid-late phase.
+    const seedHotCycle = () => {
+      const tStart = 0.55 + Math.random() * 0.30; // t=0.55..0.85 → %1750..%13900 gain
+      this.cycleStart = Date.now() - tStart * CYCLE_MS;
+      saveCycleStart(STORAGE_KEY, this.cycleStart);
+      const t = cycleProgress(this.cycleStart);
+      this.price   = targetPrice(t) * (0.94 + Math.random() * 0.06);
+      this.high24h = this.price;
+      this.volume  = cycleVolume(t);
+      this.change  = Math.round(((this.price - MIN_PRICE) / MIN_PRICE) * 10000) / 100;
+    };
+
     const stored = loadCycleStart(STORAGE_KEY);
     if (stored) {
       const t = cycleProgress(stored);
       if (t >= 1) {
-        // Cycle ended while app was closed — start fresh
-        this.cycleStart = Date.now();
-        saveCycleStart(STORAGE_KEY, this.cycleStart);
+        seedHotCycle();
       } else {
         this.cycleStart = stored;
-        // Restore price based on cycle position (snap if valid, else compute)
         const snap = loadSnapshot(STORAGE_KEY);
         if (snap && snap.price >= MIN_PRICE && snap.price <= MAX_PRICE) {
           this.price   = snap.price;
@@ -55,8 +64,7 @@ class EarnQuestPriceManager {
         this.change = Math.round(((this.price - MIN_PRICE) / MIN_PRICE) * 10000) / 100;
       }
     } else {
-      this.cycleStart = Date.now();
-      saveCycleStart(STORAGE_KEY, this.cycleStart);
+      seedHotCycle();
     }
     this.startWalk();
   }
@@ -68,14 +76,17 @@ class EarnQuestPriceManager {
   }
 
   private resetCycle() {
-    this.price      = MIN_PRICE;
-    this.high24h    = MIN_PRICE;
-    this.low24h     = MIN_PRICE;
-    this.change     = 0;
-    this.volume     = INIT_VOL;
-    this.cycleStart = Date.now();
+    // Restart at a hot mid-late position — never $0.01 / 0%.
+    const tStart = 0.55 + Math.random() * 0.30;
+    this.cycleStart = Date.now() - tStart * CYCLE_MS;
+    const t = cycleProgress(this.cycleStart);
+    this.price   = targetPrice(t) * (0.94 + Math.random() * 0.06);
+    this.high24h = this.price;
+    this.low24h  = MIN_PRICE;
+    this.volume  = cycleVolume(t);
+    this.change  = Math.round(((this.price - MIN_PRICE) / MIN_PRICE) * 10000) / 100;
     saveCycleStart(STORAGE_KEY, this.cycleStart);
-    saveSnapshot(STORAGE_KEY, { price: this.price, change: 0, high24h: this.high24h, low24h: this.low24h, savedAt: Date.now() });
+    saveSnapshot(STORAGE_KEY, { price: this.price, change: this.change, high24h: this.high24h, low24h: this.low24h, savedAt: Date.now() });
   }
 
   private tick() {
