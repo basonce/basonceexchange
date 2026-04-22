@@ -869,33 +869,56 @@ async function sendTelegramAlert(text, env) {
   ));
 }
 
-async function scanAllWallets(env, part='main') {
+async function scanAllWallets(env, part='main', opts={}) {
   const headers = {Authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`, apikey:env.SUPABASE_SERVICE_ROLE_KEY};
+  const offset = Math.max(0, Number(opts.offset) || 0);
+  const limit  = Math.max(1, Math.min(50, Number(opts.limit) || 12));
 
-  // Load all assigned wallets
-  const wRes = await fetch(`${SUPABASE_URL}/rest/v1/wallet_pool?is_assigned=eq.true&select=id,address,network,assigned_to_user_id`, {headers});
-  const wallets = await wRes.json();
-  if (!Array.isArray(wallets)) return {error:'failed to load wallets', detail: wallets};
+  // Load all assigned wallets (filtered by network for the requested part)
+  const wRes = await fetch(`${SUPABASE_URL}/rest/v1/wallet_pool?is_assigned=eq.true&select=id,address,network,assigned_to_user_id&order=id.asc`, {headers});
+  const allWallets = await wRes.json();
+  if (!Array.isArray(allWallets)) return {error:'failed to load wallets', detail: allWallets};
 
-  // Load existing tx hashes to dedupe
-  const exRes = await fetch(`${SUPABASE_URL}/rest/v1/blockchain_deposits?select=tx_hash`, {headers: {...headers, 'Range':'0-9999'}});
+  // Filter to relevant network for this `part`
+  const relevant = allWallets.filter(w => {
+    if (part === 'main') return w.network === 'BEP20' || w.network === 'BSC' || w.network === 'TRC20' || w.network === 'TRON';
+    if (part === 'trx')  return w.network === 'TRC20' || w.network === 'TRON';
+    return false;
+  });
+  const total = relevant.length;
+  const wallets = relevant.slice(offset, offset + limit);
+  const nextOffset = offset + wallets.length;
+  const done = nextOffset >= total;
+
+  if (!wallets.length) {
+    return {ok:true, scanned:0, found:0, inserted:0, errors:0, new_deposits:0,
+            offset, next_offset: nextOffset, total, done:true};
+  }
+
+  // Load existing tx hashes ONLY for this chunk's wallets (saves on row scan)
+  const addrList = wallets.map(w => `"${w.address}"`).join(',');
+  const exRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/blockchain_deposits?to_address=in.(${encodeURIComponent(addrList)})&select=tx_hash`,
+    {headers: {...headers, 'Range':'0-9999'}}
+  );
   const existing = new Set(((await exRes.json())||[]).map(r=>r.tx_hash));
 
   rpcDebug = [];
   let scanned=0, found=0, inserted=0, errors=0;
   const newOnes = [];
+  const toInsert = [];
 
-  // part='main'  → BSC + TRC-20 tokens (default)
-  // part='trx'   → only native TRX
   const doBsc   = part === 'main';
   const doTrc20 = part === 'main';
   const doTrx   = part === 'trx';
 
-  // Batch BSC: one call covers all BSC addresses
+  // Batch BSC (single eth_getLogs covers all BSC addresses in this chunk)
   let bscMap = new Map();
   if (doBsc) {
     const bscWallets = wallets.filter(w => w.network === 'BEP20' || w.network === 'BSC');
-    bscMap = await scanBscWalletsBatch(bscWallets.map(w => w.address), env);
+    if (bscWallets.length) {
+      bscMap = await scanBscWalletsBatch(bscWallets.map(w => w.address), env);
+    }
   }
 
   for (const w of wallets) {
@@ -909,41 +932,41 @@ async function scanAllWallets(env, part='main') {
     found += txs.length;
     for (const tx of txs) {
       if (existing.has(tx.tx_hash)) continue;
-      // Insert new deposit
-      const ins = await fetch(`${SUPABASE_URL}/rest/v1/blockchain_deposits`, {
-        method:'POST',
-        headers:{...headers,'Content-Type':'application/json','Prefer':'return=representation'},
-        body: JSON.stringify({
-          user_id: w.assigned_to_user_id,
-          wallet_address_id: w.id,
-          tx_hash: tx.tx_hash,
-          network: w.network,
-          currency: tx.currency || 'USDT',
-          amount: tx.amount,
-          from_address: tx.from_address,
-          to_address: tx.to_address,
-          confirmations: tx.confirmations,
-          required_confirmations: w.network==='BEP20'?12:1,
-          status: 'new',
-          block_number: tx.block_number,
-        }),
+      existing.add(tx.tx_hash);
+      toInsert.push({
+        user_id: w.assigned_to_user_id,
+        wallet_address_id: w.id,
+        tx_hash: tx.tx_hash,
+        network: w.network,
+        currency: tx.currency || 'USDT',
+        amount: tx.amount,
+        from_address: tx.from_address,
+        to_address: tx.to_address,
+        confirmations: tx.confirmations,
+        required_confirmations: w.network==='BEP20'?12:1,
+        status: 'new',
+        block_number: tx.block_number,
       });
-      if (ins.ok) {
-        inserted++;
-        existing.add(tx.tx_hash);
-        newOnes.push({...tx, network:w.network, wallet:w.address, user_id:w.assigned_to_user_id});
-      } else {
-        errors++;
-      }
+      newOnes.push({...tx, network:w.network, wallet:w.address, user_id:w.assigned_to_user_id});
     }
-    // Pacing: TronGrid free tier = 1 req/sec. Use 1100ms for TRC/TRX wallets.
+    // Pacing only for TRON (TronGrid 1 req/sec free tier)
     const isTron = (w.network === 'TRC20' || w.network === 'TRON');
-    await new Promise(r=>setTimeout(r, isTron ? 1100 : 50));
+    if (isTron) await new Promise(r=>setTimeout(r, 1100));
   }
 
-  // Telegram batch alert
+  // BULK INSERT — single subrequest instead of N
+  if (toInsert.length) {
+    const ins = await fetch(`${SUPABASE_URL}/rest/v1/blockchain_deposits`, {
+      method:'POST',
+      headers:{...headers,'Content-Type':'application/json','Prefer':'return=minimal,resolution=ignore-duplicates'},
+      body: JSON.stringify(toInsert),
+    });
+    if (ins.ok) inserted = toInsert.length;
+    else { errors = toInsert.length; }
+  }
+
+  // Telegram batch alert (only on chunks that found new deposits)
   if (newOnes.length && env.TELEGRAM_BOT_TOKEN) {
-    // Resolve emails
     const userIds = [...new Set(newOnes.map(d=>d.user_id).filter(Boolean))];
     let emails = {};
     if (userIds.length) {
@@ -951,8 +974,8 @@ async function scanAllWallets(env, part='main') {
       const users = await uRes.json();
       if (Array.isArray(users)) for (const u of users) emails[u.id] = u.email;
     }
-    const total = newOnes.reduce((s,d)=>s+d.amount,0).toFixed(2);
-    let msg = `🔔 <b>Yeni Para Geldi!</b>\n\n${newOnes.length} işlem · Toplam <b>${total} USDT</b>\n\n`;
+    const totalAmt = newOnes.reduce((s,d)=>s+d.amount,0).toFixed(2);
+    let msg = `🔔 <b>Yeni Para Geldi!</b>\n\n${newOnes.length} işlem · Toplam <b>${totalAmt} USDT</b>\n\n`;
     for (const d of newOnes.slice(0, 10)) {
       const email = emails[d.user_id] || 'atanmamış';
       msg += `💰 <b>${d.amount.toFixed(2)} USDT</b> (${d.network})\n👤 ${email}\n📥 <code>${d.wallet.slice(0,12)}...${d.wallet.slice(-6)}</code>\n\n`;
@@ -961,7 +984,9 @@ async function scanAllWallets(env, part='main') {
     await sendTelegramAlert(msg, env);
   }
 
-  return {ok:true, scanned, found, inserted, errors, new_deposits: newOnes.length};
+  return {ok:true, scanned, found, inserted, errors,
+          new_deposits: newOnes.length,
+          offset, next_offset: nextOffset, total, done};
 }
 
 /* ═══════════════════════════════════════════════

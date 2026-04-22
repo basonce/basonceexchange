@@ -167,35 +167,53 @@ export default function DepositRadarPanel() {
     setScanning(true);
     try {
       const user = await getCurrentUser();
-      // Pass 1: BSC tokens + TRC-20 tokens (USDT, EARN vs.)
-      const r = await fetch(`${WORKER_BASE}/scan-deposits`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-requester-id': user?.id || '' },
-        body: '{}',
-      });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.error || data.message || 'Tarama başarısız');
+      const reqHeaders = { 'Content-Type': 'application/json', 'x-requester-id': user?.id || '' };
+      const CHUNK = 12;
 
-      // Pass 2: native TRX (separate invocation to stay under request limit)
-      let trxData: any = { found: 0, inserted: 0, new_deposits: 0 };
-      try {
-        const r2 = await fetch(`${WORKER_BASE}/scan-deposits-trx`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-requester-id': user?.id || '' },
-          body: '{}',
-        });
-        if (r2.ok) trxData = await r2.json();
-      } catch {}
+      // Generic chunked-scan helper: keeps each Worker invocation under the
+      // 50-subrequest limit by processing only `CHUNK` wallets per call.
+      const runChunked = async (endpoint: string) => {
+        let offset = 0;
+        const totals = { scanned: 0, found: 0, inserted: 0, errors: 0, new_deposits: 0, total: 0 };
+        // Hard ceiling to avoid runaway loops
+        for (let i = 0; i < 200; i++) {
+          const r = await fetch(`${WORKER_BASE}${endpoint}`, {
+            method: 'POST',
+            headers: reqHeaders,
+            body: JSON.stringify({ offset, limit: CHUNK }),
+          });
+          const d = await r.json();
+          if (!r.ok) throw new Error(d.error || d.message || `Tarama başarısız (offset=${offset})`);
+          totals.scanned     += d.scanned     || 0;
+          totals.found       += d.found       || 0;
+          totals.inserted    += d.inserted    || 0;
+          totals.errors      += d.errors      || 0;
+          totals.new_deposits+= d.new_deposits|| 0;
+          totals.total = d.total || totals.total;
+          if (d.done || !d.next_offset || d.next_offset <= offset) break;
+          offset = d.next_offset;
+          // brief breather between chunks so TronGrid rate-limit cools
+          await new Promise(res => setTimeout(res, 250));
+        }
+        return totals;
+      };
+
+      // Pass 1: BSC + TRC-20 (chunked)
+      const main = await runChunked('/scan-deposits');
+      // Pass 2: native TRX (chunked)
+      let trxData: any = { found: 0, inserted: 0, new_deposits: 0, scanned: 0 };
+      try { trxData = await runChunked('/scan-deposits-trx'); } catch {}
 
       const merged = {
-        ...data,
-        found: (data.found || 0) + (trxData.found || 0),
-        inserted: (data.inserted || 0) + (trxData.inserted || 0),
-        new_deposits: (data.new_deposits || 0) + (trxData.new_deposits || 0),
+        scanned: main.scanned + trxData.scanned,
+        found: main.found + trxData.found,
+        inserted: main.inserted + trxData.inserted,
+        errors: main.errors + trxData.errors,
+        new_deposits: main.new_deposits + trxData.new_deposits,
       };
       setLastScan({ at: new Date().toISOString(), result: merged });
       await loadDeposits();
-      if (data.new_deposits > 0) {
+      if (merged.new_deposits > 0) {
         try { new Audio('data:audio/wav;base64,UklGRigBAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAP8A').play(); } catch {}
       }
     } catch (e: any) {
