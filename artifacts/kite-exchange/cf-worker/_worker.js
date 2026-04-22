@@ -2388,6 +2388,85 @@ export default {
       }
 
       /* ════════════════════════════════════════════════════════════════
+         BRANDED EMAIL — bypass Supabase default mail, send via Brevo
+         POST /api/branded-email  body:{type:'recovery'|'magiclink', email}
+         ════════════════════════════════════════════════════════════════ */
+      if (path === '/branded-email' && method === 'POST') {
+        try {
+          const t = String(body?.type || '');
+          const email = String(body?.email || '').trim().toLowerCase();
+          if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return err(400, 'invalid email');
+          if (!['recovery','magiclink'].includes(t)) return err(400, 'invalid type');
+          if (!env.BREVO_API_KEY) return err(500, 'BREVO_API_KEY not configured');
+
+          const redirectTo = t === 'recovery'
+            ? 'https://basonce.com/#reset-password'
+            : 'https://basonce.com/';
+
+          const linkRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/generate_link`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json',
+              Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+              apikey: env.SUPABASE_SERVICE_ROLE_KEY },
+            body: JSON.stringify({ type: t, email, options: { redirect_to: redirectTo } }),
+          });
+          const linkData = await linkRes.json().catch(()=>null);
+          if (!linkRes.ok) return err(linkRes.status, 'link gen failed: ' + JSON.stringify(linkData).slice(0,300));
+          const actionLink = linkData?.action_link || linkData?.properties?.action_link;
+          if (!actionLink) return ok({ ok:true, skipped:'no_link' }); // user may not exist - silent ok
+
+          const subject = t === 'recovery' ? 'Reset Your BASONCE Password' : 'Your BASONCE Sign-In Link';
+          const heading = t === 'recovery' ? '🔐 Reset Your Password' : '✨ Sign In to BASONCE';
+          const intro = t === 'recovery'
+            ? 'We received a request to reset the password for your BASONCE account. Click the button below to choose a new password.'
+            : 'Click the button below to securely sign in to your BASONCE account. No password required.';
+          const cta = t === 'recovery' ? 'Reset Password' : 'Sign In Now';
+          const expiry = t === 'recovery' ? '60 minutes' : '15 minutes';
+
+          const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0B0E11;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0B0E11;padding:40px 16px;"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#181A20;border:1px solid #2B3139;border-radius:16px;overflow:hidden;">
+<tr><td align="center" style="padding:32px 24px 16px 24px;background:linear-gradient(180deg,#1E2329 0%,#181A20 100%);">
+<img src="https://basonce.com/basonce_logo_son_biten.png" width="64" height="64" alt="BASONCE" style="display:block;border-radius:12px;">
+<h1 style="margin:16px 0 4px 0;color:#F0B90B;font-size:24px;letter-spacing:1px;font-weight:700;">BASONCE</h1>
+<p style="margin:0;color:#848E9C;font-size:11px;letter-spacing:3px;">EXCHANGE</p>
+</td></tr>
+<tr><td style="padding:32px 32px 8px 32px;">
+<h2 style="margin:0 0 16px 0;color:#EAECEF;font-size:22px;font-weight:600;">${heading}</h2>
+<p style="color:#B7BDC6;font-size:15px;line-height:1.6;margin:0 0 12px 0;">${intro}</p>
+<p style="color:#B7BDC6;font-size:15px;line-height:1.6;margin:0;">This link expires in <strong style="color:#F0B90B;">${expiry}</strong>.</p>
+</td></tr>
+<tr><td align="center" style="padding:24px 32px 8px 32px;">
+<a href="${actionLink}" style="display:inline-block;padding:14px 36px;background:#F0B90B;color:#0B0E11;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;">${cta}</a>
+</td></tr>
+<tr><td style="padding:8px 32px 32px 32px;">
+<p style="color:#848E9C;font-size:12px;line-height:1.6;margin:16px 0 0 0;">Or copy this link to your browser:<br><span style="color:#5E6673;word-break:break-all;">${actionLink}</span></p>
+<div style="border-top:1px solid #2B3139;margin:24px 0 0 0;padding-top:16px;">
+<p style="color:#5E6673;font-size:12px;line-height:1.6;margin:0;">If you did not request this, please ignore this email. Your account remains secure.</p>
+</div></td></tr></table>
+<p style="color:#5E6673;font-size:11px;margin:16px 0 0 0;">© 2026 BASONCE Exchange · <a href="https://basonce.com" style="color:#848E9C;text-decoration:none;">basonce.com</a><br>Sent to ${email} · Do not reply to this email</p>
+</td></tr></table></body></html>`;
+
+          const sendRes = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: { 'api-key': env.BREVO_API_KEY, 'content-type': 'application/json', accept: 'application/json' },
+            body: JSON.stringify({
+              sender: { name: 'BASONCE Exchange', email: 'basonce@basonce.com' },
+              to: [{ email }],
+              subject,
+              htmlContent: html,
+            }),
+          });
+          if (!sendRes.ok) {
+            const tx = await sendRes.text().catch(()=>'');
+            return err(500, 'brevo send failed: ' + tx.slice(0,300));
+          }
+          return ok({ ok:true });
+        } catch (e) { return err(500, String(e?.message || e)); }
+      }
+
+      /* ════════════════════════════════════════════════════════════════
          SOCIAL MEDIA — single composer, multi-platform publishing
          ════════════════════════════════════════════════════════════════ */
       if (path === '/social/credentials' && method === 'GET') {

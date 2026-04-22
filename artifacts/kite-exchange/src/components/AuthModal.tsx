@@ -50,10 +50,19 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
     if (!email) { setError('Please enter your email address'); return; }
     setError(''); setSuccess(''); setResetSending(true);
     try {
-      const { error: rErr } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/#reset-password`,
+      // Send via our branded BASONCE email (Brevo) instead of Supabase default.
+      const r = await fetch('/api/branded-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'recovery', email }),
       });
-      if (rErr) throw rErr;
+      if (!r.ok) {
+        // Fallback to Supabase default if branded endpoint unavailable
+        const { error: rErr } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/#reset-password`,
+        });
+        if (rErr) throw rErr;
+      }
       setSuccess('Password reset link sent. Please check your inbox (and spam folder).');
     } catch (err: any) {
       setError(err?.message || 'Could not send reset link. Please try again.');
