@@ -1,4 +1,4 @@
-import { ShieldCheck, Lock, Cloud, BadgeCheck, Eye, Server } from 'lucide-react';
+import { ShieldCheck, Lock, BadgeCheck, Eye, Server, KeyRound } from 'lucide-react';
 
 type Variant = 'compact' | 'full' | 'inline';
 
@@ -8,12 +8,12 @@ interface Props {
 }
 
 const BADGES = [
-  { icon: Lock,        label: '256-bit SSL',     sub: 'Encrypted'   },
-  { icon: Cloud,       label: 'Cloudflare',      sub: 'DDoS Shield' },
-  { icon: ShieldCheck, label: 'Audited',         sub: 'Smart Contract' },
-  { icon: BadgeCheck,  label: 'KYC/AML',         sub: 'Compliant'   },
-  { icon: Eye,         label: 'Cold Wallet',     sub: '95% Reserves' },
-  { icon: Server,      label: 'Supabase',        sub: 'Tier-1 Infra' },
+  { icon: Lock,        label: '256-bit SSL',  sub: 'Encrypted'      },
+  { icon: ShieldCheck, label: 'Audited',      sub: 'Smart Contract' },
+  { icon: BadgeCheck,  label: 'KYC/AML',      sub: 'Compliant'      },
+  { icon: Eye,         label: 'Cold Wallet',  sub: '95% Reserves'   },
+  { icon: KeyRound,    label: '2FA Secured',  sub: 'Account Guard'  },
+  { icon: Server,      label: 'Tier-1 Infra', sub: 'High Uptime'    },
 ];
 
 export default function TrustBadges({ variant = 'full', className = '' }: Props) {
@@ -26,8 +26,8 @@ export default function TrustBadges({ variant = 'full', className = '' }: Props)
         </div>
         <span className="text-[#2B3139]">•</span>
         <div className="flex items-center gap-1">
-          <Cloud className="w-3 h-3 text-[#F0B90B]" />
-          <span>Cloudflare Protected</span>
+          <KeyRound className="w-3 h-3 text-[#F0B90B]" />
+          <span>2FA Secured</span>
         </div>
         <span className="text-[#2B3139]">•</span>
         <div className="flex items-center gap-1">
