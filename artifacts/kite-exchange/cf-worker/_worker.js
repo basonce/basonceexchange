@@ -2411,9 +2411,15 @@ export default {
             body: JSON.stringify({ type: t, email, options: { redirect_to: redirectTo } }),
           });
           const linkData = await linkRes.json().catch(()=>null);
-          if (!linkRes.ok) return err(linkRes.status, 'link gen failed: ' + JSON.stringify(linkData).slice(0,300));
+          if (!linkRes.ok) {
+            // Don't leak whether email exists - silently succeed for user_not_found
+            if (linkData?.error_code === 'user_not_found' || linkRes.status === 404) {
+              return ok({ ok:true });
+            }
+            return err(linkRes.status, 'link gen failed: ' + JSON.stringify(linkData).slice(0,300));
+          }
           const actionLink = linkData?.action_link || linkData?.properties?.action_link;
-          if (!actionLink) return ok({ ok:true, skipped:'no_link' }); // user may not exist - silent ok
+          if (!actionLink) return ok({ ok:true, skipped:'no_link' });
 
           const subject = t === 'recovery' ? 'Reset Your BASONCE Password' : 'Your BASONCE Sign-In Link';
           const heading = t === 'recovery' ? '🔐 Reset Your Password' : '✨ Sign In to BASONCE';
