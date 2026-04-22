@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Eye, EyeOff, CheckCircle2, AlertCircle, Smartphone, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { recordLoginEvent } from './SecurityCenterModal';
+import TrustBadges from './TrustBadges';
 
 function fireGoogleAdsConversion() {
   try {
@@ -568,6 +569,8 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
               <span className="text-sm">{success}</span>
             </div>
           )}
+
+          <TrustBadges variant="inline" className="-mt-1" />
 
           <button
             type="submit"

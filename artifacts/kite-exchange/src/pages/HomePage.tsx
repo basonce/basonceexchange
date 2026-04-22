@@ -4,6 +4,7 @@ import { Menu, Headphones, X, Gift, Zap, TrendingUp, Star, Users, Plus, PenLine,
 import MegaphoneAnim from '../components/MegaphoneAnim';
 import HotSearchOverlay from '../components/HotSearchOverlay';
 import MessagesPage from './MessagesPage';
+import TrustBadges from '../components/TrustBadges';
 import HomeMarketList from '../components/HomeMarketList';
 import FuturesMarketList from '../components/FuturesMarketList';
 import NewListingSection from '../components/NewListingSection';
@@ -629,6 +630,10 @@ export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) 
           </div>
         </>
       )}
+
+      <div className="px-4 py-6 mt-4 border-t border-[#2B3139]/40">
+        <TrustBadges variant="full" />
+      </div>
 
       {showSupportModal && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><SupportModal isOpen={showSupportModal} onClose={() => setShowSupportModal(false)} prefillData={supportUserInfo ? { customerId: supportUserInfo.userId, email: supportUserInfo.email, skipToForm: true } : undefined} /></Suspense>}
       {showAlphaEvents && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><AlphaEventsModal isOpen={showAlphaEvents} onClose={() => setShowAlphaEvents(false)} /></Suspense>}

@@ -6,6 +6,7 @@ import {
 import { supabase } from '../lib/supabase';
 import AuthModal from './AuthModal';
 import ServicesModal from './ServicesModal';
+import TrustBadges from './TrustBadges';
 
 interface MenuDrawerProps {
   isOpen: boolean;
@@ -265,6 +266,11 @@ export default function MenuDrawer({
               Log Out
             </button>
           )}
+
+          {/* Trust badges */}
+          <div className="pt-4 pb-4 border-t border-[#2B3139]">
+            <TrustBadges variant="compact" />
+          </div>
 
           {/* BASONCE Lite */}
           <div className="pb-8 pt-1 border-t border-[#2B3139]">
