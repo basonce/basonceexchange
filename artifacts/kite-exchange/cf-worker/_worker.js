@@ -447,8 +447,10 @@ function generateSportEpoch(epoch) {
   return picked.map((m, idx) => {
     const seed = ((epoch * 1000 + idx) * 2654435761) >>> 0;
     const rngM = mulberry32(seed);
-    // Stagger starts within first 25 minutes of epoch so all matches stay live during the 2h window
-    const offsetMs = Math.floor(rngM() * 25 * 60 * 1000);
+    // Stagger across a 130-minute window centered before epoch start so the snapshot
+    // ALWAYS shows matches in mixed phases (early, mid, late, recently finished) —
+    // never all 0-0 / minute 0 at the moment a fresh epoch begins.
+    const offsetMs = Math.floor(rngM() * 130 * 60 * 1000) - 75 * 60 * 1000;
     return {
       id: `e${epoch}_${idx}`,
       seed,
@@ -561,9 +563,10 @@ function computeLiveMatch(meta, nowMs, ctrlMap) {
 async function getSportSnapshot(env) {
   const now = Date.now();
   const epoch = Math.floor(now / SPORT_EPOCH_MS);
+  const STATE_VERSION = 2; // bump to invalidate cached epochs after stagger-window change
   let state = await stoDownload(CTRL_BUCKET, SPORT_STATE_FILE, env);
-  if (!state || state.epoch !== epoch || !Array.isArray(state.matches)) {
-    state = { epoch, matches: generateSportEpoch(epoch) };
+  if (!state || state.epoch !== epoch || state.version !== STATE_VERSION || !Array.isArray(state.matches)) {
+    state = { version: STATE_VERSION, epoch, matches: generateSportEpoch(epoch) };
     await ensureBucket(CTRL_BUCKET, env);
     await stoUpload(CTRL_BUCKET, SPORT_STATE_FILE, state, env);
   }
