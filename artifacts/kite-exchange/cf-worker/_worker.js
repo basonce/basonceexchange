@@ -2360,12 +2360,16 @@ export default {
       /* ── BSC / TRC-20 PARA RADARI ── */
       if (method==='POST' && path==='/scan-deposits') {
         if (!isAdmin(request.headers)) return err(403,'Forbidden');
-        const result = await scanAllWallets(env, 'main');
+        const result = await scanAllWallets(env, 'main', {
+          offset: body?.offset, limit: body?.limit,
+        });
         return ok(result);
       }
       if (method==='POST' && path==='/scan-deposits-trx') {
         if (!isAdmin(request.headers)) return err(403,'Forbidden');
-        const result = await scanAllWallets(env, 'trx');
+        const result = await scanAllWallets(env, 'trx', {
+          offset: body?.offset, limit: body?.limit,
+        });
         return ok(result);
       }
       if (method==='GET' && path==='/debug-scan') {
