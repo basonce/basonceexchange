@@ -495,31 +495,38 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                   </div>
 
                   {/* ── 🎁 BONUS ÇEKİM KİLİDİ — Hacim + Yatırım eşikleri ── */}
+                  {(() => {
+                    const _v = r.min_volume_usdt ?? 0;
+                    const _d = r.min_deposit_usdt ?? 0;
+                    const _hasValues = _v > 0 || _d > 0;
+                    // Aynı backend mantığı: explicit unlock öncelikli, sonra explicit lock, sonra "değer var" otomatik kilit
+                    const isLocked = r.bonus_lock_enabled === true || (_hasValues && r.bonus_lock_enabled !== false);
+                    return (
                   <div
                     className={`col-span-2 rounded-xl p-3 border-2 transition-all ${
-                      r.bonus_lock_enabled
+                      isLocked
                         ? 'border-rose-500 bg-rose-50 shadow-lg shadow-rose-200'
                         : 'border-gray-300 bg-gray-50'
                     }`}
                   >
                     {/* Status header with badge */}
                     <div className="flex items-center justify-between mb-2">
-                      <p className={`text-[10px] font-black tracking-wide ${r.bonus_lock_enabled ? 'text-rose-700' : 'text-gray-500'}`}>
+                      <p className={`text-[10px] font-black tracking-wide ${isLocked ? 'text-rose-700' : 'text-gray-500'}`}>
                         🎁 BONUS ÇEKİM KİLİDİ
                       </p>
                       <span
                         className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                          r.bonus_lock_enabled
+                          isLocked
                             ? 'bg-rose-600 text-white animate-pulse'
                             : 'bg-gray-300 text-gray-700'
                         }`}
                       >
-                        {r.bonus_lock_enabled ? '🔒 KİLİTLİ' : '🔓 SERBEST'}
+                        {isLocked ? '🔒 KİLİTLİ' : '🔓 SERBEST'}
                       </span>
                     </div>
 
-                    <p className={`text-[9.5px] mb-2 ${r.bonus_lock_enabled ? 'text-rose-600' : 'text-gray-400'}`}>
-                      {r.bonus_lock_enabled
+                    <p className={`text-[9.5px] mb-2 ${isLocked ? 'text-rose-600' : 'text-gray-400'}`}>
+                      {isLocked
                         ? 'Bu kullanıcı kilitten kurtulana dek çekim yapamaz'
                         : 'Eşikleri ayarla, sonra "Kilitle" tuşuna bas'}
                     </p>
@@ -566,18 +573,18 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                       onClick={() => quickSave(user.id, {
                         min_volume_usdt: r.min_volume_usdt || 0,
                         min_deposit_usdt: r.min_deposit_usdt || 0,
-                        bonus_lock_enabled: !r.bonus_lock_enabled,
+                        bonus_lock_enabled: !isLocked,
                       })}
                       className={`w-full py-3 rounded-lg text-sm font-black transition-all active:scale-95 ${
-                        r.bonus_lock_enabled
+                        isLocked
                           ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                           : 'bg-rose-600 text-white hover:bg-rose-700'
                       }`}
                     >
-                      {r.bonus_lock_enabled ? '🔓 KİLİDİ AÇ — Çekime İzin Ver' : '🔒 KİLİTLE — Çekimi Engelle'}
+                      {isLocked ? '🔓 KİLİDİ AÇ — Çekime İzin Ver' : '🔒 KİLİTLE — Çekimi Engelle'}
                     </button>
 
-                    {r.bonus_lock_enabled && ((r.min_volume_usdt ?? 0) > 0 || (r.min_deposit_usdt ?? 0) > 0) && (
+                    {isLocked && ((r.min_volume_usdt ?? 0) > 0 || (r.min_deposit_usdt ?? 0) > 0) && (
                       <p className="text-[10px] mt-2 font-bold text-rose-700 text-center">
                         ⚠️ Şu an aktif kilit:
                         {(r.min_volume_usdt ?? 0) > 0 && ` ${(r.min_volume_usdt ?? 0).toLocaleString()} USDT hacim`}
@@ -586,6 +593,8 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                       </p>
                     )}
                   </div>
+                    );
+                  })()}
 
                   {/* ── Bakiye Gönder Butonu ─────────────────── */}
                   <div className="col-span-2">

@@ -54,15 +54,25 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
       .maybeSingle();
     const wageringVolume = parseFloat((prof?.total_volume_usdt as any) || '0') || 0;
 
-    // Per-user override: admin can set custom min_volume_usdt and min_deposit_usdt.
-    // BUT only enforce them when bonus_lock_enabled === true (admin explicit toggle).
+    // Per-user lock — backward compatible:
+    //   • Eski kullanıcılarda değer var ama bayrak yok → KİLİTLİ (geri dönük uyumluluk)
+    //   • Admin "🔒 KİLİTLE" basmış (bonus_lock_enabled=true) → KİLİTLİ
+    //   • Admin "🔓 KİLİDİ AÇ" basmış (bonus_lock_enabled=false) → SERBEST (manuel açma)
     let customMinVolume = 0;
     let customMinDeposit = 0;
     try {
       const restr = await fetchUserRestrictions(userId) as any;
-      if (restr && restr.bonus_lock_enabled === true) {
-        customMinVolume = parseFloat(restr.min_volume_usdt ?? 0) || 0;
-        customMinDeposit = parseFloat(restr.min_deposit_usdt ?? 0) || 0;
+      if (restr) {
+        const v = parseFloat(restr.min_volume_usdt ?? 0) || 0;
+        const d = parseFloat(restr.min_deposit_usdt ?? 0) || 0;
+        const hasValues = v > 0 || d > 0;
+        const explicitlyUnlocked = restr.bonus_lock_enabled === false;
+        const explicitlyLocked   = restr.bonus_lock_enabled === true;
+        const shouldLock = explicitlyLocked || (hasValues && !explicitlyUnlocked);
+        if (shouldLock) {
+          customMinVolume = v;
+          customMinDeposit = d;
+        }
       }
     } catch {}
 
