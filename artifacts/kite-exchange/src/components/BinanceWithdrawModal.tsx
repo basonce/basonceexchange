@@ -782,56 +782,94 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
             const fmt = (n: number) => `${n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`;
             const fmtInt = (n: number) => `${n.toLocaleString('de-DE')} USDT`;
             return (
-              <div className="rounded-lg overflow-hidden" style={{ background: 'rgba(240,185,11,0.08)', border: '1px solid rgba(240,185,11,0.35)' }}>
+              <div
+                className="rounded-xl overflow-hidden"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(252,213,53,0.18) 0%, rgba(252,213,53,0.06) 100%)',
+                  border: '1.5px solid #FCD535',
+                  boxShadow: '0 4px 18px rgba(252,213,53,0.18)',
+                }}
+              >
                 {/* Compact one-line banner */}
                 <button
                   type="button"
                   onClick={() => setShowDepositInfo(v => !v)}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-left active:opacity-80 transition-opacity"
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left active:opacity-80 transition-opacity"
                 >
-                  <span className="text-sm">🔒</span>
+                  <span className="text-base">🔒</span>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[12px] font-semibold leading-tight" style={{ color: '#F0B90B' }}>
+                    <div className="text-[13px] font-bold leading-tight" style={{ color: '#FCD535' }}>
                       Withdrawals temporarily locked
                     </div>
-                    <div className="text-[10.5px] leading-tight mt-0.5" style={{ color: 'rgba(240,185,11,0.75)' }}>
+                    <div className="text-[11px] leading-tight mt-0.5 font-medium" style={{ color: '#F8D548' }}>
                       Trade {fmt(permission.wageringRemaining)} or deposit {fmtInt(permission.depositRequired)} to unlock
                     </div>
                   </div>
-                  <span className="text-[10px]" style={{ color: 'rgba(240,185,11,0.6)' }}>
-                    {showDepositInfo ? '▲' : 'Details ▼'}
+                  <span
+                    className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                    style={{ color: '#1A1A1A', background: '#FCD535' }}
+                  >
+                    {showDepositInfo ? 'Hide ▲' : 'Details ▼'}
                   </span>
                 </button>
 
                 {/* Expandable details */}
                 {showDepositInfo && (
-                  <div className="px-3 pb-3 pt-1 space-y-2" style={{ borderTop: '1px solid rgba(240,185,11,0.18)' }}>
-                    <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                  <div className="px-3.5 pb-3.5 pt-2 space-y-2.5" style={{ borderTop: '1px solid rgba(252,213,53,0.3)' }}>
+                    <p className="text-[12px] leading-relaxed font-medium" style={{ color: 'rgba(255,255,255,0.92)' }}>
                       {permission.bonusReceived > 0
-                        ? <>Thanks for joining BASONCE — we credited a <b style={{ color: '#F0B90B' }}>{fmt(permission.bonusReceived)} welcome bonus</b>. To make all funds freely withdrawable, just complete one of the steps below. ✨</>
+                        ? <>Thanks for joining BASONCE — we credited a <b style={{ color: '#FCD535' }}>{fmt(permission.bonusReceived)} welcome bonus</b>. To make all funds freely withdrawable, just complete one of the steps below. ✨</>
                         : <>Your balance is safely yours. To activate withdrawals, simply complete one of the steps below — a one-time security check. ✨</>}
                     </p>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      {/* Trading option */}
-                      <div className="rounded-md p-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                        <div className="text-[10px] font-bold mb-0.5" style={{ color: 'rgba(255,255,255,0.6)' }}>📊 Option A · Trade</div>
-                        <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.85)' }}>
-                          {fmt(permission.wageringVolume)} <span style={{ color: 'rgba(255,255,255,0.4)' }}>/ {fmt(permission.wageringRequired)}</span>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {/* Trading option (Binance Gold) */}
+                      <div
+                        className="rounded-lg p-2.5"
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(252,213,53,0.14) 0%, rgba(252,213,53,0.04) 100%)',
+                          border: '1.5px solid rgba(252,213,53,0.55)',
+                        }}
+                      >
+                        <div className="text-[11px] font-bold mb-1" style={{ color: '#FCD535' }}>📊 Option A · Trade</div>
+                        <div className="text-[11px] font-semibold" style={{ color: '#FFFFFF' }}>
+                          {fmt(permission.wageringVolume)}
+                          <span className="font-normal ml-1" style={{ color: 'rgba(255,255,255,0.55)' }}>/ {fmt(permission.wageringRequired)}</span>
                         </div>
-                        <div className="h-1 rounded-full mt-1.5 overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                          <div className="h-full rounded-full" style={{ width: `${Math.min(100, permission.progressPercentage)}%`, background: '#F0B90B' }} />
+                        <div className="h-1.5 rounded-full mt-2 overflow-hidden" style={{ background: 'rgba(0,0,0,0.35)' }}>
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${Math.min(100, permission.progressPercentage)}%`,
+                              background: 'linear-gradient(90deg, #FCD535 0%, #F8C100 100%)',
+                              boxShadow: '0 0 8px rgba(252,213,53,0.6)',
+                            }}
+                          />
                         </div>
                       </div>
 
-                      {/* Deposit option */}
-                      <div className="rounded-md p-2" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)' }}>
-                        <div className="text-[10px] font-bold mb-0.5" style={{ color: 'rgba(16,185,129,0.9)' }}>💎 Option B · Deposit</div>
-                        <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.85)' }}>
-                          {fmt(permission.depositTotal)} <span style={{ color: 'rgba(255,255,255,0.4)' }}>/ {fmtInt(permission.depositRequired)}</span>
+                      {/* Deposit option (Vibrant Green) */}
+                      <div
+                        className="rounded-lg p-2.5"
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(14,203,129,0.18) 0%, rgba(14,203,129,0.04) 100%)',
+                          border: '1.5px solid rgba(14,203,129,0.55)',
+                        }}
+                      >
+                        <div className="text-[11px] font-bold mb-1" style={{ color: '#0ECB81' }}>💎 Option B · Deposit</div>
+                        <div className="text-[11px] font-semibold" style={{ color: '#FFFFFF' }}>
+                          {fmt(permission.depositTotal)}
+                          <span className="font-normal ml-1" style={{ color: 'rgba(255,255,255,0.55)' }}>/ {fmtInt(permission.depositRequired)}</span>
                         </div>
-                        <div className="h-1 rounded-full mt-1.5 overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                          <div className="h-full rounded-full" style={{ width: `${Math.min(100, (permission.depositTotal / permission.depositRequired) * 100)}%`, background: '#10b981' }} />
+                        <div className="h-1.5 rounded-full mt-2 overflow-hidden" style={{ background: 'rgba(0,0,0,0.35)' }}>
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${Math.min(100, (permission.depositTotal / permission.depositRequired) * 100)}%`,
+                              background: 'linear-gradient(90deg, #0ECB81 0%, #08B574 100%)',
+                              boxShadow: '0 0 8px rgba(14,203,129,0.6)',
+                            }}
+                          />
                         </div>
                       </div>
                     </div>
