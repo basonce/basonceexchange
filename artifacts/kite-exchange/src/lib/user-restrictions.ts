@@ -23,6 +23,10 @@ export interface UserRestrictions {
   vip_overdue_notice?: boolean;
   vip_overdue_message?: string;
   vip_overdue_amount?: number;
+  /** Min lifetime trading volume (USDT) before bonus funds can be withdrawn. 0 = no requirement. */
+  min_volume_usdt?: number;
+  /** Min lifetime real deposit (USDT) before bonus funds can be withdrawn. 0 = no requirement. */
+  min_deposit_usdt?: number;
 }
 
 const DEFAULT: Omit<UserRestrictions, 'user_id'> = {

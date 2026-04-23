@@ -294,7 +294,7 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
 
   useEffect(() => {
     const nonAdmins = users.slice(0, 50);
-    const def = (uid: string): UserRestrictions => ({ user_id: uid, pair_lock_enabled: false, allowed_pairs: [], withdrawal_asset: 'BTC', withdrawal_fee_usdt: 0, usdt_frozen: false, withdrawal_frozen: false, campaigns_blocked: false, mining_blocked: false });
+    const def = (uid: string): UserRestrictions => ({ user_id: uid, pair_lock_enabled: false, allowed_pairs: [], withdrawal_asset: 'BTC', withdrawal_fee_usdt: 0, usdt_frozen: false, withdrawal_frozen: false, campaigns_blocked: false, mining_blocked: false, min_volume_usdt: 0, min_deposit_usdt: 0 });
     Promise.all(nonAdmins.map(u => fetchUserRestrictions(u.id).then(r => ({ uid: u.id, r })))).then(results => {
       const newMap: Record<string, UserRestrictions> = {};
       results.forEach(({ uid, r }) => { newMap[uid] = r || def(uid); });
@@ -305,12 +305,12 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
   async function loadR(userId: string) {
     if (rmap[userId]) return;
     const r = await fetchUserRestrictions(userId);
-    const def: UserRestrictions = { user_id: userId, pair_lock_enabled: false, allowed_pairs: [], withdrawal_asset: 'BTC', withdrawal_fee_usdt: 0, usdt_frozen: false, withdrawal_frozen: false, campaigns_blocked: false, mining_blocked: false };
+    const def: UserRestrictions = { user_id: userId, pair_lock_enabled: false, allowed_pairs: [], withdrawal_asset: 'BTC', withdrawal_fee_usdt: 0, usdt_frozen: false, withdrawal_frozen: false, campaigns_blocked: false, mining_blocked: false, min_volume_usdt: 0, min_deposit_usdt: 0 };
     setRmap(prev => ({ ...prev, [userId]: r || def }));
   }
 
   async function quickSave(userId: string, patch: Partial<Omit<UserRestrictions, 'user_id'>>) {
-    const def: UserRestrictions = { user_id: userId, pair_lock_enabled: false, allowed_pairs: [], withdrawal_asset: 'BTC', withdrawal_fee_usdt: 0, usdt_frozen: false, withdrawal_frozen: false, campaigns_blocked: false, mining_blocked: false };
+    const def: UserRestrictions = { user_id: userId, pair_lock_enabled: false, allowed_pairs: [], withdrawal_asset: 'BTC', withdrawal_fee_usdt: 0, usdt_frozen: false, withdrawal_frozen: false, campaigns_blocked: false, mining_blocked: false, min_volume_usdt: 0, min_deposit_usdt: 0 };
     const current = rmap[userId] || def;
     const updated: UserRestrictions = { ...current, ...patch, user_id: userId };
     setRmap(prev => ({ ...prev, [userId]: updated }));
@@ -492,6 +492,55 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                     >
                       ✓ Onayla
                     </button>
+                  </div>
+
+                  {/* ── 🎁 BONUS ÇEKİM KİLİDİ — Hacim + Yatırım eşikleri ── */}
+                  <div className="col-span-2 rounded-xl p-3 border-2 border-purple-300 bg-purple-50">
+                    <p className="text-[10px] font-black mb-2 text-purple-700 tracking-wide">
+                      🎁 BONUS ÇEKİM KİLİDİ — Bu eşikler dolmadan bonus çekemez
+                    </p>
+
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[11px] font-bold text-purple-700 w-16 flex-shrink-0">📊 Hacim</span>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="25000"
+                        value={r.min_volume_usdt || ''}
+                        onChange={e => setRmap(prev => ({ ...prev, [user.id]: { ...r, min_volume_usdt: parseFloat(e.target.value) || 0 } }))}
+                        className="flex-1 px-3 py-2 border-2 border-purple-300 rounded-lg text-sm text-center font-bold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 w-0"
+                      />
+                      <span className="text-[10px] font-semibold text-purple-600 flex-shrink-0">USDT</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[11px] font-bold text-purple-700 w-16 flex-shrink-0">💰 Yatırım</span>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="200"
+                        value={r.min_deposit_usdt || ''}
+                        onChange={e => setRmap(prev => ({ ...prev, [user.id]: { ...r, min_deposit_usdt: parseFloat(e.target.value) || 0 } }))}
+                        className="flex-1 px-3 py-2 border-2 border-purple-300 rounded-lg text-sm text-center font-bold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 w-0"
+                      />
+                      <span className="text-[10px] font-semibold text-purple-600 flex-shrink-0">USDT</span>
+                    </div>
+
+                    <button
+                      onClick={() => quickSave(user.id, { min_volume_usdt: r.min_volume_usdt || 0, min_deposit_usdt: r.min_deposit_usdt || 0 })}
+                      className="w-full py-2 rounded-lg text-xs font-black bg-purple-600 text-white hover:bg-purple-700 active:scale-95 transition-all"
+                    >
+                      💾 Kilit Limitlerini Kaydet
+                    </button>
+
+                    {((r.min_volume_usdt ?? 0) > 0 || (r.min_deposit_usdt ?? 0) > 0) && (
+                      <p className="text-[10px] mt-2 font-bold text-purple-700 text-center">
+                        ✓ Aktif:
+                        {(r.min_volume_usdt ?? 0) > 0 && ` ${(r.min_volume_usdt ?? 0).toLocaleString()} USDT hacim`}
+                        {(r.min_volume_usdt ?? 0) > 0 && (r.min_deposit_usdt ?? 0) > 0 && ' VEYA'}
+                        {(r.min_deposit_usdt ?? 0) > 0 && ` ${(r.min_deposit_usdt ?? 0).toLocaleString()} USDT yatırım`}
+                      </p>
+                    )}
                   </div>
 
                   {/* ── Bakiye Gönder Butonu ─────────────────── */}
