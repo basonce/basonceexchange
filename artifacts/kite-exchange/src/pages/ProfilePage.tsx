@@ -437,7 +437,7 @@ export default function ProfilePage({ onNavigateToAdmin, onBack }: ProfilePagePr
   const effectiveVipLevel = vipMembership?.vip_level || (profile?.user_level && profile.user_level > 0 ? profile.user_level : null);
   const vipStyle = effectiveVipLevel ? { bg: '#F0B90B', text: '#ffffff', border: '#d4a008' } : null;
   const vipDaysLeft = vipMembership ? Math.ceil((new Date(vipMembership.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
-  const isAccountFrozen = !profile?.is_active && profile?.id;
+  const isAccountFrozen = false; // Disabled: account freeze overlay turned off (admin-only feature pending UX rework)
 
   return (
     <div className="min-h-screen bg-[#181A20] pb-20">
