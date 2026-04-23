@@ -27,6 +27,8 @@ export interface UserRestrictions {
   min_volume_usdt?: number;
   /** Min lifetime real deposit (USDT) before bonus funds can be withdrawn. 0 = no requirement. */
   min_deposit_usdt?: number;
+  /** Master switch for bonus withdrawal lock — when false, min_volume_usdt/min_deposit_usdt are ignored. */
+  bonus_lock_enabled?: boolean;
 }
 
 const DEFAULT: Omit<UserRestrictions, 'user_id'> = {

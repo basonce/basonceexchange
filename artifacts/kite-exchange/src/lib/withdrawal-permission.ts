@@ -54,12 +54,13 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
       .maybeSingle();
     const wageringVolume = parseFloat((prof?.total_volume_usdt as any) || '0') || 0;
 
-    // Per-user override: admin can set custom min_volume_usdt and min_deposit_usdt
+    // Per-user override: admin can set custom min_volume_usdt and min_deposit_usdt.
+    // BUT only enforce them when bonus_lock_enabled === true (admin explicit toggle).
     let customMinVolume = 0;
     let customMinDeposit = 0;
     try {
       const restr = await fetchUserRestrictions(userId) as any;
-      if (restr) {
+      if (restr && restr.bonus_lock_enabled === true) {
         customMinVolume = parseFloat(restr.min_volume_usdt ?? 0) || 0;
         customMinDeposit = parseFloat(restr.min_deposit_usdt ?? 0) || 0;
       }
