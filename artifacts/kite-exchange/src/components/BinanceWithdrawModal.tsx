@@ -778,7 +778,10 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
               </button>
             </div>
           )}
-          {permission && !permission.allowed && (
+          {permission && !permission.allowed && (() => {
+            const fmt = (n: number) => `${n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`;
+            const fmtInt = (n: number) => `${n.toLocaleString('de-DE')} USDT`;
+            return (
             <div className="rounded-xl px-4 py-3 space-y-2" style={{ background: 'rgba(244,63,94,0.10)', border: '1px solid rgba(244,63,94,0.35)' }}>
               <div className="flex items-start gap-2">
                 <span className="text-base">🔒</span>
@@ -789,15 +792,15 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
                   <div className="text-xs text-rose-200/90 mt-1 leading-relaxed">
                     {permission.bonusReceived > 0 ? (
                       <>
-                        Thanks for being part of BASONCE — we've credited a <b>${permission.bonusReceived.toFixed(2)} welcome bonus</b> to your account. 💛
+                        Thanks for being part of BASONCE — we've credited a <b>{fmt(permission.bonusReceived)} welcome bonus</b> to your account. 💛
                         To make <b>all funds</b> (including this bonus) freely withdrawable, just complete one of the simple options below.
-                        Only <b>${permission.wageringRemaining.toFixed(2)}</b> more in trading volume to go!
+                        Only <b>{fmt(permission.wageringRemaining)}</b> more in trading volume to go!
                       </>
                     ) : (
                       <>
                         Your balance is safely yours. ✨ To activate withdrawals, simply complete one of the quick options below —
                         this is a one-time security step that protects your account.
-                        Just <b>${permission.wageringRemaining.toFixed(2)}</b> more in trading volume and you're all set!
+                        Just <b>{fmt(permission.wageringRemaining)}</b> more in trading volume and you're all set!
                       </>
                     )}
                   </div>
@@ -806,9 +809,9 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
               <div className="rounded-lg p-2.5" style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.35)' }}>
                 <div className="text-emerald-300 font-semibold text-xs mb-0.5">💎 Quickest option — a small deposit unlocks everything instantly</div>
                 <div className="text-[11px] text-emerald-100/90 leading-relaxed">
-                  A real deposit of just <b>${permission.depositRequired} USDT</b> opens up <b>every coin</b> in your wallet immediately —
+                  A real deposit of just <b>{fmtInt(permission.depositRequired)}</b> opens up <b>every coin</b> in your wallet immediately —
                   no waiting, no extra steps. Your deposit always stays 100% yours and is never deducted.
-                  <br />Progress so far: <b className="text-white">${permission.depositTotal.toFixed(2)}</b> of ${permission.depositRequired}.
+                  <br />Progress so far: <b className="text-white">{fmt(permission.depositTotal)}</b> of {fmtInt(permission.depositRequired)}.
                 </div>
               </div>
               <button
@@ -828,7 +831,8 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
                 </div>
               )}
             </div>
-          )}
+            );
+          })()}
           {restrictionsLoaded && customFeeUsdt > 0 && !withdrawalFrozen && (
             <div className="rounded-xl px-4 py-2.5 flex items-center justify-between" style={{ background: 'rgba(240,185,11,0.10)', border: '1px solid rgba(240,185,11,0.3)' }}>
               <span className="text-xs font-semibold" style={{ color: 'rgba(240,185,11,0.85)' }}>💰 Service fee will be deducted from your USDT balance</span>
