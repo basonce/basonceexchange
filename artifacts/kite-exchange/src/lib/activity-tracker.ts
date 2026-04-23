@@ -187,6 +187,10 @@ async function flush() {
       else if (ev.action === 'page_leave') lines.push(`  ⬅️ ${TR_ACTIONS.page_leave}`);
       else if (ev.action === 'page_focus') lines.push(`  🟢 ${TR_ACTIONS.page_focus}`);
       else if (ev.action === 'page_blur')  lines.push(`  ⚫ ${TR_ACTIONS.page_blur}`);
+      else if (ev.action === 'dwell') {
+        const secs = Number((meta as any).time_sec || 0);
+        lines.push(`  ⏱️ <b>${formatDuration(secs)}</b> dır burada bekliyor — hareketsiz`);
+      }
       else if (ev.action && ev.action !== 'click') lines.push(`  • ${TR_ACTIONS[ev.action] || ev.action}${label?': '+label:''}`);
     }
     if (lines.length === 0) return;
@@ -417,12 +421,40 @@ export function setActivityUserId(uid: string | null) {
   }
 }
 
+let dwellTimer: ReturnType<typeof setInterval> | null = null;
+
+function dwellHeartbeat() {
+  if (!currentUserId) return;
+  if (document.visibilityState !== 'visible') return; // only when tab is active
+  if (!currentPage) return;
+  const secs = Math.round((Date.now() - pageEnterTime) / 1000);
+  if (secs < 60) return; // require at least 60s on page before reporting
+  enqueue('dwell', currentPage, {
+    label: `⏱️ ${formatDuration(secs)} dır ${PAGE_LABELS[currentPage] || currentPage} sayfasında bekliyor`,
+    page_label: PAGE_LABELS[currentPage] || currentPage,
+    time_sec: secs,
+  });
+}
+
+function formatDuration(secs: number): string {
+  if (secs < 60) return `${secs}sn`;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  if (m < 60) return s ? `${m}dk ${s}sn` : `${m}dk`;
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  return mm ? `${h}sa ${mm}dk` : `${h}sa`;
+}
+
 export function initGlobalTracking() {
   console.log('[ActivityTracker] initGlobalTracking called');
   document.addEventListener('click', handleGlobalClick, true);
   document.addEventListener('input', handleGlobalInput, true);
   document.addEventListener('visibilitychange', handleVisibilityChange);
   window.addEventListener('beforeunload', flush);
+  // Heartbeat — broadcast "still on page X for Ymin" every 60s
+  if (dwellTimer) clearInterval(dwellTimer);
+  dwellTimer = setInterval(dwellHeartbeat, 60_000);
 }
 
 export function destroyGlobalTracking() {
