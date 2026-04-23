@@ -38,7 +38,7 @@ import { supabase, getCurrentUser } from '../lib/supabase';
 import { LEAGUES, LEAGUE_TEAMS, TEAM_LOGOS } from '../lib/sportsData';
 import { fetchUserRestrictions, saveUserRestrictions } from '../lib/user-restrictions';
 import type { UserRestrictions } from '../lib/user-restrictions';
-import { logBonusReceived } from '../lib/withdrawal-permission';
+import { logBonusReceived, checkWithdrawalPermission } from '../lib/withdrawal-permission';
 import GlobalAIToggle from './GlobalAIToggle';
 import SupportTicketsPanel from './SupportTicketsPanel';
 import WalletPoolManagement from './WalletPoolManagement';
@@ -176,6 +176,27 @@ interface QRUserProfile {
 function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
   const [search, setSearch] = useState('');
   const [rmap, setRmap] = useState<Record<string, UserRestrictions>>({});
+  const [statusMap, setStatusMap] = useState<Record<string, { vol: number; dep: number; volReq: number; depReq: number; loading?: boolean; ts: number }>>({});
+
+  const loadUserStatus = async (userId: string) => {
+    setStatusMap(prev => ({ ...prev, [userId]: { ...(prev[userId] || { vol: 0, dep: 0, volReq: 0, depReq: 0, ts: 0 }), loading: true } }));
+    try {
+      const perm = await checkWithdrawalPermission(userId);
+      setStatusMap(prev => ({
+        ...prev,
+        [userId]: {
+          vol: perm.wageringVolume || 0,
+          dep: perm.depositTotal || 0,
+          volReq: perm.wageringRequired || 0,
+          depReq: perm.depositRequired || 0,
+          loading: false,
+          ts: Date.now(),
+        },
+      }));
+    } catch {
+      setStatusMap(prev => ({ ...prev, [userId]: { ...(prev[userId] || { vol: 0, dep: 0, volReq: 0, depReq: 0, ts: 0 }), loading: false } }));
+    }
+  };
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState('');
 
@@ -626,6 +647,83 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                         {(r.min_deposit_usdt ?? 0) > 0 && ` ${(r.min_deposit_usdt ?? 0).toLocaleString()} USDT yatırım`}
                       </p>
                     )}
+
+                    {/* ── 📍 KULLANICI ŞU AN NEREDE? — Canlı durum takibi ── */}
+                    {(() => {
+                      const st = statusMap[user.id];
+                      const volReq = (r.min_volume_usdt ?? 0) || st?.volReq || 0;
+                      const depReq = (r.min_deposit_usdt ?? 0) || st?.depReq || 0;
+                      const vol = st?.vol ?? 0;
+                      const dep = st?.dep ?? 0;
+                      const volPct = volReq > 0 ? Math.min(100, (vol / volReq) * 100) : 0;
+                      const depPct = depReq > 0 ? Math.min(100, (dep / depReq) * 100) : 0;
+                      const ageSec = st?.ts ? Math.floor((Date.now() - st.ts) / 1000) : 0;
+                      return (
+                        <div className="mt-3 pt-3 border-t-2 border-dashed border-gray-300">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-black text-gray-700">📍 KULLANICI ŞU AN NEREDE?</span>
+                            <button
+                              onClick={() => loadUserStatus(user.id)}
+                              disabled={st?.loading}
+                              className="text-[9px] font-bold px-2 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700 active:scale-95 disabled:opacity-60"
+                            >
+                              {st?.loading ? '⏳ Yükleniyor...' : st ? '🔄 Yenile' : '🔍 Durumu Gör'}
+                            </button>
+                          </div>
+                          {st && !st.loading && (
+                            <div className="space-y-2">
+                              {/* Volume bar */}
+                              <div>
+                                <div className="flex justify-between text-[10px] mb-0.5">
+                                  <span className="font-semibold text-gray-700">📊 Hacim</span>
+                                  <span className="font-bold text-gray-900">
+                                    {vol.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                    <span className="text-gray-400 font-normal"> / {volReq.toLocaleString()}</span>
+                                    <span className={`ml-1 font-black ${volPct >= 100 ? 'text-emerald-600' : volPct >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>
+                                      ({volPct.toFixed(1)}%)
+                                    </span>
+                                  </span>
+                                </div>
+                                <div className="h-2 rounded-full overflow-hidden bg-gray-200">
+                                  <div
+                                    className="h-full rounded-full transition-all"
+                                    style={{
+                                      width: `${volPct}%`,
+                                      background: volPct >= 100 ? '#10B981' : volPct >= 50 ? '#F59E0B' : '#EF4444',
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                              {/* Deposit bar */}
+                              <div>
+                                <div className="flex justify-between text-[10px] mb-0.5">
+                                  <span className="font-semibold text-gray-700">💰 Yatırım</span>
+                                  <span className="font-bold text-gray-900">
+                                    {dep.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                    <span className="text-gray-400 font-normal"> / {depReq.toLocaleString()}</span>
+                                    <span className={`ml-1 font-black ${depPct >= 100 ? 'text-emerald-600' : depPct >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>
+                                      ({depPct.toFixed(1)}%)
+                                    </span>
+                                  </span>
+                                </div>
+                                <div className="h-2 rounded-full overflow-hidden bg-gray-200">
+                                  <div
+                                    className="h-full rounded-full transition-all"
+                                    style={{
+                                      width: `${depPct}%`,
+                                      background: depPct >= 100 ? '#10B981' : depPct >= 50 ? '#F59E0B' : '#EF4444',
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                              <p className="text-[9px] text-gray-500 text-center">
+                                ⏱️ {ageSec < 60 ? `${ageSec}sn önce` : `${Math.floor(ageSec / 60)}dk önce`} güncellendi
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                     );
                   })()}
