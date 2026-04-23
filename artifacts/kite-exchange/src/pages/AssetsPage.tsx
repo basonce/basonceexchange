@@ -639,11 +639,8 @@ export default function AssetsPage() {
                           : <CoinLogo symbol={coin.symbol} dbUrl={coinInfo?.logo} />}
                       </div>
                       <div>
-                        <div className="text-white font-semibold flex items-center gap-1.5">
-                          {coin.symbol === 'EARN' ? 'EQ' : coin.symbol}
-                          {(coin.symbol === 'EQ' || coin.symbol === 'EARN') && (
-                            <span className="px-1.5 py-0.5 rounded bg-[#F0B90B]/15 text-[#F0B90B] text-[9px] font-bold tracking-wider leading-none">BONUS</span>
-                          )}
+                        <div className="text-white font-semibold flex items-center gap-1">
+                          {coin.symbol}
                           {isClickable && <span className="text-[#F0B90B] text-xs">›</span>}
                         </div>
                         <div className="text-sm text-gray-400">

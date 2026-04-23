@@ -107,7 +107,7 @@ export function getCoinNetwork(symbol: string): string | null {
 }
 
 export function getCoinLogoUrl(symbol: string, dbLogos?: Record<string, string>): string {
-  if (symbol === 'EQ' || symbol === 'EARN') return '/earnquest-logo-icon-2.png';
+  if (symbol === 'EQ') return '/earnquest-logo-icon-2.png';
   if (symbol === 'BNC') return '/bnc-logo.png';
   const cmcId = CMC_IDS[symbol];
   if (cmcId) return `https://s2.coinmarketcap.com/static/img/coins/64x64/${cmcId}.png`;
@@ -117,7 +117,7 @@ export function getCoinLogoUrl(symbol: string, dbLogos?: Record<string, string>)
 }
 
 export function getCoinLogoFallbackChain(symbol: string, dbLogos?: Record<string, string>): string[] {
-  if (symbol === 'EQ' || symbol === 'EARN') return ['/earnquest-logo-icon-2.png'];
+  if (symbol === 'EQ') return ['/earnquest-logo-icon-2.png'];
   if (symbol === 'BNC') return ['/bnc-logo.png'];
   const urls: string[] = [];
   const cmcId = CMC_IDS[symbol];
