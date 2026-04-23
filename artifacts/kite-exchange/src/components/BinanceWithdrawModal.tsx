@@ -879,12 +879,6 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
               </div>
             );
           })()}
-          {restrictionsLoaded && customFeeUsdt > 0 && !withdrawalFrozen && (
-            <div className="rounded-xl px-4 py-2.5 flex items-center justify-between" style={{ background: 'rgba(240,185,11,0.10)', border: '1px solid rgba(240,185,11,0.3)' }}>
-              <span className="text-xs font-semibold" style={{ color: 'rgba(240,185,11,0.85)' }}>💰 Service fee will be deducted from your USDT balance</span>
-              <span className="text-xs font-black" style={{ color: '#F0B90B' }}>{customFeeUsdt.toLocaleString()} USDT</span>
-            </div>
-          )}
           <button
             onClick={handleWithdraw}
             disabled={submitting || withdrawalFrozen || (usdtFrozen && selectedCoin.symbol === 'USDT')}
