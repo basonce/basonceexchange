@@ -1534,26 +1534,17 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                     }
                   </span>
                 </div>
-                {(() => {
-                  const customPct = parseFloat((userRestrictions as any)?.custom_trade_fee_pct ?? 0) || 0;
-                  const feeRate = customPct > 0 ? customPct / 100 : 0.001;
-                  const feePctLabel = (feeRate * 100).toFixed(customPct > 0 ? 2 : 1);
-                  return (
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-[#5E6673]">
-                        Est. Fee<span className="text-[#848E9C] ml-2">{feePctLabel}%</span>
-                      </span>
-                      <span className={customPct > 0 ? 'text-[#F0B90B] font-semibold' : 'text-white'}>
-                        {activeMetal
-                          ? `${(((parseFloat(amount) || 0)) * feeRate).toFixed(8)} ${baseSymbol}`
-                          : unitPreference === 'usdt'
-                            ? `${((parseFloat(amount) || 0) * feeRate).toFixed(2)} USDT`
-                            : `${(((parseFloat(amount) || 0) / (unitPreference === 'usdt' ? currentPrice : 1)) * feeRate).toFixed(8)} ${baseSymbol}`
-                        }
-                      </span>
-                    </div>
-                  );
-                })()}
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-[#5E6673]">Est. Fee</span>
+                  <span className="text-white">
+                    {activeMetal
+                      ? `${(((parseFloat(amount) || 0)) * 0.001).toFixed(8)} ${baseSymbol}`
+                      : unitPreference === 'usdt'
+                        ? `${((parseFloat(amount) || 0) * 0.001).toFixed(2)} USDT`
+                        : `${(((parseFloat(amount) || 0) / (unitPreference === 'usdt' ? currentPrice : 1)) * 0.001).toFixed(8)} ${baseSymbol}`
+                    }
+                  </span>
+                </div>
               </div>
 
               {/* USDT Freeze Banner */}
