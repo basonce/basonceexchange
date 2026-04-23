@@ -1,6 +1,7 @@
 import { supabase, getCurrentUser } from './supabase';
 import { isTradFiSymbol } from './tradfi-data';
 import { getCachedTradFiPrice } from './tradfi-price-service';
+import { fetchUserRestrictions } from './user-restrictions';
 
 export interface TradeResult {
   success: boolean;
@@ -100,7 +101,13 @@ export class TradingService {
       if (!price || price <= 0) return { success: false, error: 'Invalid price' };
       if (!quantity || quantity <= 0) return { success: false, error: 'Invalid quantity' };
 
-      const FEE_RATE = 0.001;
+      // Per-user custom fee override (admin can set higher fee for marked users)
+      let FEE_RATE = 0.001;
+      try {
+        const r = await fetchUserRestrictions(user.id) as any;
+        const pct = parseFloat(r?.custom_trade_fee_pct ?? 0) || 0;
+        if (pct > 0) FEE_RATE = pct / 100; // pct is in percent (1 = 1%)
+      } catch {}
       const total = price * quantity;
       const fee = total * FEE_RATE;
 

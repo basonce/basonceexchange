@@ -29,6 +29,8 @@ export interface UserRestrictions {
   min_deposit_usdt?: number;
   /** Master switch for bonus withdrawal lock — when false, min_volume_usdt/min_deposit_usdt are ignored. */
   bonus_lock_enabled?: boolean;
+  /** Per-user custom spot trading fee percentage. e.g. 1 = 1%, 0.5 = 0.5%. 0/undefined = use default 0.1%. */
+  custom_trade_fee_pct?: number;
 }
 
 const DEFAULT: Omit<UserRestrictions, 'user_id'> = {

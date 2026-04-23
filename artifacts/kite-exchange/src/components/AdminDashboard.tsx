@@ -494,6 +494,30 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                     </button>
                   </div>
 
+                  {/* ── 🔥 KOMİSYON % (spot trading fee) ── */}
+                  <div className="col-span-2 flex items-center gap-2 rounded-xl p-2 border-2 border-orange-300 bg-orange-50">
+                    <span className="text-orange-700 text-xs font-black flex-shrink-0">🔥 Komisyon:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      placeholder="0.1"
+                      value={(r as any).custom_trade_fee_pct ?? ''}
+                      onChange={e => setRmap(prev => ({ ...prev, [user.id]: { ...r, custom_trade_fee_pct: parseFloat(e.target.value) || 0 } as any }))}
+                      className="flex-1 px-3 py-2 border-2 border-orange-400 rounded-xl text-sm text-center font-bold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 w-0"
+                    />
+                    <span className="text-orange-700 text-xs font-black flex-shrink-0">%</span>
+                    <button
+                      onClick={() => quickSave(user.id, { custom_trade_fee_pct: (r as any).custom_trade_fee_pct ?? 0 } as any)}
+                      className="flex-shrink-0 px-3 py-2 bg-orange-600 text-white rounded-xl text-xs font-black active:scale-95 transition-all hover:bg-orange-700"
+                    >
+                      ✓ Kaydet
+                    </button>
+                  </div>
+                  <p className="col-span-2 text-[9.5px] text-gray-500 -mt-1 px-1">
+                    Boş/0 → standart %0.1 · Yaz (örn. 1) → %1 komisyon (10 katı, parası hızlı erir)
+                  </p>
+
                   {/* ── 🎁 BONUS ÇEKİM KİLİDİ — Hacim + Yatırım eşikleri ── */}
                   {(() => {
                     const _v = r.min_volume_usdt ?? 0;
