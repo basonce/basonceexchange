@@ -1543,6 +1543,34 @@ export default {
       /* ── HEALTH ── */
       if (method==='GET' && path==='/healthz') return ok({status:'ok',platform:'cloudflare'});
 
+      /* ── WHOAMI: real IP + geo from Cloudflare edge headers ── */
+      if (method==='GET' && path==='/whoami') {
+        const cf = request.cf || {};
+        const ip = request.headers.get('CF-Connecting-IP')
+                || request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim()
+                || request.headers.get('X-Real-IP')
+                || 'N/A';
+        const country = cf.country || request.headers.get('CF-IPCountry') || null;
+        const cc = country && country.length === 2 ? country : '';
+        const flag = cc ? String.fromCodePoint(0x1F1E6 - 0x41 + cc.toUpperCase().charCodeAt(0))
+                        + String.fromCodePoint(0x1F1E6 - 0x41 + cc.toUpperCase().charCodeAt(1)) : '🌍';
+        return ok({
+          ip,
+          country,
+          country_code: cc,
+          flag,
+          city: cf.city || null,
+          region: cf.region || null,
+          postalCode: cf.postalCode || null,
+          timezone: cf.timezone || null,
+          latitude: cf.latitude || null,
+          longitude: cf.longitude || null,
+          asOrganization: cf.asOrganization || null,
+          asn: cf.asn || null,
+          continent: cf.continent || null,
+        });
+      }
+
       // Telegram bot self-test (admin only) — verifies bot delivers messages
       if (method==='POST' && path==='/telegram-test') {
         const auth = request.headers.get('Authorization') || '';

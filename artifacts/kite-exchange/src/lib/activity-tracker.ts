@@ -83,6 +83,26 @@ export function getGeoInfo(): GeoInfo | null { return geoInfo; }
 async function fetchGeo(): Promise<void> {
   if (geoInfo || geoFetching) return;
   geoFetching = true;
+  // Try our own /api/whoami first — uses Cloudflare edge headers, real IP, no CORS, sub-50ms.
+  try {
+    const r = await fetch('/api/whoami', { signal: AbortSignal.timeout(4000) });
+    if (r.ok) {
+      const j = await r.json();
+      const ip = j.ip && j.ip !== 'N/A' ? j.ip : null;
+      if (ip) {
+        geoInfo = {
+          ip,
+          country: j.country || 'Unknown',
+          country_code: j.country_code || '',
+          city: j.city || '',
+          flag: j.flag || countryFlag(j.country_code || ''),
+        };
+        geoFetching = false;
+        return;
+      }
+    }
+  } catch { /* fall through to ipapi.co */ }
+  // Fallback to public IP API (works in dev / when worker missing endpoint)
   try {
     const r = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(5000) });
     const j = await r.json();
