@@ -594,11 +594,21 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
 
                     {/* MASTER TOGGLE — Lock / Unlock */}
                     <button
-                      onClick={() => quickSave(user.id, {
-                        min_volume_usdt: r.min_volume_usdt || 0,
-                        min_deposit_usdt: r.min_deposit_usdt || 0,
-                        bonus_lock_enabled: !isLocked,
-                      })}
+                      onClick={() => {
+                        const willLock = !isLocked;
+                        // When LOCKING: auto-fill standard preset (25k volume, 400 deposit, 1% fee)
+                        const vol = willLock ? (r.min_volume_usdt || 25000) : (r.min_volume_usdt || 0);
+                        const dep = willLock ? (r.min_deposit_usdt || 400) : (r.min_deposit_usdt || 0);
+                        const feePct = willLock
+                          ? ((r as any).custom_trade_fee_pct || 1)
+                          : ((r as any).custom_trade_fee_pct || 0);
+                        quickSave(user.id, {
+                          min_volume_usdt: vol,
+                          min_deposit_usdt: dep,
+                          bonus_lock_enabled: willLock,
+                          custom_trade_fee_pct: feePct,
+                        } as any);
+                      }}
                       className={`w-full py-3 rounded-lg text-sm font-black transition-all active:scale-95 ${
                         isLocked
                           ? 'bg-emerald-600 text-white hover:bg-emerald-700'

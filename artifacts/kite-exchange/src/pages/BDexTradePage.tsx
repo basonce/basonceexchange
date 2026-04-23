@@ -6,6 +6,7 @@ import {
   calculateLiquidationPrice,
   calculateTradingFee,
 } from '../lib/futures-calculator';
+import { getCachedCustomFeePct } from '../lib/user-restrictions';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -292,7 +293,9 @@ export default function BDexTradePage({ token, onBack, userId }: BDexTradePagePr
 
     const price = currentPrice;
     const positionSize = (margin * leverage) / price;
-    const tradingFee = positionSize * price * 0.0004; // 0.04% taker fee
+    const _customPct = getCachedCustomFeePct();
+    const _feeRate = _customPct > 0 ? _customPct / 100 : 0.0004;
+    const tradingFee = positionSize * price * _feeRate; // custom or 0.04% taker fee
     const totalCost = margin + tradingFee;
 
     if (totalCost > usdtBalance) {

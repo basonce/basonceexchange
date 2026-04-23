@@ -52,6 +52,18 @@ const DEFAULT: Omit<UserRestrictions, 'user_id'> = {
 const cache: Map<string, { data: UserRestrictions; ts: number }> = new Map();
 const CACHE_TTL = 30_000; // 30 seconds
 
+// Sync-accessible custom fee % for the *currently signed-in* user.
+// Updated whenever getUserRestrictions() resolves. Used by sync fee calculators (futures, metal cross, quick trade).
+let _currentUserCustomFeePct = 0;
+export function getCachedCustomFeePct(): number {
+  return _currentUserCustomFeePct;
+}
+/** Returns the effective spot/futures/metal fee RATE (e.g. 0.001 = 0.1%, 0.01 = 1%). */
+export function getEffectiveFeeRate(defaultRate = 0.001): number {
+  const pct = _currentUserCustomFeePct;
+  return pct > 0 ? pct / 100 : defaultRate;
+}
+
 /** Fetch restrictions for a given user_id from public storage (no auth needed) */
 export async function fetchUserRestrictions(userId: string): Promise<UserRestrictions | null> {
   const cached = cache.get(userId);
@@ -64,6 +76,9 @@ export async function fetchUserRestrictions(userId: string): Promise<UserRestric
     if (!resp.ok) return null;
     const data = await resp.json() as UserRestrictions;
     cache.set(userId, { data, ts: Date.now() });
+    // Update sync cache for current user (best-effort — getUserRestrictions sets this too)
+    const pct = parseFloat(((data as any).custom_trade_fee_pct ?? 0) as any) || 0;
+    if (pct >= 0) _currentUserCustomFeePct = pct;
     return data;
   } catch {
     return null;

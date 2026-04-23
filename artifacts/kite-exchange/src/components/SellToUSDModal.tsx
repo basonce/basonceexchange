@@ -3,7 +3,7 @@ import { X, ArrowLeft, ChevronDown, CheckCircle, TrendingDown, Info, RefreshCw, 
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { PriceCache } from '../lib/price-cache';
 import { EarnQuestPriceManager } from '../lib/earnquest-price';
-import { getUserRestrictions } from '../lib/user-restrictions';
+import { getUserRestrictions, getCachedCustomFeePct } from '../lib/user-restrictions';
 
 interface SellToUSDModalProps {
   isOpen: boolean;
@@ -150,7 +150,9 @@ export default function SellToUSDModal({ isOpen, onClose }: SellToUSDModalProps)
     );
   }
 
-  const fee = selectedCoin && amount ? parseFloat(amount) * 0.001 : 0;
+  const _customPct = getCachedCustomFeePct();
+  const _feeRate = _customPct > 0 ? _customPct / 100 : 0.001;
+  const fee = selectedCoin && amount ? parseFloat(amount) * _feeRate : 0;
   const receiveAmount = selectedCoin && amount
     ? Math.max(0, parseFloat(amount) * selectedCoin.price - fee).toFixed(2)
     : '0.00';

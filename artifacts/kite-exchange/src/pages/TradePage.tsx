@@ -821,7 +821,8 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
       if (metalCrossInfo) {
         const currentUser = await getCurrentUser();
         if (!currentUser) { setTradeError('Please login to trade'); return; }
-        const FEE_RATE = 0.001;
+        const _customPct = parseFloat((userRestrictions as any)?.custom_trade_fee_pct ?? 0) || 0;
+        const FEE_RATE = _customPct > 0 ? _customPct / 100 : 0.001;
         const fee = quantity * FEE_RATE;
         if (tradeSide === 'buy') {
           // BUY: spend quote (BTC/ETH), receive base (BRENT) after fee

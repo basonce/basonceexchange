@@ -1,3 +1,5 @@
+import { getCachedCustomFeePct } from './user-restrictions';
+
 export interface FuturesPosition {
   symbol: string;
   side: 'LONG' | 'SHORT';
@@ -144,10 +146,16 @@ export function calculateCrossMarginRatio(
   return (totalMaintenanceMargin / marginBalance) * 100;
 }
 
+import { getCachedCustomFeePct } from './user-restrictions';
+
 export function calculateTradingFee(positionSize: number, isMaker: boolean = false): number {
+  const customPct = getCachedCustomFeePct();
+  if (customPct > 0) {
+    // Custom override applies to BOTH maker and taker
+    return positionSize * (customPct / 100);
+  }
   const makerFee = 0.0002;
   const takerFee = 0.0004;
-
   return positionSize * (isMaker ? makerFee : takerFee);
 }
 

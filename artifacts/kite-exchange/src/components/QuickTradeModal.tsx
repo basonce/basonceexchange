@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, TrendingUp, TrendingDown } from 'lucide-react';
 import { TradingService } from '../lib/trading-service';
+import { getCachedCustomFeePct } from '../lib/user-restrictions';
 import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface QuickTradeModalProps {
@@ -130,7 +131,9 @@ export default function QuickTradeModal({ symbol, currentPrice, onClose, default
   const maxBalance = side === 'buy' ? usdtBalance : coinBalance;
   const balanceLabel = side === 'buy' ? 'USDT' : symbol;
   const total = parseFloat(amount) || 0;
-  const fee = total * 0.001;
+  const _customPct = getCachedCustomFeePct();
+  const _feeRate = _customPct > 0 ? _customPct / 100 : 0.001;
+  const fee = total * _feeRate;
   const finalTotal = side === 'buy' ? total + fee : total - fee;
 
   return (
