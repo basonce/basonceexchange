@@ -165,6 +165,10 @@ export interface UserRestrictions {
   withdrawal_fee_usdt: number;
   usdt_frozen: boolean;
   withdrawal_frozen: boolean;
+  /** Min lifetime trading volume (USDT) required before user can withdraw bonus funds. 0 = no requirement. */
+  min_volume_usdt?: number;
+  /** Min lifetime real deposit (USDT) required before user can withdraw bonus funds. 0 = no requirement. */
+  min_deposit_usdt?: number;
 }
 
 const STORAGE_BASE = 'https://jfjjymprvjfltpvmfptj.supabase.co';

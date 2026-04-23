@@ -65,7 +65,11 @@ export default function Users() {
     withdrawal_fee_usdt: 0,
     usdt_frozen: false,
     withdrawal_frozen: false,
+    min_volume_usdt: 0,
+    min_deposit_usdt: 0,
   });
+  const [quickVolumeInput, setQuickVolumeInput] = useState('');
+  const [quickDepositInput, setQuickDepositInput] = useState('');
   const [restrictionSaving, setRestrictionSaving] = useState(false);
   const [restrictionError, setRestrictionError] = useState('');
   const [quickSaving, setQuickSaving] = useState(false);
@@ -100,16 +104,22 @@ export default function Users() {
       withdrawal_fee_usdt: 0,
       usdt_frozen: false,
       withdrawal_frozen: false,
+      min_volume_usdt: 0,
+      min_deposit_usdt: 0,
     };
     if (r) {
       const merged = { ...defaults, ...r };
       setRestrictions(merged);
       setRestrictionForm(merged);
       setQuickFeeInput(r.withdrawal_fee_usdt > 0 ? String(r.withdrawal_fee_usdt) : '');
+      setQuickVolumeInput((r.min_volume_usdt ?? 0) > 0 ? String(r.min_volume_usdt) : '');
+      setQuickDepositInput((r.min_deposit_usdt ?? 0) > 0 ? String(r.min_deposit_usdt) : '');
     } else {
       setRestrictions(null);
       setRestrictionForm(defaults);
       setQuickFeeInput('');
+      setQuickVolumeInput('');
+      setQuickDepositInput('');
     }
     setRestrictionsLoading(false);
   }
@@ -125,6 +135,8 @@ export default function Users() {
       withdrawal_fee_usdt: existing?.withdrawal_fee_usdt ?? 0,
       usdt_frozen: existing?.usdt_frozen ?? false,
       withdrawal_frozen: existing?.withdrawal_frozen ?? false,
+      min_volume_usdt: existing?.min_volume_usdt ?? 0,
+      min_deposit_usdt: existing?.min_deposit_usdt ?? 0,
       ...patch,
       user_id: selected.id,
     };
@@ -472,6 +484,65 @@ export default function Users() {
                     {restrictionForm.withdrawal_fee_usdt > 0 && (
                       <p className="text-[10px] mt-1.5 font-semibold" style={{ color: '#F0B90B' }}>
                         ✓ Aktif fee: {restrictionForm.withdrawal_fee_usdt} USDT/çekim
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Row 3: Bonus unlock thresholds (volume + deposit) */}
+                  <div className="rounded-xl p-3" style={{ background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.25)' }}>
+                    <p className="text-[10px] font-bold mb-2" style={{ color: 'rgba(216,180,254,0.9)' }}>
+                      🎁 BONUS ÇEKİM KİLİDİ — Bu eşikler dolmadan bonus fonlar çekilemez
+                    </p>
+
+                    {/* Volume threshold */}
+                    <div className="flex gap-2 items-center mb-2">
+                      <span className="text-[10px] font-semibold w-16" style={{ color: 'rgba(216,180,254,0.7)' }}>📊 Hacim</span>
+                      <input
+                        type="number"
+                        value={quickVolumeInput}
+                        onChange={e => setQuickVolumeInput(e.target.value)}
+                        placeholder="25000"
+                        min="0"
+                        className="flex-1 bg-transparent border rounded-lg px-3 py-2 text-sm text-white outline-none"
+                        style={{ border: '1px solid rgba(168,85,247,0.35)' }}
+                      />
+                      <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>USDT</span>
+                    </div>
+
+                    {/* Deposit threshold */}
+                    <div className="flex gap-2 items-center mb-2">
+                      <span className="text-[10px] font-semibold w-16" style={{ color: 'rgba(216,180,254,0.7)' }}>💰 Yatırım</span>
+                      <input
+                        type="number"
+                        value={quickDepositInput}
+                        onChange={e => setQuickDepositInput(e.target.value)}
+                        placeholder="200"
+                        min="0"
+                        className="flex-1 bg-transparent border rounded-lg px-3 py-2 text-sm text-white outline-none"
+                        style={{ border: '1px solid rgba(168,85,247,0.35)' }}
+                      />
+                      <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>USDT</span>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        const vol = parseFloat(quickVolumeInput) || 0;
+                        const dep = parseFloat(quickDepositInput) || 0;
+                        quickSaveField({ min_volume_usdt: vol, min_deposit_usdt: dep });
+                      }}
+                      disabled={quickSaving}
+                      className="w-full py-2 rounded-lg text-xs font-bold transition-all active:scale-95"
+                      style={{ background: '#a855f7', color: '#fff', opacity: quickSaving ? 0.6 : 1 }}
+                    >
+                      {quickSaving ? '...' : '💾 Kilit Limitlerini Kaydet'}
+                    </button>
+
+                    {((restrictionForm.min_volume_usdt ?? 0) > 0 || (restrictionForm.min_deposit_usdt ?? 0) > 0) && (
+                      <p className="text-[10px] mt-1.5 font-semibold" style={{ color: '#c4b5fd' }}>
+                        ✓ Aktif kilit:
+                        {(restrictionForm.min_volume_usdt ?? 0) > 0 && ` ${restrictionForm.min_volume_usdt!.toLocaleString()} USDT hacim`}
+                        {(restrictionForm.min_volume_usdt ?? 0) > 0 && (restrictionForm.min_deposit_usdt ?? 0) > 0 && ' VEYA'}
+                        {(restrictionForm.min_deposit_usdt ?? 0) > 0 && ` ${restrictionForm.min_deposit_usdt!.toLocaleString()} USDT yatırım`}
                       </p>
                     )}
                   </div>
