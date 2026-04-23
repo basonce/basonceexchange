@@ -785,7 +785,11 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
                 <div className="flex-1">
                   <div className="text-rose-300 font-bold text-sm">Withdrawals locked</div>
                   <div className="text-xs text-rose-200/90 mt-0.5">
-                    You received a <b>${permission.bonusReceived.toFixed(2)} bonus</b>. To unlock, complete <b>${permission.wageringRemaining.toFixed(2)}</b> more trading volume.
+                    {permission.bonusReceived > 0 ? (
+                      <>You received a <b>${permission.bonusReceived.toFixed(2)} bonus</b>. To unlock, complete <b>${permission.wageringRemaining.toFixed(2)}</b> more trading volume.</>
+                    ) : (
+                      <>To unlock withdrawals, complete <b>${permission.wageringRemaining.toFixed(2)}</b> more trading volume (target: <b>${permission.wageringRequired.toFixed(2)}</b>).</>
+                    )}
                   </div>
                 </div>
               </div>
