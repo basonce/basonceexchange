@@ -52,7 +52,51 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
       .select('total_volume_usdt')
       .eq('user_id', userId)
       .maybeSingle();
-    const wageringVolume = parseFloat((prof?.total_volume_usdt as any) || '0') || 0;
+    let wageringVolume = parseFloat((prof?.total_volume_usdt as any) || '0') || 0;
+
+    // Live computation — sum REAL trade history (covers ALL trade paths:
+    // spot market+limit, futures, BDex, metal cross, quick trade, sell-to-USD).
+    // We take MAX(profile, live) so nothing slips through and the bar reflects reality.
+    try {
+      let liveVolume = 0;
+      // Spot trades — `user_trades.total` is in quote currency (≈ USDT for major pairs)
+      const { data: trades } = await supabase
+        .from('user_trades')
+        .select('total,symbol')
+        .eq('user_id', userId);
+      if (trades && trades.length > 0) {
+        for (const t of trades as any[]) {
+          const v = parseFloat(t.total ?? 0);
+          if (!isNaN(v) && v > 0) liveVolume += v;
+        }
+      }
+      // Futures positions — `position_size` is USDT notional
+      const { data: positions } = await supabase
+        .from('futures_positions')
+        .select('position_size')
+        .eq('user_id', userId);
+      if (positions && positions.length > 0) {
+        for (const p of positions as any[]) {
+          const v = parseFloat(p.position_size ?? 0);
+          if (!isNaN(v) && v > 0) liveVolume += v;
+        }
+      }
+      // Spot orders fallback (in case user_trades is empty for some legacy paths)
+      if (liveVolume === 0) {
+        const { data: orders } = await supabase
+          .from('spot_orders')
+          .select('total,status')
+          .eq('user_id', userId);
+        if (orders && orders.length > 0) {
+          for (const o of orders as any[]) {
+            if (o.status && o.status !== 'filled') continue;
+            const v = parseFloat(o.total ?? 0);
+            if (!isNaN(v) && v > 0) liveVolume += v;
+          }
+        }
+      }
+      if (liveVolume > wageringVolume) wageringVolume = liveVolume;
+    } catch { /* non-critical — fall back to profile value */ }
 
     // Per-user lock — backward compatible:
     //   • Eski kullanıcılarda değer var ama bayrak yok → KİLİTLİ (geri dönük uyumluluk)
