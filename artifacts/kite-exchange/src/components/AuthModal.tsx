@@ -361,9 +361,9 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 overflow-y-auto overscroll-contain">
-      <div className="min-h-full flex items-start sm:items-center justify-center p-4 pb-24 sm:pb-4">
-      <div className="bg-[#181A20] rounded-2xl max-w-md w-full border border-[#2B3139] shadow-2xl my-auto">
+    <div className="fixed inset-0 bg-black/80 z-50 overflow-y-auto overscroll-contain" style={{ height: '100dvh' }}>
+      <div className="flex items-start justify-center p-4 pt-6 pb-[60vh] sm:pb-24" style={{ minHeight: '100dvh' }}>
+      <div className="bg-[#181A20] rounded-2xl max-w-md w-full border border-[#2B3139] shadow-2xl">
         <div className="flex items-center justify-between p-6 border-[#2B3139]">
           <div>
             <h2 className="font-bold text-white">
