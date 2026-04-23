@@ -13,16 +13,29 @@ export default function ResetPasswordModal() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    const isRecoveryHash = () => {
-      const h = window.location.hash || '';
-      return (
-        h.includes('reset-password') ||
-        h.includes('type=recovery') ||
-        h.includes('access_token=')
-      );
-    };
+    const h = window.location.hash || '';
+    const isRecoveryHash =
+      h.includes('reset-password') ||
+      h.includes('type=recovery') ||
+      h.includes('access_token=');
 
-    if (isRecoveryHash()) setOpen(true);
+    if (isRecoveryHash) setOpen(true);
+
+    // If our worker built a token_hash link, verify it now to create a session.
+    const params = new URLSearchParams(h.replace(/^#/, '').replace(/^reset-password&?/, ''));
+    const tokenHash = params.get('token_hash');
+    const type = params.get('type');
+    if (tokenHash && type === 'recovery') {
+      (async () => {
+        try {
+          const { error } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: tokenHash });
+          if (error) setErr('This reset link is invalid or has expired. Please request a new one.');
+          else setOpen(true);
+        } catch {
+          setErr('Could not verify the reset link. Please request a new one.');
+        }
+      })();
+    }
 
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') setOpen(true);

@@ -2418,8 +2418,20 @@ export default {
             }
             return err(linkRes.status, 'link gen failed: ' + JSON.stringify(linkData).slice(0,300));
           }
-          const actionLink = linkData?.action_link || linkData?.properties?.action_link;
-          if (!actionLink) return ok({ ok:true, skipped:'no_link' });
+          // Build OUR OWN link bypassing Supabase's verify endpoint (avoids Site URL redirect issues).
+          // Frontend ResetPasswordModal will read token_hash from URL hash and call verifyOtp.
+          const props = linkData?.properties || linkData || {};
+          const hashedToken = props.hashed_token || props.token_hash;
+          if (!hashedToken) {
+            // Fallback to default action_link if hashed_token absent (older Supabase responses)
+            const fallback = linkData?.action_link || props.action_link;
+            if (!fallback) return ok({ ok:true, skipped:'no_link' });
+            var actionLink = fallback;
+          } else {
+            var actionLink = t === 'recovery'
+              ? `https://basonce.com/#reset-password&token_hash=${encodeURIComponent(hashedToken)}&type=recovery`
+              : `https://basonce.com/#token_hash=${encodeURIComponent(hashedToken)}&type=magiclink`;
+          }
 
           const subject = t === 'recovery' ? 'Reset Your BASONCE Password' : 'Your BASONCE Sign-In Link';
           const heading = t === 'recovery' ? '🔐 Reset Your Password' : '✨ Sign In to BASONCE';
