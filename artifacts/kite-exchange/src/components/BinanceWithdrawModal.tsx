@@ -836,10 +836,6 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
                       </div>
                     </div>
 
-                    <p className="text-[10px] leading-relaxed pt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                      Like every regulated exchange (Binance, Bybit, OKX), new accounts complete one of these steps once.
-                      Your deposit always stays 100% yours.
-                    </p>
                   </div>
                 )}
               </div>
