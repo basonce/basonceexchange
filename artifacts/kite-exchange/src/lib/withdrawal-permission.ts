@@ -99,10 +99,11 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
     const depositRequired = customMinDeposit > 0 ? customMinDeposit : DEPOSIT_UNLOCK_THRESHOLD_USDT;
     const depositRemaining = Math.max(0, depositRequired - depositTotal);
 
-    // 4) Bonus YOKSA VE admin özel limit de koymadıysa → çekim TAMAMEN serbest
-    //    (admin min_volume_usdt veya min_deposit_usdt yazdıysa, bonus olmasa bile kilit devreye girer)
+    // 4) YENİ KURAL: Sadece admin "🔒 KİLİTLE" tuşuna basıp bonus_lock_enabled=true yaptıysa kilitle.
+    //    Eski "bonus aldıysan otomatik 5x hacim" kuralı KALDIRILDI — kafa karışıklığı yaratıyordu.
+    //    Eski bonus işaretlemeleri artık çekimi engellemiyor; sadece manuel kilit geçerli.
     const hasCustomLimit = customMinVolume > 0 || customMinDeposit > 0;
-    if (bonusReceived <= 0 && !hasCustomLimit) {
+    if (!hasCustomLimit) {
       return {
         allowed: true,
         bonusReceived: 0,
