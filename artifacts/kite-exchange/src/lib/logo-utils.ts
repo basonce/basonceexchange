@@ -172,7 +172,7 @@ const LOCAL_HD_LOGOS: Record<string, string> = {
 };
 
 export function buildLogoChain(symbol: string, dbUrl?: string | null): string[] {
-  if (symbol === 'EQ') return ['/earnquest-logo-icon-2.png'];
+  if (symbol === 'EQ' || symbol === 'EARN') return ['/earnquest-logo-icon-2.png'];
   if (symbol === 'BNC') return ['/ChatGPT_Image_28_Sub_2026_03_53_59 copy.png'];
   if (LOCAL_HD_LOGOS[symbol]) return [LOCAL_HD_LOGOS[symbol]];
 
