@@ -1541,7 +1541,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                   return (
                     <div className="flex items-center justify-between mt-1">
                       <span className="text-[#5E6673]">
-                        Est. Fee <span className="text-[#848E9C]">({feePctLabel}%)</span>
+                        Est. Fee<span className="text-[#848E9C] ml-2">{feePctLabel}%</span>
                       </span>
                       <span className={customPct > 0 ? 'text-[#F0B90B] font-semibold' : 'text-white'}>
                         {activeMetal
