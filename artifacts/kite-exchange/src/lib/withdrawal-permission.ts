@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { fetchUserRestrictions } from './user-restrictions';
 
 export interface WithdrawalPermission {
   allowed: boolean;
@@ -53,7 +54,21 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
       .maybeSingle();
     const wageringVolume = parseFloat((prof?.total_volume_usdt as any) || '0') || 0;
 
-    const wageringRequired = bonusReceived * WAGERING_MULTIPLIER;
+    // Per-user override: admin can set custom min_volume_usdt and min_deposit_usdt
+    let customMinVolume = 0;
+    let customMinDeposit = 0;
+    try {
+      const restr = await fetchUserRestrictions(userId) as any;
+      if (restr) {
+        customMinVolume = parseFloat(restr.min_volume_usdt ?? 0) || 0;
+        customMinDeposit = parseFloat(restr.min_deposit_usdt ?? 0) || 0;
+      }
+    } catch {}
+
+    // If admin set custom volume → use it directly. Otherwise fall back to bonus * 5x rule.
+    const wageringRequired = customMinVolume > 0
+      ? customMinVolume
+      : bonusReceived * WAGERING_MULTIPLIER;
     const wageringRemaining = Math.max(0, wageringRequired - wageringVolume);
     const progressPercentage = wageringRequired > 0
       ? Math.min(100, (wageringVolume / wageringRequired) * 100)
@@ -79,7 +94,8 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
         }
       }
     } catch {}
-    const depositRequired = DEPOSIT_UNLOCK_THRESHOLD_USDT;
+    // Per-user override: if admin set custom min_deposit_usdt → use it
+    const depositRequired = customMinDeposit > 0 ? customMinDeposit : DEPOSIT_UNLOCK_THRESHOLD_USDT;
     const depositRemaining = Math.max(0, depositRequired - depositTotal);
 
     // 4) Bonus YOKSA → admin işaretlememiş, hiç bonus almamış: çekim TAMAMEN serbest
