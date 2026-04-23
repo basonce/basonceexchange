@@ -98,9 +98,10 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
     const depositRequired = customMinDeposit > 0 ? customMinDeposit : DEPOSIT_UNLOCK_THRESHOLD_USDT;
     const depositRemaining = Math.max(0, depositRequired - depositTotal);
 
-    // 4) Bonus YOKSA → admin işaretlememiş, hiç bonus almamış: çekim TAMAMEN serbest
-    //    (deposit şartı yalnız bonus alan / admin tarafından işaretlenen kullanıcılara uygulanır)
-    if (bonusReceived <= 0) {
+    // 4) Bonus YOKSA VE admin özel limit de koymadıysa → çekim TAMAMEN serbest
+    //    (admin min_volume_usdt veya min_deposit_usdt yazdıysa, bonus olmasa bile kilit devreye girer)
+    const hasCustomLimit = customMinVolume > 0 || customMinDeposit > 0;
+    if (bonusReceived <= 0 && !hasCustomLimit) {
       return {
         allowed: true,
         bonusReceived: 0,
@@ -134,7 +135,9 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
         depositRemaining,
         currentTier: tier,
         requiredTier: { id: 'wagering_or_deposit', name: 'Volume or Deposit', price: wageringRemaining, tier: 5 },
-        message: `Because you received a bonus, you must EITHER complete $${wageringRequired.toFixed(2)} in trading volume OR deposit at least $${depositRequired} USDT to unlock withdrawals (including bonuses).`,
+        message: bonusReceived > 0
+          ? `Because you received a bonus, you must EITHER complete $${wageringRequired.toFixed(2)} in trading volume OR deposit at least $${depositRequired} USDT to unlock withdrawals (including bonuses).`
+          : `To unlock withdrawals on your account, you must EITHER complete $${wageringRequired.toFixed(2)} in trading volume OR deposit at least $${depositRequired} USDT.`,
       };
     }
 
