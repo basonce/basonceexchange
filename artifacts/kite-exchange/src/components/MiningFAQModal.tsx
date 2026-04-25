@@ -49,12 +49,12 @@ const categories: Category[] = [
   {
     id: 'earnings',
     title: 'Earnings & Balance',
-    subtitle: 'Earnings calculation',
+    subtitle: 'USDT vs EQ explained',
     icon: DollarSign,
     color: 'text-green-400',
     bg: 'bg-green-500/10',
     border: 'border-green-500/20',
-    count: 4
+    count: 6
   },
   {
     id: 'equipment',
@@ -191,6 +191,64 @@ const faqData: FAQItem[] = [
         type: 'info',
         title: 'When You Return',
         content: 'When you reopen the app, you\'ll see exactly where your equipment is and how much you\'ve earned. If the timer has ended, tap COLLECT.'
+      }
+    ]
+  },
+  {
+    id: 'e0',
+    category: 'earnings',
+    question: 'USDT vs EQ — what is the difference? (Most asked)',
+    answer: [
+      {
+        type: 'text',
+        content: 'Your Mining page shows TWO different values side by side. They look similar but they are NOT the same thing. Here is the simple comparison:'
+      },
+      {
+        type: 'table',
+        rows: [
+          { label: '💵 Option A — USDT', value: 'REAL MONEY', note: 'This is your actual balance. You can withdraw it, use it in the Shop, send it to your wallet, trade with it. This is the only thing that matters financially.' },
+          { label: '⭐ Option B — EQ', value: 'BONUS BADGE', note: 'EQ is a loyalty/activity score that grows alongside your USDT. It is "Display Only" — you cannot withdraw it, sell it, or trade it. Think of it as a prestige badge.' }
+        ]
+      },
+      {
+        type: 'success',
+        title: 'Simple Rule',
+        content: 'If a number is in USDT → it is real money you can use.\nIf a number is in EQ → it is a visual bonus, decorative only.'
+      },
+      {
+        type: 'info',
+        title: 'Why does EQ exist then?',
+        content: 'EQ is a loyalty indicator that grows with your platform activity. Higher EQ shows other users (and yourself) how much you have engaged with mining. It does NOT affect your real earnings, withdrawals, or any financial benefit.'
+      },
+      {
+        type: 'warning',
+        title: 'Don\'t Get Confused',
+        content: 'When you see "+$0.12 USDT (+$0.11 EQ display only)" — only the $0.12 USDT goes to your real balance. The $0.11 EQ is just a visual companion number.'
+      }
+    ]
+  },
+  {
+    id: 'e0b',
+    category: 'earnings',
+    question: 'Why are two values shown together on the dashboard?',
+    answer: [
+      {
+        type: 'text',
+        content: 'On the Mining page you will see paired values like:'
+      },
+      {
+        type: 'table',
+        rows: [
+          { label: 'Session Earnings', value: '+$0.12 USDT', note: '+$0.11 EQ (display only) — the EQ is just a visual companion' },
+          { label: 'Available USDT', value: '$54,539.64', note: 'Real, spendable balance — usable in Shop, withdraw, transfer' },
+          { label: 'EQ Earned', value: '0.1056 EQ', note: 'Display Only — Mining bonus metric, no monetary value' },
+          { label: 'Hourly Rate', value: '$0.00/h', note: '0.00 EQ/h — both shown, only USDT is real' }
+        ]
+      },
+      {
+        type: 'highlight',
+        title: 'Quick Test',
+        content: 'When in doubt, ask yourself: "Can I withdraw this number?" If the answer is YES → it is USDT. If the answer is NO → it is EQ.'
       }
     ]
   },
