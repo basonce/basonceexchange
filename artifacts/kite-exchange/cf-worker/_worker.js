@@ -2351,10 +2351,51 @@ export default {
           const keyboard = body?.keyboard || null;
           const silent = body?.silent === true;
           const channel = body?.channel || 'main'; // 'main' | 'feed'
+
+          /* ── 🌍 GERÇEK KONUM — Cloudflare edge'den AUTHORITATIVE geo ──
+             Tarayıcı ipapi.co'dan veri alamasa bile bu HER ZAMAN doğru.
+             Bilinmeyen ziyaretçi olmaz: IP, ülke, şehir, ASN garanti. */
+          const cf = request.cf || {};
+          const realIP = request.headers.get('CF-Connecting-IP')
+                      || request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim()
+                      || request.headers.get('X-Real-IP')
+                      || null;
+          const realCountry = cf.country || request.headers.get('CF-IPCountry') || null;
+          const realCity = cf.city || null;
+          const realRegion = cf.region || null;
+          const realASN = cf.asOrganization || (cf.asn ? `AS${cf.asn}` : null);
+          const realTZ = cf.timezone || null;
+          const cc2 = realCountry && realCountry.length === 2 ? realCountry.toUpperCase() : '';
+          const realFlag = cc2
+            ? String.fromCodePoint(0x1F1E6 - 0x41 + cc2.charCodeAt(0))
+            + String.fromCodePoint(0x1F1E6 - 0x41 + cc2.charCodeAt(1))
+            : '🌍';
+
+          // 1) Mesajdaki "?/?" ve "?" placeholder'larını GERÇEK veriyle değiştir
+          if (realCountry || realCity) {
+            const realLoc = `${realCountry || '?'} / ${realCity || '?'}`;
+            text = text.replace(/🌍\s*\?\s*\/\s*\?/g, `🌍 ${realLoc}`);
+            text = text.replace(/🌍\s*\?/g, `🌍 ${realCountry || realCity || '?'}`);
+          }
+          if (realIP) {
+            text = text.replace(/📡\s*\?/g, `📡 ${realIP}`);
+          }
+
           // Otomatik Türkçeye çevir (İngilizce UI metinleri için)
           if (body?.translate !== false) {
             text = await translateToTurkish(text);
           }
+
+          // 2) Her bildirimin altına KESİN edge bilgisini ekle (asla "bilinmiyor" olmaz)
+          const edgeFooterParts = [];
+          if (realFlag !== '🌍' || realCountry) edgeFooterParts.push(`${realFlag} ${realCountry || ''}${realCity ? ' / ' + realCity : ''}${realRegion && realRegion !== realCity ? ' (' + realRegion + ')' : ''}`);
+          if (realIP) edgeFooterParts.push(`📡 <code>${realIP}</code>`);
+          if (realASN) edgeFooterParts.push(`🏢 ${realASN}`);
+          if (realTZ) edgeFooterParts.push(`🕐 ${realTZ}`);
+          if (edgeFooterParts.length > 0) {
+            text += `\n\n━━━━━━━━━━━━\n📍 <b>EDGE DOĞRULAMA</b>\n` + edgeFooterParts.join('\n');
+          }
+
           const result = await tgSendMessage(env, text, { keyboard, silent, channel });
           return ok({ok: result.ok === true, telegram: result });
         } catch (e) { return err(500, String(e?.message||e)); }

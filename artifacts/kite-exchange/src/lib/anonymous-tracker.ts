@@ -120,20 +120,20 @@ function _tgScheduleFlush() {
     _tgFlushTimer = null;
     if (_tgQueue.length === 0) return;
     const batch = _tgQueue.splice(0, 30);
-    if (!_tgGeo) { try { _tgGeo = await fetch('https://ipapi.co/json/').then(r=>r.json()); } catch { _tgGeo = {}; } }
-    const flag = _tgGeo.country_code ? String.fromCodePoint(...[..._tgGeo.country_code.toUpperCase()].map(c=>0x1F1E6+c.charCodeAt(0)-65)) : '🌍';
+    // Cloudflare edge sunucu tarafında ülke/şehir/IP'yi kesin ekliyor.
+    // Tarayıcıdan ipapi.co çağrısı kaldırıldı — "?" görünmez.
     const lines: string[] = [];
     let lastPage = '';
     for (const e of batch) {
       if (e.page && e.page !== lastPage) { lines.push(`📄 <b>${e.page}</b>`); lastPage = e.page; }
       if (e.label) lines.push(`  👆 ${e.label}`);
     }
-    const head = `👀 <code>${_visitorId.slice(0,8)}</code> ${flag} ${_tgGeo.city || _tgGeo.country_name || ''} · ${detectDevice()}`;
+    const head = `👀 <code>${_visitorId.slice(0,8)}</code> · ${detectDevice()}`;
     const text = head + '\n' + lines.slice(0, 25).join('\n');
     fetch('/api/notify-event', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, silent: true, channel: 'feed' }),
+      body: JSON.stringify({ text, silent: true, channel: 'feed', translate: false }),
     }).catch(() => {});
   }, 4000);
 }
@@ -177,13 +177,13 @@ export function initAnonTracker(isLoggedIn: boolean): void {
       if (!sessionStorage.getItem(NOTIFIED_KEY)) {
         sessionStorage.setItem(NOTIFIED_KEY, '1');
         (async () => {
-          let geo: any = {};
-          try { geo = await fetch('https://ipapi.co/json/').then(r=>r.json()); } catch {}
-          const text = `👀 <b>ZİYARETÇİ</b>\n\n🌍 ${geo.country_name || '?'} / ${geo.city || '?'}\n📡 ${geo.ip || '?'}\n📱 ${detectDevice()} · ${detectBrowser()} · ${detectOS()}\n📄 ${_currentPage}\n🆔 <code>${_visitorId.slice(0,8)}</code>`;
+          // ipapi.co'ya bağımlı değiliz — Cloudflare edge sunucu tarafında
+          // GERÇEK IP/ülke/şehir/ASN bilgisini ekliyor. "?" görünmez.
+          const text = `👀 <b>ZİYARETÇİ</b>\n\n📱 ${detectDevice()} · ${detectBrowser()} · ${detectOS()}\n📄 ${_currentPage}\n🆔 <code>${_visitorId.slice(0,8)}</code>`;
           fetch('/api/notify-event', {
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ text, silent: false })
+            body: JSON.stringify({ text, silent: false, translate: false })
           }).catch(()=>{});
         })();
       }
