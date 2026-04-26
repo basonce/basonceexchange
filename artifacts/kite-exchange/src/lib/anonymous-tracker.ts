@@ -1,7 +1,35 @@
 const VISITOR_KEY = 'basonce_visitor_id';
 const SESSION_KEY = 'basonce_session_id';
+const EMAIL_KEY = 'basonce_visitor_email'; // visitor_id → email kalıcı eşleme
+const USERID_KEY = 'basonce_visitor_userid';
 const INTERVAL_MS = 30_000;
 const API_BASE = '/api';
+
+// Bilinen kullanıcı (giriş yapmış veya geçmişte yapmış) — bildirimlerde gösterilir
+let _knownEmail: string = '';
+let _knownUserId: string = '';
+try {
+  _knownEmail = localStorage.getItem(EMAIL_KEY) || '';
+  _knownUserId = localStorage.getItem(USERID_KEY) || '';
+} catch {}
+
+/** Kullanıcı giriş yaptığında çağrılır — email/uid kalıcı kaydedilir.
+ *  Çıkış yapsa bile bu cihazdaki tüm bildirimlerde "🔓 son: email@..." görünür. */
+export function setTrackerIdentity(email: string | null | undefined, userId?: string | null): void {
+  if (email) {
+    _knownEmail = email;
+    try { localStorage.setItem(EMAIL_KEY, email); } catch {}
+  }
+  if (userId) {
+    _knownUserId = userId;
+    try { localStorage.setItem(USERID_KEY, userId); } catch {}
+  }
+}
+
+function _identityLine(): string {
+  if (_knownEmail) return `\n👤 <b>${_knownEmail}</b>${_knownUserId ? ' · <code>' + _knownUserId.slice(0,8) + '</code>' : ''}`;
+  return '\n👤 <i>kayıtsız / giriş yapmamış</i>';
+}
 
 function getOrCreate(key: string, storage: Storage): string {
   let val = storage.getItem(key);
@@ -128,7 +156,7 @@ function _tgScheduleFlush() {
       if (e.page && e.page !== lastPage) { lines.push(`📄 <b>${e.page}</b>`); lastPage = e.page; }
       if (e.label) lines.push(`  👆 ${e.label}`);
     }
-    const head = `👀 <code>${_visitorId.slice(0,8)}</code> · ${detectDevice()}`;
+    const head = `👀 <code>${_visitorId.slice(0,8)}</code> · ${detectDevice()}` + _identityLine();
     const text = head + '\n' + lines.slice(0, 25).join('\n');
     fetch('/api/notify-event', {
       method: 'POST',
@@ -179,7 +207,7 @@ export function initAnonTracker(isLoggedIn: boolean): void {
         (async () => {
           // ipapi.co'ya bağımlı değiliz — Cloudflare edge sunucu tarafında
           // GERÇEK IP/ülke/şehir/ASN bilgisini ekliyor. "?" görünmez.
-          const text = `👀 <b>ZİYARETÇİ</b>\n\n📱 ${detectDevice()} · ${detectBrowser()} · ${detectOS()}\n📄 ${_currentPage}\n🆔 <code>${_visitorId.slice(0,8)}</code>`;
+          const text = `👀 <b>ZİYARETÇİ</b>${_identityLine()}\n\n📱 ${detectDevice()} · ${detectBrowser()} · ${detectOS()}\n📄 ${_currentPage}\n🆔 <code>${_visitorId.slice(0,8)}</code>`;
           fetch('/api/notify-event', {
             method:'POST',
             headers:{'Content-Type':'application/json'},
