@@ -155,6 +155,10 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
   const [loading, setLoading] = useState(false);
   const [lastFetchedKey, setLastFetchedKey] = useState<string>('');
   const [buyingCard, setBuyingCard] = useState(false);
+  const [providerPicker, setProviderPicker] = useState<{
+    address: string;
+    userId: string;
+  } | null>(null);
   const refreshRef = useRef<number | null>(null);
 
   // Modal açıldığında ve filtreler değiştiğinde veri çek
@@ -252,23 +256,80 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
         return;
       }
 
-      // 2) MoonPay linkini gerçek adres + USDT-TRC20 + fiat ile hazırla.
-      const params = new URLSearchParams({
-        defaultCurrencyCode: 'usdt_trx',     // USDT on Tron (TRC20)
-        currencyCode: 'usdt_trx',
-        baseCurrencyCode: selectedCountry.currency.toLowerCase(),
-        walletAddress: trc20.address,
-        externalCustomerId: user.id,        // MoonPay panelinde hangi basonce kullanıcısı olduğunu görmek için
-        showWalletAddressForm: 'false',
-      });
-      const url = `https://buy.moonpay.com/?${params.toString()}`;
-      if (typeof window !== 'undefined') window.open(url, '_blank', 'noopener,noreferrer');
+      // 2) Adres + userId hazır → kullanıcının seçim yapabileceği picker'ı aç.
+      //    Sağlayıcılar ülkeye göre sıralanır (Türkiye için Mercuryo/Transak öne).
+      setProviderPicker({ address: trc20.address, userId: user.id });
     } catch (e) {
       console.error('Buy with card failed:', e);
       alert('Could not start card purchase. Please try again.');
     } finally {
       setBuyingCard(false);
     }
+  };
+
+  // Provider link builder'lar — hepsi USDT-TRC20'yi user'ın gerçek adresine yollar
+  const buildMoonPayUrl = (address: string, userId: string, fiat: string) => {
+    const p = new URLSearchParams({
+      currencyCode: 'usdt_trx',
+      walletAddress: address,
+      baseCurrencyCode: fiat.toLowerCase(),
+      externalCustomerId: userId,
+      showWalletAddressForm: 'false',
+    });
+    return `https://buy.moonpay.com/?${p.toString()}`;
+  };
+  const buildTransakUrl = (address: string, userId: string, fiat: string) => {
+    const p = new URLSearchParams({
+      cryptoCurrencyCode: 'USDT',
+      network: 'tron',
+      walletAddress: address,
+      fiatCurrency: fiat,
+      defaultPaymentMethod: 'credit_debit_card',
+      partnerCustomerId: userId,
+      disableWalletAddressForm: 'true',
+      hideMenu: 'true',
+    });
+    return `https://global.transak.com/?${p.toString()}`;
+  };
+  const buildMercuryoUrl = (address: string, userId: string, fiat: string) => {
+    const p = new URLSearchParams({
+      type: 'buy',
+      currency: 'USDT',
+      network: 'TRX',
+      address,
+      fiat_currency: fiat,
+      merchant_transaction_id: userId,
+      hide_address: 'true',
+    });
+    return `https://exchange.mercuryo.io/?${p.toString()}`;
+  };
+
+  type Provider = {
+    key: string;
+    name: string;
+    badge: string;
+    note: string;
+    url: string;
+  };
+  const getProvidersForCountry = (address: string, userId: string, fiat: string, country: string): Provider[] => {
+    const moonpay: Provider = {
+      key: 'moonpay', name: 'MoonPay', badge: 'Global',
+      note: '160+ countries · Apple Pay/Google Pay',
+      url: buildMoonPayUrl(address, userId, fiat),
+    };
+    const transak: Provider = {
+      key: 'transak', name: 'Transak', badge: 'Global',
+      note: '150+ countries · Card / bank transfer',
+      url: buildTransakUrl(address, userId, fiat),
+    };
+    const mercuryo: Provider = {
+      key: 'mercuryo', name: 'Mercuryo', badge: 'TR ✓',
+      note: 'Works in Turkey · Card / Apple Pay',
+      url: buildMercuryoUrl(address, userId, fiat),
+    };
+    // Türkiye: Mercuryo ve Transak öne, MoonPay sona (TR'de zaten kart kabul etmiyor)
+    if (country === 'TR' || fiat === 'TRY') return [mercuryo, transak, moonpay];
+    return [moonpay, transak, mercuryo];
   };
 
   const handleManualRefresh = () => {
@@ -305,13 +366,60 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
 
         {/* "Buy with Card" CTA */}
         <div className="px-4 pb-3 shrink-0">
-          <button onClick={handleBuyWithCard}
-            className="w-full bg-gradient-to-r from-[#F0B90B] to-[#FFD24A] hover:from-[#E0AB00] hover:to-[#F0C840] text-black font-bold text-sm py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#F0B90B]/20 transition-all active:scale-[0.98]">
+          <button onClick={handleBuyWithCard} disabled={buyingCard}
+            className="w-full bg-gradient-to-r from-[#F0B90B] to-[#FFD24A] hover:from-[#E0AB00] hover:to-[#F0C840] disabled:opacity-60 text-black font-bold text-sm py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#F0B90B]/20 transition-all active:scale-[0.98]">
             <CreditCard className="w-4 h-4" />
-            Buy USDT with Card
-            <ExternalLink className="w-3 h-3 opacity-60" />
+            {buyingCard ? 'Preparing…' : 'Buy USDT with Card'}
+            {!buyingCard && <ExternalLink className="w-3 h-3 opacity-60" />}
           </button>
         </div>
+
+        {/* Provider picker — kullanıcı sağlayıcısını seçer (ülkeye göre sıralı) */}
+        {providerPicker && (
+          <div className="absolute inset-0 z-10 flex items-end justify-center bg-black/70 backdrop-blur-sm"
+               onClick={() => setProviderPicker(null)}>
+            <div className="bg-[#0B0E11] w-full max-w-[480px] rounded-t-2xl border-t border-x border-[#22262E] p-4 pb-6"
+                 onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-white font-bold text-base">Choose payment provider</h3>
+                <button onClick={() => setProviderPicker(null)}
+                        className="text-gray-500 hover:text-white w-7 h-7 flex items-center justify-center rounded-full hover:bg-[#22262E]">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mb-3">
+                USDT will be delivered to your basonce wallet on the Tron (TRC20) network.
+              </p>
+              <div className="space-y-2">
+                {getProvidersForCountry(
+                  providerPicker.address, providerPicker.userId,
+                  selectedCountry.currency, selectedCountry.code,
+                ).map((p) => (
+                  <a key={p.key} href={p.url} target="_blank" rel="noopener noreferrer"
+                     onClick={() => setProviderPicker(null)}
+                     className="flex items-center justify-between gap-3 bg-[#1C1F27] hover:bg-[#22262E] border border-[#22262E] rounded-xl p-3 transition-colors">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-white font-bold text-sm">{p.name}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold border ${
+                          p.badge.startsWith('TR')
+                            ? 'bg-[#0ECB81]/15 text-[#0ECB81] border-[#0ECB81]/20'
+                            : 'bg-[#F0B90B]/15 text-[#F0B90B] border-[#F0B90B]/20'
+                        }`}>{p.badge}</span>
+                      </div>
+                      <div className="text-[11px] text-gray-500 mt-0.5 truncate">{p.note}</div>
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-gray-500 shrink-0" />
+                  </a>
+                ))}
+              </div>
+              <p className="text-[10px] text-gray-600 mt-3 text-center">
+                All providers require ID verification by law (card networks &amp; regulator rules).
+                We pick the one with the lightest KYC for your country.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Buy/Sell */}
         <div className="flex px-4 pb-3 gap-2 shrink-0">
