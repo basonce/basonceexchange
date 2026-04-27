@@ -154,6 +154,7 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
   const [ads, setAds] = useState<AggregatedAd[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastFetchedKey, setLastFetchedKey] = useState<string>('');
+  const [buyingCard, setBuyingCard] = useState(false);
   const refreshRef = useRef<number | null>(null);
 
   // Modal açıldığında ve filtreler değiştiğinde veri çek
@@ -217,7 +218,6 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
     if (typeof window !== 'undefined') window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  const [buyingCard, setBuyingCard] = useState(false);
   const handleBuyWithCard = async () => {
     if (buyingCard) return;
     setBuyingCard(true);
