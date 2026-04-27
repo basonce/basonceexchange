@@ -267,7 +267,7 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
     }
   };
 
-  // Provider link builder'lar — hepsi USDT-TRC20'yi user'ın gerçek adresine yollar
+  // Provider link builder'lar — sadece partner key olmadan public açılan sağlayıcılar
   const buildMoonPayUrl = (address: string, userId: string, fiat: string) => {
     const p = new URLSearchParams({
       currencyCode: 'usdt_trx',
@@ -278,30 +278,24 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
     });
     return `https://buy.moonpay.com/?${p.toString()}`;
   };
-  const buildTransakUrl = (address: string, userId: string, fiat: string) => {
+  // Ramp Network: hostApiKey opsiyonel, base URL key olmadan da widget'ı açar
+  const buildRampUrl = (address: string, fiat: string) => {
     const p = new URLSearchParams({
-      cryptoCurrencyCode: 'USDT',
-      network: 'tron',
-      walletAddress: address,
+      defaultAsset: 'TRON_USDT',
+      userAddress: address,
       fiatCurrency: fiat,
-      defaultPaymentMethod: 'credit_debit_card',
-      partnerCustomerId: userId,
-      disableWalletAddressForm: 'true',
-      hideMenu: 'true',
+      defaultFlow: 'ONRAMP',
     });
-    return `https://global.transak.com/?${p.toString()}`;
+    return `https://buy.ramp.network/?${p.toString()}`;
   };
-  const buildMercuryoUrl = (address: string, userId: string, fiat: string) => {
+  // Changelly Buy: public buy widget, key gerektirmez, TR dahil 150+ ülke
+  const buildChangellyUrl = (address: string, fiat: string) => {
     const p = new URLSearchParams({
-      type: 'buy',
-      currency: 'USDT',
-      network: 'TRX',
+      ticker_from: fiat.toLowerCase(),
+      ticker_to: 'usdt',
       address,
-      fiat_currency: fiat,
-      merchant_transaction_id: userId,
-      hide_address: 'true',
     });
-    return `https://exchange.mercuryo.io/?${p.toString()}`;
+    return `https://changelly.com/buy/usdt?${p.toString()}`;
   };
 
   type Provider = {
@@ -314,22 +308,22 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
   const getProvidersForCountry = (address: string, userId: string, fiat: string, country: string): Provider[] => {
     const moonpay: Provider = {
       key: 'moonpay', name: 'MoonPay', badge: 'Global',
-      note: '160+ countries · Apple Pay/Google Pay',
+      note: '160+ countries · Apple Pay/Google Pay · Not in Turkey',
       url: buildMoonPayUrl(address, userId, fiat),
     };
-    const transak: Provider = {
-      key: 'transak', name: 'Transak', badge: 'Global',
-      note: '150+ countries · Card / bank transfer',
-      url: buildTransakUrl(address, userId, fiat),
+    const ramp: Provider = {
+      key: 'ramp', name: 'Ramp Network', badge: 'Global',
+      note: '150+ countries · Card / Apple Pay / bank transfer',
+      url: buildRampUrl(address, fiat),
     };
-    const mercuryo: Provider = {
-      key: 'mercuryo', name: 'Mercuryo', badge: 'TR ✓',
-      note: 'Works in Turkey · Card / Apple Pay',
-      url: buildMercuryoUrl(address, userId, fiat),
+    const changelly: Provider = {
+      key: 'changelly', name: 'Changelly', badge: 'TR ✓',
+      note: 'Works in Turkey · Routes to Banxa/Mercuryo automatically',
+      url: buildChangellyUrl(address, fiat),
     };
-    // Türkiye: Mercuryo ve Transak öne, MoonPay sona (TR'de zaten kart kabul etmiyor)
-    if (country === 'TR' || fiat === 'TRY') return [mercuryo, transak, moonpay];
-    return [moonpay, transak, mercuryo];
+    // Türkiye: Changelly öne (TR'de çalışan), Ramp ikinci, MoonPay sona (TR'de yok)
+    if (country === 'TR' || fiat === 'TRY') return [changelly, ramp, moonpay];
+    return [moonpay, ramp, changelly];
   };
 
   const handleManualRefresh = () => {
