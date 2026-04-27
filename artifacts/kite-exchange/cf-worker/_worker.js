@@ -2614,6 +2614,565 @@ export default {
         return ok({ allOk, results });
       }
 
+      /* ╔══════════════════════════════════════════════════════════════╗
+         ║  P2P TRADING — gerçek emanet (escrow) tabanlı sistem         ║
+         ╚══════════════════════════════════════════════════════════════╝ */
+
+      // P2P helper'ları
+      const p2pAuthUid = async () => {
+        const uid = await getAuthedUserId(request, env);
+        if (uid) return uid;
+        // Fallback: x-requester-id header (frontend'in halen kullandığı pattern)
+        return request.headers.get('x-requester-id') || null;
+      };
+      const p2pSbInsert = async (table, body, returning = true) => {
+        const r = await fetch(`${REST}/${table}`, {
+          method: 'POST',
+          headers: { ...restHeaders(env), 'Content-Type': 'application/json',
+                     Prefer: returning ? 'return=representation' : 'return=minimal' },
+          body: JSON.stringify(body),
+        });
+        if (!r.ok) throw new Error(`insert ${table}: ${await r.text()}`);
+        return returning ? r.json() : null;
+      };
+      const p2pSbDelete = async (table, query) => {
+        const r = await fetch(`${REST}/${table}${query}`, {
+          method: 'DELETE',
+          headers: { ...restHeaders(env), Prefer: 'return=minimal' },
+        });
+        if (!r.ok) throw new Error(`delete ${table}: ${await r.text()}`);
+      };
+      const p2pNum = (v) => v == null ? 0 : Number(v);
+      const p2pOrderNumber = () => 'BAS-P2P-' +
+        (Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2,6).toUpperCase()).slice(-10);
+
+      const p2pTgAlert = (text) => {
+        // Sessiz değil — bu önemli olaylar
+        tgSendMessage(env, text, { silent: false }).catch(()=>{});
+      };
+
+      /* ── GET /p2p/ads — aktif ilanları listele (filtreli) ── */
+      if (method === 'GET' && path === '/p2p/ads') {
+        const adType = url.searchParams.get('type') || 'sell';            // alıcı görüyorsa 'sell' satıcıları
+        const sym    = url.searchParams.get('symbol') || 'USDT';
+        const fiat   = url.searchParams.get('currency') || 'USD';
+        const pmFilter = url.searchParams.get('payment_method') || '';
+        const fiatAmt  = Number(url.searchParams.get('amount') || 0);
+        let q = `?status=eq.active&ad_type=eq.${encodeURIComponent(adType)}` +
+                `&crypto_symbol=eq.${encodeURIComponent(sym)}&fiat_currency=eq.${encodeURIComponent(fiat)}` +
+                `&available_crypto=gt.0&order=price.${adType==='sell'?'asc':'desc'}&limit=80`;
+        const ads = await sbGet('p2p_advertisements', q, env);
+
+        // Tüccar bilgilerini ve istatistikleri çek
+        const advIds = [...new Set(ads.map(a => a.advertiser_id))];
+        let profilesMap = {}, statsMap = {};
+        if (advIds.length > 0) {
+          const idList = advIds.map(i => `"${i}"`).join(',');
+          const profiles = await sbGet('user_profiles',
+            `?id=in.(${idList})&select=id,email,full_name`, env).catch(()=>[]);
+          profiles.forEach(p => {
+            profilesMap[p.id] = {
+              email: p.email,
+              username: (p.full_name || p.email || '').split('@')[0].slice(0,20),
+            };
+          });
+          const stats = await sbGet('p2p_user_stats',
+            `?user_id=in.(${idList})`, env).catch(()=>[]);
+          stats.forEach(s => { statsMap[s.user_id] = s; });
+        }
+
+        // Sonuçları zenginleştir + filtrele
+        const result = ads
+          .filter(a => !pmFilter || (a.payment_methods || []).includes(pmFilter))
+          .filter(a => !fiatAmt || (fiatAmt >= p2pNum(a.min_amount) && fiatAmt <= p2pNum(a.max_amount)))
+          .map(a => {
+            const prof = profilesMap[a.advertiser_id] || {};
+            const st = statsMap[a.advertiser_id] || {};
+            return {
+              ...a,
+              merchant: {
+                username: st.display_name || prof.username || 'Trader',
+                trades: st.total_trades || 0,
+                completed: st.completed_trades || 0,
+                completion: st.total_trades > 0 ? (st.completed_trades / st.total_trades * 100).toFixed(1) : '0.0',
+                like: st.like_count || 0,
+                dislike: st.dislike_count || 0,
+                verified: !!st.is_verified,
+                merchant_badge: st.badge || null,
+              },
+            };
+          });
+        return ok({ ads: result });
+      }
+
+      /* ── POST /p2p/ads — yeni ilan oluştur (SELL ise emaneti kilitle) ── */
+      if (method === 'POST' && path === '/p2p/ads') {
+        const uid = await p2pAuthUid();
+        if (!uid) return err(401, 'auth required');
+        const b = body || {};
+        const adType = b.ad_type;
+        const sym = b.crypto_symbol;
+        const network = b.crypto_network;
+        const fiat = b.fiat_currency;
+        const price = Number(b.price);
+        const minA = Number(b.min_amount);
+        const maxA = Number(b.max_amount);
+        const totalCrypto = Number(b.total_crypto);
+        const pms = Array.isArray(b.payment_methods) ? b.payment_methods : [];
+        const window = Math.min(120, Math.max(5, Number(b.payment_window_minutes || 15)));
+
+        if (!['buy','sell'].includes(adType)) return err(400, 'ad_type invalid');
+        if (!sym || !network || !fiat) return err(400, 'symbol/network/currency required');
+        if (!(price > 0)) return err(400, 'price invalid');
+        if (!(minA > 0) || !(maxA >= minA)) return err(400, 'limits invalid');
+        if (!(totalCrypto > 0)) return err(400, 'total_crypto invalid');
+        if (pms.length === 0) return err(400, 'at least one payment method required');
+
+        // SELL ilanı: kullanıcıdan crypto'yu emanete kilitle
+        if (adType === 'sell') {
+          try {
+            await sbRpc('p2p_lock_escrow',
+              { p_user_id: uid, p_symbol: sym, p_amount: totalCrypto }, env);
+          } catch (e) {
+            return err(400, `escrow lock failed: ${String(e.message||e)}`);
+          }
+        }
+
+        const adRow = await p2pSbInsert('p2p_advertisements', {
+          advertiser_id: uid, ad_type: adType, crypto_symbol: sym, crypto_network: network,
+          fiat_currency: fiat, price, min_amount: minA, max_amount: maxA,
+          total_crypto: totalCrypto, available_crypto: totalCrypto,
+          payment_methods: pms, payment_window_minutes: window,
+          terms: b.terms || null, country_code: b.country_code || null,
+        });
+        await sbRpc('p2p_ensure_stats', { p_user_id: uid }, env).catch(()=>{});
+
+        const ad = adRow[0];
+        p2pTgAlert(`📢 <b>YENİ P2P İLAN</b>\n\n${adType==='sell'?'🟢 SAT':'🔴 AL'}: ${totalCrypto} ${sym} (${network})\n💱 ${price} ${fiat}/${sym}\n💵 Limit: ${minA}-${maxA} ${fiat}\n💳 ${pms.join(', ')}\n🆔 <code>${ad.id.slice(0,8)}</code>`);
+        return ok({ ad });
+      }
+
+      /* ── PATCH /p2p/ads/:id — ilan güncelle (durumu, fiyat, terms) ── */
+      const adIdMatch = path.match(/^\/p2p\/ads\/([0-9a-f-]{36})$/);
+      if (method === 'PATCH' && adIdMatch) {
+        const uid = await p2pAuthUid();
+        if (!uid) return err(401, 'auth required');
+        const adId = adIdMatch[1];
+        const cur = await sbGet('p2p_advertisements', `?id=eq.${adId}&limit=1`, env);
+        if (!cur[0]) return err(404, 'ad not found');
+        if (cur[0].advertiser_id !== uid) return err(403, 'not owner');
+
+        const allowed = {};
+        const b = body || {};
+        if (b.status && ['active','paused'].includes(b.status)) allowed.status = b.status;
+        if (b.price && Number(b.price) > 0) allowed.price = Number(b.price);
+        if (b.terms !== undefined) allowed.terms = b.terms;
+        if (b.payment_methods && Array.isArray(b.payment_methods)) allowed.payment_methods = b.payment_methods;
+        if (Number(b.min_amount) > 0) allowed.min_amount = Number(b.min_amount);
+        if (Number(b.max_amount) > 0) allowed.max_amount = Number(b.max_amount);
+
+        const updated = await sbPatch('p2p_advertisements', `?id=eq.${adId}`, allowed, env);
+        return ok({ ad: updated[0] });
+      }
+
+      /* ── DELETE /p2p/ads/:id — ilanı iptal et + emaneti iade ── */
+      if (method === 'DELETE' && adIdMatch) {
+        const uid = await p2pAuthUid();
+        if (!uid) return err(401, 'auth required');
+        const adId = adIdMatch[1];
+        const cur = await sbGet('p2p_advertisements', `?id=eq.${adId}&limit=1`, env);
+        if (!cur[0]) return err(404, 'ad not found');
+        if (cur[0].advertiser_id !== uid) return err(403, 'not owner');
+        if (cur[0].status === 'cancelled') return ok({ ok: true, already: true });
+
+        // SELL ilanı ise kalan crypto'yu iade et
+        if (cur[0].ad_type === 'sell' && p2pNum(cur[0].available_crypto) > 0) {
+          await sbRpc('p2p_refund_escrow',
+            { p_seller_id: uid, p_symbol: cur[0].crypto_symbol, p_amount: p2pNum(cur[0].available_crypto) }, env)
+            .catch(()=>{});
+        }
+        await sbPatch('p2p_advertisements', `?id=eq.${adId}`, { status: 'cancelled' }, env);
+        return ok({ ok: true });
+      }
+
+      /* ── GET /p2p/my-ads — kendi ilanlarım ── */
+      if (method === 'GET' && path === '/p2p/my-ads') {
+        const uid = await p2pAuthUid();
+        if (!uid) return err(401, 'auth required');
+        const ads = await sbGet('p2p_advertisements',
+          `?advertiser_id=eq.${uid}&order=created_at.desc&limit=100`, env);
+        return ok({ ads });
+      }
+
+      /* ── POST /p2p/orders — ilandan sipariş başlat ── */
+      if (method === 'POST' && path === '/p2p/orders') {
+        const uid = await p2pAuthUid();
+        if (!uid) return err(401, 'auth required');
+        const b = body || {};
+        const adId = b.ad_id;
+        const fiatAmt = Number(b.fiat_amount);
+        const pmChosen = String(b.payment_method || '');
+        if (!adId || !(fiatAmt > 0) || !pmChosen) return err(400, 'ad_id/fiat_amount/payment_method required');
+
+        const ads = await sbGet('p2p_advertisements', `?id=eq.${adId}&limit=1`, env);
+        const ad = ads[0];
+        if (!ad) return err(404, 'ad not found');
+        if (ad.status !== 'active') return err(400, 'ad not active');
+        if (ad.advertiser_id === uid) return err(400, 'cannot trade with yourself');
+        if (fiatAmt < p2pNum(ad.min_amount) || fiatAmt > p2pNum(ad.max_amount))
+          return err(400, `amount out of limits (${ad.min_amount}-${ad.max_amount})`);
+        if (!(ad.payment_methods || []).includes(pmChosen))
+          return err(400, 'payment method not supported by this ad');
+
+        const cryptoAmt = Number((fiatAmt / p2pNum(ad.price)).toFixed(8));
+
+        // ATOMİK: ilanın available'ından düş — race condition önler. Başarısızsa atomik hata döner.
+        try {
+          await sbRpc('p2p_consume_ad_available',
+            { p_ad_id: adId, p_amount: cryptoAmt }, env);
+        } catch (e) {
+          return err(400, `ad allocation failed: ${String(e.message||e)}`);
+        }
+
+        // SELL ilanından alıyorsak: satıcı ilan açarken kilitlemişti, ek kilit yok.
+        // BUY ilanından satıyorsak: biz (uid) satıcı olarak şimdi crypto'yu kilitliyoruz.
+        let buyerId, sellerId;
+        if (ad.ad_type === 'sell') {
+          buyerId = uid; sellerId = ad.advertiser_id;
+        } else {
+          buyerId = ad.advertiser_id; sellerId = uid;
+          try {
+            await sbRpc('p2p_lock_escrow',
+              { p_user_id: uid, p_symbol: ad.crypto_symbol, p_amount: cryptoAmt }, env);
+          } catch (e) {
+            // Lock başarısız: atomik consume'u geri al
+            await sbRpc('p2p_restore_ad_available',
+              { p_ad_id: adId, p_amount: cryptoAmt }, env).catch(()=>{});
+            return err(400, `escrow lock failed: ${String(e.message||e)}`);
+          }
+        }
+
+        // Satıcının ödeme yöntemi detaylarını kopyala (snapshot)
+        let pmDetails = null;
+        const pms = await sbGet('p2p_payment_methods',
+          `?user_id=eq.${sellerId}&method_type=eq.${encodeURIComponent(pmChosen)}&is_active=eq.true&limit=1`, env)
+          .catch(()=>[]);
+        if (pms[0]) pmDetails = {
+          method_type: pms[0].method_type,
+          account_name: pms[0].account_name,
+          account_number: pms[0].account_number,
+          bank_name: pms[0].bank_name,
+          notes: pms[0].notes,
+        };
+
+        const deadline = new Date(Date.now() + (ad.payment_window_minutes || 15) * 60 * 1000).toISOString();
+        const orderRow = await p2pSbInsert('p2p_orders', {
+          order_number: p2pOrderNumber(),
+          ad_id: adId, buyer_id: buyerId, seller_id: sellerId,
+          crypto_symbol: ad.crypto_symbol, crypto_network: ad.crypto_network,
+          fiat_currency: ad.fiat_currency,
+          crypto_amount: cryptoAmt, fiat_amount: fiatAmt, price: ad.price,
+          payment_method: pmChosen, payment_method_details: pmDetails,
+          payment_deadline: deadline,
+        });
+        const order = orderRow[0];
+
+        // (available_crypto + trade_count zaten p2p_consume_ad_available içinde atomik düşüldü)
+
+        // Sistem mesajı
+        await p2pSbInsert('p2p_messages', {
+          order_id: order.id, sender_id: buyerId, is_system: true,
+          message: `Sipariş oluşturuldu. Alıcı ${ad.payment_window_minutes||15} dk içinde ${pmChosen} ile ${fiatAmt} ${ad.fiat_currency} ödemeli.`,
+        }, false).catch(()=>{});
+
+        // İstatistik artır
+        await sbRpc('p2p_ensure_stats', { p_user_id: buyerId }, env).catch(()=>{});
+        await sbRpc('p2p_ensure_stats', { p_user_id: sellerId }, env).catch(()=>{});
+
+        p2pTgAlert(`🤝 <b>YENİ P2P SİPARİŞ</b>\n\n📋 ${order.order_number}\n💰 ${cryptoAmt} ${ad.crypto_symbol} (${ad.crypto_network})\n💱 ${fiatAmt} ${ad.fiat_currency}\n💳 ${pmChosen}\n⏱️ ${ad.payment_window_minutes||15} dk`);
+        return ok({ order });
+      }
+
+      /* ── GET /p2p/orders — siparişlerim (alıcı veya satıcı) ── */
+      if (method === 'GET' && path === '/p2p/orders') {
+        const uid = await p2pAuthUid();
+        if (!uid) return err(401, 'auth required');
+        const status = url.searchParams.get('status'); // optional
+        let q = `?or=(buyer_id.eq.${uid},seller_id.eq.${uid})&order=created_at.desc&limit=100`;
+        if (status) q += `&status=eq.${encodeURIComponent(status)}`;
+        const orders = await sbGet('p2p_orders', q, env);
+        return ok({ orders, my_id: uid });
+      }
+
+      /* ── GET /p2p/orders/:id — tek sipariş detayı (mesajlarla) ── */
+      const orderIdMatch = path.match(/^\/p2p\/orders\/([0-9a-f-]{36})(\/(mark-paid|confirm|cancel|dispute|messages))?$/);
+      if (method === 'GET' && orderIdMatch && !orderIdMatch[2]) {
+        const uid = await p2pAuthUid();
+        if (!uid) return err(401, 'auth required');
+        const oid = orderIdMatch[1];
+        const ords = await sbGet('p2p_orders', `?id=eq.${oid}&limit=1`, env);
+        const o = ords[0];
+        if (!o) return err(404, 'order not found');
+        if (o.buyer_id !== uid && o.seller_id !== uid) return err(403, 'not party to order');
+        const msgs = await sbGet('p2p_messages',
+          `?order_id=eq.${oid}&order=created_at.asc&limit=200`, env).catch(()=>[]);
+        return ok({ order: o, messages: msgs, my_id: uid });
+      }
+
+      /* ── POST /p2p/orders/:id/messages — mesaj gönder ── */
+      if (method === 'POST' && orderIdMatch && orderIdMatch[3] === 'messages') {
+        const uid = await p2pAuthUid();
+        if (!uid) return err(401, 'auth required');
+        const oid = orderIdMatch[1];
+        const ords = await sbGet('p2p_orders', `?id=eq.${oid}&limit=1`, env);
+        const o = ords[0];
+        if (!o) return err(404, 'order not found');
+        if (o.buyer_id !== uid && o.seller_id !== uid) return err(403, 'not party to order');
+        const text = String((body && body.message) || '').trim().slice(0, 1000);
+        if (!text) return err(400, 'empty message');
+        const msg = await p2pSbInsert('p2p_messages',
+          { order_id: oid, sender_id: uid, message: text }, true);
+        return ok({ message: msg[0] });
+      }
+
+      /* ── GET /p2p/orders/:id/messages — sadece mesajları çek ── */
+      if (method === 'GET' && orderIdMatch && orderIdMatch[3] === 'messages') {
+        const uid = await p2pAuthUid();
+        if (!uid) return err(401, 'auth required');
+        const oid = orderIdMatch[1];
+        const ords = await sbGet('p2p_orders', `?id=eq.${oid}&limit=1`, env);
+        const o = ords[0];
+        if (!o) return err(404, 'order not found');
+        if (o.buyer_id !== uid && o.seller_id !== uid) return err(403, 'not party to order');
+        const msgs = await sbGet('p2p_messages',
+          `?order_id=eq.${oid}&order=created_at.asc&limit=500`, env);
+        return ok({ messages: msgs });
+      }
+
+      /* ── POST /p2p/orders/:id/mark-paid — alıcı ödemeyi yaptığını bildirir ── */
+      if (method === 'POST' && orderIdMatch && orderIdMatch[3] === 'mark-paid') {
+        const uid = await p2pAuthUid();
+        if (!uid) return err(401, 'auth required');
+        const oid = orderIdMatch[1];
+        const ords = await sbGet('p2p_orders', `?id=eq.${oid}&limit=1`, env);
+        const o = ords[0];
+        if (!o) return err(404, 'order not found');
+        if (o.buyer_id !== uid) return err(403, 'only buyer can mark paid');
+        if (o.status !== 'pending_payment') return err(400, `cannot mark-paid (status=${o.status})`);
+
+        await sbPatch('p2p_orders', `?id=eq.${oid}`,
+          { status: 'paid', buyer_marked_paid_at: new Date().toISOString() }, env);
+        await p2pSbInsert('p2p_messages',
+          { order_id: oid, sender_id: uid, is_system: true,
+            message: `Alıcı ödemeyi yaptığını bildirdi. Satıcı onayı bekleniyor.` }, false).catch(()=>{});
+        p2pTgAlert(`💸 <b>P2P ÖDEME BİLDİRİLDİ</b>\n\n📋 ${o.order_number}\n💵 ${o.fiat_amount} ${o.fiat_currency}\n💳 ${o.payment_method}\n👀 Satıcı onayı bekleniyor`);
+        return ok({ ok: true });
+      }
+
+      /* ── POST /p2p/orders/:id/confirm — satıcı parayı aldığını onaylar → emanet açılır ── */
+      if (method === 'POST' && orderIdMatch && orderIdMatch[3] === 'confirm') {
+        const uid = await p2pAuthUid();
+        if (!uid) return err(401, 'auth required');
+        const oid = orderIdMatch[1];
+        const ords = await sbGet('p2p_orders', `?id=eq.${oid}&limit=1`, env);
+        const o = ords[0];
+        if (!o) return err(404, 'order not found');
+        if (o.seller_id !== uid) return err(403, 'only seller can confirm');
+        if (!['paid','pending_payment'].includes(o.status))
+          return err(400, `cannot confirm (status=${o.status})`);
+
+        // Emaneti aç: satıcının kilitli miktarını alıcıya transfer et
+        try {
+          await sbRpc('p2p_release_escrow', {
+            p_seller_id: o.seller_id, p_buyer_id: o.buyer_id,
+            p_symbol: o.crypto_symbol, p_amount: p2pNum(o.crypto_amount),
+          }, env);
+        } catch (e) {
+          return err(500, `escrow release failed: ${String(e.message||e)}`);
+        }
+
+        const nowIso = new Date().toISOString();
+        await sbPatch('p2p_orders', `?id=eq.${oid}`,
+          { status: 'completed', seller_confirmed_at: nowIso, completed_at: nowIso }, env);
+
+        // İstatistikleri güncelle
+        const updateStats = async (uid2) => {
+          const sts = await sbGet('p2p_user_stats', `?user_id=eq.${uid2}&limit=1`, env);
+          if (sts[0]) {
+            await sbPatch('p2p_user_stats', `?user_id=eq.${uid2}`, {
+              total_trades: (sts[0].total_trades || 0) + 1,
+              completed_trades: (sts[0].completed_trades || 0) + 1,
+            }, env);
+          }
+        };
+        await updateStats(o.buyer_id).catch(()=>{});
+        await updateStats(o.seller_id).catch(()=>{});
+
+        await p2pSbInsert('p2p_messages',
+          { order_id: oid, sender_id: uid, is_system: true,
+            message: `✅ Satıcı ödemeyi onayladı. ${o.crypto_amount} ${o.crypto_symbol} alıcıya aktarıldı. İşlem tamamlandı.` }, false).catch(()=>{});
+
+        p2pTgAlert(`✅ <b>P2P TAMAMLANDI</b>\n\n📋 ${o.order_number}\n💰 ${o.crypto_amount} ${o.crypto_symbol}\n💵 ${o.fiat_amount} ${o.fiat_currency}\n🔓 Emanet alıcıya aktarıldı`);
+        return ok({ ok: true });
+      }
+
+      /* ── POST /p2p/orders/:id/cancel — siparişi iptal et ── */
+      if (method === 'POST' && orderIdMatch && orderIdMatch[3] === 'cancel') {
+        const uid = await p2pAuthUid();
+        if (!uid) return err(401, 'auth required');
+        const oid = orderIdMatch[1];
+        const ords = await sbGet('p2p_orders', `?id=eq.${oid}&limit=1`, env);
+        const o = ords[0];
+        if (!o) return err(404, 'order not found');
+        if (o.buyer_id !== uid && o.seller_id !== uid) return err(403, 'not party');
+        if (!['pending_payment','paid'].includes(o.status)) return err(400, `cannot cancel (status=${o.status})`);
+        if (o.status === 'paid' && uid === o.seller_id)
+          return err(400, 'seller cannot cancel after payment marked — open dispute instead');
+
+        // İptal: emanetteki crypto'yu satıcıya iade et + ad.available'ı atomik geri arttır
+        await sbRpc('p2p_refund_escrow', {
+          p_seller_id: o.seller_id, p_symbol: o.crypto_symbol, p_amount: p2pNum(o.crypto_amount),
+        }, env).catch(()=>{});
+        await sbRpc('p2p_restore_ad_available',
+          { p_ad_id: o.ad_id, p_amount: p2pNum(o.crypto_amount) }, env).catch(()=>{});
+
+        await sbPatch('p2p_orders', `?id=eq.${oid}`, {
+          status: 'cancelled', cancelled_at: new Date().toISOString(),
+          cancelled_by: uid, cancel_reason: (body && body.reason) || null,
+        }, env);
+        await p2pSbInsert('p2p_messages',
+          { order_id: oid, sender_id: uid, is_system: true,
+            message: `Sipariş iptal edildi. Sebep: ${(body && body.reason) || 'belirtilmedi'}` }, false).catch(()=>{});
+        return ok({ ok: true });
+      }
+
+      /* ── POST /p2p/orders/:id/dispute — anlaşmazlık aç ── */
+      if (method === 'POST' && orderIdMatch && orderIdMatch[3] === 'dispute') {
+        const uid = await p2pAuthUid();
+        if (!uid) return err(401, 'auth required');
+        const oid = orderIdMatch[1];
+        const ords = await sbGet('p2p_orders', `?id=eq.${oid}&limit=1`, env);
+        const o = ords[0];
+        if (!o) return err(404, 'order not found');
+        if (o.buyer_id !== uid && o.seller_id !== uid) return err(403, 'not party');
+        if (!['pending_payment','paid'].includes(o.status))
+          return err(400, `cannot dispute (status=${o.status})`);
+
+        const reason = String((body && body.reason) || '').slice(0, 500);
+        await sbPatch('p2p_orders', `?id=eq.${oid}`, {
+          status: 'disputed', dispute_opened_at: new Date().toISOString(),
+          dispute_opened_by: uid, dispute_reason: reason,
+        }, env);
+        await p2pSbInsert('p2p_messages',
+          { order_id: oid, sender_id: uid, is_system: true,
+            message: `🚨 ANLAŞMAZLIK AÇILDI: ${reason || 'sebep belirtilmedi'}` }, false).catch(()=>{});
+        p2pTgAlert(`🚨🚨🚨 <b>P2P ANLAŞMAZLIK</b> 🚨🚨🚨\n\n📋 ${o.order_number}\n💰 ${o.crypto_amount} ${o.crypto_symbol}\n💵 ${o.fiat_amount} ${o.fiat_currency}\n📝 ${reason}\n🆔 <code>${oid.slice(0,8)}</code>\n\n⚠️ Admin panelinden çözülmesi gerekiyor!`);
+        return ok({ ok: true });
+      }
+
+      /* ── ADMIN: POST /p2p/admin/resolve-dispute ── */
+      if (method === 'POST' && path === '/p2p/admin/resolve-dispute') {
+        const uid = await p2pAuthUid();
+        if (!uid) return err(401, 'auth required');
+        // Admin kontrolü
+        const prof = await sbGet('user_profiles', `?id=eq.${uid}&select=is_admin&limit=1`, env);
+        if (!prof[0] || prof[0].is_admin !== true) return err(403, 'admin only');
+
+        const oid = body?.order_id;
+        const winner = body?.winner; // 'buyer' or 'seller'
+        const note = String(body?.note || '').slice(0, 500);
+        if (!oid || !['buyer','seller'].includes(winner)) return err(400, 'order_id + winner required');
+
+        const ords = await sbGet('p2p_orders', `?id=eq.${oid}&limit=1`, env);
+        const o = ords[0];
+        if (!o) return err(404, 'order not found');
+        if (o.status !== 'disputed') return err(400, 'not disputed');
+
+        if (winner === 'buyer') {
+          // Alıcı kazandı → emaneti alıcıya aktar
+          await sbRpc('p2p_release_escrow', {
+            p_seller_id: o.seller_id, p_buyer_id: o.buyer_id,
+            p_symbol: o.crypto_symbol, p_amount: p2pNum(o.crypto_amount),
+          }, env);
+        } else {
+          // Satıcı kazandı → emaneti iade et
+          await sbRpc('p2p_refund_escrow', {
+            p_seller_id: o.seller_id, p_symbol: o.crypto_symbol, p_amount: p2pNum(o.crypto_amount),
+          }, env);
+        }
+
+        await sbPatch('p2p_orders', `?id=eq.${oid}`, {
+          status: winner === 'buyer' ? 'completed' : 'cancelled',
+          dispute_resolved_at: new Date().toISOString(),
+          dispute_winner: winner, dispute_admin_note: note,
+          completed_at: winner === 'buyer' ? new Date().toISOString() : null,
+          cancelled_at:  winner === 'seller' ? new Date().toISOString() : null,
+        }, env);
+        await p2pSbInsert('p2p_messages',
+          { order_id: oid, sender_id: uid, is_system: true,
+            message: `⚖️ Admin kararı: ${winner === 'buyer' ? 'ALICI' : 'SATICI'} kazandı.\nNot: ${note}` }, false).catch(()=>{});
+        p2pTgAlert(`⚖️ <b>P2P ANLAŞMAZLIK ÇÖZÜLDÜ</b>\n\n📋 ${o.order_number}\n🏆 Kazanan: ${winner === 'buyer' ? 'ALICI' : 'SATICI'}\n📝 ${note}`);
+        return ok({ ok: true });
+      }
+
+      /* ── ADMIN: GET /p2p/admin/disputes ── */
+      if (method === 'GET' && path === '/p2p/admin/disputes') {
+        const uid = await p2pAuthUid();
+        if (!uid) return err(401, 'auth required');
+        const prof = await sbGet('user_profiles', `?id=eq.${uid}&select=is_admin&limit=1`, env);
+        if (!prof[0] || prof[0].is_admin !== true) return err(403, 'admin only');
+        const orders = await sbGet('p2p_orders',
+          `?status=eq.disputed&order=dispute_opened_at.desc&limit=100`, env);
+        return ok({ orders });
+      }
+
+      /* ── GET /p2p/payment-methods — kayıtlı ödeme yöntemlerim ── */
+      if (method === 'GET' && path === '/p2p/payment-methods') {
+        const uid = await p2pAuthUid();
+        if (!uid) return err(401, 'auth required');
+        const pms = await sbGet('p2p_payment_methods',
+          `?user_id=eq.${uid}&order=created_at.desc`, env);
+        return ok({ payment_methods: pms });
+      }
+
+      /* ── POST /p2p/payment-methods — yeni ödeme yöntemi ekle ── */
+      if (method === 'POST' && path === '/p2p/payment-methods') {
+        const uid = await p2pAuthUid();
+        if (!uid) return err(401, 'auth required');
+        const b = body || {};
+        if (!b.method_type || !b.account_name) return err(400, 'method_type + account_name required');
+        const pm = await p2pSbInsert('p2p_payment_methods', {
+          user_id: uid, method_type: b.method_type, account_name: b.account_name,
+          account_number: b.account_number || null, bank_name: b.bank_name || null,
+          notes: b.notes || null,
+        });
+        return ok({ payment_method: pm[0] });
+      }
+
+      /* ── DELETE /p2p/payment-methods/:id ── */
+      const pmIdMatch = path.match(/^\/p2p\/payment-methods\/([0-9a-f-]{36})$/);
+      if (method === 'DELETE' && pmIdMatch) {
+        const uid = await p2pAuthUid();
+        if (!uid) return err(401, 'auth required');
+        const cur = await sbGet('p2p_payment_methods', `?id=eq.${pmIdMatch[1]}&limit=1`, env);
+        if (!cur[0]) return err(404, 'pm not found');
+        if (cur[0].user_id !== uid) return err(403, 'not owner');
+        await p2pSbDelete('p2p_payment_methods', `?id=eq.${pmIdMatch[1]}`);
+        return ok({ ok: true });
+      }
+
+      /* ── GET /p2p/user-stats/:userId — herkese açık tüccar bilgisi ── */
+      const userStatsMatch = path.match(/^\/p2p\/user-stats\/([0-9a-f-]{36})$/);
+      if (method === 'GET' && userStatsMatch) {
+        const sts = await sbGet('p2p_user_stats', `?user_id=eq.${userStatsMatch[1]}&limit=1`, env);
+        const prof = await sbGet('user_profiles',
+          `?id=eq.${userStatsMatch[1]}&select=email,full_name&limit=1`, env);
+        return ok({
+          stats: sts[0] || null,
+          profile: prof[0] ? { email: prof[0].email, username: (prof[0].full_name || prof[0].email || '').split('@')[0] } : null,
+        });
+      }
+
       return err(404, `Not found: ${method} ${path}`);
     } catch(e) {
       console.error('[worker]', e.message);

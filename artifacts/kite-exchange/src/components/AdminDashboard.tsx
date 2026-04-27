@@ -106,7 +106,7 @@ const cryptoSymbols = [
   'AVAX', 'DOT', 'MATIC', 'LINK', 'UNI', 'LTC', 'ATOM', 'PEPE', 'SHIB', 'WIF', 'BONK'
 ];
 
-type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue' | 'visitors' | 'vip' | 'live' | 'restrictions' | 'quick-restrict' | 'matches';
+type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue' | 'visitors' | 'vip' | 'live' | 'restrictions' | 'quick-restrict' | 'matches' | 'p2p-disputes';
 
 // ── BTC-only pair list ───────────────────────────────────────
 const BTC_ONLY_PAIRS = [
@@ -2367,6 +2367,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'restrictions', label: 'Kısıtla', icon: Lock },
     { id: 'quick-restrict', label: 'Hızlı', icon: Zap },
     { id: 'matches', label: 'Maçlar', icon: Gamepad2 },
+    { id: 'p2p-disputes', label: 'P2P Anlaşmazlık', icon: AlertTriangle },
     { id: 'radar', label: 'BSC&TRC', icon: Radio, badge: depositRadarNewCount },
     { id: 'social', label: 'Sosyal Medya', icon: Send },
   ];
@@ -2822,6 +2823,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
 
         {activeTab === 'matches' && (
           <MatchControlsPanel adminId={FALLBACK_ADMIN} />
+        )}
+
+        {activeTab === 'p2p-disputes' && (
+          <P2PDisputesPanel />
         )}
 
         {activeTab === 'radar' && (
@@ -3402,6 +3407,187 @@ function PositionControlPanel() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ════════════════════════════ P2P DISPUTES ADMIN ════════════════════════════ */
+function P2PDisputesPanel() {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<any | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [profileMap, setProfileMap] = useState<Record<string, any>>({});
+  const [resolving, setResolving] = useState(false);
+
+  const API_BASE = (typeof window !== 'undefined' && /replit\.dev|localhost/.test(window.location.host))
+    ? 'https://basonce.com/api' : '/api';
+
+  const callApi = async (path: string, init: RequestInit = {}) => {
+    const r = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-requester-id': FALLBACK_ADMIN,
+        ...(init.headers || {}),
+      },
+    });
+    const txt = await r.text();
+    let d: any = null;
+    try { d = txt ? JSON.parse(txt) : null; } catch { d = { error: txt }; }
+    if (!r.ok) throw new Error(d?.error || `HTTP ${r.status}`);
+    return d;
+  };
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const d = await callApi('/p2p/admin/disputes');
+      const ords = d.orders || [];
+      setOrders(ords);
+      const ids = [...new Set(ords.flatMap((o: any) => [o.buyer_id, o.seller_id]))];
+      if (ids.length > 0) {
+        try {
+          const { data: profs } = await supabase
+            .from('user_profiles')
+            .select('id,email,full_name')
+            .in('id', ids as string[]);
+          const m: Record<string, any> = {};
+          (profs || []).forEach((p: any) => { m[p.id] = p; });
+          setProfileMap(m);
+        } catch {}
+      }
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const openOrder = async (o: any) => {
+    setSelected(o);
+    try {
+      const d = await callApi(`/p2p/orders/${o.id}/messages`);
+      setMessages(d.messages || []);
+    } catch { setMessages([]); }
+  };
+
+  const resolve = async (winner: 'buyer' | 'seller') => {
+    if (!selected) return;
+    const note = prompt(`Resolve for ${winner.toUpperCase()}. Admin note?`) || '';
+    if (!confirm(`Confirm: ${winner.toUpperCase()} wins. Crypto will ${winner === 'buyer' ? 'be released to buyer' : 'be refunded to seller'}.`)) return;
+    setResolving(true);
+    try {
+      const res = await fetch('https://basonce.com/api/p2p/admin/resolve-dispute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-requester-id': FALLBACK_ADMIN },
+        body: JSON.stringify({ order_id: selected.id, winner, note }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d?.error || 'failed');
+      alert('Resolved.');
+      setSelected(null);
+      load();
+    } catch (e: any) { alert(e.message); }
+    setResolving(false);
+  };
+
+  if (selected) {
+    const buyer = profileMap[selected.buyer_id] || {};
+    const seller = profileMap[selected.seller_id] || {};
+    return (
+      <div>
+        <button onClick={() => setSelected(null)} className="mb-3 text-sm text-blue-600">← Back to disputes</button>
+        <div className="bg-white rounded-xl shadow p-4 mb-3">
+          <h3 className="font-bold text-lg text-red-600 mb-2">🚨 Dispute — {selected.order_number}</h3>
+          <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+            <div>
+              <div className="text-gray-500">Buyer</div>
+              <div className="font-bold">{buyer.email || selected.buyer_id.slice(0,8)}</div>
+            </div>
+            <div>
+              <div className="text-gray-500">Seller</div>
+              <div className="font-bold">{seller.email || selected.seller_id.slice(0,8)}</div>
+            </div>
+            <div><div className="text-gray-500">Crypto</div><div className="font-bold">{Number(selected.crypto_amount).toFixed(6)} {selected.crypto_symbol} ({selected.crypto_network})</div></div>
+            <div><div className="text-gray-500">Fiat</div><div className="font-bold">{Number(selected.fiat_amount).toFixed(2)} {selected.fiat_currency}</div></div>
+            <div><div className="text-gray-500">Payment Method</div><div className="font-bold">{selected.payment_method}</div></div>
+            <div><div className="text-gray-500">Buyer marked paid</div><div className="font-bold">{selected.buyer_marked_paid_at ? new Date(selected.buyer_marked_paid_at).toLocaleString() : 'NO'}</div></div>
+          </div>
+          {selected.payment_method_details && (
+            <div className="bg-gray-50 rounded-lg p-2 text-xs mb-2">
+              <div className="font-bold text-gray-700 mb-1">Payment details snapshot:</div>
+              <pre className="whitespace-pre-wrap font-mono">{JSON.stringify(selected.payment_method_details, null, 2)}</pre>
+            </div>
+          )}
+          <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-sm mb-3">
+            <div className="font-bold text-red-700">Reason:</div>
+            <div>{selected.dispute_reason || '(no reason provided)'}</div>
+            <div className="text-xs text-gray-600 mt-1">Opened by: {selected.dispute_opened_by === selected.buyer_id ? 'BUYER' : 'SELLER'} at {new Date(selected.dispute_opened_at).toLocaleString()}</div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => resolve('buyer')} disabled={resolving}
+              className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 disabled:opacity-50">
+              ✓ Buyer wins (release to buyer)
+            </button>
+            <button onClick={() => resolve('seller')} disabled={resolving}
+              className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 disabled:opacity-50">
+              ✓ Seller wins (refund seller)
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow p-4">
+          <h4 className="font-bold mb-3">💬 Chat history ({messages.length})</h4>
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            {messages.map(m => {
+              const isBuyer = m.sender_id === selected.buyer_id;
+              const sysClass = m.is_system ? 'bg-gray-100 text-gray-600 italic text-center' : isBuyer ? 'bg-blue-50' : 'bg-yellow-50';
+              return (
+                <div key={m.id} className={`rounded p-2 text-sm ${sysClass}`}>
+                  {!m.is_system && <div className="text-xs font-bold text-gray-700">{isBuyer ? '👤 BUYER' : '🏪 SELLER'}</div>}
+                  <div>{m.message}</div>
+                  <div className="text-[10px] text-gray-400 mt-0.5">{new Date(m.created_at).toLocaleString()}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold text-gray-900">P2P Anlaşmazlıklar ({orders.length})</h2>
+        <button onClick={load} className="px-4 py-2 rounded bg-blue-600 text-white text-sm">Refresh</button>
+      </div>
+      {loading ? <div className="text-gray-500 text-center py-8">Loading...</div> :
+       orders.length === 0 ? <div className="text-gray-500 text-center py-12">No active disputes. 🎉</div> :
+       <div className="space-y-2">
+         {orders.map(o => {
+           const buyer = profileMap[o.buyer_id] || {};
+           const seller = profileMap[o.seller_id] || {};
+           return (
+             <button key={o.id} onClick={() => openOrder(o)}
+               className="w-full text-left bg-white rounded-xl shadow p-3 hover:bg-red-50 border-l-4 border-red-500">
+               <div className="flex items-center justify-between mb-1">
+                 <span className="font-bold text-red-600">🚨 {o.order_number}</span>
+                 <span className="text-xs text-gray-500">{new Date(o.dispute_opened_at).toLocaleString()}</span>
+               </div>
+               <div className="text-sm text-gray-700">
+                 {Number(o.crypto_amount).toFixed(4)} {o.crypto_symbol} · {Number(o.fiat_amount).toFixed(2)} {o.fiat_currency} · {o.payment_method}
+               </div>
+               <div className="text-xs text-gray-500 mt-1">
+                 Buyer: <span className="font-bold">{buyer.email || o.buyer_id.slice(0,8)}</span>
+                 {' · '}Seller: <span className="font-bold">{seller.email || o.seller_id.slice(0,8)}</span>
+               </div>
+               <div className="text-xs text-red-600 italic mt-1">"{(o.dispute_reason || '(no reason)').slice(0, 100)}"</div>
+             </button>
+           );
+         })}
+       </div>
+      }
     </div>
   );
 }

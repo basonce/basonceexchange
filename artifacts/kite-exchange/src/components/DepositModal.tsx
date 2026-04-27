@@ -274,8 +274,6 @@ export default function DepositModal({ isOpen, onClose, coinSymbol, coinName }: 
       <P2PModal
         isOpen={showP2P}
         onClose={() => setShowP2P(false)}
-        depositAddress={depositAddress}
-        depositNetwork={selectedNetwork?.name || 'TRC20'}
       />
     </>
   );
