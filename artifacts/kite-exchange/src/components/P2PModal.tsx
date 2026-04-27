@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { X, Search, Shield, ChevronDown, Star, Clock, CreditCard, ExternalLink, RefreshCw } from 'lucide-react';
+import { supabase, getCurrentUser } from '../lib/supabase';
+import { generateDepositAddress } from '../lib/crypto-utils';
 
 interface P2PModalProps {
   isOpen: boolean;
@@ -216,11 +218,57 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
     if (typeof window !== 'undefined') window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  const handleBuyWithCard = () => {
-    // MoonPay hosted widget — KYB gerektirmez, referrer modeli
-    // Kullanıcı kendi cüzdan adresini orada girer, USDT kartla satın alır
-    const url = `https://buy.moonpay.com/?defaultCurrencyCode=usdt&baseCurrencyCode=${selectedCountry.currency.toLowerCase()}`;
-    if (typeof window !== 'undefined') window.open(url, '_blank', 'noopener,noreferrer');
+  const [buyingCard, setBuyingCard] = useState(false);
+  const handleBuyWithCard = async () => {
+    if (buyingCard) return;
+    setBuyingCard(true);
+    try {
+      // 1) Kullanıcının basonce hesabındaki USDT-TRC20 yatırma adresini bul/oluştur.
+      //    MoonPay USDT'yi doğrudan bu adrese yollayacak — para basonce cüzdanına düşecek.
+      const user = await getCurrentUser();
+      if (!user) {
+        alert('Please log in first so we can deliver USDT to your basonce wallet.');
+        return;
+      }
+
+      const network = 'TRC20'; // En düşük çekim ücreti, MoonPay'de en yaygın USDT ağı
+      let address = '';
+      const { data: existing } = await supabase
+        .from('deposit_addresses')
+        .select('address')
+        .eq('user_id', user.id)
+        .eq('coin_symbol', 'USDT')
+        .eq('network', network)
+        .maybeSingle();
+
+      if (existing?.address) {
+        address = existing.address;
+      } else {
+        address = generateDepositAddress('USDT', network, user.id);
+        await supabase.from('deposit_addresses').insert({
+          user_id: user.id, coin_symbol: 'USDT', network, address,
+        });
+      }
+
+      // 2) MoonPay linkini hazırlıyoruz — adres + ağ + para birimi pre-fill.
+      //    externalCustomerId, MoonPay panelinde işlemi hangi basonce kullanıcısına ait olduğunu
+      //    sonradan görebilmemiz için ekleniyor.
+      const params = new URLSearchParams({
+        defaultCurrencyCode: 'usdt_trx',     // USDT TRC20 (Tron)
+        currencyCode: 'usdt_trx',
+        baseCurrencyCode: selectedCountry.currency.toLowerCase(),
+        walletAddress: address,
+        externalCustomerId: user.id,
+        showWalletAddressForm: 'false',      // Kullanıcı adresi değiştirebilmesin
+      });
+      const url = `https://buy.moonpay.com/?${params.toString()}`;
+      if (typeof window !== 'undefined') window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      console.error('Buy with card failed:', e);
+      alert('Could not start card purchase. Please try again.');
+    } finally {
+      setBuyingCard(false);
+    }
   };
 
   const handleManualRefresh = () => {
