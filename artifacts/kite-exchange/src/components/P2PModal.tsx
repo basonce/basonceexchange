@@ -376,9 +376,9 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
 
         {/* Provider picker — kullanıcı sağlayıcısını seçer (ülkeye göre sıralı) */}
         {providerPicker && (
-          <div className="absolute inset-0 z-10 flex items-end justify-center bg-black/70 backdrop-blur-sm"
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
                onClick={() => setProviderPicker(null)}>
-            <div className="bg-[#0B0E11] w-full max-w-[480px] rounded-t-2xl border-t border-x border-[#22262E] p-4 pb-6"
+            <div className="bg-[#0B0E11] w-full max-w-[420px] rounded-2xl border border-[#22262E] p-4 max-h-[85dvh] overflow-y-auto shadow-2xl"
                  onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-white font-bold text-base">Choose payment provider</h3>
