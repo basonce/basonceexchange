@@ -300,15 +300,15 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
   const getProvidersForCountry = (address: string, userId: string, fiat: string, country: string): Provider[] => {
     const moonpay: Provider = {
       key: 'moonpay', name: 'MoonPay', badge: 'Global',
-      note: '160+ countries · Apple Pay/Google Pay · Not in Turkey',
+      note: 'Card · Apple Pay · Google Pay · Bank transfer',
       url: buildMoonPayUrl(address, userId, fiat),
     };
     const mercuryo: Provider = {
-      key: 'mercuryo', name: 'Mercuryo', badge: 'TR ✓',
-      note: 'Works in Turkey · Card / Apple Pay',
+      key: 'mercuryo', name: 'Mercuryo', badge: 'Global',
+      note: 'Card · Apple Pay · Google Pay · SEPA',
       url: buildMercuryoUrl(address, fiat),
     };
-    // Türkiye: Mercuryo öne (TR'de geçen), MoonPay yedek
+    // Sıralama ülkeye göre içsel — kullanıcıya rozet göstermiyoruz
     if (country === 'TR' || fiat === 'TRY') return [mercuryo, moonpay];
     return [moonpay, mercuryo];
   };
