@@ -267,7 +267,7 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
     }
   };
 
-  // Provider link builder'lar — sadece partner key olmadan public açılan sağlayıcılar
+  // Provider link builder'lar
   const buildMoonPayUrl = (address: string, userId: string, fiat: string) => {
     const p = new URLSearchParams({
       currencyCode: 'usdt_trx',
@@ -278,24 +278,16 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
     });
     return `https://buy.moonpay.com/?${p.toString()}`;
   };
-  // Ramp Network: hostApiKey opsiyonel, base URL key olmadan da widget'ı açar
-  const buildRampUrl = (address: string, fiat: string) => {
+  // Mercuryo: kullanıcı önceki sürümde çalıştığını teyit etti — public exchange URL
+  const buildMercuryoUrl = (address: string, fiat: string) => {
     const p = new URLSearchParams({
-      defaultAsset: 'TRON_USDT',
-      userAddress: address,
-      fiatCurrency: fiat,
-      defaultFlow: 'ONRAMP',
-    });
-    return `https://buy.ramp.network/?${p.toString()}`;
-  };
-  // Changelly Buy: public buy widget, key gerektirmez, TR dahil 150+ ülke
-  const buildChangellyUrl = (address: string, fiat: string) => {
-    const p = new URLSearchParams({
-      ticker_from: fiat.toLowerCase(),
-      ticker_to: 'usdt',
+      type: 'buy',
+      currency: 'USDT',
+      network: 'TRX',
       address,
+      fiat_currency: fiat,
     });
-    return `https://changelly.com/buy/usdt?${p.toString()}`;
+    return `https://exchange.mercuryo.io/?${p.toString()}`;
   };
 
   type Provider = {
@@ -311,19 +303,14 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
       note: '160+ countries · Apple Pay/Google Pay · Not in Turkey',
       url: buildMoonPayUrl(address, userId, fiat),
     };
-    const ramp: Provider = {
-      key: 'ramp', name: 'Ramp Network', badge: 'Global',
-      note: '150+ countries · Card / Apple Pay / bank transfer',
-      url: buildRampUrl(address, fiat),
+    const mercuryo: Provider = {
+      key: 'mercuryo', name: 'Mercuryo', badge: 'TR ✓',
+      note: 'Works in Turkey · Card / Apple Pay',
+      url: buildMercuryoUrl(address, fiat),
     };
-    const changelly: Provider = {
-      key: 'changelly', name: 'Changelly', badge: 'TR ✓',
-      note: 'Works in Turkey · Routes to Banxa/Mercuryo automatically',
-      url: buildChangellyUrl(address, fiat),
-    };
-    // Türkiye: Changelly öne (TR'de çalışan), Ramp ikinci, MoonPay sona (TR'de yok)
-    if (country === 'TR' || fiat === 'TRY') return [changelly, ramp, moonpay];
-    return [moonpay, ramp, changelly];
+    // Türkiye: Mercuryo öne (TR'de geçen), MoonPay yedek
+    if (country === 'TR' || fiat === 'TRY') return [mercuryo, moonpay];
+    return [moonpay, mercuryo];
   };
 
   const handleManualRefresh = () => {
