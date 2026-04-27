@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { X, Search, Shield, ChevronDown, Star, Clock, CreditCard, ExternalLink, RefreshCw } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
-import { generateDepositAddress } from '../lib/crypto-utils';
 
 interface P2PModalProps {
   isOpen: boolean;
@@ -223,43 +222,44 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
     if (buyingCard) return;
     setBuyingCard(true);
     try {
-      // 1) Kullanıcının basonce hesabındaki USDT-TRC20 yatırma adresini bul/oluştur.
-      //    MoonPay USDT'yi doğrudan bu adrese yollayacak — para basonce cüzdanına düşecek.
+      // 1) Kullanıcının basonce wallet_pool'dan atanmış GERÇEK TRC20 USDT adresini bul.
+      //    Yoksa wallet_pool'dan bir tane atayalım. (RealDepositModal ile aynı RPC akışı.)
       const user = await getCurrentUser();
       if (!user) {
         alert('Please log in first so we can deliver USDT to your basonce wallet.');
         return;
       }
 
-      const network = 'TRC20'; // En düşük çekim ücreti, MoonPay'de en yaygın USDT ağı
-      let address = '';
-      const { data: existing } = await supabase
-        .from('deposit_addresses')
-        .select('address')
-        .eq('user_id', user.id)
-        .eq('coin_symbol', 'USDT')
-        .eq('network', network)
-        .maybeSingle();
+      const fetchTrc20 = async () => {
+        const { data: wallets } = await supabase
+          .rpc('get_user_deposit_addresses', { user_id_param: user.id });
+        return (wallets || []).find((w: any) => w.network === 'TRC20');
+      };
 
-      if (existing?.address) {
-        address = existing.address;
-      } else {
-        address = generateDepositAddress('USDT', network, user.id);
-        await supabase.from('deposit_addresses').insert({
-          user_id: user.id, coin_symbol: 'USDT', network, address,
-        });
+      let trc20 = await fetchTrc20();
+      if (!trc20) {
+        // Havuzdan ata, sonra tekrar oku
+        const { data: assignResult, error: assignError } = await supabase
+          .rpc('assign_wallet_to_user', { p_user_id: user.id });
+        if (assignError || !assignResult?.success) {
+          alert('Could not assign a deposit wallet right now. Please try again or contact support.');
+          return;
+        }
+        trc20 = await fetchTrc20();
+      }
+      if (!trc20?.address) {
+        alert('No TRC20 deposit wallet available. Please open Deposit once to initialize, then try again.');
+        return;
       }
 
-      // 2) MoonPay linkini hazırlıyoruz — adres + ağ + para birimi pre-fill.
-      //    externalCustomerId, MoonPay panelinde işlemi hangi basonce kullanıcısına ait olduğunu
-      //    sonradan görebilmemiz için ekleniyor.
+      // 2) MoonPay linkini gerçek adres + USDT-TRC20 + fiat ile hazırla.
       const params = new URLSearchParams({
-        defaultCurrencyCode: 'usdt_trx',     // USDT TRC20 (Tron)
+        defaultCurrencyCode: 'usdt_trx',     // USDT on Tron (TRC20)
         currencyCode: 'usdt_trx',
         baseCurrencyCode: selectedCountry.currency.toLowerCase(),
-        walletAddress: address,
-        externalCustomerId: user.id,
-        showWalletAddressForm: 'false',      // Kullanıcı adresi değiştirebilmesin
+        walletAddress: trc20.address,
+        externalCustomerId: user.id,        // MoonPay panelinde hangi basonce kullanıcısı olduğunu görmek için
+        showWalletAddressForm: 'false',
       });
       const url = `https://buy.moonpay.com/?${params.toString()}`;
       if (typeof window !== 'undefined') window.open(url, '_blank', 'noopener,noreferrer');
