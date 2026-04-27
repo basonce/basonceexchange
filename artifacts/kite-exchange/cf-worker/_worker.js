@@ -2651,6 +2651,233 @@ export default {
         tgSendMessage(env, text, { silent: false }).catch(()=>{});
       };
 
+      /* ── GET /p2p/aggregate — Binance/Bybit/OKX/KuCoin public P2P aggregator ── */
+      if (method === 'GET' && path === '/p2p/aggregate') {
+        const fiat  = (url.searchParams.get('fiat') || 'USD').toUpperCase();
+        const asset = (url.searchParams.get('asset') || 'USDT').toUpperCase();
+        const type  = (url.searchParams.get('type') || 'BUY').toUpperCase(); // BUY = user wants to buy crypto
+        const page  = Number(url.searchParams.get('page') || 1);
+
+        // Module-level cache (30s)
+        if (!globalThis.__p2pAggCache) globalThis.__p2pAggCache = new Map();
+        const cacheKey = `${fiat}|${asset}|${type}|${page}`;
+        const cached = globalThis.__p2pAggCache.get(cacheKey);
+        const now = Date.now();
+        if (cached && (now - cached.t) < 30000) {
+          return new Response(JSON.stringify({ ads: cached.ads, cached: true }),
+            { status: 200, headers: { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=30' } });
+        }
+
+        const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0 Safari/537.36';
+        const timeout = (ms) => AbortSignal.timeout(ms);
+
+        // ── Binance ───────────────────────────────────────────────
+        const fetchBinance = async () => {
+          // Binance tradeType is advertiser perspective: SELL = advertiser sells crypto (user buys),
+          //                                              BUY  = advertiser buys crypto  (user sells)
+          // So user BUY → tradeType=SELL, user SELL → tradeType=BUY
+          const tradeType = type === 'BUY' ? 'SELL' : 'BUY';
+          const r = await fetch('https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'User-Agent': UA, 'Accept': 'application/json' },
+            body: JSON.stringify({
+              asset, fiat, tradeType, page, rows: 10, payTypes: [], publisherType: null,
+            }),
+            signal: timeout(8000),
+          });
+          if (!r.ok) throw new Error(`binance ${r.status}`);
+          const j = await r.json();
+          if (!Array.isArray(j?.data)) return [];
+          return j.data.map(it => ({
+            exchange: 'binance',
+            merchantName: it.advertiser?.nickName || 'Anonymous',
+            price: Number(it.adv?.price) || 0,
+            available: Number(it.adv?.surplusAmount) || 0,
+            minAmount: Number(it.adv?.minSingleTransAmount) || 0,
+            maxAmount: Number(it.adv?.dynamicMaxSingleTransAmount || it.adv?.maxSingleTransAmount) || 0,
+            paymentMethods: (it.adv?.tradeMethods || []).map(t => t.tradeMethodName || t.identifier).filter(Boolean),
+            completionRate: Number(it.advertiser?.monthFinishRate) || 0,
+            orders: Number(it.advertiser?.monthOrderCount) || 0,
+            advertiserNo: it.advertiser?.userNo || it.adv?.advNo || undefined,
+          })).filter(a => a.price > 0);
+        };
+
+        // ── Bybit ─────────────────────────────────────────────────
+        // Bybit payment method ID → name map (most common ~60 methods)
+        const BYBIT_PM = {
+          '1':'Bank Transfer','2':'Alipay','3':'WeChat','5':'Sberbank','6':'Tinkoff','7':'QIWI',
+          '8':'Yandex.Money','11':'Rosbank','14':'Bank Transfer','18':'Cash Deposit','19':'Cash in Person',
+          '24':'Mercado Pago','25':'PayPal','27':'Skrill','29':'Neteller','30':'WebMoney',
+          '31':'Perfect Money','32':'Advcash','33':'Payeer','34':'PaySera','35':'Wise','36':'Revolut',
+          '37':'PayPal','38':'Zelle','39':'Cash App','40':'SWIFT','41':'IMPS','42':'UPI','43':'Paytm',
+          '44':'PhonePe','45':'GooglePay','46':'BHIM','47':'PIX','48':'TED','49':'DOC','50':'Nubank',
+          '51':'Itaú','52':'Banco do Brasil','53':'Caixa','54':'Bradesco','55':'Santander','56':'GCash',
+          '57':'Maya','58':'PalmPay','59':'OPay','60':'Kuda','61':'Moniepoint','62':'Bank Transfer (NGN)',
+          '63':'Naira Bank Transfer','64':'Wise','65':'Revolut','66':'Monzo','67':'N26','68':'Western Union',
+          '69':'MoneyGram','70':'Remitly','71':'Xoom','72':'Venmo','73':'Cash App','74':'Apple Pay',
+          '75':'Google Pay','76':'Cash App','77':'Zelle','78':'Chase QuickPay','79':'PopMoney','80':'TransferWise',
+          '85':'Yoomoney','86':'Faster Payments','87':'BACS','88':'Telebanco Popular','89':'CashWyre','90':'Astropay',
+          '95':'IDEAL','96':'Bizum','97':'BLIK','98':'Trustly','99':'Sofort','100':'GiroPay',
+          '116':'Vakıfbank','117':'Garanti BBVA','118':'SEPA','119':'SEPA Instant','120':'IBAN','121':'Faster Payments',
+          '122':'CHAPS','123':'Volkswagen Bank','124':'BBVA','125':'Santander','126':'CaixaBank','127':'Bankia',
+          '136':'OXXO','137':'Spei','138':'SEPA Instant','139':'SEPA Bank Transfer','140':'Bank Transfer (USD)','141':'Bank Transfer (EUR)',
+          '155':'Cashapp','156':'Western Union','157':'MoneyGram','158':'Cash Deposit','159':'Cash in Person',
+          '186':'Halkbank','187':'İş Bankası','188':'Yapı Kredi','189':'Akbank','190':'Ziraat Bankası',
+          '191':'Kuveyt Türk','192':'Papara','193':'Ininal','194':'Pay Fix',
+          '226':'M-Pesa','227':'Airtel Money','228':'MTN Mobile Money','229':'Orange Money','230':'EcoCash',
+          '291':'Trust Wallet','292':'MetaMask','293':'Crypto Wallet',
+          '303':'N26','304':'Vivid','305':'TransferWise','306':'Klarna',
+          '371':'Toss','372':'KakaoPay','373':'Naver Pay',
+          '465':'Cash App','466':'Apple Pay','467':'Google Pay','468':'Venmo','469':'Zelle','470':'PayPal',
+          '550':'IDR Bank Transfer','551':'OVO','552':'Dana','553':'Gopay','554':'ShopeePay',
+          '602':'Local Bank Transfer','603':'Mobile Money','604':'Crypto Transfer',
+          '650':'PromptPay','651':'TrueMoney','652':'Rabbit Line Pay',
+          '700':'AliPay','701':'WeChat Pay','702':'UnionPay','703':'JD Pay',
+          '750':'PayMe','751':'FPS','752':'Bank Transfer','753':'Octopus',
+        };
+        const fetchBybit = async () => {
+          // Bybit side from advertiser perspective: 0 = BUY (advertiser wants to buy crypto, user sells),
+          //                                        1 = SELL (advertiser sells crypto, user buys)
+          // Empirically: side=1 returns BUY ads (low prices, advertisers buying). So flipped:
+          // user BUY → side=0 (advertiser SELL ads), user SELL → side=1 (advertiser BUY ads)
+          const side = type === 'BUY' ? '0' : '1';
+          const r = await fetch('https://api2.bybit.com/fiat/otc/item/online', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'User-Agent': UA, 'Accept': 'application/json' },
+            body: JSON.stringify({
+              userId: '', tokenId: asset, currencyId: fiat, payment: [],
+              side, size: '10', page: String(page),
+            }),
+            signal: timeout(8000),
+          });
+          if (!r.ok) throw new Error(`bybit ${r.status}`);
+          const j = await r.json();
+          const items = j?.result?.items || [];
+          return items.map(it => ({
+            exchange: 'bybit',
+            merchantName: it.nickName || 'Anonymous',
+            price: Number(it.price) || 0,
+            available: Number(it.lastQuantity) || 0,
+            minAmount: Number(it.minAmount) || 0,
+            maxAmount: Number(it.maxAmount) || 0,
+            paymentMethods: (it.payments || []).map(p => {
+              if (typeof p === 'object' && p !== null) return p.paymentName || p.name || BYBIT_PM[String(p.paymentType||'')] || '';
+              const id = String(p);
+              return BYBIT_PM[id] || `Method ${id}`;
+            }).filter(Boolean),
+            completionRate: Number(it.recentExecuteRate) / 100 || 0,
+            orders: Number(it.recentOrderNum) || 0,
+            advertiserNo: it.userId || it.id || undefined,
+          })).filter(a => a.price > 0);
+        };
+
+        // ── OKX ───────────────────────────────────────────────────
+        // Helper: completion rate may arrive as 0..1 fractional, 0..100 percentage, or a "98.09%" string.
+        const normRate = (v) => {
+          if (v == null) return 0;
+          const s = String(v).replace('%', '').trim();
+          const n = Number(s);
+          if (!isFinite(n) || n <= 0) return 0;
+          return n > 1 ? n / 100 : n;
+        };
+
+        const fetchOKX = async () => {
+          const side = type === 'BUY' ? 'sell' : 'buy'; // OKX side from advertiser perspective
+          const u = `https://www.okx.com/v3/c2c/tradingOrders/books?quoteCurrency=${encodeURIComponent(fiat)}&baseCurrency=${encodeURIComponent(asset)}&side=${side}&paymentMethod=all&userType=all&showTrade=false&showFollow=false&showAlreadyTraded=false&isAbleFilter=false&limit=10`;
+          const r = await fetch(u, {
+            headers: { 'User-Agent': UA, 'Accept': 'application/json', 'x-locale': 'en_US' },
+            signal: timeout(8000),
+          });
+          if (!r.ok) throw new Error(`okx ${r.status}`);
+          const j = await r.json();
+          const items = j?.data?.[side] || j?.data?.buy || j?.data?.sell || [];
+          return items.map(it => ({
+            exchange: 'okx',
+            merchantName: it.nickName || it.merchantName || 'Anonymous',
+            price: Number(it.price) || 0,
+            available: Number(it.availableAmount || it.amount) || 0,
+            minAmount: Number(it.minCompletedOrderQuantity || it.minAmountPerOrder) || 0,
+            maxAmount: Number(it.maxCompletedOrderQuantity || it.maxAmountPerOrder || it.amount) || 0,
+            paymentMethods: (it.paymentMethods || []).map(p => p?.name || p).filter(Boolean),
+            // OKX returns completedRate already fractional (0..1) — normalize handles both cases.
+            completionRate: normRate(it.completedRate || it.merchantCompletedRate),
+            orders: Number(it.completedOrderQuantity || it.merchantCompletedOrderNum) || 0,
+            advertiserNo: it.publicUserId || it.uid || undefined,
+          })).filter(a => a.price > 0);
+        };
+
+        // ── KuCoin ────────────────────────────────────────────────
+        const fetchKuCoin = async () => {
+          const side = type === 'BUY' ? 'SELL' : 'BUY'; // KuCoin side from advertiser perspective
+          const u = `https://www.kucoin.com/_api/otc/ad/list?currency=${encodeURIComponent(asset)}&legal=${encodeURIComponent(fiat)}&side=${side}&page=${page}&pageSize=10&status=PUTON`;
+          const r = await fetch(u, {
+            headers: { 'User-Agent': UA, 'Accept': 'application/json' },
+            signal: timeout(8000),
+          });
+          if (!r.ok) throw new Error(`kucoin ${r.status}`);
+          const j = await r.json();
+          const items = j?.items || j?.data?.items || [];
+          return items.map(it => {
+            // KuCoin uses adPayTypes[].payTypeNameEn for method names; fallback to legacy fields.
+            const pmRaw = it.adPayTypes || it.payTypes || it.paymentTypes || [];
+            const paymentMethods = pmRaw.map(p => {
+              if (typeof p === 'string') return p;
+              return p?.payTypeNameEn || p?.payTypeName || p?.name || '';
+            }).filter(Boolean);
+            return {
+              exchange: 'kucoin',
+              merchantName: it.nickName || it.adOwner || 'Anonymous',
+              price: Number(it.floatPrice || it.price) || 0,
+              available: Number(it.currencyQuantity || it.amount) || 0,
+              minAmount: Number(it.limitMinQuote || it.minQuoteAmount) || 0,
+              maxAmount: Number(it.limitMaxQuote || it.maxQuoteAmount) || 0,
+              paymentMethods,
+              completionRate: normRate(
+                it.dealOrderRate ?? it.adOwnerStat?.tradeFinishRate ?? it.dealRatio
+              ),
+              orders: Number(it.dealOrderNum || it.adOwnerStat?.tradeOrderCount || it.tradeCount) || 0,
+              advertiserNo: it.adOwnerId || it.userId || undefined,
+            };
+          }).filter(a => a.price > 0);
+        };
+
+        // Track per-source success/error truthfully. Wrap each fetch so allSettled sees real outcome,
+        // not a swallowed catch returning []. We then build sources[] from results directly.
+        const results = await Promise.allSettled([
+          fetchBinance(),
+          fetchBybit(),
+          fetchOKX(),
+          fetchKuCoin(),
+        ]);
+
+        const sourceNames = ['binance','bybit','okx','kucoin'];
+        results.forEach((r, i) => {
+          if (r.status === 'rejected') console.log(`${sourceNames[i]} fail`, r.reason?.message || r.reason);
+        });
+
+        let merged = [];
+        results.forEach(r => { if (r.status === 'fulfilled' && Array.isArray(r.value)) merged = merged.concat(r.value); });
+
+        // Sıralama: alıcıya en düşük fiyat avantaj, satıcıya en yüksek fiyat avantaj
+        merged.sort((a, b) => type === 'BUY' ? a.price - b.price : b.price - a.price);
+
+        // En fazla 50 ilan
+        merged = merged.slice(0, 50);
+
+        globalThis.__p2pAggCache.set(cacheKey, { t: now, ads: merged });
+        // Eski girdileri temizle (basit LRU)
+        if (globalThis.__p2pAggCache.size > 200) {
+          const firstKey = globalThis.__p2pAggCache.keys().next().value;
+          globalThis.__p2pAggCache.delete(firstKey);
+        }
+
+        return new Response(JSON.stringify({ ads: merged, cached: false, sources: results.map((r, i) => ({
+          name: ['binance','bybit','okx','kucoin'][i],
+          ok: r.status === 'fulfilled',
+          count: r.status === 'fulfilled' ? r.value.length : 0,
+        })) }), { status: 200, headers: { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=30' } });
+      }
+
       /* ── GET /p2p/ads — aktif ilanları listele (filtreli) ── */
       if (method === 'GET' && path === '/p2p/ads') {
         const adType = url.searchParams.get('type') || 'sell';            // alıcı görüyorsa 'sell' satıcıları
