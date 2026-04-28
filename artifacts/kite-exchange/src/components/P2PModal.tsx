@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { X, Search, Shield, ChevronDown, Star, Clock, CreditCard, ExternalLink, RefreshCw } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
+import BuyCryptoModal from './BuyCryptoModal';
 
 interface P2PModalProps {
   isOpen: boolean;
@@ -154,11 +155,7 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
   const [ads, setAds] = useState<AggregatedAd[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastFetchedKey, setLastFetchedKey] = useState<string>('');
-  const [buyingCard, setBuyingCard] = useState(false);
-  const [providerPicker, setProviderPicker] = useState<{
-    address: string;
-    userId: string;
-  } | null>(null);
+  const [buyOpen, setBuyOpen] = useState(false);
   const refreshRef = useRef<number | null>(null);
 
   // Modal açıldığında ve filtreler değiştiğinde veri çek
@@ -222,97 +219,6 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
     if (typeof window !== 'undefined') window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  const handleBuyWithCard = async () => {
-    if (buyingCard) return;
-    setBuyingCard(true);
-    try {
-      // 1) Kullanıcının basonce wallet_pool'dan atanmış GERÇEK TRC20 USDT adresini bul.
-      //    Yoksa wallet_pool'dan bir tane atayalım. (RealDepositModal ile aynı RPC akışı.)
-      const user = await getCurrentUser();
-      if (!user) {
-        alert('Please log in first so we can deliver USDT to your basonce wallet.');
-        return;
-      }
-
-      const fetchTrc20 = async () => {
-        const { data: wallets } = await supabase
-          .rpc('get_user_deposit_addresses', { user_id_param: user.id });
-        return (wallets || []).find((w: any) => w.network === 'TRC20');
-      };
-
-      let trc20 = await fetchTrc20();
-      if (!trc20) {
-        // Havuzdan ata, sonra tekrar oku
-        const { data: assignResult, error: assignError } = await supabase
-          .rpc('assign_wallet_to_user', { p_user_id: user.id });
-        if (assignError || !assignResult?.success) {
-          alert('Could not assign a deposit wallet right now. Please try again or contact support.');
-          return;
-        }
-        trc20 = await fetchTrc20();
-      }
-      if (!trc20?.address) {
-        alert('No TRC20 deposit wallet available. Please open Deposit once to initialize, then try again.');
-        return;
-      }
-
-      // 2) Adres + userId hazır → kullanıcının seçim yapabileceği picker'ı aç.
-      //    Sağlayıcılar ülkeye göre sıralanır (Türkiye için Mercuryo/Transak öne).
-      setProviderPicker({ address: trc20.address, userId: user.id });
-    } catch (e) {
-      console.error('Buy with card failed:', e);
-      alert('Could not start card purchase. Please try again.');
-    } finally {
-      setBuyingCard(false);
-    }
-  };
-
-  // Provider link builder'lar
-  const buildMoonPayUrl = (address: string, userId: string, fiat: string) => {
-    const p = new URLSearchParams({
-      currencyCode: 'usdt_trx',
-      walletAddress: address,
-      baseCurrencyCode: fiat.toLowerCase(),
-      externalCustomerId: userId,
-      showWalletAddressForm: 'false',
-    });
-    return `https://buy.moonpay.com/?${p.toString()}`;
-  };
-  // Mercuryo: kullanıcı önceki sürümde çalıştığını teyit etti — public exchange URL
-  const buildMercuryoUrl = (address: string, fiat: string) => {
-    const p = new URLSearchParams({
-      type: 'buy',
-      currency: 'USDT',
-      network: 'TRX',
-      address,
-      fiat_currency: fiat,
-    });
-    return `https://exchange.mercuryo.io/?${p.toString()}`;
-  };
-
-  type Provider = {
-    key: string;
-    name: string;
-    badge: string;
-    note: string;
-    url: string;
-  };
-  const getProvidersForCountry = (address: string, userId: string, fiat: string, country: string): Provider[] => {
-    const moonpay: Provider = {
-      key: 'moonpay', name: 'MoonPay', badge: 'Global',
-      note: 'Card · Apple Pay · Google Pay · Bank transfer',
-      url: buildMoonPayUrl(address, userId, fiat),
-    };
-    const mercuryo: Provider = {
-      key: 'mercuryo', name: 'Mercuryo', badge: 'Global',
-      note: 'Card · Apple Pay · Google Pay · SEPA',
-      url: buildMercuryoUrl(address, fiat),
-    };
-    // Sıralama ülkeye göre içsel — kullanıcıya rozet göstermiyoruz
-    if (country === 'TR' || fiat === 'TRY') return [mercuryo, moonpay];
-    return [moonpay, mercuryo];
-  };
-
   const handleManualRefresh = () => {
     if (loading) return;
     setLoading(true);
@@ -345,62 +251,23 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
           </div>
         </div>
 
-        {/* "Buy with Card" CTA */}
+        {/* "Buy with Card" CTA — açar Binance-style BuyCryptoModal */}
         <div className="px-4 pb-3 shrink-0">
-          <button onClick={handleBuyWithCard} disabled={buyingCard}
-            className="w-full bg-gradient-to-r from-[#F0B90B] to-[#FFD24A] hover:from-[#E0AB00] hover:to-[#F0C840] disabled:opacity-60 text-black font-bold text-sm py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#F0B90B]/20 transition-all active:scale-[0.98]">
+          <button onClick={() => setBuyOpen(true)}
+            className="w-full bg-gradient-to-r from-[#F0B90B] to-[#FFD24A] hover:from-[#E0AB00] hover:to-[#F0C840] text-black font-bold text-sm py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#F0B90B]/20 transition-all active:scale-[0.98]">
             <CreditCard className="w-4 h-4" />
-            {buyingCard ? 'Preparing…' : 'Buy USDT with Card'}
-            {!buyingCard && <ExternalLink className="w-3 h-3 opacity-60" />}
+            Buy Crypto
+            <ExternalLink className="w-3 h-3 opacity-60" />
           </button>
         </div>
 
-        {/* Provider picker — kullanıcı sağlayıcısını seçer (ülkeye göre sıralı) */}
-        {providerPicker && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-               onClick={() => setProviderPicker(null)}>
-            <div className="bg-[#0B0E11] w-full max-w-[420px] rounded-2xl border border-[#22262E] p-4 max-h-[85dvh] overflow-y-auto shadow-2xl"
-                 onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-white font-bold text-base">Choose payment provider</h3>
-                <button onClick={() => setProviderPicker(null)}
-                        className="text-gray-500 hover:text-white w-7 h-7 flex items-center justify-center rounded-full hover:bg-[#22262E]">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <p className="text-xs text-gray-500 mb-3">
-                USDT will be delivered to your basonce wallet on the Tron (TRC20) network.
-              </p>
-              <div className="space-y-2">
-                {getProvidersForCountry(
-                  providerPicker.address, providerPicker.userId,
-                  selectedCountry.currency, selectedCountry.code,
-                ).map((p) => (
-                  <a key={p.key} href={p.url} target="_blank" rel="noopener noreferrer"
-                     onClick={() => setProviderPicker(null)}
-                     className="flex items-center justify-between gap-3 bg-[#1C1F27] hover:bg-[#22262E] border border-[#22262E] rounded-xl p-3 transition-colors">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-white font-bold text-sm">{p.name}</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold border ${
-                          p.badge.startsWith('TR')
-                            ? 'bg-[#0ECB81]/15 text-[#0ECB81] border-[#0ECB81]/20'
-                            : 'bg-[#F0B90B]/15 text-[#F0B90B] border-[#F0B90B]/20'
-                        }`}>{p.badge}</span>
-                      </div>
-                      <div className="text-[11px] text-gray-500 mt-0.5 truncate">{p.note}</div>
-                    </div>
-                    <ExternalLink className="w-4 h-4 text-gray-500 shrink-0" />
-                  </a>
-                ))}
-              </div>
-              <p className="text-[10px] text-gray-600 mt-3 text-center">
-                All providers require ID verification by law (card networks &amp; regulator rules).
-                We pick the one with the lightest KYC for your country.
-              </p>
-            </div>
-          </div>
-        )}
+        <BuyCryptoModal
+          isOpen={buyOpen}
+          onClose={() => setBuyOpen(false)}
+          onOpenP2P={() => setBuyOpen(false)}
+          initialFiat={selectedCountry.currency}
+          initialCountry={selectedCountry.code}
+        />
 
         {/* Buy/Sell */}
         <div className="flex px-4 pb-3 gap-2 shrink-0">
