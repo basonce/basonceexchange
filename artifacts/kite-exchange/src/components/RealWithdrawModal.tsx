@@ -92,13 +92,18 @@ export function RealWithdrawModal({
   const total = parseFloat(amount || '0') + fee;
 
   const validateAddress = () => {
-    if (!toAddress.trim()) {
+    const a = toAddress.trim();
+    if (!a) {
       setError('Please enter withdrawal address');
       return false;
     }
 
-    if (!blockchainProvider.isValidAddress(toAddress)) {
-      setError('Invalid wallet address');
+    // Coin/network'e göre ayrı ayrı doğrula — ETH adresini BTC çekimine kabul ETME
+    if (!blockchainProvider.isValidAddressForCoin(a, currency, selectedNetwork)) {
+      setError(
+        `Bu adres ${currency} (${selectedNetwork}) ağı için geçerli değil. ` +
+        `Lütfen doğru ${currency} ${selectedNetwork} adresi girin.`
+      );
       return false;
     }
 

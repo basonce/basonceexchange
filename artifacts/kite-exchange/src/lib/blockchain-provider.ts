@@ -105,6 +105,80 @@ class BlockchainProvider {
     return ethers.isAddress(address);
   }
 
+  /**
+   * Coin/network'e göre adres formatını DOĞRU şekilde doğrular.
+   * Yanlış format → para kaybı. Asla "0x"'i BTC'ye kabul etme.
+   */
+  isValidAddressForCoin(address: string, coin: string, network: string): boolean {
+    const a = (address || '').trim();
+    if (!a) return false;
+    const c = (coin || '').toUpperCase();
+    const n = (network || '').toUpperCase();
+
+    // EVM zincirleri (ETH, BSC/BEP20, Polygon, Avalanche C-Chain, Arbitrum...)
+    const isEvm =
+      n === 'ERC20' || n === 'ETH' || n === 'ETHEREUM' ||
+      n === 'BEP20' || n === 'BSC' ||
+      n === 'POLYGON' || n === 'MATIC' || n === 'POL' ||
+      n === 'ARBITRUM' || n === 'OPTIMISM' || n === 'AVAX-C' || n === 'BASE';
+    if (isEvm) return /^0x[a-fA-F0-9]{40}$/.test(a);
+
+    // TRON / TRC20 — T ile başlar, 34 karakter Base58
+    if (n === 'TRC20' || n === 'TRON' || n === 'TRX') {
+      return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(a);
+    }
+
+    // Bitcoin — bc1 (bech32), 1, 3 ile başlar
+    if (c === 'BTC' || n === 'BTC' || n === 'BITCOIN') {
+      // bech32 native segwit (bc1q..., bc1p...) — 42-62 char
+      if (/^(bc1)[ac-hj-np-z02-9]{6,87}$/.test(a)) return true;
+      // legacy P2PKH (1...) ve P2SH (3...) — 26-35 char Base58
+      if (/^[13][1-9A-HJ-NP-Za-km-z]{25,34}$/.test(a)) return true;
+      return false;
+    }
+
+    // Solana — Base58, 32-44 karakter (0, O, I, l YOK)
+    if (c === 'SOL' || n === 'SOL' || n === 'SOLANA' || n === 'SPL') {
+      return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a);
+    }
+
+    // XRP / Ripple — r ile başlar
+    if (c === 'XRP' || n === 'XRP' || n === 'RIPPLE') {
+      return /^r[1-9A-HJ-NP-Za-km-z]{24,34}$/.test(a);
+    }
+
+    // Litecoin
+    if (c === 'LTC' || n === 'LTC' || n === 'LITECOIN') {
+      if (/^(ltc1)[ac-hj-np-z02-9]{6,87}$/.test(a)) return true;
+      if (/^[LM3][1-9A-HJ-NP-Za-km-z]{25,34}$/.test(a)) return true;
+      return false;
+    }
+
+    // Doge
+    if (c === 'DOGE' || n === 'DOGE' || n === 'DOGECOIN') {
+      return /^[DA9][1-9A-HJ-NP-Za-km-z]{25,34}$/.test(a);
+    }
+
+    // Cardano (ADA) — addr1...
+    if (c === 'ADA' || n === 'ADA' || n === 'CARDANO') {
+      return /^addr1[ac-hj-np-z02-9]{50,}$/.test(a);
+    }
+
+    // Polkadot — 1 ile başlar, ~47 karakter
+    if (c === 'DOT' || n === 'DOT' || n === 'POLKADOT') {
+      return /^1[a-km-zA-HJ-NP-Z1-9]{46,47}$/.test(a);
+    }
+
+    // TON
+    if (c === 'TON' || n === 'TON' || n === 'TONCOIN') {
+      return /^(EQ|UQ|kQ|0Q)[A-Za-z0-9_-]{46}$/.test(a);
+    }
+
+    // Bilinmeyen ağ — güvenli taraf: reddet
+    // (Yeni bir coin eklenirse buraya regex eklemek zorunda kalırsın → istenen davranış)
+    return false;
+  }
+
   getExplorerUrl(network: NetworkKey, txHash: string): string {
     const config = BLOCKCHAIN_NETWORKS[network];
     return `${config.explorerUrl}/tx/${txHash}`;
