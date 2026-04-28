@@ -243,15 +243,27 @@ export default function BuyCryptoModal({
           walletAddress: trc20.address,
           baseCurrencyCode: fiat.toLowerCase(),
           baseCurrencyAmount: String(fiatAmount || 100),
+          lockAmount: 'true',
           externalCustomerId: user.id,
           showWalletAddressForm: 'false',
+          colorCode: '#FCD535',
+          theme: 'dark',
         });
         url = `https://buy.moonpay.com/?${p.toString()}`;
       } else if (selectedMethod.id === 'mercuryo') {
+        // Mercuryo widget URL params: amount (fiat tutarı), currency (alınacak coin), fix_* ile kilitle
         const p = new URLSearchParams({
-          type: 'buy', currency: 'USDT', network: 'TRX',
-          address: trc20.address, fiat_currency: fiat,
-          fiat_amount: String(fiatAmount || 100),
+          type: 'buy',
+          currency: 'USDT',
+          network: 'TRX',
+          address: trc20.address,
+          fiat_currency: fiat,
+          amount: String(fiatAmount || 100),
+          fix_amount: 'true',
+          fix_currency: 'true',
+          fix_fiat_currency: 'true',
+          fix_fiat_amount: 'true',
+          merchant_transaction_id: `basonce_${user.id}_${Date.now()}`,
         });
         url = `https://exchange.mercuryo.io/?${p.toString()}`;
       }
