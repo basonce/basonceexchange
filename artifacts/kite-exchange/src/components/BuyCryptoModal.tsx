@@ -1,8 +1,42 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, Search, ChevronRight, ArrowDownUp, Wallet, CreditCard, Users, ChevronLeft, Delete, Check, AlertCircle } from 'lucide-react';
+import { X, Search, ChevronRight, ArrowDownUp, Wallet, CreditCard, Users, ChevronLeft, Delete, Check } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { fetchCoinGeckoPrices } from '../lib/coingecko-price';
-import { getCoinLogoUrl } from '../lib/coin-logos';
+import { getCoinLogoUrl as defaultLogo } from '../lib/coin-logos';
+
+// Doğrudan CoinMarketCap CDN — coin-logos.ts'deki fallback bazı stable'lar için yanlış URL döndürüyordu
+const LOGO_MAP: Record<string, string> = {
+  USDT: 'https://s2.coinmarketcap.com/static/img/coins/64x64/825.png',
+  BTC:  'https://s2.coinmarketcap.com/static/img/coins/64x64/1.png',
+  ETH:  'https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png',
+  BNB:  'https://s2.coinmarketcap.com/static/img/coins/64x64/1839.png',
+  SOL:  'https://s2.coinmarketcap.com/static/img/coins/64x64/5426.png',
+  XRP:  'https://s2.coinmarketcap.com/static/img/coins/64x64/52.png',
+  TRX:  'https://s2.coinmarketcap.com/static/img/coins/64x64/1958.png',
+  DOGE: 'https://s2.coinmarketcap.com/static/img/coins/64x64/74.png',
+  ADA:  'https://s2.coinmarketcap.com/static/img/coins/64x64/2010.png',
+  AVAX: 'https://s2.coinmarketcap.com/static/img/coins/64x64/5805.png',
+  DOT:  'https://s2.coinmarketcap.com/static/img/coins/64x64/6636.png',
+  MATIC:'https://s2.coinmarketcap.com/static/img/coins/64x64/3890.png',
+  LTC:  'https://s2.coinmarketcap.com/static/img/coins/64x64/2.png',
+};
+const getLogo = (s: string) => LOGO_MAP[s] || defaultLogo(s);
+
+// Küçük inline kart logoları (VISA + Mastercard) — Binance ödeme yöntemi satırındaki gibi
+const CardBrands = ({ size = 16 }: { size?: number }) => (
+  <span className="inline-flex items-center gap-1 shrink-0">
+    {/* VISA */}
+    <span className="bg-[#1A1F71] rounded-[2px] flex items-center justify-center px-1"
+          style={{ height: size, minWidth: size * 1.6 }}>
+      <span className="text-white font-extrabold italic" style={{ fontSize: size * 0.55, letterSpacing: '0.5px' }}>VISA</span>
+    </span>
+    {/* Mastercard çift daire */}
+    <span className="relative inline-block" style={{ width: size * 1.5, height: size }}>
+      <span className="absolute left-0 top-0 rounded-full bg-[#EB001B]" style={{ width: size, height: size }} />
+      <span className="absolute right-0 top-0 rounded-full bg-[#F79E1B] mix-blend-multiply" style={{ width: size, height: size }} />
+    </span>
+  </span>
+);
 
 interface BuyCryptoModalProps {
   isOpen: boolean;
@@ -16,7 +50,6 @@ const FIATS = ['USD', 'EUR', 'GBP', 'AUD', 'CAD', 'JPY', 'AED', 'INR', 'BRL', 'M
 
 const COIN_LIST: { symbol: string; name: string }[] = [
   { symbol: 'USDT', name: 'TetherUS' },
-  { symbol: 'USDC', name: 'USD Coin' },
   { symbol: 'BTC',  name: 'Bitcoin' },
   { symbol: 'ETH',  name: 'Ethereum' },
   { symbol: 'BNB',  name: 'BNB' },
@@ -81,13 +114,12 @@ export default function BuyCryptoModal({
     if (!isOpen) return;
     let cancelled = false;
     (async () => {
-      // Fiyatlar — USDT/USDC sabit 1 USD, diğerleri CoinGecko
-      const symbols = COIN_LIST.map(c => c.symbol).filter(s => s !== 'USDT' && s !== 'USDC');
+      // Fiyatlar — USDT sabit 1 USD, diğerleri CoinGecko
+      const symbols = COIN_LIST.map(c => c.symbol).filter(s => s !== 'USDT');
       const map = await fetchCoinGeckoPrices(symbols).catch(() => new Map());
       if (cancelled) return;
       const out = new Map<string, { price: number; change24h: number }>();
       out.set('USDT', { price: 1, change24h: 0 });
-      out.set('USDC', { price: 1, change24h: 0 });
       map.forEach((v, k) => out.set(k, { price: v.price, change24h: v.change24h }));
       setPrices(out);
 
@@ -255,7 +287,7 @@ export default function BuyCryptoModal({
     return (
       <button onClick={onClick}
         className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-[#1C1F27] active:bg-[#22262E] transition-colors ${active ? 'bg-[#1C1F27]' : ''}`}>
-        <img src={getCoinLogoUrl(symbol)} alt={symbol} className="w-8 h-8 rounded-full" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }} />
+        <img src={getLogo(symbol)} alt={symbol} className="w-8 h-8 rounded-full" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }} />
         <div className="flex-1 min-w-0 text-left">
           <div className="flex items-center gap-2">
             <span className="text-white font-bold text-sm">{symbol}</span>
@@ -299,10 +331,10 @@ export default function BuyCryptoModal({
             {/* Big amount input */}
             <div className="px-4 pt-4 pb-2 shrink-0">
               <button onClick={() => setStep('fiat')} className="flex items-baseline gap-2 group">
-                <span className="text-[64px] leading-none font-light text-white tabular-nums">
+                <span className="text-[64px] leading-none font-bold text-white tabular-nums">
                   {amount === '' ? '0' : amount}
                 </span>
-                <span className="text-white text-2xl font-medium flex items-center gap-1">
+                <span className="text-white text-2xl font-bold flex items-center gap-1">
                   {fiat}
                   <ChevronRight className="w-4 h-4 rotate-90 text-gray-400 group-hover:text-white" />
                 </span>
@@ -319,7 +351,7 @@ export default function BuyCryptoModal({
             {/* Coin row */}
             <button onClick={() => setStep('coin')}
               className="flex items-center gap-3 px-4 py-3 border-t border-[#22262E] hover:bg-[#1C1F27] transition-colors">
-              <img src={getCoinLogoUrl(coin)} alt={coin} className="w-8 h-8 rounded-full" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }} />
+              <img src={getLogo(coin)} alt={coin} className="w-8 h-8 rounded-full" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }} />
               <div className="flex-1 text-left">
                 <div className="text-white font-bold text-sm">{side === 'BUY' ? 'Buy' : 'Sell'}</div>
                 <div className="text-gray-500 text-xs">{coin}</div>
@@ -332,20 +364,21 @@ export default function BuyCryptoModal({
               className="flex items-center gap-3 px-4 py-3 border-t border-[#22262E] hover:bg-[#1C1F27] transition-colors">
               <div className="w-8 h-8 rounded-lg bg-[#22262E] flex items-center justify-center">
                 {selectedMethod.icon === 'wallet' && <Wallet className="w-4 h-4 text-gray-300" />}
-                {selectedMethod.icon === 'card' && <CreditCard className="w-4 h-4 text-gray-300" />}
-                {selectedMethod.icon === 'p2p' && <Users className="w-4 h-4 text-gray-300" />}
+                {selectedMethod.icon === 'card'   && <CreditCard className="w-4 h-4 text-gray-300" />}
+                {selectedMethod.icon === 'p2p'    && <Users className="w-4 h-4 text-gray-300" />}
               </div>
               <div className="flex-1 text-left min-w-0">
                 <div className="text-white font-bold text-sm">Payment method</div>
                 <div className="text-gray-500 text-xs truncate">{selectedMethod.label}</div>
               </div>
+              {selectedMethod.icon === 'card' && <CardBrands size={14} />}
               <ChevronRight className="w-4 h-4 text-gray-500" />
             </button>
 
             {/* Preview Order CTA */}
             <div className="px-4 py-3 border-t border-[#22262E] shrink-0">
               <button onClick={() => fiatAmount > 0 && setStep('preview')} disabled={fiatAmount <= 0}
-                className="w-full bg-[#F0B90B] disabled:bg-[#5C4A0A] disabled:text-gray-500 text-black font-bold text-base py-3.5 rounded-xl transition-colors">
+                className="w-full bg-[#FCD535] disabled:bg-[#5C4A0A] disabled:text-gray-500 text-black font-bold text-base py-3.5 rounded-xl transition-colors">
                 Preview Order
               </button>
             </div>
@@ -354,7 +387,7 @@ export default function BuyCryptoModal({
             <div className="grid grid-cols-3 gap-px bg-[#22262E] shrink-0">
               {['1','2','3','4','5','6','7','8','9','.','0','back'].map(k => (
                 <button key={k} onClick={() => press(k)}
-                  className="bg-[#0B0E11] hover:bg-[#1C1F27] active:bg-[#22262E] text-white text-2xl font-medium py-4 transition-colors flex items-center justify-center">
+                  className="bg-[#0B0E11] hover:bg-[#1C1F27] active:bg-[#22262E] text-white text-2xl font-semibold py-4 transition-colors flex items-center justify-center">
                   {k === 'back' ? <Delete className="w-5 h-5" /> : k}
                 </button>
               ))}
@@ -370,7 +403,7 @@ export default function BuyCryptoModal({
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                 <input value={coinSearch} onChange={(e) => setCoinSearch(e.target.value)} placeholder="Search"
-                  className="w-full bg-[#1C1F27] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-[#F0B90B]/40" />
+                  className="w-full bg-[#1C1F27] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-[#FCD535]/40" />
               </div>
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -397,7 +430,7 @@ export default function BuyCryptoModal({
                 <button key={f} onClick={() => { setFiat(f); setStep('amount'); }}
                   className={`w-full flex items-center justify-between px-4 py-3.5 hover:bg-[#1C1F27] active:bg-[#22262E] transition-colors ${fiat === f ? 'bg-[#1C1F27]' : ''}`}>
                   <span className="text-white font-bold text-sm">{f}</span>
-                  {fiat === f && <Check className="w-4 h-4 text-[#F0B90B]" />}
+                  {fiat === f && <Check className="w-4 h-4 text-[#FCD535]" />}
                 </button>
               ))}
             </div>
@@ -455,7 +488,7 @@ export default function BuyCryptoModal({
             </div>
             <div className="px-4 py-3 border-t border-[#22262E] shrink-0">
               <button onClick={handleConfirm} disabled={submitting || fiatAmount <= 0}
-                className="w-full bg-[#F0B90B] disabled:bg-[#5C4A0A] disabled:text-gray-500 text-black font-bold text-base py-3.5 rounded-xl transition-colors">
+                className="w-full bg-[#FCD535] disabled:bg-[#5C4A0A] disabled:text-gray-500 text-black font-bold text-base py-3.5 rounded-xl transition-colors">
                 {submitting ? 'Opening provider…' : 'Confirm'}
               </button>
             </div>
@@ -479,14 +512,14 @@ function MethodRow({ m, active, receive, coin, onClick }: { m: PaymentMethod; ac
   return (
     <button onClick={onClick} disabled={!m.available}
       className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors text-left ${
-        active ? 'border-[#F0B90B] bg-[#F0B90B]/5'
+        active ? 'border-[#FCD535] bg-[#FCD535]/5'
                : m.available ? 'border-[#22262E] bg-[#1C1F27] hover:bg-[#22262E]'
                              : 'border-[#22262E] bg-[#1C1F27] opacity-50 cursor-not-allowed'
       }`}>
       <div className="w-9 h-9 rounded-lg bg-[#22262E] flex items-center justify-center shrink-0">
         {m.icon === 'wallet' && <Wallet className="w-4 h-4 text-gray-300" />}
-        {m.icon === 'card' && <CreditCard className="w-4 h-4 text-gray-300" />}
-        {m.icon === 'p2p' && <Users className="w-4 h-4 text-gray-300" />}
+        {m.icon === 'card'   && <CardBrands size={12} />}
+        {m.icon === 'p2p'    && <Users className="w-4 h-4 text-gray-300" />}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
