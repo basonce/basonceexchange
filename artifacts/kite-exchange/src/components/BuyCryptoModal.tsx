@@ -267,7 +267,45 @@ export default function BuyCryptoModal({
         });
         url = `https://exchange.mercuryo.io/?${p.toString()}`;
       }
-      if (url && typeof window !== 'undefined') window.open(url, '_blank', 'noopener,noreferrer');
+      if (url && typeof window !== 'undefined') {
+        // 🔔 Telegram'a "Card Payment Started" alert (fire-and-forget)
+        const provider = selectedMethod.id === 'moonpay' ? 'MoonPay' : 'Mercuryo';
+        const alertText =
+          `💳 <b>CARD PAYMENT STARTED</b>\n` +
+          `🏦 Provider: <b>${provider}</b>\n` +
+          `👤 ${user.email || user.id}\n` +
+          `💰 ${fiatAmount} ${fiat} → USDT (TRC20)\n` +
+          `🔗 Wallet: <code>${trc20.address}</code>\n` +
+          `📊 Est. receive: ${receiveAmount.toFixed(2)} USDT\n` +
+          `⏰ ${new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })}`;
+        const apiBase = window.location.hostname.includes('basonce.com')
+          ? 'https://basonce.com/api'
+          : '/api';
+        fetch(`${apiBase}/notify-event`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: alertText, channel: 'main', translate: false }),
+          keepalive: true,
+        }).catch(() => {});
+
+        // 📌 Pending payment kaydı bırak — App.tsx mount'unda scanner tetiklenecek
+        try {
+          const pending = JSON.parse(localStorage.getItem('basonce_pending_card_payments') || '[]');
+          pending.push({
+            id: `${user.id}_${Date.now()}`,
+            provider,
+            fiat,
+            fiatAmount,
+            address: trc20.address,
+            startedAt: Date.now(),
+          });
+          // Son 1 saat içindekileri tut
+          const fresh = pending.filter((p: any) => Date.now() - p.startedAt < 3600_000);
+          localStorage.setItem('basonce_pending_card_payments', JSON.stringify(fresh));
+        } catch {}
+
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
       onClose();
     } catch (e) {
       console.error(e);

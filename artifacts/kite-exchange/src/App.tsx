@@ -146,6 +146,41 @@ function App() {
     };
   }, []);
 
+  // 💳 KART ÖDEMESİ TAKİBİ — son 1 saat içinde "Card Payment Started" varsa,
+  // sayfada olduğu sürece her 60sn'de bir TRC20 deposit scanner'ını tetikle.
+  // Scanner yeni deposit yakalarsa zaten Telegram'a otomatik alert gönderir.
+  useEffect(() => {
+    const apiBase = window.location.hostname.includes('basonce.com')
+      ? 'https://basonce.com/api'
+      : '/api';
+    const triggerScan = () => {
+      try {
+        const pending = JSON.parse(localStorage.getItem('basonce_pending_card_payments') || '[]');
+        // Son 1 saatte gerçekleşmiş ödeme var mı?
+        const fresh = pending.filter((p: any) => Date.now() - p.startedAt < 3600_000);
+        if (fresh.length === 0) {
+          if (pending.length > 0) localStorage.setItem('basonce_pending_card_payments', JSON.stringify([]));
+          return;
+        }
+        // Listeyi temizle (sadece taze olanlar kalsın)
+        if (fresh.length !== pending.length) {
+          localStorage.setItem('basonce_pending_card_payments', JSON.stringify(fresh));
+        }
+        // TRC20 scanner'ı tetikle (fire-and-forget)
+        fetch(`${apiBase}/scan-deposits-trx`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ limit: 12, offset: 0 }),
+          keepalive: true,
+        }).catch(() => {});
+      } catch {}
+    };
+    // Sayfa açılır açılmaz bir kez tetikle, sonra her 60 saniyede
+    triggerScan();
+    const interval = setInterval(triggerScan, 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     const checkAdminStatus = async () => {
       try {
