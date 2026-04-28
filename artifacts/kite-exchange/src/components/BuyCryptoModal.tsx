@@ -159,10 +159,6 @@ export default function BuyCryptoModal({
       icon: 'wallet', feePct: 0, available: side === 'BUY' ? basonceUsdt > 0 && coin !== 'USDT' : true,
       unavailableReason: side === 'BUY' && coin === 'USDT' ? 'Already USDT' : (basonceUsdt <= 0 ? 'No USDT balance' : undefined),
     });
-    list.push({
-      id: 'p2p', label: 'P2P merchants', sub: 'Binance · Bybit · OKX · KuCoin (~0.5% spread)',
-      icon: 'p2p', feePct: 0.5, available: true,
-    });
     // Card sağlayıcılar: şu an sadece USDT/TRC20 destekli — basonce wallet TRC20 adresine teslim
     const cardAvailable = coin === 'USDT';
     list.push({
