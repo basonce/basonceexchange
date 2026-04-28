@@ -312,88 +312,87 @@ export default function BuyCryptoModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/90">
       <div className="bg-[#0B0E11] w-full max-w-[480px] flex flex-col"
-           style={{ height: '100dvh', maxHeight: '100dvh' }}>
+           style={{
+             height: '100dvh',
+             maxHeight: '100dvh',
+             paddingBottom: 'env(safe-area-inset-bottom)',
+           }}>
 
         {/* === Step: amount === */}
         {step === 'amount' && (
           <>
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 pt-4 pb-3 shrink-0">
-              <button onClick={onClose} className="text-white w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#22262E]">
+            {/* Header — Buy Crypto başlık + close ok */}
+            <div className="flex items-center justify-between px-4 pt-3 pb-2 shrink-0">
+              <button onClick={onClose} className="text-white w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#22262E] -ml-2">
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <div className="flex-1" />
-              <button className="text-gray-400 w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#22262E]" title="History">
+              <h2 className="text-white font-bold text-base">Buy Crypto</h2>
+              <button className="text-gray-400 w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#22262E] -mr-2" title="History">
                 <Wallet className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Başlık — şu an sadece Buy aktif */}
-            <div className="px-4 pb-2 shrink-0">
-              <h2 className="text-white font-bold text-lg">Buy Crypto</h2>
-            </div>
-
-            {/* Big amount input */}
-            <div className="px-4 pt-4 pb-2 shrink-0">
+            {/* Tutar — kompakt, scroll edebilen orta bölüm */}
+            <div className="px-4 pt-2 pb-2 shrink-0">
               <button onClick={() => setStep('fiat')} className="flex items-baseline gap-2 group">
-                <span className="text-[64px] leading-none font-bold text-white tabular-nums">
+                <span className="text-[44px] leading-none font-bold text-white tabular-nums">
                   {amount === '' ? '0' : amount}
                 </span>
-                <span className="text-white text-2xl font-bold flex items-center gap-1">
+                <span className="text-white text-xl font-bold flex items-center gap-1">
                   {fiat}
                   <ChevronRight className="w-4 h-4 rotate-90 text-gray-400 group-hover:text-white" />
                 </span>
               </button>
-              <div className="flex items-center gap-1 text-gray-500 text-sm mt-2">
-                <ArrowDownUp className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-1 text-gray-500 text-xs mt-1">
+                <ArrowDownUp className="w-3 h-3" />
                 <span className="tabular-nums">{receiveAmount.toFixed(receiveAmount >= 1 ? 2 : 6)} {coin}</span>
               </div>
             </div>
 
-            {/* Spacer */}
-            <div className="flex-1" />
+            {/* Esnek boşluk — viewport büyükse aşağıyı doldurur */}
+            <div className="flex-1 min-h-0" />
 
             {/* Coin row */}
             <button onClick={() => setStep('coin')}
-              className="flex items-center gap-3 px-4 py-3 border-t border-[#22262E] hover:bg-[#1C1F27] transition-colors">
-              <img src={getLogo(coin)} alt={coin} className="w-8 h-8 rounded-full" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }} />
+              className="flex items-center gap-3 px-4 py-2.5 border-t border-[#22262E] hover:bg-[#1C1F27] transition-colors shrink-0">
+              <img src={getLogo(coin)} alt={coin} className="w-7 h-7 rounded-full" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }} />
               <div className="flex-1 text-left">
-                <div className="text-white font-bold text-sm">{side === 'BUY' ? 'Buy' : 'Sell'}</div>
-                <div className="text-gray-500 text-xs">{coin}</div>
+                <div className="text-white font-bold text-sm leading-tight">Buy</div>
+                <div className="text-gray-500 text-[11px] leading-tight">{coin}</div>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-500" />
             </button>
 
             {/* Payment method row */}
             <button onClick={() => setStep('method')}
-              className="flex items-center gap-3 px-4 py-3 border-t border-[#22262E] hover:bg-[#1C1F27] transition-colors">
-              <div className="w-8 h-8 rounded-lg bg-[#22262E] flex items-center justify-center">
-                {selectedMethod.icon === 'wallet' && <Wallet className="w-4 h-4 text-gray-300" />}
-                {selectedMethod.icon === 'card'   && <CreditCard className="w-4 h-4 text-gray-300" />}
-                {selectedMethod.icon === 'p2p'    && <Users className="w-4 h-4 text-gray-300" />}
+              className="flex items-center gap-3 px-4 py-2.5 border-t border-[#22262E] hover:bg-[#1C1F27] transition-colors shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-[#22262E] flex items-center justify-center">
+                {selectedMethod.icon === 'wallet' && <Wallet className="w-3.5 h-3.5 text-gray-300" />}
+                {selectedMethod.icon === 'card'   && <CreditCard className="w-3.5 h-3.5 text-gray-300" />}
+                {selectedMethod.icon === 'p2p'    && <Users className="w-3.5 h-3.5 text-gray-300" />}
               </div>
               <div className="flex-1 text-left min-w-0">
-                <div className="text-white font-bold text-sm">Payment method</div>
-                <div className="text-gray-500 text-xs truncate">{selectedMethod.label}</div>
+                <div className="text-white font-bold text-sm leading-tight">Payment method</div>
+                <div className="text-gray-500 text-[11px] leading-tight truncate">{selectedMethod.label}</div>
               </div>
               {selectedMethod.icon === 'card' && <CardBrands size={14} />}
               <ChevronRight className="w-4 h-4 text-gray-500" />
             </button>
 
             {/* Preview Order CTA */}
-            <div className="px-4 py-3 border-t border-[#22262E] shrink-0">
+            <div className="px-4 py-2.5 border-t border-[#22262E] shrink-0">
               <button onClick={() => fiatAmount > 0 && setStep('preview')} disabled={fiatAmount <= 0}
-                className="w-full bg-[#FCD535] disabled:bg-[#5C4A0A] disabled:text-gray-500 text-black font-bold text-base py-3.5 rounded-xl transition-colors">
+                className="w-full bg-[#FCD535] disabled:bg-[#5C4A0A] disabled:text-gray-500 text-black font-bold text-sm py-3 rounded-xl transition-colors">
                 Preview Order
               </button>
             </div>
 
-            {/* Numpad */}
+            {/* Numpad — kompakt, ekrana sığacak şekilde */}
             <div className="grid grid-cols-3 gap-px bg-[#22262E] shrink-0">
               {['1','2','3','4','5','6','7','8','9','.','0','back'].map(k => (
                 <button key={k} onClick={() => press(k)}
-                  className="bg-[#0B0E11] hover:bg-[#1C1F27] active:bg-[#22262E] text-white text-2xl font-semibold py-4 transition-colors flex items-center justify-center">
-                  {k === 'back' ? <Delete className="w-5 h-5" /> : k}
+                  className="bg-[#0B0E11] hover:bg-[#1C1F27] active:bg-[#22262E] text-white text-xl font-semibold py-2.5 transition-colors flex items-center justify-center">
+                  {k === 'back' ? <Delete className="w-4 h-4" /> : k}
                 </button>
               ))}
             </div>
