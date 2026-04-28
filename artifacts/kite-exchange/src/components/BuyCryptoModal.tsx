@@ -22,21 +22,26 @@ const LOGO_MAP: Record<string, string> = {
 };
 const getLogo = (s: string) => LOGO_MAP[s] || defaultLogo(s);
 
-// Küçük inline kart logoları (VISA + Mastercard) — Binance ödeme yöntemi satırındaki gibi
-const CardBrands = ({ size = 16 }: { size?: number }) => (
-  <span className="inline-flex items-center gap-1 shrink-0">
-    {/* VISA */}
-    <span className="bg-[#1A1F71] rounded-[2px] flex items-center justify-center px-1"
-          style={{ height: size, minWidth: size * 1.6 }}>
-      <span className="text-white font-extrabold italic" style={{ fontSize: size * 0.55, letterSpacing: '0.5px' }}>VISA</span>
-    </span>
-    {/* Mastercard çift daire */}
-    <span className="relative inline-block" style={{ width: size * 1.5, height: size }}>
-      <span className="absolute left-0 top-0 rounded-full bg-[#EB001B]" style={{ width: size, height: size }} />
-      <span className="absolute right-0 top-0 rounded-full bg-[#F79E1B] mix-blend-multiply" style={{ width: size, height: size }} />
-    </span>
-  </span>
-);
+// Binance ile birebir aynı kart rozeti: tek koyu lacivert kart, sol üstte VISA, sağ altta gerçek Mastercard double-circle
+const CardBrands = ({ size = 18 }: { size?: number }) => {
+  const h = size;
+  const w = h * 1.55; // kredi kartı oranı
+  return (
+    <svg viewBox="0 0 31 20" width={w} height={h}
+         xmlns="http://www.w3.org/2000/svg"
+         style={{ display: 'block', flexShrink: 0 }}>
+      {/* Kart arka planı */}
+      <rect width="31" height="20" rx="2.5" fill="#0E1740" />
+      {/* VISA — sol üst, beyaz italik */}
+      <text x="2.5" y="9" fontSize="6.2" fontWeight="900" fontStyle="italic"
+            fontFamily="Arial, Helvetica, sans-serif" fill="#ffffff">VISA</text>
+      {/* Mastercard — sağ alt, iki çakışan daire + ortada turuncu lens */}
+      <circle cx="22" cy="14" r="3.4" fill="#EB001B" />
+      <circle cx="26" cy="14" r="3.4" fill="#F79E1B" />
+      <path d="M24 11.45 a3.4 3.4 0 0 1 0 5.1 a3.4 3.4 0 0 1 0 -5.1 z" fill="#FF5F00" />
+    </svg>
+  );
+};
 
 interface BuyCryptoModalProps {
   isOpen: boolean;
