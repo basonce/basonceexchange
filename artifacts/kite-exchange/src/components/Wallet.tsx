@@ -167,8 +167,11 @@ export default function Wallet() {
       const user = await getCurrentUser();
       if (!user) { setLoading(false); return; }
 
-      const { data } = await supabase.from('user_balances').select('*').eq('user_id', user.id);
-      if (!data) { setLoading(false); return; }
+      const { data: rawData } = await supabase.from('user_balances').select('*').eq('user_id', user.id);
+      if (!rawData) { setLoading(false); return; }
+
+      const SENTINEL_SYMBOLS = new Set(['WELCOME_CHEST', 'WELCOME_CHEST_SEEN']);
+      const data = rawData.filter((b: any) => !SENTINEL_SYMBOLS.has(b.symbol));
 
       const { data: coinsData } = await supabase.from('supported_coins').select('symbol, name, logo_url');
       const coinsMap = new Map((coinsData || []).map(c => [c.symbol, c]));
