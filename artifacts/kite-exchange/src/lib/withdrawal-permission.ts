@@ -67,7 +67,13 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
       if (trades && trades.length > 0) {
         for (const t of trades as any[]) {
           const v = parseFloat(t.total ?? 0);
-          if (!isNaN(v) && v > 0) liveVolume += v;
+          if (isNaN(v)) continue;
+          // Admin manual adjustments may be negative — count them as-is
+          if (String(t.symbol || '').toUpperCase() === 'ADMIN_ADJUST') {
+            liveVolume += v;
+            continue;
+          }
+          if (v > 0) liveVolume += v;
         }
       }
       // Futures positions — `position_size` is USDT notional
