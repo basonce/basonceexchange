@@ -145,12 +145,13 @@ class RealtimePnLService {
     spotBalances: Array<{ symbol: string; balance: number }>;
     futuresWallet: number;
     futuresUnrealizedPnL: number;
+    missingPrices: string[];
     startingValue?: number;
     dailyPnL?: number;
     dailyPnLPercentage?: number;
   }> {
     const user = await getCurrentUser();
-    if (!user) return { total: 0, spotBalances: [], futuresWallet: 0, futuresUnrealizedPnL: 0 };
+    if (!user) return { total: 0, spotBalances: [], futuresWallet: 0, futuresUnrealizedPnL: 0, missingPrices: [] };
 
     // SERVER-SIDE COMPUTATION: single source of truth across all devices.
     // Falls back to local computation only if the endpoint is unreachable.
@@ -183,6 +184,7 @@ class RealtimePnLService {
               spotBalances: json.data.spotBalances,
               futuresWallet: json.data.futuresWallet,
               futuresUnrealizedPnL: json.data.futuresUnrealizedPnL,
+              missingPrices: json.data.missingPrices || [],
               startingValue: json.data.startingValue,
               dailyPnL: json.data.dailyPnL,
               dailyPnLPercentage: json.data.dailyPnLPercentage,
@@ -210,10 +212,15 @@ class RealtimePnLService {
     const usdtRow = rows.find(r => r.symbol === 'USDT');
     const futuresWallet = parseFloat(usdtRow?.futures_balance || '0') || 0;
 
-    const spotValues = spotBalances
-      .filter(b => b.symbol !== 'EQ' && b.symbol !== 'EQL')
-      .map(b => b.balance * this.getPrice(b.symbol));
-    const spotTotal = spotValues.reduce((a, b) => a + b, 0);
+    const missingPrices: string[] = [];
+    let spotTotal = 0;
+    for (const b of spotBalances) {
+      if (b.symbol === 'EQ' || b.symbol === 'EQL') continue;
+      if (b.balance <= 0) continue;
+      const p = this.getPrice(b.symbol);
+      if (p <= 0 && b.symbol !== 'USDT') { missingPrices.push(b.symbol); continue; }
+      spotTotal += b.balance * p;
+    }
 
     const { data: positions } = await supabase
       .from('futures_positions')
@@ -236,7 +243,7 @@ class RealtimePnLService {
     }
 
     const total = spotTotal + futuresWallet + futuresUnrealizedPnL;
-    return { total, spotBalances, futuresWallet, futuresUnrealizedPnL };
+    return { total, spotBalances, futuresWallet, futuresUnrealizedPnL, missingPrices };
   }
 
   // ─── SNAPSHOT (start-of-day baseline) ─────────────────────────────────────
@@ -276,7 +283,15 @@ class RealtimePnLService {
   private async recalculate(): Promise<void> {
     try {
       const result = await this.computeCurrentPortfolio();
-      const { total, spotBalances } = result;
+      const { total, spotBalances, missingPrices } = result;
+
+      // ── ANTI-FLICKER: if any spot symbol is missing a price (BRENT, equities,
+      // late KuCoin tickers, etc.), don't publish a partial total. Keep last
+      // known good value so the user never sees the balance jump 1.8M → 8M.
+      if (missingPrices && missingPrices.length > 0 && this.state.currentTotalValue > 0) {
+        console.warn('[RealtimePnLService] missing prices, keeping last good total:', missingPrices);
+        return;
+      }
 
       if (total <= 0) {
         // Always publish 0 — never suppress based on stale cached value
