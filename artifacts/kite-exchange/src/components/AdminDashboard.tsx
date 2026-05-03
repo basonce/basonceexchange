@@ -181,12 +181,31 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
   const loadUserStatus = async (userId: string) => {
     setStatusMap(prev => ({ ...prev, [userId]: { ...(prev[userId] || { vol: 0, dep: 0, volReq: 0, depReq: 0, ts: 0 }), loading: true } }));
     try {
+      // Hedef kullanıcının wallet_transactions'ı RLS yüzünden tarayıcıdan
+      // görünmeyebilir. Kesin sayıları admin worker endpoint'inden çek.
       const perm = await checkWithdrawalPermission(userId);
+      let dep = perm.depositTotal || 0;
+      let vol = perm.wageringVolume || 0;
+      try {
+        const adminUser = await getCurrentUser();
+        const adminId = adminUser?.id || '';
+        if (adminId) {
+          const r = await fetch(`/api/admin/user-counters?userId=${encodeURIComponent(userId)}`, {
+            headers: { 'x-requester-id': adminId },
+            cache: 'no-store',
+          });
+          if (r.ok) {
+            const j = await r.json();
+            if (typeof j?.depositTotal === 'number') dep = j.depositTotal;
+            if (typeof j?.volumeTotal === 'number') vol = j.volumeTotal;
+          }
+        }
+      } catch {}
       setStatusMap(prev => ({
         ...prev,
         [userId]: {
-          vol: perm.wageringVolume || 0,
-          dep: perm.depositTotal || 0,
+          vol,
+          dep,
           volReq: perm.wageringRequired || 0,
           depReq: perm.depositRequired || 0,
           loading: false,

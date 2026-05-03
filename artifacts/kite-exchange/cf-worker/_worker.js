@@ -2285,6 +2285,52 @@ export default {
         if (!userId||level===undefined) return err(400,'userId and level required');
         return ok({ok:true,data:await sbPatch('user_profiles',`?id=eq.${userId}`,{user_level:Number(level)},env)});
       }
+      if (method==='GET' && path==='/admin/user-counters') {
+        if (!isAdmin(request.headers)) return err(403,'Forbidden');
+        const userId = url.searchParams.get('userId');
+        if (!userId) return err(400,'userId required');
+        try {
+          // wallet_transactions: kronolojik sırayla, her adımda 0'ın altına
+          // düşmemek üzere topla. Böylece eski "−14242" gibi büyük sıfırlamalar
+          // sayacı negatif tutmaz; yeni eklenenler hemen görünür.
+          const txRes = await fetch(`${REST}/wallet_transactions?user_id=eq.${userId}&status=eq.confirmed&select=amount,amount_usd,token_symbol,network,from_address,created_at&order=created_at.asc`, { headers: restHeaders(env) });
+          const txs = txRes.ok ? await txRes.json() : [];
+          let depositTotal = 0;
+          for (const t of txs) {
+            const sym = String(t.token_symbol || '').toUpperCase();
+            const isAdj = String(t.network || '').toLowerCase() === 'admin_adjust'
+              || String(t.from_address || '').toLowerCase() === 'admin_manual_counter_adjust';
+            const usd = parseFloat(t.amount_usd ?? 0);
+            let delta = 0;
+            if (isAdj) {
+              if (!isNaN(usd) && usd !== 0) delta = usd;
+              else {
+                const amt = parseFloat(t.amount ?? 0);
+                if (!isNaN(amt)) delta = amt;
+              }
+            } else if (!isNaN(usd) && usd > 0) {
+              delta = usd;
+            } else if (sym === 'USDT' || sym === 'USDC' || sym === 'BUSD' || sym === 'DAI') {
+              const amt = parseFloat(t.amount ?? 0);
+              if (!isNaN(amt) && amt > 0) delta = amt;
+            }
+            depositTotal = Math.max(0, depositTotal + delta);
+          }
+
+          // user_trades: aynı mantık — kronolojik, her adımda min 0
+          const trRes = await fetch(`${REST}/user_trades?user_id=eq.${userId}&select=symbol,total,created_at&order=created_at.asc`, { headers: restHeaders(env) });
+          const trs = trRes.ok ? await trRes.json() : [];
+          let volumeTotal = 0;
+          for (const r of trs) {
+            const t = parseFloat(r.total ?? 0);
+            if (isNaN(t)) continue;
+            volumeTotal = Math.max(0, volumeTotal + t);
+          }
+          return ok({ ok:true, depositTotal, volumeTotal });
+        } catch (e) {
+          return err(500, 'user-counters failed: ' + (e?.message || String(e)));
+        }
+      }
       if (method==='POST' && path==='/admin/counter-adjust') {
         if (!isAdmin(request.headers)) return err(403,'Forbidden');
         const {userId, kind, amount} = body;
