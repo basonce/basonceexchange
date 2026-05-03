@@ -652,18 +652,8 @@ export default function AssetsPage() {
                     </div>
                     <div className="text-right">
                       <div className="text-white font-semibold">
-                        {hideBalance ? '****' : (coin.symbol === 'USDT'
-                          ? (coin.balance + (coin.futures_balance || 0))
-                          : coin.balance
-                        ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {hideBalance ? '****' : coin.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
-                      {coin.symbol === 'USDT' && (coin.futures_balance || 0) > 0 && !hideBalance && (
-                        <div className="text-[11px] text-gray-400 leading-tight">
-                          {coin.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Spot
-                          <span className="mx-1 text-gray-600">·</span>
-                          <span className="text-[#F0B90B]">{(coin.futures_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Futures</span>
-                        </div>
-                      )}
                       {coin.locked_balance > 0 && !hideBalance && (
                         <div className="text-xs text-[#F0B90B]">
                           🔒 {coin.locked_balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} locked
