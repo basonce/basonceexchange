@@ -1,0 +1,10 @@
+# Cloudflare Workers Cron Triggers — fires scheduled() handler in _worker.js.
+# Free plan supports up to 5 cron triggers per Worker, runs included in free tier.
+# IMPORTANT: Pages Functions deploys (current setup) ignore this file. Cron triggers
+# must be configured in the Cloudflare dashboard under:
+#   Pages → basonce → Settings → Functions → Cron Triggers → Add cron trigger
+# Schedule: */2 * * * *  (every 2 minutes)
+# As a 100% free fallback that works WITHOUT dashboard setup, point cron-job.org at:
+#   https://basonce.com/api/cron/scan-all?token=<CRON_SECRET>
+[triggers]
+crons = ["*/2 * * * *"]

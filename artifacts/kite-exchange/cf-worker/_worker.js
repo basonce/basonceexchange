@@ -1505,7 +1505,47 @@ async function sendDailySummary(env) {
 /* ═══════════════════════════════════════════════
    MAIN CLOUDFLARE WORKER
 ═══════════════════════════════════════════════ */
+// Internal helper used by both HTTP /cron/scan-all and native scheduled() handler.
+async function runFullScan(env, budgetMs = 22000) {
+  const startedAt = Date.now();
+  const aggregate = { started_at: new Date(startedAt).toISOString(), parts: {} };
+  for (const part of ['main','trx']) {
+    let offset = 0, totalScanned = 0, totalNew = 0, totalInserted = 0, totalErrors = 0, loops = 0, doneFlag = false;
+    while (Date.now() - startedAt < budgetMs) {
+      const r = await scanAllWallets(env, part, { offset, limit: 12 });
+      loops++;
+      if (!r || r.error) { aggregate.parts[part] = { error: r?.error || 'unknown' }; break; }
+      totalScanned += r.scanned || 0;
+      totalNew     += r.new_deposits || 0;
+      totalInserted+= r.inserted || 0;
+      totalErrors  += r.errors || 0;
+      offset = r.next_offset; doneFlag = !!r.done;
+      if (doneFlag) break;
+    }
+    aggregate.parts[part] = aggregate.parts[part] || {
+      scanned: totalScanned, new_deposits: totalNew, inserted: totalInserted,
+      errors: totalErrors, loops, last_offset: offset, done: doneFlag,
+    };
+  }
+  aggregate.elapsed_ms = Date.now() - startedAt;
+  return aggregate;
+}
+
 export default {
+  // Native Cloudflare Cron Trigger handler — fires whenever wrangler cron schedule hits.
+  // For Pages Functions deployments without cron triggers, /cron/scan-all is the fallback
+  // (hit it from cron-job.org or UptimeRobot every 1-2 minutes).
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runFullScan(env, 25000).then(async (res) => {
+      if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_ADMIN_CHAT_ID) {
+        const m = res.parts?.main || {}, t = res.parts?.trx || {};
+        const totalNew = (m.new_deposits||0) + (t.new_deposits||0);
+        if (totalNew > 0) {
+          await sendTelegramAlert(`🤖 <b>Otomatik tarama tamamlandı</b>\nYeni: ${totalNew} işlem · BSC ${m.scanned||0} cüzdan, TRON ${t.scanned||0} cüzdan · ${res.elapsed_ms}ms`, env);
+        }
+      }
+    }).catch(()=>{}));
+  },
   async fetch(request, env) {
     const method = request.method;
 
@@ -2625,6 +2665,42 @@ export default {
           offset: body?.offset, limit: body?.limit,
         });
         return ok(result);
+      }
+
+      /* ── PUBLIC CRON ENDPOINT — to be hit every 1-2 min by cron-job.org ──
+         Token guarded so random bots cannot spam it.
+         Loops through ALL assigned wallets (BEP20 + TRC20) in a single call,
+         respecting a ~22s CPU budget. Returns aggregate stats + Telegram fires
+         automatically inside scanAllWallets when new deposits are found. */
+      if ((method==='GET' || method==='POST') && (path==='/cron/scan-all' || path==='/cron/scan')) {
+        const tokenIn = url.searchParams.get('token') || request.headers.get('x-cron-token') || '';
+        const expected = env.CRON_SECRET || env.SUPABASE_SERVICE_ROLE_KEY?.slice(-12) || '';
+        if (!expected || tokenIn !== expected) return err(403, 'Forbidden — pass ?token=<CRON_SECRET>');
+        const startedAt = Date.now();
+        const BUDGET_MS = 22000;
+        const aggregate = { started_at: new Date(startedAt).toISOString(), parts: {} };
+        for (const part of ['main','trx']) {
+          let offset = 0, totalScanned = 0, totalNew = 0, totalInserted = 0, totalErrors = 0, loops = 0, doneFlag = false;
+          while (Date.now() - startedAt < BUDGET_MS) {
+            const r = await scanAllWallets(env, part, { offset, limit: 12 });
+            loops++;
+            if (!r || r.error) { aggregate.parts[part] = { error: r?.error || 'unknown', detail: r?.detail }; break; }
+            totalScanned += r.scanned || 0;
+            totalNew     += r.new_deposits || 0;
+            totalInserted+= r.inserted || 0;
+            totalErrors  += r.errors || 0;
+            offset = r.next_offset;
+            doneFlag = !!r.done;
+            if (doneFlag) break;
+          }
+          aggregate.parts[part] = aggregate.parts[part] || {
+            scanned: totalScanned, new_deposits: totalNew, inserted: totalInserted,
+            errors: totalErrors, loops, last_offset: offset, done: doneFlag,
+          };
+        }
+        aggregate.elapsed_ms = Date.now() - startedAt;
+        aggregate.ok = true;
+        return ok(aggregate);
       }
       if (method==='GET' && path==='/debug-scan') {
         const addr = url.searchParams.get('addr') || '';
