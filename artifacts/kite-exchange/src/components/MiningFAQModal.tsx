@@ -37,6 +37,16 @@ interface Category {
 
 const categories: Category[] = [
   {
+    id: 'unlock',
+    title: '🔓 Withdrawal Unlock',
+    subtitle: 'Two paths to free your balance',
+    icon: Lock,
+    color: 'text-[#F0B90B]',
+    bg: 'bg-[#F0B90B]/10',
+    border: 'border-[#F0B90B]/40',
+    count: 3
+  },
+  {
     id: 'how-it-works',
     title: 'How Mining Works',
     subtitle: 'System & mechanics',
@@ -99,6 +109,88 @@ const categories: Category[] = [
 ];
 
 const faqData: FAQItem[] = [
+  {
+    id: 'unlock1',
+    category: 'unlock',
+    question: 'Why is my withdrawal locked? How do I unlock it?',
+    answer: [
+      {
+        type: 'text',
+        content: 'Your account has a withdrawal lock that protects against bonus abuse and ensures genuine platform engagement. To unlock your full balance — including all mining earnings, trading profits, and bonuses — you must complete ONE of two requirements (whichever you reach first):'
+      },
+      {
+        type: 'table',
+        rows: [
+          { label: '🅰️  Option A — Trading Volume', value: '$50,000 USDT', note: 'Reach $50,000 in cumulative trading volume across spot, futures, and quick trade. Every trade counts toward this number, regardless of profit or loss.' },
+          { label: '🅱️  Option B — Deposit (Faster ⚡)', value: '$250 USDT', note: 'Make at least $250 USDT in confirmed external deposits via BEP20, TRC20, or ERC20. A single $250 deposit instantly unlocks your entire balance — RECOMMENDED for fastest unlock.' }
+        ]
+      },
+      {
+        type: 'success',
+        title: '✅ Once Either Condition Is Met',
+        content: 'Your withdrawal lock is permanently removed and your full balance — every dollar of mining earnings, trading profits, and accumulated bonuses — becomes free for withdrawal, transfer, or shop purchases. No further approvals required.'
+      },
+      {
+        type: 'highlight',
+        title: 'Why this rule exists',
+        content: 'Bonus abuse protection: it ensures every user has either traded actively on the platform or shown commitment with a real deposit. This keeps the bonus economy sustainable for everyone.'
+      }
+    ]
+  },
+  {
+    id: 'unlock2',
+    category: 'unlock',
+    question: 'Which option is better for me — A or B?',
+    answer: [
+      {
+        type: 'text',
+        content: 'Both unlock the same thing — your entire balance, with no further restrictions. The only difference is speed and effort:'
+      },
+      {
+        type: 'success',
+        title: '⚡ Option B — Recommended for most users',
+        content: 'A $250 deposit is the fastest, simplest path. If you have $54,000+ in mining earnings sitting locked, depositing $250 to unlock all of it is a 216x return on the deposit. Most users complete this in minutes via BEP20 USDT (lowest network fees).'
+      },
+      {
+        type: 'info',
+        title: '📈 Option A — For active traders',
+        content: 'If you already trade frequently, $50,000 in cumulative volume is reachable through normal activity. Each round-trip trade (buy + sell) counts as $X + $X toward the volume goal. High-leverage futures positions count their full notional size.'
+      },
+      {
+        type: 'warning',
+        title: 'Important: They do NOT stack',
+        content: 'You only need to complete ONE option. The moment either counter hits 100%, the lock is permanently lifted — you do not need to finish both.'
+      }
+    ]
+  },
+  {
+    id: 'unlock3',
+    category: 'unlock',
+    question: 'How do I check my unlock progress?',
+    answer: [
+      {
+        type: 'text',
+        content: 'Your live unlock progress is tracked in real time and visible whenever you open a withdrawal request. Two counters update automatically:'
+      },
+      {
+        type: 'table',
+        rows: [
+          { label: '📊 Trading Volume', value: '$X / $50,000', note: 'Tracks all completed trades across spot, futures, and quick trade. Updates instantly after each trade.' },
+          { label: '💰 Deposits', value: '$X / $250', note: 'Tracks all confirmed external deposits (BEP20, TRC20, ERC20). Updates as soon as the blockchain transaction is confirmed.' }
+        ]
+      },
+      {
+        type: 'success',
+        title: '🚀 Automatic Unlock',
+        content: 'The moment EITHER counter reaches 100%, your withdrawal opens automatically. No manual approval, no support ticket, no waiting. The lock is removed permanently for the lifetime of your account.'
+      },
+      {
+        type: 'info',
+        title: '💡 Pro Tip',
+        content: 'If you want to withdraw today, choose Option B. A single BEP20 USDT deposit of $250 typically confirms in under 60 seconds and unlocks your entire balance instantly.'
+      }
+    ]
+  },
   {
     id: 'hw1',
     category: 'how-it-works',
@@ -206,8 +298,8 @@ const faqData: FAQItem[] = [
       {
         type: 'table',
         rows: [
-          { label: '💵 Option A — USDT', value: 'REAL MONEY', note: 'This is your actual balance. You can withdraw it, use it in the Shop, send it to your wallet, trade with it. This is the only thing that matters financially.' },
-          { label: '⭐ Option B — EQ', value: 'BONUS BADGE', note: 'EQ is a loyalty/activity score that grows alongside your USDT. It is "Display Only" — you cannot withdraw it, sell it, or trade it. Think of it as a prestige badge.' }
+          { label: '💵 USDT', value: 'REAL MONEY', note: 'This is your actual balance. You can withdraw it, use it in the Shop, send it to your wallet, trade with it. This is the only thing that matters financially.' },
+          { label: '⭐ EQ Token', value: 'LOYALTY BADGE', note: 'EQ is a loyalty/activity score that grows alongside your USDT. It is "Display Only" — you cannot withdraw it, sell it, or trade it. Think of it as a prestige badge.' }
         ]
       },
       {
