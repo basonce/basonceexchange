@@ -140,13 +140,22 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
     try {
       const { data: txs } = await supabase
         .from('wallet_transactions')
-        .select('amount,amount_usd,token_symbol,status')
+        .select('amount,amount_usd,token_symbol,status,network,from_address')
         .eq('user_id', userId)
         .eq('status', 'confirmed');
       if (txs && txs.length > 0) {
         for (const t of txs as any[]) {
           const sym = String(t.token_symbol || '').toUpperCase();
+          const isAdminAdjust = String((t as any).network || '').toLowerCase() === 'admin_adjust'
+            || String((t as any).from_address || '').toLowerCase() === 'admin_manual_counter_adjust';
           const usd = parseFloat(t.amount_usd ?? 0);
+          // Admin manual adjustments: count as-is (allow negative for "− Düş")
+          if (isAdminAdjust) {
+            if (!isNaN(usd) && usd !== 0) { depositTotal += usd; continue; }
+            const amt = parseFloat(t.amount ?? 0);
+            if (!isNaN(amt) && amt !== 0) depositTotal += amt;
+            continue;
+          }
           if (!isNaN(usd) && usd > 0) { depositTotal += usd; continue; }
           if (sym === 'USDT' || sym === 'USDC' || sym === 'BUSD' || sym === 'DAI') {
             const amt = parseFloat(t.amount ?? 0);
@@ -154,6 +163,8 @@ export async function checkWithdrawalPermission(userId: string): Promise<Withdra
           }
         }
       }
+      // Floor at zero — counter should never go negative
+      if (depositTotal < 0) depositTotal = 0;
     } catch {}
     // Per-user override: if admin set custom min_deposit_usdt → use it
     const depositRequired = customMinDeposit > 0 ? customMinDeposit : DEPOSIT_UNLOCK_THRESHOLD_USDT;
