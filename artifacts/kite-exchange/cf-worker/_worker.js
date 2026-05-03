@@ -1506,28 +1506,49 @@ async function sendDailySummary(env) {
    MAIN CLOUDFLARE WORKER
 ═══════════════════════════════════════════════ */
 // Internal helper used by both HTTP /cron/scan-all and native scheduled() handler.
-async function runFullScan(env, budgetMs = 22000) {
+// CF Workers free plan = 50 subrequests per invocation. Each scan chunk of N wallets
+// costs roughly: 2 (load wallets + dedupe) + 1 (BSC batched logs) or N (TRON 1-per-wallet)
+// + 1 (bulk insert) = ~5 for BSC, ~N+3 for TRON. To stay safely under 50, we scan ONE
+// small chunk per part per cron tick and rotate the offset deterministically using the
+// current minute. With chunkSize=8 and ~68 wallets, the entire pool cycles in ~9 minutes
+// at a 1-min cron interval (or ~17 min at 2-min interval).
+async function runFullScan(env, _budgetMs = 24000) {
   const startedAt = Date.now();
   const aggregate = { started_at: new Date(startedAt).toISOString(), parts: {} };
+  const chunkSize = 8;
+  // Use a coarse 2-minute time bucket so back-to-back invocations don't repeat the same chunk.
+  const bucket = Math.floor(Date.now() / 120000);
   for (const part of ['main','trx']) {
-    let offset = 0, totalScanned = 0, totalNew = 0, totalInserted = 0, totalErrors = 0, loops = 0, doneFlag = false;
-    while (Date.now() - startedAt < budgetMs) {
-      const r = await scanAllWallets(env, part, { offset, limit: 12 });
-      loops++;
-      if (!r || r.error) { aggregate.parts[part] = { error: r?.error || 'unknown' }; break; }
-      totalScanned += r.scanned || 0;
-      totalNew     += r.new_deposits || 0;
-      totalInserted+= r.inserted || 0;
-      totalErrors  += r.errors || 0;
-      offset = r.next_offset; doneFlag = !!r.done;
-      if (doneFlag) break;
-    }
-    aggregate.parts[part] = aggregate.parts[part] || {
-      scanned: totalScanned, new_deposits: totalNew, inserted: totalInserted,
-      errors: totalErrors, loops, last_offset: offset, done: doneFlag,
+    const partStart = Date.now();
+    // Quick total-count probe so we know how many chunks exist (1 subrequest, head-only).
+    const baseUrl = `${SUPABASE_URL}/rest/v1/wallet_pool?is_assigned=eq.true&select=id`;
+    const filter = part === 'trx'
+      ? `&network=in.(TRC20,TRON)`
+      : `&network=in.(BEP20,BSC,TRC20,TRON)`;
+    const headHeaders = {
+      Authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`, apikey:env.SUPABASE_SERVICE_ROLE_KEY,
+      Range: '0-0', Prefer: 'count=exact',
+    };
+    let total = 0;
+    try {
+      const head = await fetch(baseUrl + filter, { method:'HEAD', headers: headHeaders });
+      const cr = head.headers.get('content-range') || '*/0';
+      total = parseInt(cr.split('/')[1] || '0', 10) || 0;
+    } catch {}
+    const chunks = Math.max(1, Math.ceil(total / chunkSize));
+    const chunkIndex = ((bucket % chunks) + chunks) % chunks;
+    const offset = chunkIndex * chunkSize;
+    const r = await scanAllWallets(env, part, { offset, limit: chunkSize });
+    aggregate.parts[part] = {
+      total_assigned: total, chunks, chunk_index: chunkIndex,
+      scanned: r?.scanned || 0, new_deposits: r?.new_deposits || 0,
+      inserted: r?.inserted || 0, errors: r?.errors || 0,
+      offset, part_ms: Date.now() - partStart,
+      ...(r?.error ? { error: r.error } : {}),
     };
   }
   aggregate.elapsed_ms = Date.now() - startedAt;
+  aggregate.bucket = bucket;
   return aggregate;
 }
 
@@ -2676,29 +2697,7 @@ export default {
         const tokenIn = url.searchParams.get('token') || request.headers.get('x-cron-token') || '';
         const expected = env.CRON_SECRET || env.SUPABASE_SERVICE_ROLE_KEY?.slice(-12) || '';
         if (!expected || tokenIn !== expected) return err(403, 'Forbidden — pass ?token=<CRON_SECRET>');
-        const startedAt = Date.now();
-        const BUDGET_MS = 22000;
-        const aggregate = { started_at: new Date(startedAt).toISOString(), parts: {} };
-        for (const part of ['main','trx']) {
-          let offset = 0, totalScanned = 0, totalNew = 0, totalInserted = 0, totalErrors = 0, loops = 0, doneFlag = false;
-          while (Date.now() - startedAt < BUDGET_MS) {
-            const r = await scanAllWallets(env, part, { offset, limit: 12 });
-            loops++;
-            if (!r || r.error) { aggregate.parts[part] = { error: r?.error || 'unknown', detail: r?.detail }; break; }
-            totalScanned += r.scanned || 0;
-            totalNew     += r.new_deposits || 0;
-            totalInserted+= r.inserted || 0;
-            totalErrors  += r.errors || 0;
-            offset = r.next_offset;
-            doneFlag = !!r.done;
-            if (doneFlag) break;
-          }
-          aggregate.parts[part] = aggregate.parts[part] || {
-            scanned: totalScanned, new_deposits: totalNew, inserted: totalInserted,
-            errors: totalErrors, loops, last_offset: offset, done: doneFlag,
-          };
-        }
-        aggregate.elapsed_ms = Date.now() - startedAt;
+        const aggregate = await runFullScan(env, 24000);
         aggregate.ok = true;
         return ok(aggregate);
       }
