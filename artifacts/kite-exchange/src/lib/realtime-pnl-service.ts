@@ -145,6 +145,9 @@ class RealtimePnLService {
     spotBalances: Array<{ symbol: string; balance: number }>;
     futuresWallet: number;
     futuresUnrealizedPnL: number;
+    startingValue?: number;
+    dailyPnL?: number;
+    dailyPnLPercentage?: number;
   }> {
     const user = await getCurrentUser();
     if (!user) return { total: 0, spotBalances: [], futuresWallet: 0, futuresUnrealizedPnL: 0 };
@@ -169,6 +172,9 @@ class RealtimePnLService {
               futuresUnrealizedPnL: number;
               spotBalances: Array<{ symbol: string; balance: number }>;
               missingPrices: string[];
+              startingValue?: number;
+              dailyPnL?: number;
+              dailyPnLPercentage?: number;
             };
           };
           if (json.success && json.data) {
@@ -177,6 +183,9 @@ class RealtimePnLService {
               spotBalances: json.data.spotBalances,
               futuresWallet: json.data.futuresWallet,
               futuresUnrealizedPnL: json.data.futuresUnrealizedPnL,
+              startingValue: json.data.startingValue,
+              dailyPnL: json.data.dailyPnL,
+              dailyPnLPercentage: json.data.dailyPnLPercentage,
             };
           }
         }
@@ -266,7 +275,8 @@ class RealtimePnLService {
 
   private async recalculate(): Promise<void> {
     try {
-      const { total, spotBalances } = await this.computeCurrentPortfolio();
+      const result = await this.computeCurrentPortfolio();
+      const { total, spotBalances } = result;
 
       if (total <= 0) {
         // Always publish 0 — never suppress based on stale cached value
@@ -274,11 +284,22 @@ class RealtimePnLService {
         return;
       }
 
-      const startingValue = await this.getOrCreateTodaySnapshot(total);
-      const dailyPnL = total - startingValue;
-      const dailyPnLPercentage = startingValue > 0
-        ? Math.max(-100, Math.min(100_000, (dailyPnL / startingValue) * 100))
-        : 0;
+      // Prefer server-computed snapshot (Binance-style, resets at 04:00 TR / 01:00 UTC).
+      // Fall back to local snapshot only if server didn't return PnL fields.
+      let startingValue: number;
+      let dailyPnL: number;
+      let dailyPnLPercentage: number;
+      if (typeof result.startingValue === 'number' && typeof result.dailyPnL === 'number') {
+        startingValue = result.startingValue;
+        dailyPnL = result.dailyPnL;
+        dailyPnLPercentage = result.dailyPnLPercentage ?? 0;
+      } else {
+        startingValue = await this.getOrCreateTodaySnapshot(total);
+        dailyPnL = total - startingValue;
+        dailyPnLPercentage = startingValue > 0
+          ? Math.max(-100, Math.min(100_000, (dailyPnL / startingValue) * 100))
+          : 0;
+      }
 
       this.publish({
         currentTotalValue: total,

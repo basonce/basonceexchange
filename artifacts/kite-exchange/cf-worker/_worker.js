@@ -2125,7 +2125,54 @@ export default {
         }
 
         const total = spotTotal + futuresWallet + futuresUnrealizedPnL;
-        return ok({ total, spotTotal, futuresWallet, futuresUnrealizedPnL, spotBalances, missingPrices });
+
+        // ── Today's PnL (Binance-style, resets every day at 04:00 TR / 01:00 UTC) ──
+        // Trading day: subtract 1h from UTC so the rollover happens at UTC 01:00 = TR 04:00.
+        const tradingDay = new Date(Date.now() - 3600_000).toISOString().split('T')[0];
+        let startingValue = total;
+        let dailyPnL = 0;
+        let dailyPnLPercentage = 0;
+        try {
+          const existing = await sbGet(
+            'daily_portfolio_snapshots',
+            `?user_id=eq.${userId}&snapshot_date=eq.${tradingDay}&select=total_value_usdt&limit=1`,
+            env
+          ).catch(() => []);
+          if (existing && existing[0] && parseFloat(existing[0].total_value_usdt) > 0) {
+            startingValue = parseFloat(existing[0].total_value_usdt);
+          } else if (total > 0) {
+            // Lazy snapshot: first request of the trading day creates the baseline.
+            await fetch(`${SUPABASE_URL}/rest/v1/daily_portfolio_snapshots`, {
+              method: 'POST',
+              headers: {
+                apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+                Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+                'Content-Type': 'application/json',
+                Prefer: 'resolution=merge-duplicates,return=minimal',
+              },
+              body: JSON.stringify({
+                user_id: userId,
+                snapshot_date: tradingDay,
+                total_value_usdt: total,
+                balances: { __formula_v2__: true },
+              }),
+              signal: AbortSignal.timeout(5000),
+            }).catch(() => null);
+            startingValue = total;
+          }
+          dailyPnL = total - startingValue;
+          dailyPnLPercentage = startingValue > 0
+            ? Math.max(-100, Math.min(100000, (dailyPnL / startingValue) * 100))
+            : 0;
+        } catch (e) {
+          startingValue = total;
+        }
+
+        return ok({
+          total, spotTotal, futuresWallet, futuresUnrealizedPnL,
+          spotBalances, missingPrices,
+          startingValue, dailyPnL, dailyPnLPercentage, tradingDay,
+        });
       }
 
       /* ── TEAM LOGO (JSON) ── */
