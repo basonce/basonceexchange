@@ -273,23 +273,21 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
     if (!signedAmount || isNaN(signedAmount)) { showToast('❌ Miktar girin'); return; }
     setCounterSaving(prev => ({ ...prev, [userId]: true }));
     try {
-      const { error } = await supabase.from('wallet_transactions').insert({
-        user_id: userId,
-        token_symbol: 'USDT',
-        amount: signedAmount,
-        amount_usd: signedAmount,
-        status: 'confirmed',
-        network: 'admin_adjust',
-        from_address: 'admin_manual_counter_adjust',
+      // wallet_transactions tablosu RLS ile yazmaya kapalı → worker'ın service-role
+      // ile yazan endpoint'ini kullan. (Hacim için user_trades direkt supabase
+      // çalışıyor, ona dokunmuyoruz.)
+      const adminUser = await getCurrentUser();
+      const adminId = adminUser?.id || '';
+      if (!adminId) throw new Error('Admin girişi gerekli');
+      const resp = await fetch('/api/admin/counter-adjust', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-requester-id': adminId },
+        body: JSON.stringify({ userId, kind: 'deposit', amount: signedAmount }),
       });
-      if (error) throw error;
-      try {
-        await supabase.from('admin_actions').insert({
-          action_type: 'counter_adjust',
-          target_user_id: userId,
-          details: { amount_usd: signedAmount, direction: signedAmount >= 0 ? 'add' : 'subtract' },
-        });
-      } catch {}
+      const txt = await resp.text();
+      let data: any = null;
+      try { data = txt ? JSON.parse(txt) : null; } catch {}
+      if (!resp.ok) throw new Error(data?.error || data?.message || `HTTP ${resp.status}: ${txt.slice(0, 200)}`);
       const sign = signedAmount >= 0 ? '+' : '';
       showToast(`📈 Yatırım sayacı ${sign}${signedAmount} USDT oynatıldı`);
       setCounterAmt(prev => ({ ...prev, [userId]: '' }));
