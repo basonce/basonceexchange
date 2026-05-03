@@ -64,6 +64,7 @@ interface Balance {
   symbol: string;
   balance: number;
   locked_balance: number;
+  futures_balance?: number;
   price: number;
   priceChange24h?: number;
 }
@@ -221,7 +222,7 @@ export default function AssetsPage() {
 
       const { data, error } = await supabase
         .from('user_balances')
-        .select('symbol, balance, locked_balance')
+        .select('symbol, balance, locked_balance, futures_balance')
         .eq('user_id', user.id);
 
       if (error) throw error;
@@ -231,14 +232,14 @@ export default function AssetsPage() {
       const userBalanceMap = new Map(
         (data || [])
           .filter(b => !SENTINEL_SYMBOLS.has(b.symbol))
-          .map(b => [b.symbol, { balance: parseFloat(b.balance) || 0, locked: parseFloat(b.locked_balance) || 0 }])
+          .map(b => [b.symbol, { balance: parseFloat(b.balance) || 0, locked: parseFloat(b.locked_balance) || 0, futures: parseFloat((b as any).futures_balance) || 0 }])
       );
 
       const priceCache = PriceCache.getInstance();
       const eqPriceManager = EarnQuestPriceManager.getInstance();
 
       const quickBalances = SUPPORTED_COINS.map((coin) => {
-        const userBalance = userBalanceMap.get(coin.symbol) || { balance: 0, locked: 0 };
+        const userBalance = userBalanceMap.get(coin.symbol) || { balance: 0, locked: 0, futures: 0 };
         let price = 0;
         let priceChange24h = 0;
 
@@ -259,6 +260,7 @@ export default function AssetsPage() {
           symbol: coin.symbol,
           balance: userBalance.balance,
           locked_balance: userBalance.locked,
+          futures_balance: userBalance.futures,
           price,
           priceChange24h
         };
@@ -650,8 +652,18 @@ export default function AssetsPage() {
                     </div>
                     <div className="text-right">
                       <div className="text-white font-semibold">
-                        {hideBalance ? '****' : coin.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {hideBalance ? '****' : (coin.symbol === 'USDT'
+                          ? (coin.balance + (coin.futures_balance || 0))
+                          : coin.balance
+                        ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
+                      {coin.symbol === 'USDT' && (coin.futures_balance || 0) > 0 && !hideBalance && (
+                        <div className="text-[11px] text-gray-400 leading-tight">
+                          {coin.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Spot
+                          <span className="mx-1 text-gray-600">·</span>
+                          <span className="text-[#F0B90B]">{(coin.futures_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Futures</span>
+                        </div>
+                      )}
                       {coin.locked_balance > 0 && !hideBalance && (
                         <div className="text-xs text-[#F0B90B]">
                           🔒 {coin.locked_balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} locked
