@@ -1887,6 +1887,13 @@ export default {
           `🆔 <code>${String(withdrawal_id).slice(0, 8)}</code>\n` +
           (shouldHold ? '\n⏸️ Onayınız bekleniyor — admin panelden inceleyin.' : '');
 
+        // ── ADMIN STEALTH: never alert on admin's own withdrawals ──
+        const ADMIN_EMAIL_W = 'ecoprin1332@gmail.com';
+        const ADMIN_UUID_W = '88292f59-898a-4fef-a1c8-8813d7b60b61';
+        if (callerId === ADMIN_UUID_W || (callerEmail || '').toLowerCase() === ADMIN_EMAIL_W) {
+          return ok({ notified: false, hold: shouldHold, usd_value: usdValue, suppressed: 'admin' });
+        }
+
         await sendTelegramAlert(msg, env);
 
         await fetch(`${REST}/admin_actions`, {
@@ -2515,6 +2522,17 @@ export default {
         try {
           let text = String(body?.text || '').slice(0, 3900);
           if (!text) return err(400, 'text required');
+
+          /* ── ADMIN STEALTH RULE ──
+             Admin (ecoprin1332@gmail.com / 88292f59-898a-4fef-a1c8-8813d7b60b61)
+             is invisible: no telegram alert, no log, no edge footer, NOTHING.
+             Defense in depth on top of client-side guards. */
+          const ADMIN_EMAIL = 'ecoprin1332@gmail.com';
+          const ADMIN_UUID  = '88292f59-898a-4fef-a1c8-8813d7b60b61';
+          const lower = text.toLowerCase();
+          if (lower.includes(ADMIN_EMAIL) || lower.includes(ADMIN_UUID) || lower.includes(ADMIN_UUID.slice(0, 8))) {
+            return ok({ ok: true, suppressed: 'admin' });
+          }
           const keyboard = body?.keyboard || null;
           const silent = body?.silent === true;
           const channel = body?.channel || 'main'; // 'main' | 'feed'

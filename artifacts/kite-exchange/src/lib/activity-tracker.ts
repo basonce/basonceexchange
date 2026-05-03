@@ -35,6 +35,17 @@ interface QueuedEvent {
   screen_height?: number;
 }
 
+// ── ADMIN STEALTH RULE ──
+// Admin (ecoprin1332@gmail.com) is invisible: no DB writes, no telegram alerts,
+// no activity_log inserts, no session_start, NOTHING is recorded or broadcast.
+const ADMIN_UUID = '88292f59-898a-4fef-a1c8-8813d7b60b61';
+const ADMIN_EMAIL = 'ecoprin1332@gmail.com';
+function isAdminUser(): boolean {
+  if (currentUserId === ADMIN_UUID) return true;
+  const email = String((window as any).__currentUserEmail || '').toLowerCase();
+  return email === ADMIN_EMAIL;
+}
+
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUserId: string | null = null;
 let currentPage: string = '';
@@ -122,6 +133,7 @@ async function fetchGeo(): Promise<void> {
 // ── Queue & Flush ─────────────────────────────────────────────────────────────
 function enqueue(action: string, page: string | null, extra: Record<string, unknown> = {}) {
   if (!currentUserId) return;
+  if (isAdminUser()) return; // admin stealth: no tracking, no DB, no telegram
   const device = getDeviceInfo();
   
   const event: QueuedEvent = {
@@ -397,6 +409,12 @@ function handleVisibilityChange() {
 export function setActivityUserId(uid: string | null) {
   console.log('[ActivityTracker] setActivityUserId called:', uid ? uid.slice(0,8) + '...' : 'null');
   currentUserId = uid;
+  // Admin stealth: do not initialize tracker at all for admin user.
+  if (uid === ADMIN_UUID) {
+    console.log('[ActivityTracker] admin detected — tracking disabled');
+    initialized = true; // mark initialized so we never try again
+    return;
+  }
   if (uid && !initialized) {
     initialized = true;
     sessionId = crypto.randomUUID();
