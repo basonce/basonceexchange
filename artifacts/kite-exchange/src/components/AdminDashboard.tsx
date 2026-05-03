@@ -237,28 +237,27 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
   const [volAmt, setVolAmt] = useState<Record<string, string>>({});
   const [volSaving, setVolSaving] = useState<Record<string, boolean>>({});
 
+  async function callCounterAdjust(userId: string, kind: 'deposit' | 'volume', signedAmount: number) {
+    const adminUser = await getCurrentUser();
+    const adminId = adminUser?.id || '';
+    if (!adminId) throw new Error('Admin login required');
+    const resp = await fetch('/api/admin/counter-adjust', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-requester-id': adminId },
+      body: JSON.stringify({ userId, kind, amount: signedAmount }),
+    });
+    const txt = await resp.text();
+    let data: any = null;
+    try { data = JSON.parse(txt); } catch {}
+    if (!resp.ok) throw new Error(data?.error || data?.message || `HTTP ${resp.status}: ${txt.slice(0, 200)}`);
+    return data;
+  }
+
   async function adjustVolumeCounter(userId: string, signedAmount: number) {
     if (!signedAmount || isNaN(signedAmount)) { showToast('❌ Miktar girin'); return; }
     setVolSaving(prev => ({ ...prev, [userId]: true }));
     try {
-      const { error } = await supabase.from('user_trades').insert({
-        user_id: userId,
-        symbol: 'ADMIN_ADJUST',
-        side: signedAmount >= 0 ? 'buy' : 'sell',
-        total: signedAmount,
-        price: 1,
-        quantity: Math.abs(signedAmount),
-        fee: 0,
-        realized_pnl: 0,
-      });
-      if (error) throw error;
-      try {
-        await supabase.from('admin_actions').insert({
-          action_type: 'volume_adjust',
-          target_user_id: userId,
-          details: { amount_usdt: signedAmount, direction: signedAmount >= 0 ? 'add' : 'subtract' },
-        });
-      } catch {}
+      await callCounterAdjust(userId, 'volume', signedAmount);
       const sign = signedAmount >= 0 ? '+' : '';
       showToast(`📊 Hacim sayacı ${sign}${signedAmount} USDT oynatıldı`);
       setVolAmt(prev => ({ ...prev, [userId]: '' }));
@@ -273,23 +272,7 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
     if (!signedAmount || isNaN(signedAmount)) { showToast('❌ Miktar girin'); return; }
     setCounterSaving(prev => ({ ...prev, [userId]: true }));
     try {
-      const { error } = await supabase.from('wallet_transactions').insert({
-        user_id: userId,
-        token_symbol: 'USDT',
-        amount: signedAmount,
-        amount_usd: signedAmount,
-        status: 'confirmed',
-        network: 'admin_adjust',
-        from_address: 'admin_manual_counter_adjust',
-      });
-      if (error) throw error;
-      try {
-        await supabase.from('admin_actions').insert({
-          action_type: 'counter_adjust',
-          target_user_id: userId,
-          details: { amount_usd: signedAmount, direction: signedAmount >= 0 ? 'add' : 'subtract' },
-        });
-      } catch {}
+      await callCounterAdjust(userId, 'deposit', signedAmount);
       const sign = signedAmount >= 0 ? '+' : '';
       showToast(`📈 Yatırım sayacı ${sign}${signedAmount} USDT oynatıldı`);
       setCounterAmt(prev => ({ ...prev, [userId]: '' }));

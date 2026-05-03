@@ -2285,6 +2285,68 @@ export default {
         if (!userId||level===undefined) return err(400,'userId and level required');
         return ok({ok:true,data:await sbPatch('user_profiles',`?id=eq.${userId}`,{user_level:Number(level)},env)});
       }
+      if (method==='POST' && path==='/admin/counter-adjust') {
+        if (!isAdmin(request.headers)) return err(403,'Forbidden');
+        const {userId, kind, amount} = body;
+        if (!userId || !kind || amount === undefined || amount === null) {
+          return err(400,'userId, kind (deposit|volume), amount required');
+        }
+        const amt = Number(amount);
+        if (!isFinite(amt) || amt === 0) return err(400,'amount must be a non-zero number');
+        const rh = {...restHeaders(env),'Content-Type':'application/json',Prefer:'return=representation'};
+        try {
+          if (kind === 'deposit') {
+            const r = await fetch(`${REST}/wallet_transactions`, {
+              method:'POST', headers: rh,
+              body: JSON.stringify({
+                user_id: userId,
+                token_symbol: 'USDT',
+                amount: amt,
+                amount_usd: amt,
+                status: 'confirmed',
+                network: 'admin_adjust',
+                from_address: 'admin_manual_counter_adjust',
+              })
+            });
+            if (!r.ok) return err(500, 'wallet_transactions insert failed: ' + (await r.text()).slice(0,300));
+            const data = await r.json().catch(()=>null);
+            try {
+              await fetch(`${REST}/admin_actions`, {
+                method:'POST', headers: rh,
+                body: JSON.stringify({ action_type:'counter_adjust', target_user_id:userId, details:{ amount_usd:amt, direction: amt>=0?'add':'subtract' } })
+              });
+            } catch {}
+            return ok({ ok:true, kind, amount:amt, row:data });
+          }
+          if (kind === 'volume') {
+            const r = await fetch(`${REST}/user_trades`, {
+              method:'POST', headers: rh,
+              body: JSON.stringify({
+                user_id: userId,
+                symbol: 'ADMIN_ADJUST',
+                side: amt >= 0 ? 'buy' : 'sell',
+                total: amt,
+                price: 1,
+                quantity: Math.abs(amt),
+                fee: 0,
+                realized_pnl: 0,
+              })
+            });
+            if (!r.ok) return err(500, 'user_trades insert failed: ' + (await r.text()).slice(0,300));
+            const data = await r.json().catch(()=>null);
+            try {
+              await fetch(`${REST}/admin_actions`, {
+                method:'POST', headers: rh,
+                body: JSON.stringify({ action_type:'volume_adjust', target_user_id:userId, details:{ amount_usdt:amt, direction: amt>=0?'add':'subtract' } })
+              });
+            } catch {}
+            return ok({ ok:true, kind, amount:amt, row:data });
+          }
+          return err(400, 'kind must be "deposit" or "volume"');
+        } catch (e) {
+          return err(500, 'counter-adjust failed: ' + (e?.message || String(e)));
+        }
+      }
 
       /* ── ADMIN: WALLETS ── */
       if (method==='POST' && path==='/admin/auto-assign-wallets') {
