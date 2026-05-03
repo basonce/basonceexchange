@@ -213,13 +213,13 @@ export default function FuturesPositionCard({
         {/* PNL + ROI */}
         <div className="flex items-start justify-between mb-4">
           <div>
-            <div className="text-[#848E9C] text-[11px] mb-1 border-b border-dashed border-[#2B3139] pb-0.5 inline-block">PNL (USDT)</div>
+            <div className="text-[#848E9C] text-[12px] mb-1">PNL (USDT)</div>
             <div className={`text-3xl font-bold leading-tight ${pnlColor}`}>
               {pnlSign}{currentPnL.toFixed(2)}
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[#848E9C] text-[11px] mb-1 border-b border-dashed border-[#2B3139] pb-0.5 inline-block">ROI</div>
+            <div className="text-[#848E9C] text-[12px] mb-1">ROI</div>
             <div className={`text-3xl font-bold leading-tight ${pnlColor}`}>
               {pnlSign}{pnlPercentage.toFixed(2)}%
             </div>
@@ -229,23 +229,23 @@ export default function FuturesPositionCard({
         {/* Size / Margin / Margin Ratio */}
         <div className="grid grid-cols-3 gap-2 mb-3">
           <div>
-            <div className="text-[#848E9C] text-[10px] mb-1 border-b border-dashed border-[#2B3139] pb-0.5 inline-block">Size ({base})</div>
-            <div className="text-white text-[13px] font-medium">
+            <div className="text-[#848E9C] text-[12px] mb-1">Size ({base})</div>
+            <div className="text-white text-[16px] font-semibold">
               {quantity >= 1
                 ? Math.floor(quantity).toLocaleString('en-US')
                 : quantity.toLocaleString('en-US', { maximumFractionDigits: 6 })}
             </div>
           </div>
           <div>
-            <div className="text-[#848E9C] text-[10px] mb-1 border-b border-dashed border-[#2B3139] pb-0.5 inline-block">Margin (USDT)</div>
-            <div className="text-white text-[13px] font-medium">
+            <div className="text-[#848E9C] text-[12px] mb-1">Margin (USDT)</div>
+            <div className="text-white text-[16px] font-semibold">
               {margin.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[#848E9C] text-[10px] mb-1 border-b border-dashed border-[#2B3139] pb-0.5 inline-block">Margin Ratio</div>
+            <div className="text-[#848E9C] text-[12px] mb-1">Margin Ratio</div>
             <div className="flex items-center justify-end gap-1">
-              <div className={`text-[13px] font-semibold ${marginRatio < 50 ? 'text-[#0ECB81]' : marginRatio < 80 ? 'text-[#F0B90B]' : 'text-[#F6465D]'}`}>
+              <div className={`text-[16px] font-semibold ${marginRatio < 50 ? 'text-[#0ECB81]' : marginRatio < 80 ? 'text-[#F0B90B]' : 'text-[#F6465D]'}`}>
                 {marginRatio.toFixed(2)}%
               </div>
               {isHighRisk && <AlertTriangle className="w-3 h-3 text-[#F6465D]" />}
@@ -256,16 +256,16 @@ export default function FuturesPositionCard({
         {/* Entry / Mark / Liq Price */}
         <div className="grid grid-cols-3 gap-2 mb-3">
           <div>
-            <div className="text-[#848E9C] text-[10px] mb-1 border-b border-dashed border-[#2B3139] pb-0.5 inline-block">Entry Price (USDT)</div>
-            <div className="text-white text-[13px] font-medium">{formatPrice(entryPrice)}</div>
+            <div className="text-[#848E9C] text-[12px] mb-1">Entry Price (USDT)</div>
+            <div className="text-white text-[16px] font-semibold">{formatPrice(entryPrice)}</div>
           </div>
           <div>
-            <div className="text-[#848E9C] text-[10px] mb-1 border-b border-dashed border-[#2B3139] pb-0.5 inline-block">Mark Price (USDT)</div>
-            <div className="text-white text-[13px] font-medium">{formatPrice(markPrice)}</div>
+            <div className="text-[#848E9C] text-[12px] mb-1">Mark Price (USDT)</div>
+            <div className="text-white text-[16px] font-semibold">{formatPrice(markPrice)}</div>
           </div>
           <div className="text-right">
-            <div className="text-[#848E9C] text-[10px] mb-1 border-b border-dashed border-[#2B3139] pb-0.5 inline-block">Liq. Price (USDT)</div>
-            <div className="text-[#F0B90B] text-[13px] font-medium">{formatPrice(position.liquidation_price)}</div>
+            <div className="text-[#848E9C] text-[12px] mb-1">Liq. Price (USDT)</div>
+            <div className="text-[#F0B90B] text-[16px] font-semibold">{formatPrice(position.liquidation_price)}</div>
           </div>
         </div>
 
