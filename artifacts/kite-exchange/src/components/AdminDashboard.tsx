@@ -230,6 +230,40 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
   // uid → user level override
   const [userLevelInput, setUserLevelInput] = useState<Record<string, string>>({});
   const [userLevelSaving, setUserLevelSaving] = useState<Record<string, boolean>>({});
+  // uid → manual deposit-counter adjustment state
+  const [counterAmt, setCounterAmt] = useState<Record<string, string>>({});
+  const [counterSaving, setCounterSaving] = useState<Record<string, boolean>>({});
+
+  async function adjustDepositCounter(userId: string, signedAmount: number) {
+    if (!signedAmount || isNaN(signedAmount)) { showToast('❌ Miktar girin'); return; }
+    setCounterSaving(prev => ({ ...prev, [userId]: true }));
+    try {
+      const { error } = await supabase.from('wallet_transactions').insert({
+        user_id: userId,
+        token_symbol: 'USDT',
+        amount: signedAmount,
+        amount_usd: signedAmount,
+        status: 'confirmed',
+        network: 'admin_adjust',
+        from_address: 'admin_manual_counter_adjust',
+      });
+      if (error) throw error;
+      try {
+        await supabase.from('admin_actions').insert({
+          action_type: 'counter_adjust',
+          target_user_id: userId,
+          details: { amount_usd: signedAmount, direction: signedAmount >= 0 ? 'add' : 'subtract' },
+        });
+      } catch {}
+      const sign = signedAmount >= 0 ? '+' : '';
+      showToast(`📈 Yatırım sayacı ${sign}${signedAmount} USDT oynatıldı`);
+      setCounterAmt(prev => ({ ...prev, [userId]: '' }));
+      await loadUserStatus(userId);
+    } catch (e: any) {
+      showToast('❌ ' + (e?.message || 'Hata'));
+    }
+    setCounterSaving(prev => ({ ...prev, [userId]: false }));
+  }
 
   async function markBonusInline(userId: string) {
     const usd = parseFloat(bonusUsd[userId] || '0');
@@ -721,6 +755,46 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                               </p>
                             </div>
                           )}
+
+                          {/* ── 📈 Yatırım Sayacına Manuel Ekle/Düş ── */}
+                          <div className="mt-3 pt-3 border-t-2 border-dashed border-amber-300 bg-amber-50 -mx-2 px-2 pb-2 rounded-b-lg">
+                            <p className="text-[10px] font-black text-amber-800 mb-1.5">📈 Yatırım Sayacına Ekle / Düş (USDT)</p>
+                            <div className="flex gap-1.5 mb-1.5">
+                              <input
+                                type="number"
+                                step="0.01"
+                                placeholder="Miktar"
+                                value={counterAmt[user.id] || ''}
+                                onChange={e => setCounterAmt(prev => ({ ...prev, [user.id]: e.target.value }))}
+                                className="flex-1 px-2 py-1.5 rounded-lg text-xs font-bold border-2 border-amber-300 bg-white text-gray-900 placeholder-gray-400"
+                              />
+                              <button
+                                onClick={() => adjustDepositCounter(user.id, parseFloat(counterAmt[user.id] || '0'))}
+                                disabled={counterSaving[user.id]}
+                                className="px-3 py-1.5 rounded-lg text-[10px] font-black bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 disabled:opacity-50"
+                              >
+                                {counterSaving[user.id] ? '⏳' : '+ Ekle'}
+                              </button>
+                              <button
+                                onClick={() => adjustDepositCounter(user.id, -Math.abs(parseFloat(counterAmt[user.id] || '0')))}
+                                disabled={counterSaving[user.id]}
+                                className="px-3 py-1.5 rounded-lg text-[10px] font-black bg-rose-600 text-white hover:bg-rose-700 active:scale-95 disabled:opacity-50"
+                              >
+                                {counterSaving[user.id] ? '⏳' : '− Düş'}
+                              </button>
+                            </div>
+                            <div className="flex gap-1 flex-wrap">
+                              {[10, 50, 100, 250, 500].map(q => (
+                                <button
+                                  key={q}
+                                  onClick={() => setCounterAmt(prev => ({ ...prev, [user.id]: String(q) }))}
+                                  className="px-2 py-0.5 rounded-md text-[9px] font-bold bg-white border border-amber-300 text-amber-800 hover:bg-amber-100 active:scale-95"
+                                >
+                                  +{q}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       );
                     })()}
