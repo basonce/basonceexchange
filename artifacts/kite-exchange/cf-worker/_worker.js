@@ -2168,10 +2168,22 @@ export default {
           startingValue = total;
         }
 
-        return ok({
-          total, spotTotal, futuresWallet, futuresUnrealizedPnL,
-          spotBalances, missingPrices,
-          startingValue, dailyPnL, dailyPnLPercentage, tradingDay,
+        return new Response(JSON.stringify({
+          success: true,
+          data: {
+            total, spotTotal, futuresWallet, futuresUnrealizedPnL,
+            spotBalances, missingPrices,
+            startingValue, dailyPnL, dailyPnLPercentage, tradingDay,
+          },
+        }), {
+          status: 200,
+          headers: {
+            ...CORS,
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+            'CDN-Cache-Control': 'no-store',
+            'Cloudflare-CDN-Cache-Control': 'no-store',
+          },
         });
       }
 
