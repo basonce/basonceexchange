@@ -277,18 +277,18 @@ export default function SharePositionCard({
               </div>
             </div>
 
-            {/* Big PnL % */}
-            <div style={{ margin: '20px 0 4px 0', maxWidth: '100%', overflow: 'hidden' }}>
+            {/* Big PnL % - never clip glyphs vertically (html2canvas + lineHeight:1
+                used to chop tops/bottoms of digits on iOS). Horizontal fit is
+                guaranteed by font-size auto-shrink based on string length above. */}
+            <div style={{ margin: '20px 0 4px 0' }}>
               <div style={{
                 color: pnlColor,
                 fontWeight: 900,
                 fontSize: `${pnlFontSize}px`,
-                lineHeight: 1,
+                lineHeight: 1.15,
                 letterSpacing: '-1px',
                 fontVariantNumeric: 'tabular-nums',
                 whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'clip',
               }}>
                 {pnlPctText}
               </div>
