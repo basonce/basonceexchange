@@ -79,8 +79,17 @@ export default function SharePositionCard({
   const pad = (n: number) => String(n).padStart(2, '0');
   const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
-  const absPercent = Math.abs(pnlPercentage);
-  const pnlFontSize = absPercent >= 1000 ? 52 : absPercent >= 100 ? 64 : 80;
+  // Auto-fit %: measure actual string length (sign + digits + . + 2 decimals + %)
+  // Usable width inside card = 360 - 56 padding ≈ 300px.
+  // Each "9" at 70px with weight 900 + letterSpacing -1 ≈ 38px wide.
+  const pnlPctText = `${pnlSign}${pnlPercentage.toFixed(2)}%`;
+  const pnlPctLen = pnlPctText.length;
+  const pnlFontSize =
+    pnlPctLen <= 6 ? 78 :  // e.g. "5.32%"
+    pnlPctLen === 7 ? 66 : // e.g. "+25.39%"
+    pnlPctLen === 8 ? 56 : // e.g. "+125.39%"
+    pnlPctLen === 9 ? 48 : // e.g. "+1234.56%"
+    42;                    // very large (>=10 chars)
 
   const referralUrl = `https://basonce.com?ref=${referralCode}`;
 
@@ -269,16 +278,19 @@ export default function SharePositionCard({
             </div>
 
             {/* Big PnL % */}
-            <div style={{ margin: '20px 0 4px 0' }}>
+            <div style={{ margin: '20px 0 4px 0', maxWidth: '100%', overflow: 'hidden' }}>
               <div style={{
                 color: pnlColor,
                 fontWeight: 900,
                 fontSize: `${pnlFontSize}px`,
                 lineHeight: 1,
-                letterSpacing: '-2px',
+                letterSpacing: '-1px',
                 fontVariantNumeric: 'tabular-nums',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'clip',
               }}>
-                {pnlSign}{pnlPercentage.toFixed(2)}%
+                {pnlPctText}
               </div>
               {/* USDT amount - bigger, with separator */}
               <div style={{
