@@ -1157,3 +1157,15 @@ id = "-Am9ShnYhXvvsskNyE50S"
 uri = "file://attached_assets/generated_images/basonce_banner_wide_final.png"
 type = "image"
 title = "Büyük Resim (1408x768) — BASONCE logolu, son versiyon"
+
+[[outputs]]
+id = "aF3fD2rIpW63MLjYJtqlR"
+uri = "file://attached_assets/generated_images/canva_banner_square_1024x1024.png"
+type = "image"
+title = "Küçük Resim (1024x1024) — Canva orijinal"
+
+[[outputs]]
+id = "-wMyNVUyt6q5nAAM5GiQf"
+uri = "file://attached_assets/generated_images/canva_banner_wide_1408x768.png"
+type = "image"
+title = "Büyük Resim (1408x768) — Canva orijinal"
