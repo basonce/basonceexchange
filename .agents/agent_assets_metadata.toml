@@ -1110,8 +1110,26 @@ uri = "file://artifacts/kite-exchange/public/ads/195_minimal_9.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "5eR9Dr2F0ASn6N79rMXT_"
+uri = "file://attached_assets/generated_images/basonce_banner_wide_100usdt.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "v5RYu_gBYBn_N1NnTOpMo"
+uri = "file://attached_assets/generated_images/basonce_banner_wide_v2.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "aFS2ugqH_E7RWoACMQsWq"
 uri = "file://attached_assets/exports/basonce_logo_for_coinzilla.png"
 type = "image"
 title = "Basonce Logo (1024x1024) — Coinzilla Küçük Resim için"
+
+[[outputs]]
+id = "WWQyQnAee2_Tk2bkEUmeA"
+uri = "file://attached_assets/generated_images/basonce_banner_wide_v2.png"
+type = "image"
+title = "Yeni Büyük Banner (16:9) — Coinzilla için güvenli, reddetmez"
