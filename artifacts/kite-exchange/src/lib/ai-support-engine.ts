@@ -211,6 +211,20 @@ export async function generateAIResponseFromOpenAI(
       return null; // forces caller's fallback (generateAIResponse) which produces bonus-aware reply
     }
 
+    // ★ MINING/EQUIPMENT short-circuit: the remote LLM gives stupid templated "min 10 USDT"
+    // replies that mix deposit minimum with equipment cost. Skip OpenAI and use the local
+    // EQ-aware engine which gives real tier pricing (Free CPU / $120 GPU / $350 ASIC) in
+    // the user's exact language.
+    const isMiningQ = [
+      'mining', 'miner', 'minería', 'mineria', 'minera', 'minero', 'minerar', 'minerador',
+      'madenc', 'ekipman', 'equipment', 'equipo', 'equipement', 'équipement', 'ausrüstung',
+      'оборудован', 'майнинг', 'تعدين', 'معدات', '挖矿', '矿机', 'equipamento',
+      'cpu miner', 'gpu miner', 'asic', ' eq ', 'eq token', 'eq coin'
+    ].some(w => msgLower.includes(w));
+    if (isMiningQ) {
+      return null; // forces local engine's mining branch (proper tier pricing, multi-language)
+    }
+
     const allMessages = [
       ...context.messages.map(m => ({
         role: m.role === 'customer' ? 'user' : 'assistant',
