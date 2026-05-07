@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, ArrowDownCircle, Send, CreditCard, Users, Zap, Loader2 } from 'lucide-react';
 import { RealDepositModal } from './RealDepositModal';
+import P2PModal from './P2PModal';
 import { supabase } from '../lib/supabase';
 
 interface DepositMethodModalProps {
@@ -17,6 +18,7 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
     network: 'bsc_testnet'
   });
   const [showInstant, setShowInstant] = useState(false);
+  const [showP2P, setShowP2P] = useState(false);
   const [amount, setAmount] = useState<string>('100');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,11 +62,10 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
       });
       const ct = res.headers.get('content-type') || '';
       if (!ct.includes('application/json')) {
-        // Dev/preview environment that doesn't proxy to the worker, or a server outage
         const txt = await res.text();
         setError(
           txt.startsWith('<!DOCTYPE') || txt.startsWith('<html')
-            ? 'This feature is only available on the live site (basonce.com). The preview server does not handle payment routes.'
+            ? 'This feature is only available on the live site (basonce.com).'
             : `Server error (${res.status})`
         );
         setLoading(false);
@@ -85,9 +86,16 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
 
   const methods = [
     {
+      icon: CreditCard,
+      title: 'Buy with Card / Bank Transfer',
+      description: 'Pay with Papara, Banka, Visa, Mastercard via verified P2P merchants. Instant settlement.',
+      highlight: true,
+      action: () => setShowP2P(true)
+    },
+    {
       icon: Zap,
       title: 'Instant Crypto Deposit',
-      description: 'Pay with BTC, ETH, USDT, BNB, SOL & 200+ coins. Instant credit.',
+      description: 'Pay with BTC, ETH, USDT, BNB, SOL & 200+ coins. Auto credit on confirmation.',
       action: () => { setShowInstant(true); setError(null); }
     },
     {
@@ -102,14 +110,10 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
       description: 'Receive crypto from other users'
     },
     {
-      icon: CreditCard,
-      title: 'Deposit USD',
-      description: 'Deposit USD via SWIFT, card, Apple/Google Pay'
-    },
-    {
       icon: Users,
       title: 'P2P Trading',
-      description: 'Buy directly from users. Competitive pricing'
+      description: 'Browse all merchants. Competitive pricing.',
+      action: () => setShowP2P(true)
     }
   ];
 
@@ -124,6 +128,10 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
         network={realDepositModal.network}
       />
     );
+  }
+
+  if (showP2P) {
+    return <P2PModal isOpen={true} onClose={() => { setShowP2P(false); onClose(); }} />;
   }
 
   return (
@@ -209,14 +217,27 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
                 <button
                   key={index}
                   onClick={method.action}
-                  className="w-full bg-[#2B3139] hover:bg-[#353D47] rounded-xl p-4 flex items-center gap-4 transition-colors text-left disabled:cursor-not-allowed"
+                  className={`w-full rounded-xl p-4 flex items-center gap-4 transition-colors text-left disabled:cursor-not-allowed ${
+                    method.highlight
+                      ? 'bg-gradient-to-r from-[#F0B90B]/15 to-[#F0B90B]/5 hover:from-[#F0B90B]/25 hover:to-[#F0B90B]/10 border border-[#F0B90B]/40'
+                      : 'bg-[#2B3139] hover:bg-[#353D47]'
+                  }`}
                   disabled={!method.action}
                 >
-                  <div className="w-11 h-11 bg-[#F0B90B]/20 rounded-full flex items-center justify-center flex-shrink-0">
-                    <method.icon className="w-5 h-5 text-[#F0B90B]" />
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    method.highlight ? 'bg-[#F0B90B]' : 'bg-[#F0B90B]/20'
+                  }`}>
+                    <method.icon className={`w-5 h-5 ${method.highlight ? 'text-black' : 'text-[#F0B90B]'}`} />
                   </div>
                   <div className="flex-1">
-                    <div className="font-semibold mb-1 text-[15px]">{method.title}</div>
+                    <div className="font-semibold mb-1 text-[15px] flex items-center gap-2">
+                      {method.title}
+                      {method.highlight && (
+                        <span className="text-[10px] bg-[#F0B90B] text-black px-1.5 py-0.5 rounded font-bold">
+                          INSTANT
+                        </span>
+                      )}
+                    </div>
                     <div className="text-[13px] leading-[1.4] text-gray-400">{method.description}</div>
                   </div>
                 </button>
