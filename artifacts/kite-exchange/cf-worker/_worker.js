@@ -34,6 +34,25 @@ async function hmac256(key, data) {
   const k = await crypto.subtle.importKey('raw', key, {name:'HMAC',hash:'SHA-256'}, false, ['sign']);
   return new Uint8Array(await crypto.subtle.sign('HMAC', k, data));
 }
+// HMAC-SHA512 hex (used by NOWPayments IPN signature verification)
+async function hmacSha512Hex(secret, msg) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), {name:'HMAC',hash:'SHA-512'}, false, ['sign']);
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(msg)));
+  let hex = '';
+  for (const b of sig) hex += b.toString(16).padStart(2, '0');
+  return hex;
+}
+// Recursively sort object keys (NOWPayments IPN canonical JSON)
+function sortObjDeep(o) {
+  if (Array.isArray(o)) return o.map(sortObjDeep);
+  if (o && typeof o === 'object') {
+    const out = {};
+    for (const k of Object.keys(o).sort()) out[k] = sortObjDeep(o[k]);
+    return out;
+  }
+  return o;
+}
 async function hkdf(salt, ikm, info, len) {
   const prk = await hmac256(salt, ikm);
   const out  = []; let prev = new Uint8Array(0);
@@ -1791,6 +1810,132 @@ export default {
           reward_symbol: CHEST_REWARD_SYMBOL,
           locked: false,
         });
+      }
+
+      /* ── NOWPAYMENTS: hosted invoice creation ──
+         User clicks "Crypto Card / Instant" → we create a NOWPayments hosted
+         invoice for $amount USD → return invoice_url → frontend redirects.
+         No KYB needed. Funds settle to NOWPayments custody until payout wallet
+         is configured in NOWPayments dashboard. */
+      if (method==='POST' && path==='/nowpay/invoice') {
+        if (!env.NOWPAYMENTS_API_KEY) return err(503, 'NOWPayments not configured');
+        const uid = await getAuthedUserId(request, env);
+        if (!uid) return err(401, 'Unauthorized');
+        const amount = Number(body.amount_usd || body.amount || 0);
+        if (!amount || amount < 5 || amount > 50000) return err(400, 'amount must be 5-50000 USD');
+        const orderId = `bsc:${uid}:${Date.now()}`;
+        const r = await fetch('https://api.nowpayments.io/v1/invoice', {
+          method: 'POST',
+          headers: { 'x-api-key': env.NOWPAYMENTS_API_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            price_amount: amount,
+            price_currency: 'usd',
+            order_id: orderId,
+            order_description: `Basonce wallet top-up ${amount} USD`,
+            ipn_callback_url: 'https://basonce.com/api/nowpay/ipn',
+            success_url: 'https://basonce.com/?nowpay=success#wallet',
+            cancel_url: 'https://basonce.com/?nowpay=cancel#wallet',
+          }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || !j.invoice_url) {
+          return err(502, 'NOWPayments error: ' + JSON.stringify(j).slice(0, 300));
+        }
+        return ok({ invoice_url: j.invoice_url, invoice_id: j.id, order_id: orderId });
+      }
+
+      /* ── NOWPAYMENTS: IPN webhook ──
+         NOWPayments POSTs payment status updates here. Validate HMAC-SHA512
+         signature using IPN secret over sorted-key JSON, then on `finished`
+         credit USDT to user balance (idempotent via NOWPAY sentinel). */
+      if (method === 'POST' && path === '/nowpay/ipn') {
+        if (!env.NOWPAYMENTS_IPN_SECRET) return err(503, 'IPN not configured');
+        const sigHeader = request.headers.get('x-nowpayments-sig') || request.headers.get('X-Nowpayments-Sig') || '';
+        // Body is already parsed by the global handler at the top of fetch()
+        const parsed = body;
+        if (!parsed || typeof parsed !== 'object') return err(400, 'bad json');
+        const sortedJson = JSON.stringify(sortObjDeep(parsed));
+        const expected = await hmacSha512Hex(env.NOWPAYMENTS_IPN_SECRET, sortedJson);
+        if (sigHeader.toLowerCase() !== expected.toLowerCase()) {
+          // Telegram alert on bad sig — possible attack
+          if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_ADMIN_CHAT_ID) {
+            fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ chat_id: env.TELEGRAM_ADMIN_CHAT_ID,
+                text: `⚠️ NOWPay IPN bad signature\norder=${parsed.order_id}\nstatus=${parsed.payment_status}` })
+            }).catch(()=>{});
+          }
+          return err(401, 'bad signature');
+        }
+        const status = String(parsed.payment_status || '').toLowerCase();
+        const orderId = String(parsed.order_id || '');
+        const paymentId = String(parsed.payment_id || parsed.invoice_id || '');
+        const paid = Number(parsed.actually_paid || parsed.price_amount || 0);
+
+        // Parse uid from order_id format: "bsc:{uid}:{ts}"
+        const parts = orderId.split(':');
+        const uid = parts[0] === 'bsc' && parts[1] ? parts[1] : null;
+
+        // Only credit on terminal success states. NOTE: 'sending' is provider-side
+        // outbound transfer status — not safe to credit user yet. Wait for finished/confirmed.
+        if (uid && paid > 0 && (status === 'finished' || status === 'confirmed')) {
+          // Idempotency: NOWPAY_<paymentId> sentinel in user_balances.
+          // Insert FIRST and require success — if sentinel insert fails we abort
+          // before crediting (prevents lost-state). NOWPayments will retry IPN.
+          const sentinel = `NOWPAY_${paymentId}`;
+          const dupR = await fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.${sentinel}&select=symbol&limit=1`, { headers: restHeaders(env) });
+          const dupRows = dupR.ok ? await dupR.json() : [];
+          if (Array.isArray(dupRows) && dupRows.length > 0) {
+            return ok({ ok:true, dedup:true });
+          }
+          const sentRes = await fetch(`${SUPABASE_URL}/rest/v1/user_balances`, {
+            method:'POST',
+            headers:{...restHeaders(env), 'Content-Type':'application/json'},
+            body: JSON.stringify({ user_id: uid, symbol: sentinel, balance: paid, locked_balance: 0, eq_amount: 0 })
+          });
+          if (!sentRes.ok) {
+            // Surface to admin — DO NOT credit (NOWPayments will retry the IPN)
+            if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_ADMIN_CHAT_ID) {
+              fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ chat_id: env.TELEGRAM_ADMIN_CHAT_ID,
+                  text: `⚠️ NOWPay sentinel insert FAILED — credit aborted, will retry\norder=${orderId}\npay_id=${paymentId}` })
+              }).catch(()=>{});
+            }
+            return err(500, 'sentinel insert failed');
+          }
+          // Credit USDT
+          const balR = await fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.USDT&select=balance&limit=1`, { headers: restHeaders(env) });
+          const balRows = balR.ok ? await balR.json() : [];
+          if (balRows.length > 0) {
+            const newBal = (Number(balRows[0].balance) || 0) + paid;
+            await fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.USDT`, {
+              method:'PATCH',
+              headers:{...restHeaders(env),'Content-Type':'application/json'},
+              body: JSON.stringify({ balance: newBal })
+            });
+          } else {
+            await fetch(`${SUPABASE_URL}/rest/v1/user_balances`, {
+              method:'POST',
+              headers:{...restHeaders(env),'Content-Type':'application/json'},
+              body: JSON.stringify({ user_id: uid, symbol:'USDT', balance: paid, locked_balance: 0, eq_amount: 0 })
+            });
+          }
+          // Telegram alert
+          if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_ADMIN_CHAT_ID) {
+            const partnerId = env.TELEGRAM_PARTNER_CHAT_ID || '-1003760482893';
+            const targets = [env.TELEGRAM_ADMIN_CHAT_ID];
+            if (String(partnerId) !== String(env.TELEGRAM_ADMIN_CHAT_ID)) targets.push(partnerId);
+            const msg = `💸 <b>NOWPayments DEPOSIT</b>\n💰 ${paid.toFixed(2)} USDT credited\n👤 user=<code>${uid.slice(0,8)}</code>\n🧾 order=<code>${orderId}</code>\n💳 pay_id=${paymentId}\n📊 status=${status}`;
+            for (const t of targets) {
+              fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ chat_id: t, text: msg, parse_mode:'HTML' })
+              }).catch(()=>{});
+            }
+          }
+        }
+        return ok({ ok:true, status });
       }
 
       /* ── SECURITY: SCAN MULTI-ACCOUNT (3+ signups from same IP in last 7 days) ──
