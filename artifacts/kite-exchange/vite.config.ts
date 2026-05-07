@@ -69,6 +69,13 @@ export default defineConfig({
       deny: ["**/.*"],
     },
     proxy: {
+      // NOWPayments routes live ONLY on the production Cloudflare Worker —
+      // proxy to live so dev preview can exercise them with the real Supabase JWT.
+      "/api/nowpay": {
+        target: "https://basonce.com",
+        changeOrigin: true,
+        secure: true,
+      },
       "/api": {
         target: "http://localhost:8080",
         changeOrigin: true,

@@ -58,9 +58,21 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
         },
         body: JSON.stringify({ amount_usd: amt }),
       });
+      const ct = res.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) {
+        // Dev/preview environment that doesn't proxy to the worker, or a server outage
+        const txt = await res.text();
+        setError(
+          txt.startsWith('<!DOCTYPE') || txt.startsWith('<html')
+            ? 'This feature is only available on the live site (basonce.com). The preview server does not handle payment routes.'
+            : `Server error (${res.status})`
+        );
+        setLoading(false);
+        return;
+      }
       const j = await res.json();
       if (!res.ok || !j.invoice_url) {
-        setError(j.error || 'Could not create invoice');
+        setError(j.error || `Could not create invoice (${res.status})`);
         setLoading(false);
         return;
       }
