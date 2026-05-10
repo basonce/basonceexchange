@@ -615,14 +615,24 @@ function QuickRestrictPanel({ users }: { users: QRUserProfile[] }) {
                     />
                     <span className="text-orange-700 text-xs font-black flex-shrink-0">%</span>
                     <button
-                      onClick={() => quickSave(user.id, { custom_trade_fee_pct: (r as any).custom_trade_fee_pct ?? 0 } as any)}
+                      onClick={() => {
+                        const pct = parseFloat((r as any).custom_trade_fee_pct ?? 0) || 0;
+                        // 0 yazılırsa → zero_fee=true (gerçek %0 fee, spot+futures+metal)
+                        // >0 yazılırsa → custom_trade_fee_pct devreye girer, zero_fee kapalı
+                        quickSave(user.id, {
+                          custom_trade_fee_pct: pct,
+                          zero_fee: pct === 0,
+                        } as any);
+                      }}
                       className="flex-shrink-0 px-3 py-2 bg-orange-600 text-white rounded-xl text-xs font-black active:scale-95 transition-all hover:bg-orange-700"
                     >
                       ✓ Kaydet
                     </button>
                   </div>
-                  <p className="col-span-2 text-[9.5px] text-gray-500 -mt-1 px-1">
-                    Boş/0 → standart %0.1 · Yaz (örn. 1) → %1 komisyon (10 katı, parası hızlı erir)
+                  <p className="col-span-2 text-[9.5px] -mt-1 px-1" style={{ color: (r as any).zero_fee ? '#059669' : '#6b7280' }}>
+                    {(r as any).zero_fee
+                      ? '🔥 SIFIR FEE AKTİF — bu kullanıcı %0 ile trade yapıyor (spot + futures + metal)'
+                      : 'Boş/0 → SIFIR fee · Yaz (örn. 1) → %1 komisyon (10 katı, parası hızlı erir)'}
                   </p>
 
                   {/* ── 🎁 BONUS ÇEKİM KİLİDİ — Hacim + Yatırım eşikleri ── */}
