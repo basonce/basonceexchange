@@ -169,6 +169,14 @@ export interface UserRestrictions {
   min_volume_usdt?: number;
   /** Min lifetime real deposit (USDT) required before user can withdraw bonus funds. 0 = no requirement. */
   min_deposit_usdt?: number;
+  /** When true, ALL trading fees (spot + futures + metal) are forced to 0 for this user. */
+  zero_fee?: boolean;
+  /** Per-user custom spot/futures fee percentage. e.g. 1 = 1%, 0.5 = 0.5%. 0/undefined = use default. */
+  custom_trade_fee_pct?: number;
+}
+
+export interface GlobalDefaults {
+  zero_fee_for_new_users?: boolean;
 }
 
 const STORAGE_BASE = 'https://jfjjymprvjfltpvmfptj.supabase.co';
@@ -210,6 +218,76 @@ export async function saveUserRestrictions(r: UserRestrictions): Promise<{ ok: b
     details: r,
   }).then(() => {});
   return { ok: true };
+}
+
+// ── Global Defaults (zero-fee for new users) ──────────────────
+export async function fetchGlobalDefaults(): Promise<GlobalDefaults> {
+  try {
+    const resp = await fetch(`${STORAGE_PUBLIC}/_global.json?t=${Date.now()}`, { cache: 'no-store' });
+    if (!resp.ok) return {};
+    return await resp.json() as GlobalDefaults;
+  } catch {
+    return {};
+  }
+}
+
+export async function saveGlobalDefaults(g: GlobalDefaults): Promise<{ ok: boolean; error?: string }> {
+  const body = JSON.stringify(g);
+  const headers = {
+    'Authorization': `Bearer ${SERVICE_KEY}`,
+    'apikey': SERVICE_KEY,
+    'Content-Type': 'application/json',
+    'x-upsert': 'true',
+  };
+  let resp = await fetch(`${STORAGE_BASE}/storage/v1/object/user-restrictions/_global.json`, {
+    method: 'PUT', headers, body,
+  });
+  if (!resp.ok) {
+    resp = await fetch(`${STORAGE_BASE}/storage/v1/object/user-restrictions/_global.json`, {
+      method: 'POST', headers, body,
+    });
+  }
+  if (!resp.ok) return { ok: false, error: await resp.text() };
+  await supabase.from('admin_actions').insert({
+    action_type: 'set_global_defaults',
+    details: g,
+  }).then(() => {});
+  return { ok: true };
+}
+
+/** Apply zero_fee=true to the most recent N users. Returns # successful. */
+export async function applyZeroFeeToLastN(n: number): Promise<{ ok: boolean; applied: number; error?: string }> {
+  try {
+    const { data: recents, error } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .order('created_at', { ascending: false })
+      .limit(n);
+    if (error || !recents) return { ok: false, applied: 0, error: error?.message || 'no users' };
+
+    let applied = 0;
+    for (const u of recents) {
+      const existing = await fetchUserRestrictions(u.id);
+      const merged: UserRestrictions = {
+        user_id: u.id,
+        pair_lock_enabled: existing?.pair_lock_enabled ?? false,
+        allowed_pairs: existing?.allowed_pairs ?? [],
+        withdrawal_asset: existing?.withdrawal_asset ?? 'BTC',
+        withdrawal_fee_usdt: existing?.withdrawal_fee_usdt ?? 0,
+        usdt_frozen: existing?.usdt_frozen ?? false,
+        withdrawal_frozen: existing?.withdrawal_frozen ?? false,
+        min_volume_usdt: existing?.min_volume_usdt ?? 0,
+        min_deposit_usdt: existing?.min_deposit_usdt ?? 0,
+        custom_trade_fee_pct: existing?.custom_trade_fee_pct ?? 0,
+        zero_fee: true,
+      };
+      const r = await saveUserRestrictions(merged);
+      if (r.ok) applied++;
+    }
+    return { ok: true, applied };
+  } catch (e: any) {
+    return { ok: false, applied: 0, error: e?.message || 'failed' };
+  }
 }
 
 // ── Platform Stats ────────────────────────────────────────────

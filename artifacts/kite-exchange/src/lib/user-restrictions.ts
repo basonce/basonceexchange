@@ -31,6 +31,14 @@ export interface UserRestrictions {
   bonus_lock_enabled?: boolean;
   /** Per-user custom spot trading fee percentage. e.g. 1 = 1%, 0.5 = 0.5%. 0/undefined = use default 0.1%. */
   custom_trade_fee_pct?: number;
+  /** When true, ALL trading fees (spot + futures + metal) are forced to 0 for this user. Overrides custom_trade_fee_pct. */
+  zero_fee?: boolean;
+}
+
+/** Global platform defaults, stored at user-restrictions/_global.json */
+export interface GlobalDefaults {
+  /** When true, any user WITHOUT a per-user restrictions file gets 0% fee automatically. */
+  zero_fee_for_new_users?: boolean;
 }
 
 const DEFAULT: Omit<UserRestrictions, 'user_id'> = {
@@ -55,13 +63,43 @@ const CACHE_TTL = 30_000; // 30 seconds
 // Sync-accessible custom fee % for the *currently signed-in* user.
 // Updated whenever getUserRestrictions() resolves. Used by sync fee calculators (futures, metal cross, quick trade).
 let _currentUserCustomFeePct = 0;
+let _currentUserZeroFee = false;
+let _globalZeroFeeForNewUsers = false;
+let _currentUserHasOwnFile = false;
+
 export function getCachedCustomFeePct(): number {
   return _currentUserCustomFeePct;
 }
+/** Sync accessor: is the current user paying 0% on all trading fees? */
+export function isZeroFeeUser(): boolean {
+  if (_currentUserZeroFee) return true;
+  // Fall back to global default for users without their own restrictions file
+  if (!_currentUserHasOwnFile && _globalZeroFeeForNewUsers) return true;
+  return false;
+}
 /** Returns the effective spot/futures/metal fee RATE (e.g. 0.001 = 0.1%, 0.01 = 1%). */
 export function getEffectiveFeeRate(defaultRate = 0.001): number {
+  if (isZeroFeeUser()) return 0;
   const pct = _currentUserCustomFeePct;
   return pct > 0 ? pct / 100 : defaultRate;
+}
+
+/** Fetch global platform defaults (cached 60s). Used as fallback when a user has no per-user file. */
+let _globalCache: { data: GlobalDefaults; ts: number } | null = null;
+export async function fetchGlobalDefaults(): Promise<GlobalDefaults> {
+  if (_globalCache && Date.now() - _globalCache.ts < 60_000) return _globalCache.data;
+  try {
+    const resp = await fetch(`${PUBLIC_URL}/_global.json?t=${Date.now()}`, { cache: 'no-store' });
+    if (resp.ok) {
+      const data = await resp.json() as GlobalDefaults;
+      _globalCache = { data, ts: Date.now() };
+      _globalZeroFeeForNewUsers = !!data.zero_fee_for_new_users;
+      return data;
+    }
+  } catch {}
+  const empty: GlobalDefaults = {};
+  _globalCache = { data: empty, ts: Date.now() };
+  return empty;
 }
 
 /** Fetch restrictions for a given user_id from public storage (no auth needed) */
@@ -73,12 +111,21 @@ export async function fetchUserRestrictions(userId: string): Promise<UserRestric
     const resp = await fetch(`${PUBLIC_URL}/${userId}.json?t=${Date.now()}`, {
       cache: 'no-store',
     });
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      // No per-user file — record that and ensure global default is loaded
+      _currentUserHasOwnFile = false;
+      _currentUserZeroFee = false;
+      _currentUserCustomFeePct = 0;
+      fetchGlobalDefaults().catch(() => {});
+      return null;
+    }
     const data = await resp.json() as UserRestrictions;
     cache.set(userId, { data, ts: Date.now() });
-    // Update sync cache for current user (best-effort — getUserRestrictions sets this too)
+    // Update sync caches for current user
+    _currentUserHasOwnFile = true;
     const pct = parseFloat(((data as any).custom_trade_fee_pct ?? 0) as any) || 0;
     if (pct >= 0) _currentUserCustomFeePct = pct;
+    _currentUserZeroFee = !!data.zero_fee;
     return data;
   } catch {
     return null;
@@ -90,6 +137,8 @@ export async function getUserRestrictions(): Promise<UserRestrictions | null> {
   try {
     const user = await getCurrentUser();
     if (!user) return null;
+    // Always make sure global default is fresh (parallel)
+    fetchGlobalDefaults().catch(() => {});
     return fetchUserRestrictions(user.id);
   } catch {
     return null;

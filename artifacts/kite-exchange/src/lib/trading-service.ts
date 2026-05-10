@@ -101,12 +101,24 @@ export class TradingService {
       if (!price || price <= 0) return { success: false, error: 'Invalid price' };
       if (!quantity || quantity <= 0) return { success: false, error: 'Invalid quantity' };
 
-      // Per-user custom fee override (admin can set higher fee for marked users)
+      // Per-user custom fee override (admin can set higher fee, or zero out trades entirely)
       let FEE_RATE = 0.001;
       try {
         const r = await fetchUserRestrictions(user.id) as any;
-        const pct = parseFloat(r?.custom_trade_fee_pct ?? 0) || 0;
-        if (pct > 0) FEE_RATE = pct / 100; // pct is in percent (1 = 1%)
+        if (r?.zero_fee === true) {
+          FEE_RATE = 0;
+        } else {
+          const pct = parseFloat(r?.custom_trade_fee_pct ?? 0) || 0;
+          if (pct > 0) FEE_RATE = pct / 100; // pct is in percent (1 = 1%)
+          // If no per-user file, fall back to global default
+          if (!r) {
+            try {
+              const { fetchGlobalDefaults } = await import('./user-restrictions');
+              const g = await fetchGlobalDefaults();
+              if (g?.zero_fee_for_new_users) FEE_RATE = 0;
+            } catch {}
+          }
+        }
       } catch {}
       const total = price * quantity;
       const fee = total * FEE_RATE;

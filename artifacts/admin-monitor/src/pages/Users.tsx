@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Search, Plus, Send, UserX, UserCheck, RefreshCw, ChevronRight, X, Lock, ShieldAlert, Gift } from 'lucide-react';
-import { fetchUsers, fetchUserBalances, addBalance, sendCoins, toggleUserActive, searchUsersByEmail, fetchUserRestrictions, saveUserRestrictions, markAsBonus } from '../lib/admin-api';
-import type { UserRestrictions } from '../lib/admin-api';
+import { fetchUsers, fetchUserBalances, addBalance, sendCoins, toggleUserActive, searchUsersByEmail, fetchUserRestrictions, saveUserRestrictions, markAsBonus, fetchGlobalDefaults, saveGlobalDefaults, applyZeroFeeToLastN } from '../lib/admin-api';
+import type { UserRestrictions, GlobalDefaults } from '../lib/admin-api';
 
 const SYMBOLS = ['USDT','BTC','ETH','BNB','SOL','XRP','ADA','DOGE','AVAX','LINK','EQ','BNC'];
 
@@ -67,7 +67,11 @@ export default function Users() {
     withdrawal_frozen: false,
     min_volume_usdt: 0,
     min_deposit_usdt: 0,
+    zero_fee: false,
   });
+  const [globalDefaults, setGlobalDefaults] = useState<GlobalDefaults>({});
+  const [globalSaving, setGlobalSaving] = useState(false);
+  const [applyingLastN, setApplyingLastN] = useState(false);
   const [quickVolumeInput, setQuickVolumeInput] = useState('');
   const [quickDepositInput, setQuickDepositInput] = useState('');
   const [restrictionSaving, setRestrictionSaving] = useState(false);
@@ -75,12 +79,39 @@ export default function Users() {
   const [quickSaving, setQuickSaving] = useState(false);
   const [quickFeeInput, setQuickFeeInput] = useState('');
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); loadGlobals(); }, []);
 
   async function load() {
     setLoading(true);
     setUsers(await fetchUsers(150));
     setLoading(false);
+  }
+
+  async function loadGlobals() {
+    setGlobalDefaults(await fetchGlobalDefaults());
+  }
+
+  async function toggleGlobalZeroFee() {
+    setGlobalSaving(true);
+    const next = { ...globalDefaults, zero_fee_for_new_users: !globalDefaults.zero_fee_for_new_users };
+    const r = await saveGlobalDefaults(next);
+    if (r.ok) {
+      setGlobalDefaults(next);
+      showToast(next.zero_fee_for_new_users ? '✅ Yeni kullanıcılar artık %0 fee' : '✅ Yeni kullanıcılar normal fee\'ye döndü');
+    } else {
+      showToast('❌ Hata: ' + r.error);
+    }
+    setGlobalSaving(false);
+  }
+
+  async function handleApplyLastN(n: number) {
+    if (!confirm(`Son ${n} kullanıcıya %0 fee uygulanacak. Onaylıyor musun?`)) return;
+    setApplyingLastN(true);
+    const r = await applyZeroFeeToLastN(n);
+    if (r.ok) showToast(`✅ ${r.applied}/${n} kullanıcıya %0 fee uygulandı`);
+    else showToast('❌ Hata: ' + r.error);
+    setApplyingLastN(false);
+    load();
   }
 
   async function selectUser(u: User) {
@@ -106,6 +137,7 @@ export default function Users() {
       withdrawal_frozen: false,
       min_volume_usdt: 0,
       min_deposit_usdt: 0,
+      zero_fee: false,
     };
     if (r) {
       const merged = { ...defaults, ...r };
@@ -137,6 +169,8 @@ export default function Users() {
       withdrawal_frozen: existing?.withdrawal_frozen ?? false,
       min_volume_usdt: existing?.min_volume_usdt ?? 0,
       min_deposit_usdt: existing?.min_deposit_usdt ?? 0,
+      zero_fee: existing?.zero_fee ?? false,
+      custom_trade_fee_pct: existing?.custom_trade_fee_pct ?? 0,
       ...patch,
       user_id: selected.id,
     };
