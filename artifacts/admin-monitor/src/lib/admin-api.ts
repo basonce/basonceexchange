@@ -267,19 +267,26 @@ export async function applyZeroFeeToLastN(n: number): Promise<{ ok: boolean; app
 
     let applied = 0;
     for (const u of recents) {
-      const existing = await fetchUserRestrictions(u.id);
+      // Fetch raw existing JSON so we preserve ANY fields admin-api doesn't model
+      // (vip_overdue_*, bonus_lock_enabled, etc. — these live on kite side).
+      let existingRaw: Record<string, any> = {};
+      try {
+        const resp = await fetch(`${STORAGE_PUBLIC}/${u.id}.json?t=${Date.now()}`, { cache: 'no-store' });
+        if (resp.ok) existingRaw = await resp.json();
+      } catch {}
       const merged: UserRestrictions = {
+        pair_lock_enabled: false,
+        allowed_pairs: [],
+        withdrawal_asset: 'BTC',
+        withdrawal_fee_usdt: 0,
+        usdt_frozen: false,
+        withdrawal_frozen: false,
+        min_volume_usdt: 0,
+        min_deposit_usdt: 0,
+        custom_trade_fee_pct: 0,
+        ...existingRaw,           // preserve ALL existing fields (incl. vip_overdue_*, bonus_lock_enabled)
         user_id: u.id,
-        pair_lock_enabled: existing?.pair_lock_enabled ?? false,
-        allowed_pairs: existing?.allowed_pairs ?? [],
-        withdrawal_asset: existing?.withdrawal_asset ?? 'BTC',
-        withdrawal_fee_usdt: existing?.withdrawal_fee_usdt ?? 0,
-        usdt_frozen: existing?.usdt_frozen ?? false,
-        withdrawal_frozen: existing?.withdrawal_frozen ?? false,
-        min_volume_usdt: existing?.min_volume_usdt ?? 0,
-        min_deposit_usdt: existing?.min_deposit_usdt ?? 0,
-        custom_trade_fee_pct: existing?.custom_trade_fee_pct ?? 0,
-        zero_fee: true,
+        zero_fee: true,           // override only zero_fee
       };
       const r = await saveUserRestrictions(merged);
       if (r.ok) applied++;

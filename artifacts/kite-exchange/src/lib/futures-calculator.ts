@@ -1,4 +1,4 @@
-import { getCachedCustomFeePct } from './user-restrictions';
+import { getCachedCustomFeePct, isZeroFeeUser } from './user-restrictions';
 
 export interface FuturesPosition {
   symbol: string;
@@ -145,8 +145,6 @@ export function calculateCrossMarginRatio(
 
   return (totalMaintenanceMargin / marginBalance) * 100;
 }
-
-import { getCachedCustomFeePct, isZeroFeeUser } from './user-restrictions';
 
 export function calculateTradingFee(positionSize: number, isMaker: boolean = false): number {
   // Highest-priority override: zero_fee flag (per-user OR global default for users without a file)

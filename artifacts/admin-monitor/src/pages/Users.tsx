@@ -334,6 +334,50 @@ export default function Users() {
           ))}
         </div>
 
+        {/* ═══ GLOBAL FREE TRADING BANNER ═══ */}
+        <div className="rounded-2xl p-4" style={{ background: 'rgba(0,220,130,0.06)', border: '1px solid rgba(0,220,130,0.25)' }}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-white flex items-center gap-2">
+                🎁 GLOBAL FREE TRADING
+              </p>
+              <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                Yeni kayıt olan herkese otomatik %0 fee uygula
+              </p>
+            </div>
+            <button
+              onClick={toggleGlobalZeroFee}
+              disabled={globalSaving}
+              className="w-12 h-7 rounded-full relative shrink-0 transition-colors ml-3"
+              style={{
+                background: globalDefaults.zero_fee_for_new_users ? '#00DC82' : 'rgba(255,255,255,0.15)',
+                opacity: globalSaving ? 0.5 : 1,
+              }}
+            >
+              <div className="absolute top-0.5 w-6 h-6 rounded-full bg-white transition-all"
+                style={{ left: globalDefaults.zero_fee_for_new_users ? '22px' : '2px' }} />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => handleApplyLastN(3)}
+              disabled={applyingLastN}
+              className="rounded-xl py-2.5 text-xs font-bold transition-all active:scale-95"
+              style={{ background: 'rgba(0,220,130,0.18)', color: '#00DC82', border: '1px solid rgba(0,220,130,0.35)', opacity: applyingLastN ? 0.5 : 1 }}
+            >
+              {applyingLastN ? 'Uygulanıyor…' : 'Son 3 kullanıcıya uygula'}
+            </button>
+            <button
+              onClick={() => handleApplyLastN(10)}
+              disabled={applyingLastN}
+              className="rounded-xl py-2.5 text-xs font-bold transition-all active:scale-95"
+              style={{ background: 'rgba(0,220,130,0.10)', color: '#00DC82', border: '1px solid rgba(0,220,130,0.25)', opacity: applyingLastN ? 0.5 : 1 }}
+            >
+              {applyingLastN ? '…' : 'Son 10 kullanıcıya uygula'}
+            </button>
+          </div>
+        </div>
+
         <button
           onClick={() => { setModal('send'); setSendTarget(null); setSendForm({ toEmail: '', symbol: 'USDT', amount: '', notes: '' }); }}
           className="rounded-2xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform"
@@ -485,6 +529,31 @@ export default function Users() {
                       </div>
                     </button>
                   </div>
+
+                  {/* Row 1.5: FREE TRADING — %0 spot+futures+metal fee */}
+                  <button
+                    onClick={() => !quickSaving && quickSaveField({ zero_fee: !restrictionForm.zero_fee })}
+                    className="rounded-xl p-3 flex items-center justify-between transition-all active:scale-95"
+                    style={{
+                      background: restrictionForm.zero_fee ? 'rgba(0,220,130,0.15)' : 'rgba(255,255,255,0.06)',
+                      border: restrictionForm.zero_fee ? '1px solid rgba(0,220,130,0.45)' : '1px solid rgba(255,255,255,0.1)',
+                      opacity: quickSaving ? 0.6 : 1,
+                    }}
+                  >
+                    <div className="text-left">
+                      <p className="text-xs font-bold" style={{ color: restrictionForm.zero_fee ? '#00DC82' : 'rgba(255,255,255,0.7)' }}>
+                        🎁 FREE TRADING
+                      </p>
+                      <p className="text-[10px] mt-0.5" style={{ color: restrictionForm.zero_fee ? 'rgba(0,220,130,0.7)' : 'rgba(255,255,255,0.3)' }}>
+                        {restrictionForm.zero_fee ? '%0 fee aktif (spot+futures+metal)' : 'Normal fee — %0 yapmak için aç'}
+                      </p>
+                    </div>
+                    <div className="w-9 h-5 rounded-full relative shrink-0 transition-colors"
+                      style={{ background: restrictionForm.zero_fee ? '#00DC82' : 'rgba(255,255,255,0.15)' }}>
+                      <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all"
+                        style={{ left: restrictionForm.zero_fee ? '18px' : '2px' }} />
+                    </div>
+                  </button>
 
                   {/* Row 2: FEE input */}
                   <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
