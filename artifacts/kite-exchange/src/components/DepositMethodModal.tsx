@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, ArrowDownCircle, Send, CreditCard, Users, Zap, Loader2, Landmark } from 'lucide-react';
+import { X, ArrowDownCircle, CreditCard, Users, Zap, Loader2 } from 'lucide-react';
 import { RealDepositModal } from './RealDepositModal';
 import P2PModal from './P2PModal';
 import BuyCryptoModal from './BuyCryptoModal';
@@ -102,9 +102,9 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
       action: () => openRealDeposit('USDT')
     },
     {
-      icon: Landmark,
-      title: 'Bank Transfer / Wise / Revolut',
-      description: 'Buy from verified P2P merchants worldwide. Lowest fees, highest success rate.',
+      icon: Users,
+      title: 'P2P Trading',
+      description: 'Binance, Bybit, OKX, KuCoin verified merchants. Bank, Wise, Revolut & 100+ methods.',
       action: () => setShowP2P(true)
     },
     {
@@ -112,17 +112,6 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
       title: 'Instant Crypto Deposit',
       description: 'Pay with BTC, ETH, USDT, BNB, SOL & 200+ coins. Auto credit on confirmation.',
       action: () => { setShowInstant(true); setError(null); }
-    },
-    {
-      icon: Send,
-      title: 'Receive Via Crypto Pay',
-      description: 'Receive crypto from other users'
-    },
-    {
-      icon: Users,
-      title: 'P2P Trading',
-      description: 'Browse all merchants. Competitive pricing.',
-      action: () => setShowP2P(true)
     }
   ];
 
