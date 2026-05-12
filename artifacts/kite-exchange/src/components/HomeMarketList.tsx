@@ -287,7 +287,9 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
     const eqPrice = priceManager.current.getPrice();
     if (eqPrice > 0) {
       const eqChange = priceManager.current.getChange();
-      if ((filter === 'gainers' && eqChange > 0) || (filter === 'losers' && eqChange < 0)) {
+      // EQ is the platform token — always show it in BOTH Gainers and Losers,
+      // regardless of sign. It will be pinned to the top by the post-sort step.
+      if (filter === 'gainers' || filter === 'losers') {
         result.push({
           symbol: 'EQ',
           price: eqPrice,
