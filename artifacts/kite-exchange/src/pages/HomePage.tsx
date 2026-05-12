@@ -438,7 +438,7 @@ export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) 
       {/* Binance-style "Buy Crypto with Card" CTA — Visa / Mastercard / Apple Pay / Google Pay */}
       <div className="px-4 pt-1 pb-3 bg-[#181A20]">
         <button
-          onClick={() => setShowDepositUSD(true)}
+          onClick={() => setShowP2P(true)}
           className="w-full bg-gradient-to-r from-[#1E2329] via-[#252A33] to-[#1E2329] hover:from-[#252A33] hover:via-[#2B3139] hover:to-[#252A33] border border-[#2B3139] hover:border-[#F0B90B]/40 rounded-2xl px-4 py-3.5 flex items-center justify-between transition-all active:scale-[0.99] group"
         >
           <div className="flex items-center gap-3 min-w-0">
