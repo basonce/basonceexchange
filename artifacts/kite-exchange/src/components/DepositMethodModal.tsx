@@ -96,6 +96,12 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
       action: () => setShowCard(true)
     },
     {
+      icon: ArrowDownCircle,
+      title: 'On-Chain Deposit',
+      description: 'Deposit Crypto from other exchanges/wallets',
+      action: () => openRealDeposit('USDT')
+    },
+    {
       icon: Landmark,
       title: 'Bank Transfer / Wise / Revolut',
       description: 'Buy from verified P2P merchants worldwide. Lowest fees, highest success rate.',
@@ -106,12 +112,6 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
       title: 'Instant Crypto Deposit',
       description: 'Pay with BTC, ETH, USDT, BNB, SOL & 200+ coins. Auto credit on confirmation.',
       action: () => { setShowInstant(true); setError(null); }
-    },
-    {
-      icon: ArrowDownCircle,
-      title: 'On-Chain Deposit',
-      description: 'Deposit Crypto from other exchanges/wallets',
-      action: () => openRealDeposit('USDT')
     },
     {
       icon: Send,
