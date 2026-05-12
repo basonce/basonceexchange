@@ -229,8 +229,8 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
                   }`}>
                     <method.icon className={`w-5 h-5 ${method.highlight ? 'text-black' : 'text-[#F0B90B]'}`} />
                   </div>
-                  <div className="flex-1">
-                    <div className="font-semibold mb-1 text-[15px] flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold mb-1 text-[15px] flex items-center gap-2 flex-wrap">
                       {method.title}
                       {method.highlight && (
                         <span className="text-[10px] bg-[#F0B90B] text-black px-1.5 py-0.5 rounded font-bold">
@@ -239,6 +239,33 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
                       )}
                     </div>
                     <div className="text-[13px] leading-[1.4] text-gray-400">{method.description}</div>
+                    {method.highlight && (
+                      <div className="flex items-center gap-1.5 mt-2.5">
+                        {/* Visa */}
+                        <div className="bg-white rounded-md px-1.5 h-[22px] flex items-center justify-center" aria-hidden="true">
+                          <svg width="26" height="10" viewBox="0 0 64 22" fill="none">
+                            <path d="M27.5 1.2L23.7 20.7h-4.6L22.9 1.2h4.6zm19.7 12.6l2.4-6.6 1.4 6.6h-3.8zm5.1 6.9h4.3L52.8 1.2h-4c-.9 0-1.7.5-2 1.4L39.5 20.7h4.8l1-2.7h5.9l.6 2.7zM40.7 14.3c0-4.7-6.5-5-6.4-7 0-.6.6-1.3 2-1.5.7-.1 2.5-.2 4.6.8L41.7 2c-1.1-.4-2.6-.8-4.5-.8-4.7 0-8 2.5-8 6.1 0 2.6 2.4 4.1 4.2 5 1.8.9 2.4 1.5 2.4 2.4 0 1.3-1.5 1.8-2.9 1.8-2.4 0-3.8-.6-4.9-1.2L27.2 20c1.1.5 3.2 1 5.4 1 5 0 8.2-2.5 8.2-6.4M21.5 1.2L13.9 20.7H9.1L5.4 6.5C5.2 5.6 5 5.3 4.4 4.9 3.3 4.3 1.5 3.7 0 3.4l.1-.5h7.7c1 0 1.9.7 2.1 1.8l2 10.5L16.7 1.2h4.8z" fill="#1A1F71"/>
+                          </svg>
+                        </div>
+                        {/* Mastercard */}
+                        <div className="bg-white rounded-md px-1 h-[22px] flex items-center justify-center" aria-hidden="true">
+                          <svg width="22" height="14" viewBox="0 0 32 20" fill="none">
+                            <circle cx="12" cy="10" r="8" fill="#EB001B"/>
+                            <circle cx="20" cy="10" r="8" fill="#F79E1B"/>
+                            <path d="M16 4.4a8 8 0 0 1 0 11.2 8 8 0 0 1 0-11.2z" fill="#FF5F00"/>
+                          </svg>
+                        </div>
+                        {/* Papara wordmark */}
+                        <div className="bg-[#2B3139] border border-[#F0B90B]/30 rounded-md px-1.5 h-[22px] flex items-center justify-center" aria-hidden="true">
+                          <span className="text-[10px] font-bold text-[#F0B90B] tracking-tight">Papara</span>
+                        </div>
+                        {/* Wise wordmark */}
+                        <div className="bg-[#9FE870] rounded-md px-1.5 h-[22px] flex items-center justify-center" aria-hidden="true">
+                          <span className="text-[10px] font-extrabold text-[#163300] tracking-tight">wise</span>
+                        </div>
+                        <span className="text-[10px] text-gray-500 ml-0.5">+100</span>
+                      </div>
+                    )}
                   </div>
                 </button>
               ))}
