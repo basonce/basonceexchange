@@ -332,6 +332,14 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
       result.sort((a, b) => a.change24h - b.change24h);
     }
 
+    // EQ is the platform token — always pin it to the top of whichever tab
+    // matches its current sign, regardless of natural sort.
+    const eqIdx = result.findIndex(c => c.symbol === 'EQ');
+    if (eqIdx > 0) {
+      const [eq] = result.splice(eqIdx, 1);
+      result.unshift(eq);
+    }
+
     return result;
   }, []);
 
@@ -550,9 +558,12 @@ export default function HomeMarketList({ activeFilter, marketType = 'crypto' }: 
                   <CoinLogo symbol={coin.symbol} dbUrl={coin.dbUrl} eager={coinIdx < 8} />
                 </div>
                 <div className="min-w-0">
-                  <div className="flex items-baseline gap-1 leading-tight">
+                  <div className="flex items-baseline gap-1 leading-tight flex-wrap">
                     <span className="font-black text-[15px] text-white">{coin.symbol}</span>
                     <span className="text-gray-500 font-semibold text-[11px]">/USDT</span>
+                    {coin.symbol === 'EQ' && (
+                      <span className="ml-1 px-1.5 py-[2px] rounded bg-gradient-to-r from-[#F0B90B] to-[#FFD700] text-black text-[8.5px] font-black tracking-wider whitespace-nowrap">PLATFORM TOKEN</span>
+                    )}
                   </div>
                   <div className="text-[11px] text-gray-400 font-bold mt-0.5">
                     Vol <span className="text-white">{formatVolume(coin.volume24h)}</span>

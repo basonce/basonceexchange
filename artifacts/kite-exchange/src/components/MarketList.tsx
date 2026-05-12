@@ -290,7 +290,7 @@ export default function MarketList({ onSelectCrypto }: MarketListProps) {
                           <div className="font-semibold text-base flex items-center gap-2">
                             {market.symbol}
                             {market.isEarnQuest && (
-                              <span className="bg-[#F0B90B] text-[9px] font-bold px-2 py-0.5 rounded">HOT</span>
+                              <span className="bg-gradient-to-r from-[#F0B90B] to-[#FFD700] text-black text-[9px] font-black px-2 py-0.5 rounded tracking-wider">PLATFORM TOKEN</span>
                             )}
                           </div>
                           <div className="text-gray-500">{market.name}</div>
@@ -350,7 +350,7 @@ export default function MarketList({ onSelectCrypto }: MarketListProps) {
                     <div className="font-semibold text-white flex items-center gap-2">
                       {market.symbol}
                       {market.isEarnQuest && (
-                        <span className="bg-[#F0B90B] text-[8px] font-bold px-1.5 py-0.5 rounded">HOT</span>
+                        <span className="bg-gradient-to-r from-[#F0B90B] to-[#FFD700] text-black text-[8px] font-black px-1.5 py-0.5 rounded tracking-wider">PLATFORM TOKEN</span>
                       )}
                     </div>
                     <div className="text-gray-500">{market.name}</div>
