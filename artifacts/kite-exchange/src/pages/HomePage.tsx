@@ -435,6 +435,50 @@ export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) 
         </div>
       </div>
 
+      {/* Binance-style "Buy Crypto with Card" CTA — Visa / Mastercard / Apple Pay / Google Pay */}
+      <div className="px-4 pt-1 pb-3 bg-[#181A20]">
+        <button
+          onClick={() => setShowDepositUSD(true)}
+          className="w-full bg-gradient-to-r from-[#1E2329] via-[#252A33] to-[#1E2329] hover:from-[#252A33] hover:via-[#2B3139] hover:to-[#252A33] border border-[#2B3139] hover:border-[#F0B90B]/40 rounded-2xl px-4 py-3.5 flex items-center justify-between transition-all active:scale-[0.99] group"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-xl bg-[#F0B90B] flex items-center justify-center shrink-0 shadow-lg shadow-[#F0B90B]/20">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="6" width="20" height="13" rx="2.2" stroke="#1A1200" strokeWidth="2"/>
+                <line x1="2" y1="10.5" x2="22" y2="10.5" stroke="#1A1200" strokeWidth="2"/>
+                <line x1="6" y1="15" x2="10" y2="15" stroke="#1A1200" strokeWidth="1.6" strokeLinecap="round"/>
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-white font-semibold text-[15px] leading-none">Buy Crypto</span>
+                <span className="text-[9px] font-bold bg-[#F0B90B] text-black px-1.5 py-0.5 rounded leading-none">INSTANT</span>
+              </div>
+              <span className="text-gray-400 text-[12px] leading-tight">Card &middot; Bank Transfer &middot; 100+ methods</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0 ml-2">
+            {/* Visa */}
+            <div className="bg-white rounded-md px-1.5 h-[22px] flex items-center justify-center" aria-label="Visa">
+              <svg width="26" height="10" viewBox="0 0 64 22" fill="none">
+                <path d="M27.5 1.2L23.7 20.7h-4.6L22.9 1.2h4.6zm19.7 12.6l2.4-6.6 1.4 6.6h-3.8zm5.1 6.9h4.3L52.8 1.2h-4c-.9 0-1.7.5-2 1.4L39.5 20.7h4.8l1-2.7h5.9l.6 2.7zM40.7 14.3c0-4.7-6.5-5-6.4-7 0-.6.6-1.3 2-1.5.7-.1 2.5-.2 4.6.8L41.7 2c-1.1-.4-2.6-.8-4.5-.8-4.7 0-8 2.5-8 6.1 0 2.6 2.4 4.1 4.2 5 1.8.9 2.4 1.5 2.4 2.4 0 1.3-1.5 1.8-2.9 1.8-2.4 0-3.8-.6-4.9-1.2L27.2 20c1.1.5 3.2 1 5.4 1 5 0 8.2-2.5 8.2-6.4M21.5 1.2L13.9 20.7H9.1L5.4 6.5C5.2 5.6 5 5.3 4.4 4.9 3.3 4.3 1.5 3.7 0 3.4l.1-.5h7.7c1 0 1.9.7 2.1 1.8l2 10.5L16.7 1.2h4.8z" fill="#1A1F71"/>
+              </svg>
+            </div>
+            {/* Mastercard */}
+            <div className="bg-white rounded-md px-1 h-[22px] flex items-center justify-center" aria-label="Mastercard">
+              <svg width="22" height="14" viewBox="0 0 32 20" fill="none">
+                <circle cx="12" cy="10" r="8" fill="#EB001B"/>
+                <circle cx="20" cy="10" r="8" fill="#F79E1B"/>
+                <path d="M16 4.4a8 8 0 0 1 0 11.2 8 8 0 0 1 0-11.2z" fill="#FF5F00"/>
+              </svg>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-gray-500 group-hover:text-[#F0B90B] transition-colors ml-0.5">
+              <polyline points="9 6 15 12 9 18" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+        </button>
+      </div>
+
       {mainTab === 'wallet' ? (
         <Suspense fallback={<div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin" /></div>}>
           <Wallet />
