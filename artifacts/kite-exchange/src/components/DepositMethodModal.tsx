@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { X, ArrowDownCircle, Send, CreditCard, Users, Zap, Loader2 } from 'lucide-react';
+import { X, ArrowDownCircle, Send, CreditCard, Users, Zap, Loader2, Landmark } from 'lucide-react';
 import { RealDepositModal } from './RealDepositModal';
 import P2PModal from './P2PModal';
+import BuyCryptoModal from './BuyCryptoModal';
 import { supabase } from '../lib/supabase';
 
 interface DepositMethodModalProps {
@@ -19,6 +20,7 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
   });
   const [showInstant, setShowInstant] = useState(false);
   const [showP2P, setShowP2P] = useState(false);
+  const [showCard, setShowCard] = useState(false);
   const [amount, setAmount] = useState<string>('100');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,9 +89,16 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
   const methods = [
     {
       icon: CreditCard,
-      title: 'Buy with Card / Bank Transfer',
-      description: 'Pay with Papara, Banka, Visa, Mastercard via verified P2P merchants. Instant settlement.',
+      title: 'Pay with Card',
+      description: 'Buy crypto directly with Visa or Mastercard via MoonPay or Mercuryo. Best for small amounts.',
       highlight: true,
+      cardLogos: true,
+      action: () => setShowCard(true)
+    },
+    {
+      icon: Landmark,
+      title: 'Bank Transfer / Wise / Revolut',
+      description: 'Buy from verified P2P merchants worldwide. Lowest fees, highest success rate.',
       action: () => setShowP2P(true)
     },
     {
@@ -132,6 +141,10 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
 
   if (showP2P) {
     return <P2PModal isOpen={true} onClose={() => { setShowP2P(false); onClose(); }} />;
+  }
+
+  if (showCard) {
+    return <BuyCryptoModal isOpen={true} onClose={() => { setShowCard(false); onClose(); }} onOpenP2P={() => { setShowCard(false); setShowP2P(true); }} />;
   }
 
   return (
@@ -239,7 +252,7 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
                       )}
                     </div>
                     <div className="text-[13px] leading-[1.4] text-gray-400">{method.description}</div>
-                    {method.highlight && (
+                    {(method as any).cardLogos && (
                       <div className="flex items-center gap-1.5 mt-2.5">
                         {/* Visa */}
                         <div className="bg-white rounded-md px-1.5 h-[22px] flex items-center justify-center" aria-hidden="true">
@@ -255,15 +268,14 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
                             <path d="M16 4.4a8 8 0 0 1 0 11.2 8 8 0 0 1 0-11.2z" fill="#FF5F00"/>
                           </svg>
                         </div>
-                        {/* Papara wordmark */}
-                        <div className="bg-[#2B3139] border border-[#F0B90B]/30 rounded-md px-1.5 h-[22px] flex items-center justify-center" aria-hidden="true">
-                          <span className="text-[10px] font-bold text-[#F0B90B] tracking-tight">Papara</span>
+                        {/* MoonPay wordmark */}
+                        <div className="bg-[#7D00FF] rounded-md px-1.5 h-[22px] flex items-center justify-center" aria-hidden="true">
+                          <span className="text-[10px] font-extrabold text-white tracking-tight">MoonPay</span>
                         </div>
-                        {/* Wise wordmark */}
-                        <div className="bg-[#9FE870] rounded-md px-1.5 h-[22px] flex items-center justify-center" aria-hidden="true">
-                          <span className="text-[10px] font-extrabold text-[#163300] tracking-tight">wise</span>
+                        {/* Mercuryo wordmark */}
+                        <div className="bg-[#0A0A23] border border-white/20 rounded-md px-1.5 h-[22px] flex items-center justify-center" aria-hidden="true">
+                          <span className="text-[10px] font-extrabold text-white tracking-tight">Mercuryo</span>
                         </div>
-                        <span className="text-[10px] text-gray-500 ml-0.5">+100</span>
                       </div>
                     )}
                   </div>
