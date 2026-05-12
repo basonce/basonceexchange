@@ -1,31 +1,23 @@
-// EQ — Platform Token: 6-hour scripted "rug to moon" drama.
-// Deterministic cycle (driven by Date.now()) so every user sees the same phase
-// at the same wall-clock moment. Repeats 4 times per day (6h period).
+// EQ — Platform Token: 12-hour scripted "rug & moon" drama.
+// Deterministic cycle (driven by Date.now()) so every visitor sees the same
+// phase at the same wall-clock moment. Repeats twice per day.
 //
-//  Phase A (0   – 20%, 72 min):  -50%  →  -95%   PANIC DUMP
-//  Phase B (20  – 30%, 36 min):  -95%  →  -60%   BOTTOM BOUNCE
-//  Phase C (30  – 75%, 162 min): -60%  → +1500%  CLIMB (eased)
-//  Phase D (75  – 100%, 90 min): +1500% → +3000% MOON
+//  Phase DWELL (0   – 25%, 3 hours):  $0.01 @ -95%   PANIC PIT  (everyone sees the dump)
+//  Phase CLIMB (25  – 100%, 9 hours): $0.01 → $1.31  ( -95% → +3000% )  slow eased moon
+//  At t=1.0 the cycle resets back to the dwell.
 //
-// Displayed price = REF_PRICE * (1 + change/100). Reference price kept low so
-// dip prices stay readable ($0.025) and moon top stays believable ($15.50).
+// Price and change% are deterministic functions of time. Tiny ±0.4% noise
+// is layered on top for "live" feel and clamped to the scripted envelope.
 
-const CYCLE_MS  = 6 * 60 * 60 * 1000; // 6 hours
-const REF_PRICE = 0.50;               // "yesterday close" baseline
+const CYCLE_MS  = 12 * 60 * 60 * 1000; // 12 hours
 const TICK_MS   = 2000;
+const DWELL_FRACTION = 0.25;           // first 25% of cycle (= 3h) is dwell
 
-const PHASES = {
-  A_END: 0.20, // dump complete
-  B_END: 0.30, // bounce complete
-  C_END: 0.75, // climb complete
-  // D_END = 1.00 (moon top)
-};
+const PRICE_BOTTOM = 0.01;
+const PRICE_TOP    = 1.31;
 
-const CHANGE_DUMP_START = -50;
-const CHANGE_DUMP_BOTTOM = -95;
-const CHANGE_BOUNCE_TOP = -60;
-const CHANGE_CLIMB_TOP = 1500;
-const CHANGE_MOON_TOP = 3000;
+const CHANGE_BOTTOM = -95;
+const CHANGE_TOP    = 3000;
 
 const VOL_BASE = 12_000_000;
 const VOL_PEAK = 480_000_000;
@@ -34,32 +26,30 @@ function easeInOutCubic(k: number): number {
   return k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
 }
 
-function scriptedChange(now: number): number {
+interface Scripted { price: number; change: number; phase: 'dwell' | 'climb'; }
+
+function scriptedState(now: number): Scripted {
   const t = (now % CYCLE_MS) / CYCLE_MS; // 0..1
 
-  if (t < PHASES.A_END) {
-    const k = t / PHASES.A_END;
-    return CHANGE_DUMP_START + (CHANGE_DUMP_BOTTOM - CHANGE_DUMP_START) * k;
+  if (t < DWELL_FRACTION) {
+    // PANIC PIT — sit at the bottom so everyone who opens the app sees it.
+    return { price: PRICE_BOTTOM, change: CHANGE_BOTTOM, phase: 'dwell' };
   }
-  if (t < PHASES.B_END) {
-    const k = (t - PHASES.A_END) / (PHASES.B_END - PHASES.A_END);
-    return CHANGE_DUMP_BOTTOM + (CHANGE_BOUNCE_TOP - CHANGE_DUMP_BOTTOM) * k;
-  }
-  if (t < PHASES.C_END) {
-    const k = (t - PHASES.B_END) / (PHASES.C_END - PHASES.B_END);
-    return CHANGE_BOUNCE_TOP + (CHANGE_CLIMB_TOP - CHANGE_BOUNCE_TOP) * easeInOutCubic(k);
-  }
-  const k = (t - PHASES.C_END) / (1 - PHASES.C_END);
-  return CHANGE_CLIMB_TOP + (CHANGE_MOON_TOP - CHANGE_CLIMB_TOP) * k;
+
+  const k = (t - DWELL_FRACTION) / (1 - DWELL_FRACTION); // 0..1 across the climb
+  const eased = easeInOutCubic(k);
+  const price  = PRICE_BOTTOM  + (PRICE_TOP  - PRICE_BOTTOM)  * eased;
+  const change = CHANGE_BOTTOM + (CHANGE_TOP - CHANGE_BOTTOM) * eased;
+  return { price, change, phase: 'climb' };
 }
 
 class EarnQuestPriceManager {
   private static instance: EarnQuestPriceManager;
 
-  private price: number   = REF_PRICE;
-  private change: number  = 0;
-  private high24h: number = REF_PRICE * (1 + CHANGE_MOON_TOP / 100);
-  private low24h: number  = REF_PRICE * (1 + CHANGE_DUMP_BOTTOM / 100);
+  private price: number   = PRICE_BOTTOM;
+  private change: number  = CHANGE_BOTTOM;
+  private high24h: number = PRICE_TOP;
+  private low24h: number  = PRICE_BOTTOM;
   private volume: number  = VOL_BASE;
 
   private subscribers: Array<() => void> = [];
@@ -78,19 +68,31 @@ class EarnQuestPriceManager {
 
   private tick() {
     const now = Date.now();
-    const baseChange = scriptedChange(now);
+    const { price: basePrice, change: baseChange, phase } = scriptedState(now);
 
-    // Per-tick noise: ±0.4% normally, ±1.6% pop occasionally. Clamped so the
-    // displayed change never escapes the scripted [-95, +3000] envelope.
-    const noiseMag = Math.random() < 0.10 ? 0.016 : 0.004;
-    const noisePct = baseChange * noiseMag * (Math.random() * 2 - 1);
-    const change   = Math.max(CHANGE_DUMP_BOTTOM, Math.min(CHANGE_MOON_TOP, baseChange + noisePct));
+    // Per-tick noise: dwell phase = tiny twitch only (don't escape -95% optics);
+    // climb phase = ±0.4% normally, ±1.4% pop occasionally.
+    let noisePct: number;
+    let pricePctNoise: number;
+    if (phase === 'dwell') {
+      noisePct      = 0.25 * (Math.random() * 2 - 1); // ±0.25 percentage points around -95
+      pricePctNoise = 0.012 * (Math.random() * 2 - 1); // ±1.2% of $0.01
+    } else {
+      const popMag = Math.random() < 0.10 ? 0.014 : 0.004;
+      noisePct      = baseChange * popMag * (Math.random() * 2 - 1);
+      pricePctNoise = popMag * (Math.random() * 2 - 1);
+    }
+
+    const change = Math.max(CHANGE_BOTTOM, Math.min(CHANGE_TOP, baseChange + noisePct));
+    const price  = Math.max(PRICE_BOTTOM * 0.95, Math.min(PRICE_TOP * 1.02, basePrice * (1 + pricePctNoise)));
 
     this.change = Math.round(change * 100) / 100;
-    this.price  = Math.round(REF_PRICE * (1 + this.change / 100) * 100000) / 100000;
+    this.price  = Math.round(price * 100000) / 100000;
 
-    // Volume tracks dramatic-ness: high during dump and moon, low during climb mid.
-    const intensity = Math.min(1, Math.abs(this.change) / CHANGE_MOON_TOP);
+    // Volume: high during the panic pit (sell pressure), peaks during moon climb.
+    const intensity = phase === 'dwell'
+      ? 0.55 + Math.random() * 0.15
+      : Math.min(1, (this.price - PRICE_BOTTOM) / (PRICE_TOP - PRICE_BOTTOM));
     this.volume = Math.round(VOL_BASE + (VOL_PEAK - VOL_BASE) * (0.25 + 0.75 * intensity));
 
     this.notifySubscribers();
