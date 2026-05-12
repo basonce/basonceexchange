@@ -11,7 +11,12 @@
 
 const CYCLE_MS  = 12 * 60 * 60 * 1000; // 12 hours
 const TICK_MS   = 2000;
-const DWELL_FRACTION = 0.25;           // first 25% of cycle (= 3h) is dwell
+const DWELL_FRACTION = 0.42;           // first 42% of cycle (~5h) is dwell
+
+// Anchor the dwell phase so it starts right now (deploy moment) → every visitor
+// for the next 5 hours lands directly in the panic pit.
+// Anchor = 2026-05-12 08:42:00 UTC (= 11:42 Turkey time, deploy moment).
+const PHASE_ANCHOR_MS = Date.UTC(2026, 4, 12, 8, 42, 0);
 
 const PRICE_BOTTOM = 0.01;
 const PRICE_TOP    = 1.31;
@@ -29,7 +34,8 @@ function easeInOutCubic(k: number): number {
 interface Scripted { price: number; change: number; phase: 'dwell' | 'climb'; }
 
 function scriptedState(now: number): Scripted {
-  const t = (now % CYCLE_MS) / CYCLE_MS; // 0..1
+  const elapsed = ((now - PHASE_ANCHOR_MS) % CYCLE_MS + CYCLE_MS) % CYCLE_MS;
+  const t = elapsed / CYCLE_MS; // 0..1
 
   if (t < DWELL_FRACTION) {
     // PANIC PIT — sit at the bottom so everyone who opens the app sees it.
