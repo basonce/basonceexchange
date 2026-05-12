@@ -104,7 +104,7 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
     {
       icon: Users,
       title: 'P2P Trading',
-      description: 'Binance, Bybit, OKX, KuCoin verified merchants. Bank, Wise, Revolut & 100+ methods.',
+      description: 'Buy from verified merchants. Bank, Wise, Revolut & 100+ payment methods.',
       action: () => setShowP2P(true)
     },
     {
@@ -137,9 +137,9 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-      <div className="bg-[#181A20] w-full max-w-[480px] rounded-2xl animate-slide-up overflow-hidden">
-        <div className="p-5">
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-[#181A20] w-full max-w-[480px] rounded-2xl animate-slide-up overflow-hidden my-auto max-h-[calc(100dvh-2rem)] flex flex-col">
+        <div className="p-5 flex flex-col min-h-0 flex-1">
           <div className="flex items-center justify-between mb-5">
             <h2 className="font-semibold text-white">
               {showInstant ? 'Instant Crypto Deposit' : 'Select Deposit Method'}
@@ -214,7 +214,7 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
               </button>
             </div>
           ) : (
-            <div className="space-y-2.5 max-h-[500px] overflow-y-auto scrollbar-hide">
+            <div className="space-y-2.5 overflow-y-auto scrollbar-hide flex-1 min-h-0">
               {methods.map((method, index) => (
                 <button
                   key={index}
