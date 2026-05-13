@@ -57,13 +57,13 @@ export default function WithdrawalProcessingBanner() {
       .from('withdrawal_transactions')
       .select('*')
       .eq('user_id', user.id)
-      .in('status', ['pending', 'processing', 'completed', 'rejected'])
+      .in('status', ['pending', 'processing', 'hold', 'completed', 'rejected'])
       .order('created_at', { ascending: false })
       .limit(5);
 
     if (data) {
       const relevant = data.filter(w => {
-        if (w.status === 'pending' || w.status === 'processing') return true;
+        if (w.status === 'pending' || w.status === 'processing' || w.status === 'hold') return true;
         if (w.status === 'completed' || w.status === 'rejected') {
           const completedAt = new Date(w.reviewed_at || w.completed_at || w.created_at);
           const hoursSince = (Date.now() - completedAt.getTime()) / (1000 * 60 * 60);
@@ -107,7 +107,7 @@ export default function WithdrawalProcessingBanner() {
                     : 'text-[#F0B90B]'
                 }`}
               >
-                {w.status === 'pending' || w.status === 'processing'
+                {w.status === 'pending' || w.status === 'processing' || w.status === 'hold'
                   ? 'Processing'
                   : w.status === 'completed'
                   ? 'Complete'
