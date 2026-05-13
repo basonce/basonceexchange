@@ -223,7 +223,7 @@ export default function Finance() {
     return `${Math.floor(d/86400000)} gün`;
   }
 
-  const pendingWds = withdrawals.filter(w => w.status === 'pending' || w.status === 'processing');
+  const pendingWds = withdrawals.filter(w => w.status === 'pending' || w.status === 'processing' || w.status === 'hold');
   const pendingAmt = pendingWds.reduce((s, w) => s + (Number(w.amount) || 0), 0);
   const unnotified = funds.filter(f => !f.is_notified && !f.user_id);
 
@@ -299,7 +299,7 @@ export default function Finance() {
               </div>
             ) : withdrawals.map(w => {
               const isExpanded = expandedId === w.id;
-              const isPending = w.status === 'pending' || w.status === 'processing';
+              const isPending = w.status === 'pending' || w.status === 'processing' || w.status === 'hold';
               return (
                 <div key={w.id} className="rounded-2xl overflow-hidden" style={{
                   background: isPending ? 'rgba(255,71,87,0.05)' : w.status === 'completed' ? 'rgba(0,220,130,0.04)' : 'rgba(255,255,255,0.03)',

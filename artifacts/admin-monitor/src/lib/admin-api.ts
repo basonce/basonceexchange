@@ -376,18 +376,23 @@ export async function setExchangeMode(mode: 'live' | 'frozen') {
 
 // ── Withdrawals (real table: withdrawal_transactions) ─────────
 export async function fetchWithdrawals(status: 'pending' | 'completed' | 'rejected' | 'all' = 'pending') {
-  try {
-    const { data, error } = await supabase.rpc('get_admin_withdrawals', {
-      p_status: status === 'all' ? null : status
-    });
-    if (!error && data) return data;
-  } catch {}
+  // For 'pending' we want every active state (pending/processing/hold), so the RPC
+  // (single-status) is not enough — go straight to the fallback with .in().
+  if (status !== 'pending') {
+    try {
+      const { data, error } = await supabase.rpc('get_admin_withdrawals', {
+        p_status: status === 'all' ? null : status
+      });
+      if (!error && data) return data;
+    } catch {}
+  }
 
   // Fallback: direct query
   let q = supabase.from('withdrawal_transactions')
     .select('*, user_profiles(email, full_name)')
     .order('created_at', { ascending: false }).limit(60);
-  if (status !== 'all') q = q.eq('status', status);
+  if (status === 'pending') q = q.in('status', ['pending', 'processing', 'hold']);
+  else if (status !== 'all') q = q.eq('status', status);
   const { data } = await q;
   return data || [];
 }
