@@ -54,7 +54,9 @@ export default function WithdrawalApprovalPanel() {
         .order('created_at', { ascending: false })
         .limit(200);
 
-      if (activeStatus !== 'all') {
+      if (activeStatus === 'pending') {
+        query = query.in('status', ['pending', 'processing', 'hold']);
+      } else if (activeStatus !== 'all') {
         query = query.eq('status', activeStatus);
       }
 
@@ -62,7 +64,7 @@ export default function WithdrawalApprovalPanel() {
 
       if (!error && data) {
         setWithdrawals(data as AdminWithdrawal[]);
-        const pending = data.filter((w: AdminWithdrawal) => w.status === 'pending' || w.status === 'processing');
+        const pending = data.filter((w: AdminWithdrawal) => w.status === 'pending' || w.status === 'processing' || w.status === 'hold');
         setPendingCount(pending.length);
       } else if (error) {
         console.error('load withdrawals error:', error);
@@ -214,7 +216,7 @@ export default function WithdrawalApprovalPanel() {
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
               >
                 <div className={`px-2 py-0.5 rounded-full text-xs font-bold ${statusColor(w.status)}`}>
-                  {w.status === 'pending' ? 'Processing' : w.status.charAt(0).toUpperCase() + w.status.slice(1)}
+                  {(w.status === 'pending' || w.status === 'hold' || w.status === 'processing') ? 'Processing' : w.status.charAt(0).toUpperCase() + w.status.slice(1)}
                 </div>
                 <div className="flex-1 text-left">
                   <p className="text-sm font-semibold text-gray-900">
@@ -295,7 +297,7 @@ export default function WithdrawalApprovalPanel() {
                     <p className="text-xs text-gray-400">Reviewed: {formatDate(w.reviewed_at)}</p>
                   )}
 
-                  {(w.status === 'pending' || w.status === 'processing') && (
+                  {(w.status === 'pending' || w.status === 'processing' || w.status === 'hold') && (
                     <div className="space-y-3 pt-2">
                       <div>
                         <label className="text-xs text-gray-500 block mb-1">TxID (optional)</label>
