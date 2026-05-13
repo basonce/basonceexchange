@@ -295,14 +295,20 @@ export default function AssetsPage() {
       try {
         const cryptoRes = await fetch('/api/crypto-prices', { signal: AbortSignal.timeout(8000) });
         if (cryptoRes.ok) {
-          const cryptoJson = await cryptoRes.json() as {
-            success: boolean;
-            data?: Record<string, { price: number; change: number }>;
-          };
-          if (cryptoJson.success && cryptoJson.data) {
+          const cryptoJson = await cryptoRes.json() as
+            | { success: boolean; data?: Record<string, { price: number; change: number }> }
+            | Record<string, { price: number; change: number }>;
+          // Endpoint may return either {success,data:{...}} OR a flat map of symbol→{price,change}
+          const priceMap: Record<string, { price: number; change: number }> | undefined =
+            (cryptoJson as any)?.data && typeof (cryptoJson as any).data === 'object'
+              ? (cryptoJson as any).data
+              : (cryptoJson as Record<string, { price: number; change: number }>);
+          if (priceMap && typeof priceMap === 'object') {
             setBalances(prev => prev.map(b => {
-              const d = cryptoJson.data![b.symbol];
-              if (d && d.price > 0) return { ...b, price: d.price, priceChange24h: d.change };
+              const d = priceMap[b.symbol];
+              if (d && typeof d.price === 'number' && d.price > 0) {
+                return { ...b, price: d.price, priceChange24h: d.change ?? 0 };
+              }
               return b;
             }));
           }
