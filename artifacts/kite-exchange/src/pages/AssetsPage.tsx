@@ -185,6 +185,27 @@ export default function AssetsPage() {
     const unsubTradFi = subscribeAllTradFiPrices(updateLivePrices);
     const unsubEq = eqMgr.subscribe(updateLivePrices);
 
+    // Poll /api/crypto-prices (KuCoin backend) every 10s — Binance WS is geo-blocked in TR,
+    // so without this BTC/ETH/SOL/TRX prices stay frozen at first-load values.
+    const refreshCryptoPrices = async () => {
+      try {
+        const res = await fetch('/api/crypto-prices', { signal: AbortSignal.timeout(8000) });
+        if (!res.ok) return;
+        const json: any = await res.json();
+        const priceMap: Record<string, { price: number; change: number }> | undefined =
+          json?.data && typeof json.data === 'object' ? json.data : json;
+        if (!priceMap || typeof priceMap !== 'object') return;
+        setBalances(prev => prev.map(b => {
+          const d = priceMap[b.symbol];
+          if (d && typeof d.price === 'number' && d.price > 0) {
+            return { ...b, price: d.price, priceChange24h: d.change ?? 0 };
+          }
+          return b;
+        }));
+      } catch {}
+    };
+    const cryptoPollId = window.setInterval(refreshCryptoPrices, 10000);
+
     const channel = supabase
       .channel('balance_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'user_balances' }, () => {
@@ -201,6 +222,7 @@ export default function AssetsPage() {
       unsubCrypto();
       unsubTradFi();
       unsubEq();
+      window.clearInterval(cryptoPollId);
       channel.unsubscribe();
     };
   }, []);
