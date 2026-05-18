@@ -293,11 +293,17 @@ function App() {
     localStorage.setItem('currentTab', mobileTab);
     analyticsTracker.trackPageView(`/${mobileTab}`);
     trackActivityPage(mobileTab);
-    const newHash = `#${mobileTab}`;
-    if (window.location.hash !== newHash) {
-      // pushState so the OS/browser back button navigates between tabs
-      // instead of leaving the site on the very first back press.
-      window.history.pushState({ tab: mobileTab }, '', newHash);
+    // Telegram Mini App: do NOT touch the hash — Telegram stores tgWebAppData there.
+    // Overwriting it (#miner) wipes Telegram's session data and causes the Mini App to restart in a loop.
+    const inTelegram =
+      (window as any).__IS_TELEGRAM_MINIAPP__ === true ||
+      window.location.hash.indexOf('tgWebApp') !== -1 ||
+      !!(window as any).Telegram?.WebApp?.initData;
+    if (!inTelegram) {
+      const newHash = `#${mobileTab}`;
+      if (window.location.hash !== newHash) {
+        window.history.pushState({ tab: mobileTab }, '', newHash);
+      }
     }
   }, [mobileTab]);
 
