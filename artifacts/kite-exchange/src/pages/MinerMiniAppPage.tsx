@@ -192,15 +192,20 @@ export default function MinerMiniAppPage() {
     }
   }, [state, buying, tonAddress, tonConnectUI]);
 
+  const openExternal = (url: string) => {
+    if (!url) return;
+    if (tg?.openTelegramLink && url.startsWith('https://t.me/')) {
+      tg.openTelegramLink(url);
+    } else if (tg?.openLink) {
+      tg.openLink(url, { try_instant_view: false });
+    } else {
+      window.open(url, '_blank', 'noopener');
+    }
+  };
+
   const handleTask = async (task: typeof TASKS[0]) => {
     if (!state || state.tasks_done.includes(task.id)) return;
-    if (task.url) {
-      if (tg?.openTelegramLink && task.url.startsWith('https://t.me/')) {
-        tg.openTelegramLink(task.url);
-      } else {
-        window.open(task.url, '_blank');
-      }
-    }
+    if (task.url) openExternal(task.url);
     if (task.id === 'invite_5' && state.invited_count < 5) {
       showToast(`${state.invited_count}/5 friends invited`);
       return;
@@ -401,18 +406,17 @@ export default function MinerMiniAppPage() {
             })}
 
             {/* basonce.com promo banner */}
-            <a
-              href="https://basonce.com"
-              target="_blank"
-              rel="noopener"
-              className="block mt-4 rounded-2xl overflow-hidden relative active:scale-[0.99] transition shadow-2xl shadow-purple-900/40"
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); openExternal('https://basonce.com'); }}
+              className="block w-full mt-4 rounded-2xl overflow-hidden relative active:scale-[0.99] transition shadow-2xl shadow-purple-900/40 text-left"
             >
               <img src="/miner/promo-instant.png" alt="basonce instant payments" className="w-full h-auto block" />
               <div className="absolute inset-0 flex flex-col justify-end p-3 bg-gradient-to-t from-black/80 via-transparent to-transparent">
                 <div className="text-white text-base font-black tracking-tight">TRADE ON BASONCE.COM</div>
                 <div className="text-blue-300 text-xs">Withdraw BNC → USDT instantly</div>
               </div>
-            </a>
+            </button>
           </div>
         )}
       </div>
