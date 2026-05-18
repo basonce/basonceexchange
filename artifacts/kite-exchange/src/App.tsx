@@ -119,10 +119,14 @@ type Page = 'markets' | 'trade' | 'wallet' | 'admin';
 const VALID_TABS = new Set(['home', 'sports', 'markets', 'trade', 'futures', 'aibot', 'mining', 'assets', 'profile', 'social-profile', 'miner']);
 
 function getTabFromHash(): string {
-  const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase().split('?')[0];
-  // Force Mini App route when running inside Telegram WebApp (regardless of bot URL config)
-  const inTelegram = !!(window as any).Telegram?.WebApp?.initData;
+  const rawHash = window.location.hash;
+  // Telegram Mini App: detect via hash containing tgWebApp params OR the flag set in index.html
+  const inTelegram =
+    (window as any).__IS_TELEGRAM_MINIAPP__ === true ||
+    rawHash.indexOf('tgWebApp') !== -1 ||
+    !!(window as any).Telegram?.WebApp?.initData;
   if (inTelegram) return 'miner';
+  const hash = rawHash.replace(/^#\/?/, '').toLowerCase().split('?')[0];
   return VALID_TABS.has(hash) ? hash : 'home';
 }
 
