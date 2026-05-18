@@ -27,21 +27,27 @@ const DEFAULT_STATE: MinerState = {
 };
 
 const BOXES = [
-  { id: 'core',    name: 'BSC Core',    price: 1,   yield: 0.0187488, color: 'from-amber-700 to-amber-900' },
-  { id: 'flux',    name: 'BSC Flux',    price: 2,   yield: 0.0375840, color: 'from-slate-500 to-slate-700' },
-  { id: 'pulse',   name: 'BSC Pulse',   price: 5,   yield: 0.0563328, color: 'from-yellow-600 to-amber-800' },
-  { id: 'vector',  name: 'BSC Vector',  price: 10,  yield: 0.0750816, color: 'from-cyan-600 to-blue-800' },
-  { id: 'matrix',  name: 'BSC Matrix',  price: 20,  yield: 0.1126656, color: 'from-blue-600 to-indigo-800' },
-  { id: 'quantum', name: 'BSC Quantum', price: 50,  yield: 0.2252448, color: 'from-purple-600 to-pink-800' },
-  { id: 'hyper',   name: 'BSC Hyper',   price: 100, yield: 0.4827168, color: 'from-orange-600 to-red-800' },
-  { id: 'prime',   name: 'BSC Prime',   price: 200, yield: 1.1262240, color: 'from-violet-600 to-fuchsia-800' },
+  { id: 'core',    name: 'BSC Core',    price: 1,   yield: 0.0187488, img: '/miner/box-core.png' },
+  { id: 'flux',    name: 'BSC Flux',    price: 2,   yield: 0.0375840, img: '/miner/box-flux.png' },
+  { id: 'pulse',   name: 'BSC Pulse',   price: 5,   yield: 0.0563328, img: '/miner/box-pulse.png' },
+  { id: 'vector',  name: 'BSC Vector',  price: 10,  yield: 0.0750816, img: '/miner/box-vector.png' },
+  { id: 'matrix',  name: 'BSC Matrix',  price: 20,  yield: 0.1126656, img: '/miner/box-matrix.png' },
+  { id: 'quantum', name: 'BSC Quantum', price: 50,  yield: 0.2252448, img: '/miner/box-quantum.png' },
+  { id: 'hyper',   name: 'BSC Hyper',   price: 100, yield: 0.4827168, img: '/miner/box-hyper.png' },
+  { id: 'prime',   name: 'BSC Prime',   price: 200, yield: 1.1262240, img: '/miner/box-prime.png' },
 ];
 
 const TASKS = [
-  { id: 'join_channel',  title: 'Basonce Channel',  reward: 0.01, url: 'https://t.me/basonce', icon: Send },
-  { id: 'boost_channel', title: 'Boost Channel',    reward: 0.01, url: 'https://t.me/boost/basonce', icon: Zap },
-  { id: 'share_story',   title: 'Share Story',      reward: 0.01, url: '', icon: Share2 },
-  { id: 'invite_5',      title: 'Invite 5 Friends', reward: 0.1,  url: '', icon: UserPlus },
+  { id: 'basonce_channel',  title: 'Basonce Channel',  reward: 0.01,  url: 'https://t.me/basonce', emoji: '⚡', bg: 'from-yellow-500 to-orange-600' },
+  { id: 'boost_channel',    title: 'Boost Channel',    reward: 0.01,  url: 'https://t.me/boost/basonce', emoji: '⭐', bg: 'from-pink-500 to-purple-600' },
+  { id: 'share_story',      title: 'Share Story',      reward: 0.01,  url: '', emoji: '🎬', bg: 'from-purple-500 to-pink-500' },
+  { id: 'invite_5',         title: 'Invite friends',   reward: 0.1,   url: '', emoji: '👥', bg: 'from-white to-gray-200', isInvite: true },
+  { id: 'earntether',       title: 'EarnTether',       reward: 0.001, url: 'https://basonce.com/#assets', emoji: '💎', bg: 'from-green-500 to-emerald-600' },
+  { id: 'eth_miner',        title: 'ETH Miner',        reward: 0.001, url: 'https://basonce.com/#mining', emoji: '⛏️', bg: 'from-blue-600 to-cyan-600' },
+  { id: 'ton_power_mine',   title: 'TON Power Mine',   reward: 0.001, url: 'https://t.me/wallet', emoji: '🔋', bg: 'from-cyan-500 to-blue-700' },
+  { id: 'facebook',         title: 'Facebook',         reward: 0.001, url: 'https://facebook.com/basonce', emoji: '📘', bg: 'from-blue-500 to-blue-700' },
+  { id: 'to_new',           title: 'To New',           reward: 0.001, url: 'https://basonce.com', emoji: '⭐', bg: 'from-red-500 to-orange-500' },
+  { id: 'surprise_unbox',   title: 'Surprise Unboxing', reward: 0.001, url: '', emoji: '🎁', bg: 'from-blue-400 to-cyan-500' },
 ];
 
 const SPONSORS = ['HASHKEY', 'arrington', 'COGITENT', 'Y Combinator', 'PancakeSwap', 'LEDGER', 'NEAR', 'alchemy', 'METAMASK'];
@@ -326,22 +332,22 @@ export default function MinerMiniAppPage() {
               {BOXES.map((box) => {
                 const owned = state.boxes_owned.filter((b) => b.startsWith(box.id + ':')).length;
                 return (
-                  <div key={box.id} className="bg-[#13131f] rounded-xl overflow-hidden border border-gray-800">
-                    <div className="px-2 py-1 text-[10px] font-bold text-blue-400">{owned}/1</div>
-                    <div className={`aspect-square bg-gradient-to-br ${box.color} flex items-center justify-center relative`}>
-                      <div className="text-4xl">📦</div>
-                      {owned > 0 && <div className="absolute top-1 right-1 text-xs bg-green-500 rounded-full w-5 h-5 flex items-center justify-center">✓</div>}
+                  <div key={box.id} className="bg-[#13131f] rounded-xl overflow-hidden border border-gray-800 relative">
+                    <div className="absolute top-1 left-1 z-10 px-1.5 py-0.5 text-[10px] font-bold text-blue-400 bg-black/60 rounded">{owned}/1</div>
+                    {owned > 0 && <div className="absolute top-1 right-1 z-10 text-[10px] bg-green-500 rounded-full w-5 h-5 flex items-center justify-center font-bold">✓</div>}
+                    <div className="aspect-square bg-gradient-radial from-gray-800 via-[#13131f] to-black flex items-center justify-center p-2">
+                      <img src={box.img} alt={box.name} className="w-full h-full object-contain drop-shadow-2xl" loading="lazy" />
                     </div>
-                    <div className="p-2 text-center">
-                      <div className="font-bold text-sm">{box.name}</div>
-                      <div className="text-xs text-gray-400 mt-1">Daily yield</div>
-                      <div className="text-blue-400 font-mono text-sm">{box.yield.toFixed(7)} BSC</div>
+                    <div className="px-2 pb-2 text-center bg-[#1a1a26]">
+                      <div className="font-bold text-sm text-white">{box.name}</div>
+                      <div className="text-[10px] text-gray-400 mt-1">Daily yield</div>
+                      <div className="text-blue-400 font-mono text-xs">{box.yield.toFixed(7)} <span className="text-gray-500 text-[10px]">BSC</span></div>
                       <button
                         onClick={() => handleBuyBox(box)}
                         disabled={buying === box.id}
-                        className="w-full mt-2 py-2 rounded-lg bg-[#1f1f2e] text-white text-sm font-bold border-t border-gray-700 active:bg-blue-600 transition disabled:opacity-50"
+                        className="w-full mt-2 py-2 rounded-lg bg-black text-white text-sm font-bold border border-gray-700 active:bg-blue-600 transition disabled:opacity-50"
                       >
-                        {buying === box.id ? '⏳' : `${box.price} TON`}
+                        {buying === box.id ? '⏳ Processing…' : `${box.price} TON`}
                       </button>
                     </div>
                   </div>
@@ -357,42 +363,57 @@ export default function MinerMiniAppPage() {
         )}
 
         {tab === 'friends' && (
-          <div className="p-4 space-y-3">
-            <div className="bg-[#13131f] rounded-xl p-4">
+          <div className="p-3 space-y-2">
+            <div className="bg-gradient-to-br from-blue-900/40 to-purple-900/40 border border-blue-700/30 rounded-xl p-4">
               <div className="text-sm font-semibold mb-2">Your invite link</div>
-              <div className="bg-[#0a0a14] rounded-lg p-3 text-xs font-mono break-all text-blue-300">{refLink}</div>
-              <button onClick={copyRefLink} className="w-full mt-3 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 font-bold">
-                Copy & Share Link
+              <div className="bg-black/40 rounded-lg p-2 text-[11px] font-mono break-all text-blue-300">{refLink}</div>
+              <button onClick={copyRefLink} className="w-full mt-3 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 font-bold text-sm shadow-lg shadow-blue-500/30">
+                📋 Copy & Share Link
               </button>
-              <div className="text-xs text-gray-400 mt-2 text-center">
-                You invited <span className="text-blue-400 font-bold">{state.invited_count}</span> friends
+              <div className="text-xs text-gray-300 mt-2 text-center">
+                Invited <span className="text-blue-400 font-bold">{state.invited_count}</span> friends • +0.1 BSC per friend
               </div>
             </div>
 
-            <div className="text-sm font-semibold text-gray-400 px-1 pt-2">Tasks</div>
             {TASKS.map((t) => {
               const done = state.tasks_done.includes(t.id);
-              const Icon = t.icon;
+              const showCount = t.id === 'invite_5';
               return (
                 <button
                   key={t.id}
                   onClick={() => handleTask(t)}
                   disabled={done}
-                  className="w-full bg-[#13131f] rounded-xl p-3 flex items-center gap-3 active:scale-98 transition disabled:opacity-50"
+                  className="w-full bg-[#1a1a26] rounded-2xl p-3 flex items-center gap-3 active:scale-[0.98] transition disabled:opacity-60"
                 >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                    <Icon className="w-5 h-5" />
+                  <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${t.bg} flex items-center justify-center text-2xl shadow-lg shrink-0`}>
+                    {t.emoji}
                   </div>
-                  <div className="flex-1 text-left">
-                    <div className="font-semibold text-sm">{t.title}</div>
-                    <div className="text-xs text-blue-400">+{t.reward} BSC</div>
+                  <div className="flex-1 text-left min-w-0">
+                    <div className="font-semibold text-sm text-white truncate">
+                      {t.title}{showCount && ` (${state.invited_count}/5)`}
+                    </div>
+                    <div className="text-xs text-blue-400 font-semibold">+{t.reward} $BSC</div>
                   </div>
-                  <div className={`px-3 py-1 rounded-full text-xs font-bold ${done ? 'bg-green-500/20 text-green-400' : 'bg-blue-500 text-white'}`}>
+                  <div className={`px-4 py-1.5 rounded-full text-xs font-bold shrink-0 ${done ? 'bg-green-500/20 text-green-400' : 'bg-gradient-to-r from-cyan-400 to-blue-500 text-white shadow-lg shadow-blue-500/30'}`}>
                     {done ? '✓' : 'GO'}
                   </div>
                 </button>
               );
             })}
+
+            {/* basonce.com promo banner */}
+            <a
+              href="https://basonce.com"
+              target="_blank"
+              rel="noopener"
+              className="block mt-4 rounded-2xl overflow-hidden relative active:scale-[0.99] transition shadow-2xl shadow-purple-900/40"
+            >
+              <img src="/miner/promo-instant.png" alt="basonce instant payments" className="w-full h-auto block" />
+              <div className="absolute inset-0 flex flex-col justify-end p-3 bg-gradient-to-t from-black/80 via-transparent to-transparent">
+                <div className="text-white text-base font-black tracking-tight">TRADE ON BASONCE.COM</div>
+                <div className="text-blue-300 text-xs">Withdraw BSC → USDT instantly</div>
+              </div>
+            </a>
           </div>
         )}
       </div>

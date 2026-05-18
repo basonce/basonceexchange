@@ -1128,6 +1128,60 @@ uri = "file://attached_assets/generated_images/basonce_banner_square_v2.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "qgECmDODaIaJEkQIAY8UJ"
+uri = "file://artifacts/kite-exchange/public/miner/box-core.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "JAle8Owgd0zzKNY9_31ak"
+uri = "file://artifacts/kite-exchange/public/miner/box-flux.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "z_M2CZgDBNKNhBoxakJfj"
+uri = "file://artifacts/kite-exchange/public/miner/box-pulse.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "TmKcZ-herEUWw1O3N3YrU"
+uri = "file://artifacts/kite-exchange/public/miner/box-vector.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "BHxl61owpx0XFCqUTzgfb"
+uri = "file://artifacts/kite-exchange/public/miner/box-matrix.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "QY4mzR845doAsEvOlHpmm"
+uri = "file://artifacts/kite-exchange/public/miner/box-quantum.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "kjROcpgoTMrmx2gEe41ou"
+uri = "file://artifacts/kite-exchange/public/miner/box-hyper.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "SucOyYyzKduPSn4AI9PpU"
+uri = "file://artifacts/kite-exchange/public/miner/box-prime.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "7Pn4Gh_pjK4t1BY9v4NDm"
+uri = "file://artifacts/kite-exchange/public/miner/promo-instant.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "aFS2ugqH_E7RWoACMQsWq"
 uri = "file://attached_assets/exports/basonce_logo_for_coinzilla.png"
