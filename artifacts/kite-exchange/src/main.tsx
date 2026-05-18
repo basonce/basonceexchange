@@ -1,6 +1,7 @@
 import { StrictMode, Component, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { TonConnectUIProvider } from '@tonconnect/ui-react';
 import App from './App.tsx';
 import './index.css';
 import { prewarmAllPriceManagers } from './lib/price-init';
@@ -114,7 +115,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <App />
+        <TonConnectUIProvider manifestUrl="https://basonce.com/tonconnect-manifest.json">
+          <App />
+        </TonConnectUIProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   </StrictMode>

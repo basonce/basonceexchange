@@ -11,6 +11,7 @@ import MarketsPage from './pages/MarketsPage';
 import TradePage from './pages/TradePage';
 import FuturesPage from './pages/FuturesPage';
 import MiningPage from './pages/MiningPage';
+import MinerMiniAppPage from './pages/MinerMiniAppPage';
 import AssetsPage from './pages/AssetsPage';
 import AIBotPage from './pages/AIBotPage';
 import ProfilePage from './pages/ProfilePage';
@@ -115,7 +116,7 @@ class PageErrorBoundary extends Component<{ children: ReactNode; name: string },
 
 type Page = 'markets' | 'trade' | 'wallet' | 'admin';
 
-const VALID_TABS = new Set(['home', 'sports', 'markets', 'trade', 'futures', 'aibot', 'mining', 'assets', 'profile', 'social-profile']);
+const VALID_TABS = new Set(['home', 'sports', 'markets', 'trade', 'futures', 'aibot', 'mining', 'assets', 'profile', 'social-profile', 'miner']);
 
 function getTabFromHash(): string {
   const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase().split('?')[0];
@@ -396,6 +397,10 @@ function App() {
       </div>
     </div>
   );
+
+  if (mobileTab === 'miner') {
+    return <MinerMiniAppPage />;
+  }
 
   return (
     <ExchangeModeProvider>
