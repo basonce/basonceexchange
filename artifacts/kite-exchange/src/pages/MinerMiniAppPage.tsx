@@ -50,7 +50,17 @@ const TASKS = [
   { id: 'surprise_unbox',   title: 'Surprise Unboxing', reward: 0.001, url: '', emoji: '🎁', bg: 'from-blue-400 to-cyan-500' },
 ];
 
-const SPONSORS = ['HASHKEY', 'arrington', 'COGITENT', 'Y Combinator', 'PancakeSwap', 'LEDGER', 'NEAR', 'alchemy', 'METAMASK'];
+const SPONSORS = [
+  { name: 'HashKey',      logo: 'https://logo.clearbit.com/hashkey.com',          url: 'https://hashkey.com' },
+  { name: 'Arrington',    logo: 'https://logo.clearbit.com/arringtoncapital.com', url: 'https://arringtoncapital.com' },
+  { name: 'Cogitent',     logo: 'https://logo.clearbit.com/cogitent.ventures',    url: 'https://cogitent.ventures' },
+  { name: 'Y Combinator', logo: 'https://logo.clearbit.com/ycombinator.com',      url: 'https://ycombinator.com' },
+  { name: 'PancakeSwap',  logo: 'https://logo.clearbit.com/pancakeswap.finance',  url: 'https://pancakeswap.finance' },
+  { name: 'Ledger',       logo: 'https://logo.clearbit.com/ledger.com',           url: 'https://ledger.com' },
+  { name: 'NEAR',         logo: 'https://logo.clearbit.com/near.org',             url: 'https://near.org' },
+  { name: 'Alchemy',      logo: 'https://logo.clearbit.com/alchemy.com',          url: 'https://alchemy.com' },
+  { name: 'MetaMask',     logo: 'https://logo.clearbit.com/metamask.io',          url: 'https://metamask.io' },
+];
 
 const OPERATOR_WALLET = 'UQCeytNeGzjIuutg5vZJETyrlg7Mqp0Vm4a0iU7RRTihqh6n';
 const BOT_USERNAME = 'Basonce_Miner_Bot';
@@ -321,9 +331,30 @@ export default function MinerMiniAppPage() {
               <div className="text-center text-sm font-semibold mb-3 text-gray-400">Sponsors and Partners</div>
               <div className="grid grid-cols-3 gap-2">
                 {SPONSORS.map((s) => (
-                  <div key={s} className="bg-[#13131f] rounded-lg py-3 text-center text-xs text-gray-300 font-semibold uppercase tracking-wide">
-                    {s}
-                  </div>
+                  <button
+                    key={s.name}
+                    type="button"
+                    onClick={() => openExternal(s.url)}
+                    className="bg-white rounded-lg h-16 flex items-center justify-center px-2 active:scale-95 transition"
+                  >
+                    <img
+                      src={s.logo}
+                      alt={s.name}
+                      className="max-h-10 max-w-full object-contain"
+                      loading="lazy"
+                      onError={(e) => {
+                        const el = e.currentTarget;
+                        el.style.display = 'none';
+                        const parent = el.parentElement;
+                        if (parent && !parent.querySelector('.fallback-name')) {
+                          const span = document.createElement('span');
+                          span.className = 'fallback-name text-xs font-bold text-gray-800 uppercase';
+                          span.textContent = s.name;
+                          parent.appendChild(span);
+                        }
+                      }}
+                    />
+                  </button>
                 ))}
               </div>
             </div>
