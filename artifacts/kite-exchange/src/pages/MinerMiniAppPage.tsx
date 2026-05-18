@@ -270,7 +270,7 @@ export default function MinerMiniAppPage() {
             <div className="flex justify-center my-4">
               <div className="relative w-36 h-36 flex items-center justify-center">
                 <div className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 blur-2xl opacity-60 animate-pulse" />
-                <img src="/bnc-logo.png" alt="BNC" className="relative w-32 h-32 object-contain drop-shadow-[0_0_30px_rgba(59,130,246,0.8)]" />
+                <img src="/miner/bnc-coin.png" alt="BNC" className="relative w-32 h-32 object-contain drop-shadow-[0_0_30px_rgba(59,130,246,0.8)]" />
               </div>
             </div>
             <div className="text-center text-blue-300 text-sm">
@@ -294,7 +294,7 @@ export default function MinerMiniAppPage() {
               <div className="text-sm font-semibold mb-3">Wallet Balance</div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <img src="/bnc-logo.png" alt="BNC" className="w-10 h-10 object-contain" />
+                  <img src="/miner/bnc-coin.png" alt="BNC" className="w-10 h-10 object-contain" />
                   <div>
                     <div className="text-lg font-bold">{liveBalance.toFixed(4)}</div>
                     <div className="text-xs text-gray-400">≈ ${(liveBalance * 0.05).toFixed(2)}</div>
