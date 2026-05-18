@@ -270,8 +270,8 @@ export default function MinerMiniAppPage() {
             <div className="flex justify-center my-4">
               <div className="relative w-40 h-40 flex items-center justify-center">
                 <div className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 blur-3xl opacity-50 animate-pulse" />
-                <div className="relative w-32 h-32 rounded-full bg-black flex items-center justify-center shadow-[0_0_40px_rgba(59,130,246,0.6)] ring-2 ring-blue-500/30">
-                  <img src="/miner/bnc-coin.png" alt="BNC" className="w-24 h-24 object-contain" />
+                <div className="relative w-36 h-36 rounded-full bg-black overflow-hidden flex items-center justify-center shadow-[0_0_50px_rgba(59,130,246,0.7)] ring-2 ring-blue-500/40">
+                  <img src="/miner/bnc-coin.png" alt="BNC" className="w-full h-full object-cover" style={{ transform: 'scale(1.7)' }} />
                 </div>
               </div>
             </div>
@@ -296,8 +296,8 @@ export default function MinerMiniAppPage() {
               <div className="text-sm font-semibold mb-3">Wallet Balance</div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center ring-1 ring-blue-500/40">
-                    <img src="/miner/bnc-coin.png" alt="BNC" className="w-7 h-7 object-contain" />
+                  <div className="w-12 h-12 rounded-full bg-black overflow-hidden flex items-center justify-center ring-1 ring-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.4)]">
+                    <img src="/miner/bnc-coin.png" alt="BNC" className="w-full h-full object-cover" style={{ transform: 'scale(1.7)' }} />
                   </div>
                   <div>
                     <div className="text-lg font-bold">{liveBalance.toFixed(4)}</div>
