@@ -47,7 +47,7 @@ const TASKS = [
 const SPONSORS = ['HASHKEY', 'arrington', 'COGITENT', 'Y Combinator', 'PancakeSwap', 'LEDGER', 'NEAR', 'alchemy', 'METAMASK'];
 
 const OPERATOR_WALLET = 'UQCeytNeGzjIuutg5vZJETyrlg7Mqp0Vm4a0iU7RRTihqh6n';
-const BOT_USERNAME = 'BasonceMinerBot';
+const BOT_USERNAME = 'Basonce_Miner_Bot';
 const WITHDRAW_MIN = 100;
 
 // Telegram CloudStorage helpers with localStorage fallback
