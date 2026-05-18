@@ -120,6 +120,9 @@ const VALID_TABS = new Set(['home', 'sports', 'markets', 'trade', 'futures', 'ai
 
 function getTabFromHash(): string {
   const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase().split('?')[0];
+  // Force Mini App route when running inside Telegram WebApp (regardless of bot URL config)
+  const inTelegram = !!(window as any).Telegram?.WebApp?.initData;
+  if (inTelegram) return 'miner';
   return VALID_TABS.has(hash) ? hash : 'home';
 }
 
