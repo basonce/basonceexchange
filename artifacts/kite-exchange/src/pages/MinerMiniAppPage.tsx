@@ -268,9 +268,11 @@ export default function MinerMiniAppPage() {
               <div className="text-blue-400 text-4xl font-bold tabular-nums">{liveBalance.toFixed(8)}</div>
             </div>
             <div className="flex justify-center my-4">
-              <div className="relative w-36 h-36 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 blur-2xl opacity-60 animate-pulse" />
-                <img src="/miner/bnc-coin.png" alt="BNC" className="relative w-32 h-32 object-contain drop-shadow-[0_0_30px_rgba(59,130,246,0.8)]" />
+              <div className="relative w-40 h-40 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 blur-3xl opacity-50 animate-pulse" />
+                <div className="relative w-32 h-32 rounded-full bg-black flex items-center justify-center shadow-[0_0_40px_rgba(59,130,246,0.6)] ring-2 ring-blue-500/30">
+                  <img src="/miner/bnc-coin.png" alt="BNC" className="w-24 h-24 object-contain" />
+                </div>
               </div>
             </div>
             <div className="text-center text-blue-300 text-sm">
@@ -294,7 +296,9 @@ export default function MinerMiniAppPage() {
               <div className="text-sm font-semibold mb-3">Wallet Balance</div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <img src="/miner/bnc-coin.png" alt="BNC" className="w-10 h-10 object-contain" />
+                  <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center ring-1 ring-blue-500/40">
+                    <img src="/miner/bnc-coin.png" alt="BNC" className="w-7 h-7 object-contain" />
+                  </div>
                   <div>
                     <div className="text-lg font-bold">{liveBalance.toFixed(4)}</div>
                     <div className="text-xs text-gray-400">≈ ${(liveBalance * 0.05).toFixed(2)}</div>
