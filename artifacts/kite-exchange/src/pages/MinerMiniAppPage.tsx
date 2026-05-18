@@ -27,14 +27,14 @@ const DEFAULT_STATE: MinerState = {
 };
 
 const BOXES = [
-  { id: 'core',    name: 'BSC Core',    price: 1,   yield: 0.0187488, img: '/miner/box-core.png' },
-  { id: 'flux',    name: 'BSC Flux',    price: 2,   yield: 0.0375840, img: '/miner/box-flux.png' },
-  { id: 'pulse',   name: 'BSC Pulse',   price: 5,   yield: 0.0563328, img: '/miner/box-pulse.png' },
-  { id: 'vector',  name: 'BSC Vector',  price: 10,  yield: 0.0750816, img: '/miner/box-vector.png' },
-  { id: 'matrix',  name: 'BSC Matrix',  price: 20,  yield: 0.1126656, img: '/miner/box-matrix.png' },
-  { id: 'quantum', name: 'BSC Quantum', price: 50,  yield: 0.2252448, img: '/miner/box-quantum.png' },
-  { id: 'hyper',   name: 'BSC Hyper',   price: 100, yield: 0.4827168, img: '/miner/box-hyper.png' },
-  { id: 'prime',   name: 'BSC Prime',   price: 200, yield: 1.1262240, img: '/miner/box-prime.png' },
+  { id: 'core',    name: 'BNC Core',    price: 1,   yield: 0.0187488, img: '/miner/box-core.png' },
+  { id: 'flux',    name: 'BNC Flux',    price: 2,   yield: 0.0375840, img: '/miner/box-flux.png' },
+  { id: 'pulse',   name: 'BNC Pulse',   price: 5,   yield: 0.0563328, img: '/miner/box-pulse.png' },
+  { id: 'vector',  name: 'BNC Vector',  price: 10,  yield: 0.0750816, img: '/miner/box-vector.png' },
+  { id: 'matrix',  name: 'BNC Matrix',  price: 20,  yield: 0.1126656, img: '/miner/box-matrix.png' },
+  { id: 'quantum', name: 'BNC Quantum', price: 50,  yield: 0.2252448, img: '/miner/box-quantum.png' },
+  { id: 'hyper',   name: 'BNC Hyper',   price: 100, yield: 0.4827168, img: '/miner/box-hyper.png' },
+  { id: 'prime',   name: 'BNC Prime',   price: 200, yield: 1.1262240, img: '/miner/box-prime.png' },
 ];
 
 const TASKS = [
@@ -152,7 +152,7 @@ export default function MinerMiniAppPage() {
     await saveState(next);
     setState(next);
     setClaiming(false);
-    showToast(`+${earned.toFixed(8)} BSC claimed`);
+    showToast(`+${earned.toFixed(8)} BNC claimed`);
     if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
   };
 
@@ -183,7 +183,7 @@ export default function MinerMiniAppPage() {
       };
       await saveState(next);
       setState(next);
-      showToast(`✓ ${box.name} activated! +${box.yield.toFixed(4)} BSC/day`);
+      showToast(`✓ ${box.name} activated! +${box.yield.toFixed(4)} BNC/day`);
       if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
     } catch (e: any) {
       showToast(e?.message?.includes('UserReject') ? 'Transaction cancelled' : 'Payment failed');
@@ -215,14 +215,14 @@ export default function MinerMiniAppPage() {
       };
       await saveState(next);
       setState(next);
-      showToast(`+${task.reward} BSC reward`);
+      showToast(`+${task.reward} BNC reward`);
     }, 3000);
   };
 
   const handleWithdraw = async () => {
     if (!state) return;
     if (liveBalance < WITHDRAW_MIN) {
-      showToast(`Min withdrawal: ${WITHDRAW_MIN} BSC. You have ${liveBalance.toFixed(6)}`);
+      showToast(`Min withdrawal: ${WITHDRAW_MIN} BNC. You have ${liveBalance.toFixed(6)}`);
       return;
     }
     showToast('Withdrawal request submitted to basonce.com');
@@ -247,7 +247,7 @@ export default function MinerMiniAppPage() {
     <div className="fixed inset-0 bg-[#0a0a14] text-white flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-3 bg-white text-black">
-        <div className="font-bold text-lg">BSC MINER</div>
+        <div className="font-bold text-lg">BNC MINER</div>
         <div className="flex items-center gap-3">
           <Settings className="w-5 h-5" />
           <X className="w-5 h-5" onClick={() => { window.location.hash = ''; }} />
@@ -259,18 +259,17 @@ export default function MinerMiniAppPage() {
         {tab === 'home' && (
           <div className="p-4 space-y-4">
             <div className="text-center pt-6">
-              <div className="text-blue-400 text-sm font-semibold mb-2">BSC</div>
+              <div className="text-blue-400 text-sm font-semibold mb-2">BNC</div>
               <div className="text-blue-400 text-4xl font-bold tabular-nums">{liveBalance.toFixed(8)}</div>
             </div>
             <div className="flex justify-center my-4">
-              <div className="w-32 h-32 rounded-full bg-gradient-to-br from-cyan-500 via-blue-600 to-purple-700 flex items-center justify-center shadow-2xl shadow-blue-500/50">
-                <div className="w-24 h-24 rounded-full bg-[#0a0a14] flex items-center justify-center">
-                  <span className="text-3xl font-black bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">BSC</span>
-                </div>
+              <div className="relative w-36 h-36 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 blur-2xl opacity-60 animate-pulse" />
+                <img src="/miner/bnc-logo.png" alt="BNC" className="relative w-32 h-32 object-contain drop-shadow-[0_0_30px_rgba(59,130,246,0.8)]" />
               </div>
             </div>
             <div className="text-center text-blue-300 text-sm">
-              Total Power: <span className="font-mono">{state.hash_rate.toFixed(9)} BSC/s</span>
+              Total Power: <span className="font-mono">{state.hash_rate.toFixed(9)} BNC/s</span>
             </div>
             <button
               onClick={handleClaim}
@@ -290,7 +289,7 @@ export default function MinerMiniAppPage() {
               <div className="text-sm font-semibold mb-3">Wallet Balance</div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-xs font-bold">BSC</div>
+                  <img src="/miner/bnc-logo.png" alt="BNC" className="w-10 h-10 object-contain" />
                   <div>
                     <div className="text-lg font-bold">{liveBalance.toFixed(4)}</div>
                     <div className="text-xs text-gray-400">≈ ${(liveBalance * 0.05).toFixed(2)}</div>
@@ -304,7 +303,7 @@ export default function MinerMiniAppPage() {
                 </button>
               </div>
               <div className="text-xs text-gray-500 mt-2">
-                Min withdrawal: {WITHDRAW_MIN} BSC → credited as USDT to your basonce.com wallet
+                Min withdrawal: {WITHDRAW_MIN} BNC → credited as USDT to your basonce.com wallet
               </div>
             </div>
 
@@ -341,7 +340,7 @@ export default function MinerMiniAppPage() {
                     <div className="px-2 pb-2 text-center bg-[#1a1a26]">
                       <div className="font-bold text-sm text-white">{box.name}</div>
                       <div className="text-[10px] text-gray-400 mt-1">Daily yield</div>
-                      <div className="text-blue-400 font-mono text-xs">{box.yield.toFixed(7)} <span className="text-gray-500 text-[10px]">BSC</span></div>
+                      <div className="text-blue-400 font-mono text-xs">{box.yield.toFixed(7)} <span className="text-gray-500 text-[10px]">BNC</span></div>
                       <button
                         onClick={() => handleBuyBox(box)}
                         disabled={buying === box.id}
@@ -371,7 +370,7 @@ export default function MinerMiniAppPage() {
                 📋 Copy & Share Link
               </button>
               <div className="text-xs text-gray-300 mt-2 text-center">
-                Invited <span className="text-blue-400 font-bold">{state.invited_count}</span> friends • +0.1 BSC per friend
+                Invited <span className="text-blue-400 font-bold">{state.invited_count}</span> friends • +0.1 BNC per friend
               </div>
             </div>
 
@@ -392,7 +391,7 @@ export default function MinerMiniAppPage() {
                     <div className="font-semibold text-sm text-white truncate">
                       {t.title}{showCount && ` (${state.invited_count}/5)`}
                     </div>
-                    <div className="text-xs text-blue-400 font-semibold">+{t.reward} $BSC</div>
+                    <div className="text-xs text-blue-400 font-semibold">+{t.reward} $BNC</div>
                   </div>
                   <div className={`px-4 py-1.5 rounded-full text-xs font-bold shrink-0 ${done ? 'bg-green-500/20 text-green-400' : 'bg-gradient-to-r from-cyan-400 to-blue-500 text-white shadow-lg shadow-blue-500/30'}`}>
                     {done ? '✓' : 'GO'}
@@ -411,7 +410,7 @@ export default function MinerMiniAppPage() {
               <img src="/miner/promo-instant.png" alt="basonce instant payments" className="w-full h-auto block" />
               <div className="absolute inset-0 flex flex-col justify-end p-3 bg-gradient-to-t from-black/80 via-transparent to-transparent">
                 <div className="text-white text-base font-black tracking-tight">TRADE ON BASONCE.COM</div>
-                <div className="text-blue-300 text-xs">Withdraw BSC → USDT instantly</div>
+                <div className="text-blue-300 text-xs">Withdraw BNC → USDT instantly</div>
               </div>
             </a>
           </div>

@@ -1182,6 +1182,12 @@ uri = "file://artifacts/kite-exchange/public/miner/promo-instant.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "Lx12k01KB2eQlff9Xa0DZ"
+uri = "file://artifacts/kite-exchange/public/miner/bnc-logo.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "aFS2ugqH_E7RWoACMQsWq"
 uri = "file://attached_assets/exports/basonce_logo_for_coinzilla.png"
