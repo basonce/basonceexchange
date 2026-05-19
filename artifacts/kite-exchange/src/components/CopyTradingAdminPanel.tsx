@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Copy, Users, DollarSign, TrendingUp, Search, Pause, Play, Edit2,
-  Trash2, Plus, X, Save, AlertTriangle, ChevronRight, RefreshCw,
+  Copy, Users, DollarSign, TrendingUp, TrendingDown, Search, Pause, Edit2,
+  Trash2, Plus, X, Save, RefreshCw, Zap,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -158,6 +158,42 @@ export default function CopyTradingAdminPanel() {
     await supabase.from('user_copy_trades').update({ status: 'stopped' }).eq('id', id);
     load();
   }
+
+  // ── Manual profit/loss intervention ───────────────────────────
+  // Adjusts a user's copy trade by a delta amount (USD). Positive = profit,
+  // negative = loss. Updates pnl, current_value and roi atomically so the
+  // user immediately sees the new numbers in their app.
+  async function applyIntervention(copy: UserCopy, deltaUsd: number) {
+    const newPnl = N(copy.pnl) + deltaUsd;
+    const newCurrent = N(copy.investment_amount) + newPnl;
+    const newRoi = N(copy.investment_amount) > 0
+      ? (newPnl / N(copy.investment_amount)) * 100
+      : 0;
+    await supabase
+      .from('user_copy_trades')
+      .update({ pnl: newPnl, current_value: newCurrent, roi: newRoi })
+      .eq('id', copy.id);
+    // Optimistic local update for instant feedback
+    setCopies(prev => prev.map(c =>
+      c.id === copy.id ? { ...c, pnl: newPnl, current_value: newCurrent, roi: newRoi } : c
+    ));
+  }
+
+  async function setExactPnl(copy: UserCopy, newPnl: number) {
+    const newCurrent = N(copy.investment_amount) + newPnl;
+    const newRoi = N(copy.investment_amount) > 0
+      ? (newPnl / N(copy.investment_amount)) * 100
+      : 0;
+    await supabase
+      .from('user_copy_trades')
+      .update({ pnl: newPnl, current_value: newCurrent, roi: newRoi })
+      .eq('id', copy.id);
+    setCopies(prev => prev.map(c =>
+      c.id === copy.id ? { ...c, pnl: newPnl, current_value: newCurrent, roi: newRoi } : c
+    ));
+  }
+
+  const [intervening, setIntervening] = useState<UserCopy | null>(null);
 
   return (
     <div>
@@ -359,13 +395,36 @@ export default function CopyTradingAdminPanel() {
                       </td>
                       <td className="px-3 py-2 text-right">
                         {c.status === 'active' && (
-                          <button
-                            onClick={() => stopCopy(c.id)}
-                            className="p-1.5 hover:bg-red-50 rounded text-red-600"
-                            title="Durdur"
-                          >
-                            <Pause className="w-4 h-4" />
-                          </button>
+                          <div className="flex justify-end gap-1">
+                            <button
+                              onClick={() => applyIntervention(c, Math.max(N(c.investment_amount) * 0.05, 5))}
+                              className="px-2 py-1 bg-green-100 hover:bg-green-200 rounded text-green-700 text-xs font-bold"
+                              title="+%5 Kar Ver"
+                            >
+                              +5%
+                            </button>
+                            <button
+                              onClick={() => applyIntervention(c, -Math.max(N(c.investment_amount) * 0.05, 5))}
+                              className="px-2 py-1 bg-red-100 hover:bg-red-200 rounded text-red-700 text-xs font-bold"
+                              title="-%5 Zarar Ver"
+                            >
+                              -5%
+                            </button>
+                            <button
+                              onClick={() => setIntervening(c)}
+                              className="p-1.5 hover:bg-yellow-50 rounded text-yellow-600"
+                              title="Müdahale Et"
+                            >
+                              <Zap className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => stopCopy(c.id)}
+                              className="p-1.5 hover:bg-red-50 rounded text-red-600"
+                              title="Durdur"
+                            >
+                              <Pause className="w-4 h-4" />
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -389,6 +448,159 @@ export default function CopyTradingAdminPanel() {
           onSave={saveTrader}
         />
       )}
+
+      {/* Intervention modal */}
+      {intervening && (
+        <InterventionModal
+          copy={intervening}
+          userName={users[intervening.user_id]?.full_name || users[intervening.user_id]?.email?.split('@')[0] || 'Kullanıcı'}
+          onClose={() => setIntervening(null)}
+          onDelta={async (delta) => { await applyIntervention(intervening, delta); }}
+          onSetPnl={async (pnl) => { await setExactPnl(intervening, pnl); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function InterventionModal({
+  copy, userName, onClose, onDelta, onSetPnl,
+}: {
+  copy: UserCopy;
+  userName: string;
+  onClose: () => void;
+  onDelta: (delta: number) => Promise<void>;
+  onSetPnl: (pnl: number) => Promise<void>;
+}) {
+  const [amount, setAmount] = useState('');
+  const [busy, setBusy] = useState(false);
+  const invested = N(copy.investment_amount);
+  const currentPnl = N(copy.pnl);
+
+  async function run(fn: () => Promise<void>) {
+    setBusy(true);
+    try { await fn(); }
+    finally { setBusy(false); }
+  }
+
+  const presetPct = [
+    { pct: 5, color: 'green' }, { pct: 10, color: 'green' },
+    { pct: 25, color: 'green' }, { pct: 50, color: 'green' },
+    { pct: -5, color: 'red' }, { pct: -10, color: 'red' },
+    { pct: -25, color: 'red' }, { pct: -50, color: 'red' },
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <h3 className="font-bold text-gray-900 flex items-center gap-2">
+            <Zap className="w-5 h-5 text-yellow-500" /> Müdahale: {userName}
+          </h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* Current state */}
+          <div className="bg-gray-50 rounded-lg p-3 grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <div className="text-xs text-gray-500">Yatırım</div>
+              <div className="font-bold text-gray-900">{fmt(invested)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">Şu Anki PnL</div>
+              <div className={`font-bold ${currentPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmt(currentPnl)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">Şu Anki Değer</div>
+              <div className="font-bold text-gray-900">{fmt(invested + currentPnl)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">ROI</div>
+              <div className={`font-bold ${currentPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {invested > 0 ? (currentPnl / invested * 100).toFixed(2) : '0'}%
+              </div>
+            </div>
+          </div>
+
+          {/* Quick preset percentages */}
+          <div>
+            <div className="text-xs font-bold text-gray-700 mb-2">Hızlı Yüzde Müdahale (yatırım üzerinden)</div>
+            <div className="grid grid-cols-4 gap-2">
+              {presetPct.map(p => (
+                <button
+                  key={p.pct}
+                  disabled={busy}
+                  onClick={() => run(() => onDelta(invested * p.pct / 100))}
+                  className={`py-2 rounded-lg text-sm font-bold disabled:opacity-50 ${
+                    p.color === 'green'
+                      ? 'bg-green-100 hover:bg-green-200 text-green-700'
+                      : 'bg-red-100 hover:bg-red-200 text-red-700'
+                  }`}
+                >
+                  {p.pct > 0 ? `+${p.pct}` : p.pct}%
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Custom USD amount */}
+          <div>
+            <div className="text-xs font-bold text-gray-700 mb-2">Özel Tutar ($)</div>
+            <input
+              type="number"
+              step="any"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              placeholder="Örn: 50"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            />
+            <div className="flex gap-2 mt-2">
+              <button
+                disabled={busy || !amount}
+                onClick={() => run(() => onDelta(Math.abs(+amount)))}
+                className="flex-1 flex items-center justify-center gap-1 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-bold disabled:opacity-50"
+              >
+                <TrendingUp className="w-4 h-4" /> +${amount || '0'} Kar Ver
+              </button>
+              <button
+                disabled={busy || !amount}
+                onClick={() => run(() => onDelta(-Math.abs(+amount)))}
+                className="flex-1 flex items-center justify-center gap-1 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-bold disabled:opacity-50"
+              >
+                <TrendingDown className="w-4 h-4" /> -${amount || '0'} Zarar Ver
+              </button>
+            </div>
+          </div>
+
+          {/* Exact PnL set */}
+          <div className="border-t pt-3">
+            <div className="text-xs font-bold text-gray-700 mb-2">Doğrudan PnL Belirle</div>
+            <div className="flex gap-2">
+              <button
+                disabled={busy || !amount}
+                onClick={() => run(() => onSetPnl(+amount))}
+                className="flex-1 py-2 bg-yellow-500 hover:bg-yellow-600 text-black rounded-lg text-sm font-bold disabled:opacity-50"
+              >
+                PnL = ${amount || '0'}
+              </button>
+              <button
+                disabled={busy}
+                onClick={() => run(() => onSetPnl(0))}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-bold disabled:opacity-50"
+              >
+                Sıfırla
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-4 py-3 border-t flex justify-end">
+          <button onClick={onClose} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold">
+            Kapat
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
