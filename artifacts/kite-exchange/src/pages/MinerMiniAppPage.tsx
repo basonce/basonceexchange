@@ -70,17 +70,39 @@ const WITHDRAW_MIN = 50;
 // Telegram CloudStorage helpers with localStorage fallback
 const tg: any = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null;
 
+// Only use Telegram CloudStorage when we are REALLY inside Telegram —
+// telegram-web-app.js stubs CloudStorage in regular browsers but its
+// callback never fires there, which would freeze the UI on "Loading…".
+function inTelegramContext(): boolean {
+  if (typeof window === 'undefined') return false;
+  if ((window as any).__IS_TELEGRAM_MINIAPP__ === true) return true;
+  return !!(window as any).Telegram?.WebApp?.initData;
+}
+
 function loadState(): Promise<MinerState> {
   return new Promise((resolve) => {
-    if (tg?.CloudStorage) {
+    const useCloud = inTelegramContext() && tg?.CloudStorage;
+    // Hard timeout: even if CloudStorage misbehaves, we never hang.
+    let done = false;
+    const finish = (s: MinerState) => { if (!done) { done = true; resolve(s); } };
+    setTimeout(() => {
+      try {
+        const v = localStorage.getItem('miner_state');
+        if (!v) return finish({ ...DEFAULT_STATE });
+        finish({ ...DEFAULT_STATE, ...JSON.parse(v) });
+      } catch { finish({ ...DEFAULT_STATE }); }
+    }, 1200);
+    if (useCloud) {
       tg.CloudStorage.getItem('miner_state', (err: any, val: string) => {
-        if (err || !val) return resolve({ ...DEFAULT_STATE });
-        try { resolve({ ...DEFAULT_STATE, ...JSON.parse(val) }); } catch { resolve({ ...DEFAULT_STATE }); }
+        if (err || !val) return finish({ ...DEFAULT_STATE });
+        try { finish({ ...DEFAULT_STATE, ...JSON.parse(val) }); } catch { finish({ ...DEFAULT_STATE }); }
       });
     } else {
-      const v = localStorage.getItem('miner_state');
-      if (!v) return resolve({ ...DEFAULT_STATE });
-      try { resolve({ ...DEFAULT_STATE, ...JSON.parse(v) }); } catch { resolve({ ...DEFAULT_STATE }); }
+      try {
+        const v = localStorage.getItem('miner_state');
+        if (!v) return finish({ ...DEFAULT_STATE });
+        finish({ ...DEFAULT_STATE, ...JSON.parse(v) });
+      } catch { finish({ ...DEFAULT_STATE }); }
     }
   });
 }
@@ -88,10 +110,10 @@ function loadState(): Promise<MinerState> {
 function saveState(s: MinerState): Promise<void> {
   return new Promise((resolve) => {
     const v = JSON.stringify(s);
-    if (tg?.CloudStorage) {
-      tg.CloudStorage.setItem('miner_state', v, () => resolve());
+    try { localStorage.setItem('miner_state', v); } catch {}
+    if (inTelegramContext() && tg?.CloudStorage) {
+      try { tg.CloudStorage.setItem('miner_state', v, () => resolve()); } catch { resolve(); }
     } else {
-      localStorage.setItem('miner_state', v);
       resolve();
     }
   });
