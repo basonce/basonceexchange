@@ -581,9 +581,16 @@ function ActiveCopyCard({
     loadPositions();
   }, []);
 
-  // PnL simülasyonu — gerçek pozisyon yokken çalışır
+  // PnL simülasyonu — gerçek pozisyon yokken çalışır.
+  // ADMIN OVERRIDE: eğer DB'deki copy.pnl admin tarafından elle değiştirilmişse
+  // (0'dan farklı), simülasyonu durdur ve admin değerini kullan.
+  const adminOverride = copy.pnl !== null && copy.pnl !== undefined && Number(copy.pnl) !== 0;
   useEffect(() => {
     if (positions.length > 0) return;
+    if (adminOverride) {
+      setSimPnl(Number(copy.pnl));
+      return;
+    }
     const roiTarget = Math.min((trader.roi_30d ?? 80) / 20, 15); // max %15 hedef
     const tick = () => {
       setSimPnl(calcSimPnl(copy.investment_amount, roiTarget, copy.created_at, copy.id));
@@ -591,7 +598,7 @@ function ActiveCopyCard({
     tick();
     const iv = setInterval(tick, 2500);
     return () => clearInterval(iv);
-  }, [positions.length, copy.investment_amount, copy.created_at, copy.id, trader.roi_30d]);
+  }, [positions.length, copy.investment_amount, copy.created_at, copy.id, trader.roi_30d, adminOverride, copy.pnl]);
 
   // Poll prices for all open positions
   useEffect(() => {
@@ -874,6 +881,17 @@ export default function MyCopiesPage({ onClose, onBrowseTraders }: Props) {
     return () => clearInterval(iv);
   }, []);
 
+  // Admin müdahalelerinin kullanıcıya hızlıca yansıması için her 5 sn'de bir
+  // DB'den taze veri çekiyoruz (silent = loading spinner çıkmasın).
+  const userIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const iv = setInterval(() => {
+      const uid = userIdRef.current;
+      if (uid) fetchData(uid, true);
+    }, 5000);
+    return () => clearInterval(iv);
+  }, []);
+
   const fetchData = useCallback(async (uid: string, silent = false) => {
     if (!silent) setLoading(true);
     const [copiesRes, histRes] = await Promise.all([
@@ -942,11 +960,13 @@ export default function MyCopiesPage({ onClose, onBrowseTraders }: Props) {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         setUser(session.user);
+        userIdRef.current = session.user.id;
         fetchData(session.user.id);
       } else {
         const _authData = { user: await getCurrentUser() }; const data = _authData;
         if (data.user) {
           setUser(data.user);
+          userIdRef.current = data.user.id;
           fetchData(data.user.id);
         } else {
           setLoading(false);
@@ -1017,6 +1037,9 @@ export default function MyCopiesPage({ onClose, onBrowseTraders }: Props) {
   const totalLivePnl = hasRealPositions
     ? realPositionPnl
     : activeCopies.reduce((sum, c) => {
+        // ADMIN OVERRIDE: DB'de elle ayarlanmış pnl varsa onu kullan.
+        const dbPnl = Number((c as any).pnl ?? 0);
+        if (dbPnl !== 0) return sum + dbPnl;
         const roiTarget = Math.min((c.copy_traders.roi_30d ?? 80) / 20, 15);
         return sum + calcSimPnl(c.investment_amount, roiTarget, c.created_at, c.id);
       }, 0);
