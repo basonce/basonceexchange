@@ -53,29 +53,31 @@ export default function BncMarketBanner() {
           <div className="text-sm font-bold text-white leading-tight">
             BNC <span className="text-gray-500 font-normal">/USDT</span>
           </div>
-          <div className="text-[11px] font-bold leading-tight mt-0.5 flex items-center gap-1 flex-wrap">
-            <span
-              className="px-1.5 py-0.5 rounded-md"
-              style={{
-                background: 'linear-gradient(135deg, #F0B90B, #FFD700)',
-                color: '#000',
-              }}
-            >
-              ⛏ MINING
-            </span>
-            <span style={{ color: '#FFD700' }}>Vol ${m.volumeMillions.toFixed(1)}M</span>
-            <span className="text-gray-400">·</span>
-            <span style={{ color: '#FFD700' }}>Tap to mine</span>
+          <div className="text-[10px] text-gray-500 leading-tight mt-0.5">
+            Vol ${m.volumeMillions.toFixed(1)}M · Mine on Telegram
           </div>
         </div>
-        <div className="text-base font-bold tabular-nums" style={{ color: priceColor }}>
-          ${m.price.toFixed(4)}
-        </div>
-        <div
-          className="text-xs font-bold px-2 py-1 rounded-md tabular-nums"
-          style={{ background: '#0ECB81', color: '#000' }}
-        >
-          +{m.change24h.toFixed(2)}%
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="text-base font-bold tabular-nums" style={{ color: priceColor }}>
+              ${m.price.toFixed(4)}
+            </div>
+            <div
+              className="text-xs font-bold px-2 py-1 rounded-md tabular-nums"
+              style={{ background: '#0ECB81', color: '#000' }}
+            >
+              +{m.change24h.toFixed(2)}%
+            </div>
+          </div>
+          <div
+            className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-md"
+            style={{
+              background: 'linear-gradient(135deg, #F0B90B, #FFD700)',
+              color: '#000',
+            }}
+          >
+            ⛏ MINING
+          </div>
         </div>
       </div>
     </a>
