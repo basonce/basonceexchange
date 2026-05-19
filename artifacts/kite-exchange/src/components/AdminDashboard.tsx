@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
+import CopyTradingAdminPanel from './CopyTradingAdminPanel';
 import {
+  Copy,
   Users,
   DollarSign,
   TrendingUp,
@@ -106,7 +108,7 @@ const cryptoSymbols = [
   'AVAX', 'DOT', 'MATIC', 'LINK', 'UNI', 'LTC', 'ATOM', 'PEPE', 'SHIB', 'WIF', 'BONK'
 ];
 
-type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue' | 'visitors' | 'vip' | 'live' | 'restrictions' | 'quick-restrict' | 'matches' | 'p2p-disputes';
+type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue' | 'visitors' | 'vip' | 'live' | 'restrictions' | 'quick-restrict' | 'matches' | 'p2p-disputes' | 'radar' | 'social' | 'copy-trading';
 
 // ── BTC-only pair list ───────────────────────────────────────
 const BTC_ONLY_PAIRS = [
@@ -2546,6 +2548,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'p2p-disputes', label: 'P2P Anlaşmazlık', icon: AlertTriangle },
     { id: 'radar', label: 'BSC&TRC', icon: Radio, badge: depositRadarNewCount },
     { id: 'social', label: 'Sosyal Medya', icon: Send },
+    { id: 'copy-trading', label: 'Copy', icon: Copy },
   ];
 
   return (
@@ -3011,6 +3014,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
 
         {activeTab === 'social' && (
           <SocialMediaPanel />
+        )}
+
+        {activeTab === 'copy-trading' && (
+          <CopyTradingAdminPanel />
         )}
 
         {activeTab === 'analytics' && (
