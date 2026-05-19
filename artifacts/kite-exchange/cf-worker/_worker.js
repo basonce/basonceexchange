@@ -241,7 +241,7 @@ async function getAuthedUserId(request, env) {
 const CHEST_REWARD_AMOUNT = 100;
 const CHEST_REWARD_SYMBOL = 'EQ';
 const CHEST_WINDOW_MS = 10 * 60 * 1000;            // 10 minutes from first view
-const CHEST_CAMPAIGN_END_MS = Date.parse('2026-05-19T23:59:59Z');
+const CHEST_CAMPAIGN_END_MS = Date.parse('2026-07-19T23:59:59Z');
 const CHEST_ELIGIBILITY_DAYS = 30;                 // rolling: user must have signed up within last 30 days
 const CHEST_SENTINEL_CLAIMED = 'WELCOME_CHEST';        // exists => already claimed
 const CHEST_SENTINEL_SEEN = 'WELCOME_CHEST_SEEN';      // exists => first-view recorded; balance col = window_start_ms
