@@ -143,22 +143,22 @@ export default function MinerMiniAppPage() {
       ].slice(0, 14));
     };
     tick();
-    const id = setInterval(tick, 3500);
+    const id = setInterval(tick, 2200);
     return () => clearInterval(id);
   }, [showBook]);
 
-  // Order book: bids HUGE (heavy buy wall), asks tiny (almost no sellers).
-  // Deterministic per ~5s bucket so all users see the same wall.
+  // Order book: bids MASSIVE (giant buy wall), asks tiny (almost no sellers).
+  // Deterministic per ~4s bucket so all users see the same wall.
   const bookLevels = 8;
-  const bookBucket = Math.floor(Date.now() / 5000);
+  const bookBucket = Math.floor(Date.now() / 4000);
   const asks = Array.from({ length: bookLevels }).map((_, i) => {
     const price = bncPrice + (i + 1) * 0.008 + seededRand(bookBucket + i * 7 + 1) * 0.003;
-    const amount = +(seededRand(bookBucket + i * 11 + 2) * 600 + 60).toFixed(2);
+    const amount = +(seededRand(bookBucket + i * 11 + 2) * 350 + 40).toFixed(2);
     return { price, amount };
   }).reverse();
   const bids = Array.from({ length: bookLevels }).map((_, i) => {
     const price = Math.max(0.01, bncPrice - (i + 1) * 0.008 - seededRand(bookBucket + i * 13 + 3) * 0.003);
-    const amount = +(seededRand(bookBucket + i * 17 + 4) * 5500 + 3500).toFixed(2);
+    const amount = +(seededRand(bookBucket + i * 17 + 4) * 7500 + 5500).toFixed(2);
     return { price, amount };
   });
   const maxAmt = Math.max(...asks.map(a => a.amount), ...bids.map(b => b.amount));
@@ -594,7 +594,7 @@ export default function MinerMiniAppPage() {
                 <div className="grid grid-cols-3 text-[10px] text-gray-500 uppercase tracking-wide pb-1 border-b border-white/5">
                   <div>Price (USDT)</div>
                   <div className="text-right">Amount (BNC)</div>
-                  <div className="text-right">Total</div>
+                  <div className="text-right">Total (USDT)</div>
                 </div>
                 {/* Asks (red) */}
                 <div className="py-1">
