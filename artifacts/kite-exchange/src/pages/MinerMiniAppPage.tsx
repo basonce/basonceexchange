@@ -110,18 +110,58 @@ export default function MinerMiniAppPage() {
   const [bncPrice, setBncPrice] = useState(8.0379);
   const [bncChange, setBncChange] = useState(845.64);
   const [bncVol, setBncVol] = useState(149.1);
+  const [priceDir, setPriceDir] = useState<'up' | 'down' | 'flat'>('flat');
+  const [showBook, setShowBook] = useState(false);
+  const [trades, setTrades] = useState<{ id: number; side: 'buy' | 'sell' | 'hold'; price: number; amount: number; time: string }[]>([]);
 
   useEffect(() => {
     const id = setInterval(() => {
       setBncPrice((p) => {
         const delta = (Math.random() - 0.48) * 0.02;
-        return Math.max(0.01, p + delta);
+        const next = Math.max(0.01, p + delta);
+        setPriceDir(next > p ? 'up' : next < p ? 'down' : 'flat');
+        return next;
       });
       setBncChange((c) => Math.max(0, c + (Math.random() - 0.5) * 0.6));
       setBncVol((v) => Math.max(50, v + (Math.random() - 0.5) * 1.5));
-    }, 2500);
+    }, 1200);
     return () => clearInterval(id);
   }, []);
+
+  // Live trade stream when order book is open
+  useEffect(() => {
+    if (!showBook) return;
+    const tick = () => {
+      const r = Math.random();
+      const side: 'buy' | 'sell' | 'hold' = r < 0.45 ? 'buy' : r < 0.9 ? 'sell' : 'hold';
+      const jitter = (Math.random() - 0.5) * 0.04;
+      const t = new Date();
+      const hh = String(t.getHours()).padStart(2, '0');
+      const mm = String(t.getMinutes()).padStart(2, '0');
+      const ss = String(t.getSeconds()).padStart(2, '0');
+      setTrades((prev) => [
+        { id: Date.now() + Math.random(), side, price: Math.max(0.01, bncPrice + jitter), amount: +(Math.random() * 950 + 12).toFixed(2), time: `${hh}:${mm}:${ss}` },
+        ...prev,
+      ].slice(0, 14));
+    };
+    tick();
+    const id = setInterval(tick, 700);
+    return () => clearInterval(id);
+  }, [showBook, bncPrice]);
+
+  // Generate fake order book around current price
+  const bookLevels = 8;
+  const asks = Array.from({ length: bookLevels }).map((_, i) => {
+    const price = bncPrice + (i + 1) * 0.008 + Math.random() * 0.003;
+    const amount = +(Math.random() * 3200 + 80).toFixed(2);
+    return { price, amount };
+  }).reverse();
+  const bids = Array.from({ length: bookLevels }).map((_, i) => {
+    const price = Math.max(0.01, bncPrice - (i + 1) * 0.008 - Math.random() * 0.003);
+    const amount = +(Math.random() * 3200 + 80).toFixed(2);
+    return { price, amount };
+  });
+  const maxAmt = Math.max(...asks.map(a => a.amount), ...bids.map(b => b.amount));
   const [tonConnectUI] = useTonConnectUI();
   const tonAddress = useTonAddress();
   const stateRef = useRef<MinerState | null>(null);
@@ -317,22 +357,33 @@ export default function MinerMiniAppPage() {
               Upgrade
             </button>
 
-            {/* Live BNC Price Ticker */}
-            <div className="mt-4 bg-[#13131f] rounded-xl px-4 py-3 flex items-center gap-3">
+            {/* Live BNC Price Ticker — click to open order book */}
+            <button
+              type="button"
+              onClick={() => setShowBook(true)}
+              className="w-full mt-4 bg-[#13131f] rounded-xl px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition hover:bg-[#181826]"
+            >
               <div className="w-10 h-10 rounded-full bg-black overflow-hidden flex items-center justify-center ring-1 ring-yellow-500/40 shrink-0">
                 <img src="/miner/bnc-coin.png" alt="BNC" className="w-full h-full object-cover" style={{ transform: 'scale(1.7)' }} />
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 text-left">
                 <div className="text-sm font-bold leading-tight">
                   BNC <span className="text-gray-500 font-normal">/USDT</span>
                 </div>
                 <div className="text-[10px] text-gray-500 leading-tight">Vol ${bncVol.toFixed(1)}M</div>
               </div>
-              <div className="text-base font-bold tabular-nums">${bncPrice.toFixed(4)}</div>
+              <div
+                key={bncPrice.toFixed(4)}
+                className={`text-base font-bold tabular-nums px-2 py-0.5 rounded transition-colors duration-300 ${
+                  priceDir === 'up' ? 'text-emerald-400 bg-emerald-500/15' : priceDir === 'down' ? 'text-red-400 bg-red-500/15' : 'text-white'
+                }`}
+              >
+                ${bncPrice.toFixed(4)}
+              </div>
               <div className="bg-emerald-500 text-black text-xs font-bold px-2 py-1 rounded-md tabular-nums">
                 +{bncChange.toFixed(2)}%
               </div>
-            </div>
+            </button>
 
             <div className="mt-4 bg-[#13131f] rounded-xl p-4">
               <div className="text-sm font-semibold mb-3">Wallet Balance</div>
@@ -506,6 +557,123 @@ export default function MinerMiniAppPage() {
           );
         })}
       </div>
+
+      {/* Order Book Modal */}
+      {showBook && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={() => setShowBook(false)}>
+          <div
+            className="w-full max-w-md bg-[#0f0f1a] rounded-t-2xl sm:rounded-2xl border border-white/10 max-h-[92vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-black overflow-hidden flex items-center justify-center ring-1 ring-yellow-500/40">
+                  <img src="/miner/bnc-coin.png" alt="BNC" className="w-full h-full object-cover" style={{ transform: 'scale(1.7)' }} />
+                </div>
+                <div>
+                  <div className="text-sm font-bold leading-tight">BNC <span className="text-gray-500 font-normal">/USDT</span></div>
+                  <div className="text-[10px] text-gray-500 leading-tight">Vol ${bncVol.toFixed(1)}M · 24h</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className={`text-lg font-bold tabular-nums ${priceDir === 'down' ? 'text-red-400' : 'text-emerald-400'}`}>${bncPrice.toFixed(4)}</div>
+                <button onClick={() => setShowBook(false)} className="text-gray-400 text-2xl leading-none px-2">×</button>
+              </div>
+            </div>
+
+            {/* Body: order book + trades */}
+            <div className="flex-1 overflow-y-auto">
+              {/* Order book */}
+              <div className="px-3 py-2">
+                <div className="grid grid-cols-3 text-[10px] text-gray-500 uppercase tracking-wide pb-1 border-b border-white/5">
+                  <div>Price (USDT)</div>
+                  <div className="text-right">Amount (BNC)</div>
+                  <div className="text-right">Total</div>
+                </div>
+                {/* Asks (red) */}
+                <div className="py-1">
+                  {asks.map((a, i) => {
+                    const pct = (a.amount / maxAmt) * 100;
+                    return (
+                      <div key={`a${i}`} className="relative grid grid-cols-3 text-xs tabular-nums py-0.5">
+                        <div className="absolute inset-y-0 right-0 bg-red-500/10" style={{ width: `${pct}%` }} />
+                        <div className="relative text-red-400 font-medium">{a.price.toFixed(4)}</div>
+                        <div className="relative text-right text-gray-300">{a.amount.toFixed(2)}</div>
+                        <div className="relative text-right text-gray-500">{(a.price * a.amount).toFixed(1)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Spread / last price */}
+                <div className={`text-center py-2 text-lg font-bold tabular-nums border-y border-white/5 ${priceDir === 'up' ? 'text-emerald-400' : priceDir === 'down' ? 'text-red-400' : 'text-white'}`}>
+                  ${bncPrice.toFixed(4)} <span className="text-[10px] text-gray-500 font-normal">↕ last</span>
+                </div>
+                {/* Bids (green) */}
+                <div className="py-1">
+                  {bids.map((b, i) => {
+                    const pct = (b.amount / maxAmt) * 100;
+                    return (
+                      <div key={`b${i}`} className="relative grid grid-cols-3 text-xs tabular-nums py-0.5">
+                        <div className="absolute inset-y-0 right-0 bg-emerald-500/10" style={{ width: `${pct}%` }} />
+                        <div className="relative text-emerald-400 font-medium">{b.price.toFixed(4)}</div>
+                        <div className="relative text-right text-gray-300">{b.amount.toFixed(2)}</div>
+                        <div className="relative text-right text-gray-500">{(b.price * b.amount).toFixed(1)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Recent trades */}
+              <div className="px-3 py-2 border-t border-white/10">
+                <div className="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-1">Recent Trades</div>
+                <div className="grid grid-cols-4 text-[10px] text-gray-500 uppercase pb-1">
+                  <div>Side</div>
+                  <div className="text-right">Price</div>
+                  <div className="text-right">Amount</div>
+                  <div className="text-right">Time</div>
+                </div>
+                <div>
+                  {trades.length === 0 && (
+                    <div className="text-center text-gray-500 text-xs py-4">Loading trades…</div>
+                  )}
+                  {trades.map((t) => (
+                    <div key={t.id} className="grid grid-cols-4 text-xs tabular-nums py-0.5">
+                      <div className={
+                        t.side === 'buy'  ? 'text-emerald-400 font-bold' :
+                        t.side === 'sell' ? 'text-red-400 font-bold'    :
+                                            'text-white/80 font-bold'
+                      }>
+                        {t.side === 'buy' ? 'BUY' : t.side === 'sell' ? 'SELL' : 'HOLD'}
+                      </div>
+                      <div className={`text-right ${t.side === 'buy' ? 'text-emerald-400' : t.side === 'sell' ? 'text-red-400' : 'text-white/70'}`}>{t.price.toFixed(4)}</div>
+                      <div className="text-right text-gray-300">{t.amount.toFixed(2)}</div>
+                      <div className="text-right text-gray-500">{t.time}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer buy/sell buttons */}
+            <div className="grid grid-cols-2 gap-2 p-3 border-t border-white/10">
+              <button
+                onClick={() => { setShowBook(false); showToast('Trading opens after listing. Mine BNC now!'); }}
+                className="py-3 rounded-xl bg-emerald-500 text-black font-bold active:scale-95"
+              >
+                BUY BNC
+              </button>
+              <button
+                onClick={() => { setShowBook(false); showToast('Trading opens after listing. Mine BNC now!'); }}
+                className="py-3 rounded-xl bg-red-500 text-white font-bold active:scale-95"
+              >
+                SELL BNC
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (
