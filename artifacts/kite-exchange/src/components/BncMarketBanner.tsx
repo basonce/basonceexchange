@@ -53,7 +53,10 @@ export default function BncMarketBanner() {
           <div className="text-sm font-bold text-white leading-tight">
             BNC <span className="text-gray-500 font-normal">/USDT</span>
           </div>
-          <div className="text-[10px] text-gray-500 leading-tight mt-0.5">
+          <div
+            className="text-[10px] font-semibold leading-tight mt-0.5"
+            style={{ color: '#F0B90B' }}
+          >
             Vol ${m.volumeMillions.toFixed(1)}M · Mine on Telegram
           </div>
         </div>
