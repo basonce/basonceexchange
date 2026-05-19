@@ -685,10 +685,10 @@ function ActiveCopyCard({
             <div className="flex items-center gap-2">
               <div className="text-right">
                 <div className={`text-[18px] font-bold leading-tight ${pnlColor}`}>
-                  {isPositive ? '+' : ''}{liveRoi.toFixed(3)}%
+                  {isPositive ? '+' : '-'}{Math.abs(liveRoi).toFixed(2)}%
                 </div>
                 <div className={`text-[12px] font-semibold ${pnlColor}`}>
-                  {isPositive ? '+' : ''}${Math.abs(effectivePnl).toFixed(2)}
+                  {isPositive ? '+' : '-'}${Math.abs(effectivePnl).toFixed(2)}
                 </div>
               </div>
               {expanded ? (
@@ -1086,10 +1086,10 @@ export default function MyCopiesPage({ onClose, onBrowseTraders }: Props) {
                     <div className="text-right">
                       <div className="text-[#848E9C] text-[10px] mb-0.5 font-medium uppercase tracking-wide">Total PNL</div>
                       <div className={`text-[22px] font-bold ${isPnlPositive ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
-                        {isPnlPositive ? '+' : ''}{totalRoi.toFixed(3)}%
+                        {isPnlPositive ? '+' : '-'}{Math.abs(totalRoi).toFixed(2)}%
                       </div>
                       <div className={`text-[14px] font-semibold ${isPnlPositive ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
-                        {isPnlPositive ? '+' : ''}${Math.abs(totalLivePnl).toFixed(2)}
+                        {isPnlPositive ? '+' : '-'}${Math.abs(totalLivePnl).toFixed(2)}
                       </div>
                     </div>
                   </div>
