@@ -118,7 +118,7 @@ export default function MinerMiniAppPage() {
   const [trades, setTrades] = useState<{ id: number; side: 'buy' | 'sell' | 'hold'; price: number; amount: number; time: string }[]>([]);
 
   useEffect(() => {
-    const id = setInterval(() => setMarket(computeBncMarket()), 900);
+    const id = setInterval(() => setMarket(computeBncMarket()), 450);
     return () => clearInterval(id);
   }, []);
 
@@ -157,14 +157,14 @@ export default function MinerMiniAppPage() {
       ].slice(0, 14));
     };
     tick();
-    const id = setInterval(tick, 1100);
+    const id = setInterval(tick, 600);
     return () => clearInterval(id);
   }, [showBook]);
 
   // Order book: bids MASSIVE (giant buy wall), asks tiny (almost no sellers).
   // Deterministic per ~4s bucket so all users see the same wall.
   const bookLevels = 8;
-  const bookBucket = Math.floor(Date.now() / 1500);
+  const bookBucket = Math.floor(Date.now() / 700);
   const asks = Array.from({ length: bookLevels }).map((_, i) => {
     const price = bncPrice + (i + 1) * 0.008 + seededRand(bookBucket + i * 7 + 1) * 0.003;
     const amount = +(seededRand(bookBucket + i * 11 + 2) * 350 + 40).toFixed(2);

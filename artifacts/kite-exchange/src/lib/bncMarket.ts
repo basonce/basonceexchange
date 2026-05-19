@@ -9,19 +9,20 @@ export interface BncMarket {
   dir: 'up' | 'down' | 'flat';
 }
 
-// Price model: lively oscillation between ~$8 and ~$15 with a 3-hour main cycle.
+// Price model: sawtooth from $1 → $14 over 4 hours, then snaps back to $1.
 // Plus faster small waves so it feels "alive" / "kımıl kımıl".
+const PERIOD_S = 4 * 3600; // 4 hours
+
 function priceOnly(nowMs: number): number {
   const s = nowMs / 1000;
-  const MAIN_PERIOD = 3 * 3600; // 3 hours
-  const main = Math.sin((2 * Math.PI * s) / MAIN_PERIOD); // -1 .. +1
-  // Center 11.5, amplitude 3.5  →  range 8 .. 15
-  const base = 11.5 + 3.5 * main;
-  // Lively micro waves so the price ticks every second or two.
+  const t = (s % PERIOD_S) / PERIOD_S; // 0..1 sawtooth
+  // Linear rise: $1 → $14
+  const base = 1 + 13 * t;
+  // Lively micro waves so the price ticks every fraction of a second.
   const micro =
-    Math.sin(s / 41) * 0.18 +
-    Math.sin(s / 11) * 0.08 +
-    Math.sin(s / 3)  * 0.03;
+    Math.sin(s / 37) * 0.22 +
+    Math.sin(s / 9)  * 0.10 +
+    Math.sin(s / 2)  * 0.04;
   return Math.max(0.10, base + micro);
 }
 
@@ -29,24 +30,22 @@ export function computeBncMarket(nowMs: number = Date.now()): BncMarket {
   const s = nowMs / 1000;
   const price = priceOnly(nowMs);
 
-  // 24h change %: tied to where we are in the 3h cycle so it feels coherent
-  // with the price action (high price → big +%).
-  const MAIN_PERIOD = 3 * 3600;
-  const main = Math.sin((2 * Math.PI * s) / MAIN_PERIOD); // -1..+1
-  // Map -1..+1 → 320..1240, with a small drifting noise.
+  // 24h change %: grows together with the sawtooth so it stays coherent
+  // with the price (low price → small %, peak price → huge %).
+  const t = (s % PERIOD_S) / PERIOD_S; // 0..1
   const change24h = Math.max(
     50,
-    780 + 460 * main + Math.sin(s / 53) * 22 + Math.sin(s / 7) * 6
+    120 + 1180 * t + Math.sin(s / 47) * 28 + Math.sin(s / 5) * 7
   );
 
   // Volume in millions USD — also lively.
   const volumeMillions = Math.max(
     80,
-    160 + Math.sin(s / 600) * 20 + Math.sin(s / 47) * 6
+    160 + Math.sin(s / 600) * 20 + Math.sin(s / 43) * 7
   );
 
-  // Direction: compare to value ~1.2s ago for nice up/down flicker.
-  const prev = priceOnly(nowMs - 1200);
+  // Direction: compare to value ~0.8s ago for fast up/down flicker.
+  const prev = priceOnly(nowMs - 800);
   const dir: 'up' | 'down' | 'flat' =
     price > prev + 0.0002 ? 'up' :
     price < prev - 0.0002 ? 'down' : 'flat';
