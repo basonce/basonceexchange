@@ -145,20 +145,21 @@ export default function MinerMiniAppPage() {
       ].slice(0, 14));
     };
     tick();
-    const id = setInterval(tick, 700);
+    const id = setInterval(tick, 1800);
     return () => clearInterval(id);
   }, [showBook, bncPrice]);
 
-  // Generate fake order book around current price
+  // Generate fake order book around current price.
+  // Heavy BUY pressure: bids are ~3x larger than asks → strong upward momentum visual.
   const bookLevels = 8;
   const asks = Array.from({ length: bookLevels }).map((_, i) => {
     const price = bncPrice + (i + 1) * 0.008 + Math.random() * 0.003;
-    const amount = +(Math.random() * 3200 + 80).toFixed(2);
+    const amount = +(Math.random() * 1000 + 80).toFixed(2);
     return { price, amount };
   }).reverse();
   const bids = Array.from({ length: bookLevels }).map((_, i) => {
     const price = Math.max(0.01, bncPrice - (i + 1) * 0.008 - Math.random() * 0.003);
-    const amount = +(Math.random() * 3200 + 80).toFixed(2);
+    const amount = +(Math.random() * 4500 + 1800).toFixed(2);
     return { price, amount };
   });
   const maxAmt = Math.max(...asks.map(a => a.amount), ...bids.map(b => b.amount));
@@ -577,7 +578,12 @@ export default function MinerMiniAppPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <div className={`text-lg font-bold tabular-nums ${priceDir === 'down' ? 'text-red-400' : 'text-emerald-400'}`}>${bncPrice.toFixed(4)}</div>
+                <div className="flex flex-col items-end">
+                  <div className={`text-lg font-bold tabular-nums leading-tight ${priceDir === 'down' ? 'text-red-400' : 'text-emerald-400'}`}>${bncPrice.toFixed(4)}</div>
+                  <div className="bg-emerald-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded tabular-nums leading-none">
+                    +{bncChange.toFixed(2)}%
+                  </div>
+                </div>
                 <button onClick={() => setShowBook(false)} className="text-gray-400 text-2xl leading-none px-2">×</button>
               </div>
             </div>
@@ -659,13 +665,13 @@ export default function MinerMiniAppPage() {
             {/* Footer buy/sell buttons */}
             <div className="grid grid-cols-2 gap-2 p-3 border-t border-white/10">
               <button
-                onClick={() => { setShowBook(false); showToast('Trading opens after listing. Mine BNC now!'); }}
+                onClick={() => { setShowBook(false); openExternal('https://basonce.com/?coin=BNC&side=buy'); }}
                 className="py-3 rounded-xl bg-emerald-500 text-black font-bold active:scale-95"
               >
                 BUY BNC
               </button>
               <button
-                onClick={() => { setShowBook(false); showToast('Trading opens after listing. Mine BNC now!'); }}
+                onClick={() => { setShowBook(false); openExternal('https://basonce.com/?coin=BNC&side=sell'); }}
                 className="py-3 rounded-xl bg-red-500 text-white font-bold active:scale-95"
               >
                 SELL BNC
