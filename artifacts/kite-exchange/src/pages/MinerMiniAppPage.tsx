@@ -122,6 +122,20 @@ export default function MinerMiniAppPage() {
     return () => clearInterval(id);
   }, []);
 
+  // Telegram native BackButton: shown whenever we are NOT on Home; click returns Home.
+  useEffect(() => {
+    const wtg: any = (window as any).Telegram?.WebApp;
+    if (!wtg?.BackButton) return;
+    const handler = () => setTab('home');
+    if (tab === 'home') {
+      try { wtg.BackButton.hide(); } catch {}
+    } else {
+      try { wtg.BackButton.show(); } catch {}
+    }
+    try { wtg.BackButton.onClick(handler); } catch {}
+    return () => { try { wtg.BackButton.offClick(handler); } catch {} };
+  }, [tab]);
+
   // Live trade stream — slower, deterministic-ish per global second bucket
   useEffect(() => {
     if (!showBook) return;
