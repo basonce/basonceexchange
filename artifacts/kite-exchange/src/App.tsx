@@ -126,6 +126,9 @@ function getTabFromHash(): string {
     rawHash.indexOf('tgWebApp') !== -1 ||
     !!(window as any).Telegram?.WebApp?.initData;
   if (inTelegram) return 'miner';
+  // Path-based route, e.g. https://basonce.com/miner — works in Safari/Chrome
+  const path = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
+  if (path && VALID_TABS.has(path)) return path;
   const hash = rawHash.replace(/^#\/?/, '').toLowerCase().split('?')[0];
   return VALID_TABS.has(hash) ? hash : 'home';
 }
