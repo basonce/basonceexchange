@@ -9,21 +9,24 @@ export interface BncMarket {
   dir: 'up' | 'down' | 'flat';
 }
 
-// Price model: sawtooth from $1 → $14 over 4 hours, then snaps back to $1.
+// Price model: sawtooth from $0.01 → $2.37 over 12 hours, then snaps back.
 // Plus faster small waves so it feels "alive" / "kımıl kımıl".
-const PERIOD_S = 4 * 3600; // 4 hours
+const PERIOD_S = 12 * 3600; // 12 hours
+const PRICE_MIN = 0.01;
+const PRICE_MAX = 2.37;
 
 function priceOnly(nowMs: number): number {
   const s = nowMs / 1000;
   const t = (s % PERIOD_S) / PERIOD_S; // 0..1 sawtooth
-  // Linear rise: $1 → $14
-  const base = 1 + 13 * t;
-  // Lively micro waves so the price ticks every fraction of a second.
-  const micro =
-    Math.sin(s / 37) * 0.22 +
-    Math.sin(s / 9)  * 0.10 +
-    Math.sin(s / 2)  * 0.04;
-  return Math.max(0.10, base + micro);
+  // Linear rise: $0.01 → $2.37
+  const base = PRICE_MIN + (PRICE_MAX - PRICE_MIN) * t;
+  // Lively micro waves scaled to ~2% of current base so they don't blow
+  // up the price at the low end ($0.01) yet still feel alive at the top.
+  const microPct =
+    Math.sin(s / 37) * 0.018 +
+    Math.sin(s / 9)  * 0.008 +
+    Math.sin(s / 2)  * 0.003;
+  return Math.max(0.001, base * (1 + microPct));
 }
 
 export function computeBncMarket(nowMs: number = Date.now()): BncMarket {
@@ -31,11 +34,11 @@ export function computeBncMarket(nowMs: number = Date.now()): BncMarket {
   const price = priceOnly(nowMs);
 
   // 24h change %: grows together with the sawtooth so it stays coherent
-  // with the price (low price → small %, peak price → huge %).
+  // with the price (low price → small %, peak price → ~3000%).
   const t = (s % PERIOD_S) / PERIOD_S; // 0..1
   const change24h = Math.max(
     50,
-    120 + 1180 * t + Math.sin(s / 47) * 28 + Math.sin(s / 5) * 7
+    120 + 2880 * t + Math.sin(s / 47) * 35 + Math.sin(s / 5) * 9
   );
 
   // Volume in millions USD — also lively.
@@ -45,10 +48,12 @@ export function computeBncMarket(nowMs: number = Date.now()): BncMarket {
   );
 
   // Direction: compare to value ~0.8s ago for fast up/down flicker.
+  // Use a relative tolerance (0.02%) since price can be as low as $0.01.
   const prev = priceOnly(nowMs - 800);
+  const tol = Math.max(price, prev) * 0.0002;
   const dir: 'up' | 'down' | 'flat' =
-    price > prev + 0.0002 ? 'up' :
-    price < prev - 0.0002 ? 'down' : 'flat';
+    price > prev + tol ? 'up' :
+    price < prev - tol ? 'down' : 'flat';
 
   return { price, change24h, volumeMillions, dir };
 }
