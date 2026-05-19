@@ -317,10 +317,25 @@ export default function MinerMiniAppPage() {
     <div className="fixed inset-0 bg-[#0a0a14] text-white flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-3 bg-white text-black">
-        <div className="font-bold text-lg">BNC MINER</div>
+        <button
+          type="button"
+          onClick={() => setTab('home')}
+          className="font-bold text-lg active:opacity-60"
+        >
+          BNC MINER
+        </button>
         <div className="flex items-center gap-3">
-          <Settings className="w-5 h-5" />
-          <X className="w-5 h-5" onClick={() => { window.location.hash = ''; }} />
+          <button type="button" onClick={() => setTab('home')} aria-label="Settings" className="p-1 active:opacity-60">
+            <Settings className="w-5 h-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('home')}
+            aria-label="Back to home"
+            className="p-1 active:opacity-60"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
