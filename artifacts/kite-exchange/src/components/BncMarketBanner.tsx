@@ -14,10 +14,22 @@ export default function BncMarketBanner() {
   const priceColor =
     m.dir === 'down' ? '#F6465D' : '#0ECB81';
 
+  // In a browser (Safari/Chrome) the banner opens the in-app mining page so
+  // iPhone/Android users can mine without leaving Safari. Inside Telegram, the
+  // user is already in the Mini App, so the banner just stays in the page.
+  const inTelegram =
+    typeof window !== 'undefined' &&
+    ((window as any).__IS_TELEGRAM_MINIAPP__ === true ||
+      !!(window as any).Telegram?.WebApp?.initData);
+  const href = inTelegram
+    ? 'https://t.me/Basonce_Miner_Bot/miner'
+    : '/miner';
+  const target = inTelegram ? '_blank' : '_self';
+
   return (
     <a
-      href="https://t.me/Basonce_Miner_Bot/miner"
-      target="_blank"
+      href={href}
+      target={target}
       rel="noopener"
       className="block mx-4 mt-3 mb-1 rounded-xl px-4 py-3"
       style={{
