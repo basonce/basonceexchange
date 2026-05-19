@@ -64,7 +64,7 @@ const SPONSORS = [
 
 const OPERATOR_WALLET = 'UQCeytNeGzjIuutg5vZJETyrlg7Mqp0Vm4a0iU7RRTihqh6n';
 const BOT_USERNAME = 'Basonce_Miner_Bot';
-const WITHDRAW_MIN = 100;
+const WITHDRAW_MIN = 50;
 
 // Telegram CloudStorage helpers with localStorage fallback
 const tg: any = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null;
@@ -107,6 +107,21 @@ export default function MinerMiniAppPage() {
   const [claiming, setClaiming] = useState(false);
   const [buying, setBuying] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [bncPrice, setBncPrice] = useState(8.0379);
+  const [bncChange, setBncChange] = useState(845.64);
+  const [bncVol, setBncVol] = useState(149.1);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setBncPrice((p) => {
+        const delta = (Math.random() - 0.48) * 0.02;
+        return Math.max(0.01, p + delta);
+      });
+      setBncChange((c) => Math.max(0, c + (Math.random() - 0.5) * 0.6));
+      setBncVol((v) => Math.max(50, v + (Math.random() - 0.5) * 1.5));
+    }, 2500);
+    return () => clearInterval(id);
+  }, []);
   const [tonConnectUI] = useTonConnectUI();
   const tonAddress = useTonAddress();
   const stateRef = useRef<MinerState | null>(null);
@@ -302,7 +317,24 @@ export default function MinerMiniAppPage() {
               Upgrade
             </button>
 
-            <div className="mt-6 bg-[#13131f] rounded-xl p-4">
+            {/* Live BNC Price Ticker */}
+            <div className="mt-4 bg-[#13131f] rounded-xl px-4 py-3 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-black overflow-hidden flex items-center justify-center ring-1 ring-yellow-500/40 shrink-0">
+                <img src="/miner/bnc-coin.png" alt="BNC" className="w-full h-full object-cover" style={{ transform: 'scale(1.7)' }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold leading-tight">
+                  BNC <span className="text-gray-500 font-normal">/USDT</span>
+                </div>
+                <div className="text-[10px] text-gray-500 leading-tight">Vol ${bncVol.toFixed(1)}M</div>
+              </div>
+              <div className="text-base font-bold tabular-nums">${bncPrice.toFixed(4)}</div>
+              <div className="bg-emerald-500 text-black text-xs font-bold px-2 py-1 rounded-md tabular-nums">
+                +{bncChange.toFixed(2)}%
+              </div>
+            </div>
+
+            <div className="mt-4 bg-[#13131f] rounded-xl p-4">
               <div className="text-sm font-semibold mb-3">Wallet Balance</div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
