@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, Sparkles, Users, Settings, X, ChevronRight, Zap, Gift, Share2, UserPlus, Send } from 'lucide-react';
 import { TonConnectButton, useTonConnectUI, useTonAddress } from '@tonconnect/ui-react';
+import { computeBncMarket, seededRand } from '../lib/bncMarket';
 
 type Tab = 'home' | 'upgrade' | 'friends';
 
@@ -107,59 +108,57 @@ export default function MinerMiniAppPage() {
   const [claiming, setClaiming] = useState(false);
   const [buying, setBuying] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [bncPrice, setBncPrice] = useState(8.0379);
-  const [bncChange, setBncChange] = useState(845.64);
-  const [bncVol, setBncVol] = useState(149.1);
-  const [priceDir, setPriceDir] = useState<'up' | 'down' | 'flat'>('flat');
+  // Deterministic market data — same numbers for every user worldwide
+  const [market, setMarket] = useState(() => computeBncMarket());
+  const bncPrice = market.price;
+  const bncChange = market.change24h;
+  const bncVol = market.volumeMillions;
+  const priceDir = market.dir;
   const [showBook, setShowBook] = useState(false);
   const [trades, setTrades] = useState<{ id: number; side: 'buy' | 'sell' | 'hold'; price: number; amount: number; time: string }[]>([]);
 
   useEffect(() => {
-    const id = setInterval(() => {
-      setBncPrice((p) => {
-        const delta = (Math.random() - 0.48) * 0.02;
-        const next = Math.max(0.01, p + delta);
-        setPriceDir(next > p ? 'up' : next < p ? 'down' : 'flat');
-        return next;
-      });
-      setBncChange((c) => Math.max(0, c + (Math.random() - 0.5) * 0.6));
-      setBncVol((v) => Math.max(50, v + (Math.random() - 0.5) * 1.5));
-    }, 1200);
+    const id = setInterval(() => setMarket(computeBncMarket()), 2500);
     return () => clearInterval(id);
   }, []);
 
-  // Live trade stream when order book is open
+  // Live trade stream — slower, deterministic-ish per global second bucket
   useEffect(() => {
     if (!showBook) return;
     const tick = () => {
-      const r = Math.random();
-      const side: 'buy' | 'sell' | 'hold' = r < 0.45 ? 'buy' : r < 0.9 ? 'sell' : 'hold';
-      const jitter = (Math.random() - 0.5) * 0.04;
-      const t = new Date();
-      const hh = String(t.getHours()).padStart(2, '0');
-      const mm = String(t.getMinutes()).padStart(2, '0');
-      const ss = String(t.getSeconds()).padStart(2, '0');
+      const bucket = Math.floor(Date.now() / 3500);
+      const r = seededRand(bucket);
+      // Heavy buy bias: 70% buy, 22% sell, 8% hold
+      const side: 'buy' | 'sell' | 'hold' = r < 0.70 ? 'buy' : r < 0.92 ? 'sell' : 'hold';
+      const jitter = (seededRand(bucket + 17) - 0.5) * 0.04;
+      const m = computeBncMarket();
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      const ss = String(d.getSeconds()).padStart(2, '0');
+      const amount = +(seededRand(bucket + 31) * 950 + 12).toFixed(2);
       setTrades((prev) => [
-        { id: Date.now() + Math.random(), side, price: Math.max(0.01, bncPrice + jitter), amount: +(Math.random() * 950 + 12).toFixed(2), time: `${hh}:${mm}:${ss}` },
-        ...prev,
+        { id: bucket, side, price: Math.max(0.01, m.price + jitter), amount, time: `${hh}:${mm}:${ss}` },
+        ...prev.filter(t => t.id !== bucket),
       ].slice(0, 14));
     };
     tick();
-    const id = setInterval(tick, 1800);
+    const id = setInterval(tick, 3500);
     return () => clearInterval(id);
-  }, [showBook, bncPrice]);
+  }, [showBook]);
 
-  // Generate fake order book around current price.
-  // Heavy BUY pressure: bids are ~3x larger than asks → strong upward momentum visual.
+  // Order book: bids HUGE (heavy buy wall), asks tiny (almost no sellers).
+  // Deterministic per ~5s bucket so all users see the same wall.
   const bookLevels = 8;
+  const bookBucket = Math.floor(Date.now() / 5000);
   const asks = Array.from({ length: bookLevels }).map((_, i) => {
-    const price = bncPrice + (i + 1) * 0.008 + Math.random() * 0.003;
-    const amount = +(Math.random() * 1000 + 80).toFixed(2);
+    const price = bncPrice + (i + 1) * 0.008 + seededRand(bookBucket + i * 7 + 1) * 0.003;
+    const amount = +(seededRand(bookBucket + i * 11 + 2) * 600 + 60).toFixed(2);
     return { price, amount };
   }).reverse();
   const bids = Array.from({ length: bookLevels }).map((_, i) => {
-    const price = Math.max(0.01, bncPrice - (i + 1) * 0.008 - Math.random() * 0.003);
-    const amount = +(Math.random() * 4500 + 1800).toFixed(2);
+    const price = Math.max(0.01, bncPrice - (i + 1) * 0.008 - seededRand(bookBucket + i * 13 + 3) * 0.003);
+    const amount = +(seededRand(bookBucket + i * 17 + 4) * 5500 + 3500).toFixed(2);
     return { price, amount };
   });
   const maxAmt = Math.max(...asks.map(a => a.amount), ...bids.map(b => b.amount));
