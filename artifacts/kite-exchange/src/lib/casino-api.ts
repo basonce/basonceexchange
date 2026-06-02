@@ -29,7 +29,8 @@ async function call<T = any>(path: string, opts: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
-export type CasinoGame = 'dice' | 'coinflip' | 'crash';
+export type CasinoGame = 'crash' | 'plinko' | 'lootbox';
+export type PlinkoRisk = 'low' | 'med' | 'high';
 
 export interface PlayResult {
   won: boolean;
@@ -37,9 +38,9 @@ export interface PlayResult {
   payout: number;
   balance: number;
   outcome: {
-    roll?: number; target?: number; dir?: 'over' | 'under';
-    result?: 'heads' | 'tails'; side?: 'heads' | 'tails';
     crash?: number; cashout?: number;
+    bucket?: number; risk?: PlinkoRisk;
+    multiplier?: number;
   };
 }
 
@@ -54,14 +55,15 @@ export interface BetRow {
 }
 
 export const casinoApi = {
-  playDice: (bet: number, target: number, dir: 'over' | 'under') =>
-    call<PlayResult>('/games/play', { method: 'POST', body: JSON.stringify({ game: 'dice', bet, target, dir }) }),
-
-  playCoin: (bet: number, side: 'heads' | 'tails') =>
-    call<PlayResult>('/games/play', { method: 'POST', body: JSON.stringify({ game: 'coinflip', bet, side }) }),
-
+  // Aviator / Uçan Kite — auto cashout target decided up front, server picks the crash point.
   playCrash: (bet: number, cashout: number) =>
     call<PlayResult>('/games/play', { method: 'POST', body: JSON.stringify({ game: 'crash', bet, cashout }) }),
+
+  playPlinko: (bet: number, risk: PlinkoRisk) =>
+    call<PlayResult>('/games/play', { method: 'POST', body: JSON.stringify({ game: 'plinko', bet, risk }) }),
+
+  playLootbox: (bet: number) =>
+    call<PlayResult>('/games/play', { method: 'POST', body: JSON.stringify({ game: 'lootbox', bet }) }),
 
   history: () => call<{ bets: BetRow[] }>('/games/history', { method: 'POST', body: JSON.stringify({}) }),
 };

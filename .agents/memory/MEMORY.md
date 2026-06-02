@@ -1,5 +1,5 @@
-# Memory Index
-
-- [basonce deploy topology](basonce-deploy.md) — live backend is Cloudflare Pages (`_worker.js`); deploy via `scripts/deploy.sh`; Netlify `api-proxy.js` is NOT serving prod.
-- [basonce Supabase admin access](basonce-supabase-admin.md) — DB admin only via Supabase Management API; Replit `SUPABASE_*` env keys are stale/wrong-project.
-- [TON upgrade front-run prevention](ton-upgrade-intent-binding.md) — bind each on-chain payment to one user via a server-reserved UNIQUE amount (purchase intent), never trust client sender_address.
+- [basonce deploy topology](basonce-deploy.md) — basonce.com = Cloudflare Pages (_worker.js + dist/public); not live until deploy.sh runs (build exceeds 120s, run backgrounded).
+- [basonce Supabase admin](basonce-supabase-admin.md) — run DDL via Management API w/ SUPABASE_ACCESS_TOKEN; Replit SUPABASE_* creds can be stale; user identity is user_profiles.id not auth.users.
+- [Supabase money RPCs](supabase-money-rpc-security.md) — SECURITY DEFINER funcs default-grant EXECUTE to PUBLIC; lock money RPCs to service_role & recompute payout server-side.
+- [TON upgrade intent binding](ton-upgrade-intent-binding.md) — bind on-chain payments to one user via server-reserved unique amount; never credit whoever claims.
+- [Slides catalog gap](slides-artifact-catalog.md) — fresh slides scaffold needs wouter in pnpm-workspace catalog or install aborts.

@@ -242,11 +242,37 @@ async function getAuthedUserId(request, env) {
    Outcomes are computed HERE (never trust client).
    casino_play RPC applies the result atomically.
 ═══════════════════════════════════════════════ */
-const CASINO_GAMES   = new Set(['dice', 'coinflip', 'crash']);
+const CASINO_GAMES   = new Set(['dice', 'coinflip', 'crash', 'plinko', 'lootbox']);
 const CASINO_RTP     = 0.97;    // return-to-player → 3% house edge
 const CASINO_MIN_BET = 0.1;     // USDT
 const CASINO_MAX_BET = 1000;    // USDT
 const CASINO_MAX_MULT = 1000;   // hard cap on payout multiplier
+
+// Plinko payout tables — 16 rows → 17 buckets (Stake-style). Designed so the
+// binomial(16, 0.5) landing distribution yields ~3% house edge.
+const PLINKO_TABLES = {
+  low:  [16, 9, 2, 1.4, 1.4, 1.2, 1.1, 1, 0.5, 1, 1.1, 1.2, 1.4, 1.4, 2, 9, 16],
+  med:  [110, 41, 10, 5, 3, 1.5, 1, 0.5, 0.3, 0.5, 1, 1.5, 3, 5, 10, 41, 110],
+  high: [1000, 130, 26, 9, 4, 2, 0.2, 0.2, 0.2, 0.2, 0.2, 2, 4, 9, 26, 130, 1000],
+};
+// Loot box rewards (payout multiplier + probability weight). Expected value
+// ≈ 0.97 → 3% house edge. Weights sum to 1.
+const LOOTBOX_REWARDS = [
+  { m: 0,   w: 0.2052 },
+  { m: 0.4, w: 0.40 },
+  { m: 1,   w: 0.28 },
+  { m: 2,   w: 0.08 },
+  { m: 5,   w: 0.03 },
+  { m: 25,  w: 0.004 },
+  { m: 150, w: 0.0008 },
+];
+// Plinko bucket (0..16) = popcount of 16 random bits from the seed → binomial.
+function casinoPlinkoBucket(seedHex) {
+  const n = parseInt(seedHex.slice(0, 4), 16) & 0xffff;
+  let c = 0;
+  for (let i = 0; i < 16; i++) if (n & (1 << i)) c++;
+  return c;
+}
 
 // 16 random bytes → 32-char hex seed. The outcome float is derived from it,
 // so the round is reproducible/auditable from the stored server_seed.
@@ -1856,9 +1882,20 @@ export default {
             won = cashout <= crash;
             multiplier = won ? cashout : 0;
             outcome = { crash, cashout };
+          } else if (game === 'plinko') {
+            const risk = ['low', 'med', 'high'].includes(body.risk) ? body.risk : 'med';
+            const bucket = casinoPlinkoBucket(seed);
+            multiplier = PLINKO_TABLES[risk][bucket];
+            outcome = { bucket, risk, multiplier };
+          } else if (game === 'lootbox') {
+            let acc = 0; let m = 0;
+            for (const rwd of LOOTBOX_REWARDS) { acc += rwd.w; if (rng <= acc) { m = rwd.m; break; } }
+            multiplier = m;
+            outcome = { multiplier: m };
           }
 
-          const payout = won ? Math.round(betR * multiplier * 1e8) / 1e8 : 0;
+          const payout = multiplier > 0 ? Math.round(betR * multiplier * 1e8) / 1e8 : 0;
+          won = payout > betR + 1e-9;   // net profit drives win/lose colouring
           let balance;
           try {
             const res = await sbRpc('casino_play', {
