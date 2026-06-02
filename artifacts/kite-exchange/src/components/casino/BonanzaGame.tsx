@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { casinoApi, type PlayResult, type BonanzaSpin } from '../../lib/casino-api';
 import { GOLD, GREEN, RED, TEXT, SUB, BORDER, fmt, BetBar, playBtn } from './shared';
 
@@ -40,6 +40,10 @@ const KEYFRAMES = `
 @keyframes bannerPop{0%{transform:scale(.55);opacity:0}60%{transform:scale(1.06);opacity:1}100%{transform:scale(1);opacity:1}}
 @keyframes multZoom{0%{transform:scale(.3);opacity:0}45%{transform:scale(1.25);opacity:1}100%{transform:scale(1);opacity:1}}
 @keyframes scatGlow{0%,100%{filter:drop-shadow(0 0 6px #ffd54f)}50%{filter:drop-shadow(0 0 18px #ffd54f)}}
+@keyframes confettiFall{0%{transform:translateY(-16px) rotate(0deg);opacity:1}100%{transform:translateY(460px) rotate(680deg);opacity:0}}
+@keyframes resultPop{0%{transform:scale(.5) translateY(14px);opacity:0}55%{transform:scale(1.08);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes winGlow{0%,100%{filter:drop-shadow(0 0 14px rgba(14,203,129,.55))}50%{filter:drop-shadow(0 0 32px rgba(255,213,79,.9))}}
+@keyframes coinBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 `;
 
 export default function BonanzaGame({ balance, onBalance }: { balance: number; onBalance: (n: number) => void }) {
@@ -58,6 +62,7 @@ export default function BonanzaGame({ balance, onBalance }: { balance: number; o
   const [err, setErr] = useState('');
   const [muted, setMuted] = useState(false);
   const [showPay, setShowPay] = useState(false);
+  const [shownPayout, setShownPayout] = useState(0);
 
   const runId = useRef(0);
   const genRef = useRef(0);
@@ -72,6 +77,21 @@ export default function BonanzaGame({ balance, onBalance }: { balance: number; o
     const m = new Audio(musicFs); m.loop = true; m.volume = 0.35; music.current = m;
     return () => { runId.current++; try { m.pause(); } catch { /* noop */ } };
   }, []);
+
+  // Animated count-up of the final payout shown on the result card
+  useEffect(() => {
+    if (phase === 'idle' && result && result.payout > 0) {
+      let raf = 0; const start = performance.now(); const dur = 850; const to = result.payout;
+      const tick = (t: number) => {
+        const k = Math.min(1, (t - start) / dur);
+        setShownPayout(to * (1 - Math.pow(1 - k, 3)));
+        if (k < 1) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+      return () => cancelAnimationFrame(raf);
+    }
+    setShownPayout(0);
+  }, [result, phase]);
 
   const play = (name: string, vol = 1) => {
     if (mutedRef.current) return;
@@ -153,8 +173,8 @@ export default function BonanzaGame({ balance, onBalance }: { balance: number; o
       onBalance(r.balance);
       setResult(r);
       setWin(betNum > 0 ? r.payout / betNum : 0, betNum);
-      if (r.won && r.payout >= betNum * 20) play('bigwin');
-      else if (r.won) play('win');
+      if (r.payout >= betNum * 8) play('bigwin');
+      else if (r.payout > 0) play('win');
       setPhase('idle');
     } catch (e) {
       if (e !== 'abort') { stopMusic(); setPhase('idle'); }
@@ -162,7 +182,20 @@ export default function BonanzaGame({ balance, onBalance }: { balance: number; o
   };
 
   const busy = phase !== 'idle';
-  const winLabel = result ? (result.won ? `WON +${fmt(result.payout)} USDT` : (result.payout > 0 ? `BACK ${fmt(result.payout)} USDT` : 'NO WIN')) : null;
+  const hasWin = !!result && result.payout > 0;
+  const mult = result?.multiplier ?? 0;
+  const net = mult >= 1;
+  const mega = mult >= 8;
+  const confetti = useMemo(() => {
+    if (!result || result.payout <= 0) return [];
+    const n = result.multiplier >= 8 ? 70 : result.multiplier >= 1 ? 42 : 18;
+    const colors = ['#ff4fa3', '#ffd54f', '#0ECB81', '#7c3aa8', '#4fc3f7', '#ff7043'];
+    return Array.from({ length: n }, (_, i) => ({
+      left: Math.random() * 100, color: colors[i % colors.length],
+      delay: Math.random() * 0.5, dur: 1.1 + Math.random() * 1.2,
+      size: 6 + Math.random() * 8, rot: Math.random() * 360,
+    }));
+  }, [result]);
 
   return (
     <div>
@@ -241,13 +274,54 @@ export default function BonanzaGame({ balance, onBalance }: { balance: number; o
           </div>
         )}
 
-        {/* result line */}
+        {/* result overlay */}
         {phase === 'idle' && result && (
-          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 10, textAlign: 'center', pointerEvents: 'none' }}>
-            <div style={{ display: 'inline-block', padding: '6px 16px', borderRadius: 20, fontWeight: 900, fontSize: 15,
-              background: result.won ? 'rgba(14,203,129,0.18)' : 'rgba(246,70,93,0.16)',
-              border: `1px solid ${result.won ? GREEN : RED}`, color: result.won ? GREEN : (result.payout > 0 ? GOLD : RED) }}>
-              {result.won ? `${result.multiplier}× · +${fmt(result.payout)} USDT` : winLabel}
+          <div onClick={() => setResult(null)} style={{
+            position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(8,3,20,0.66)', backdropFilter: 'blur(3px)', cursor: 'pointer', zIndex: 6,
+          }}>
+            {hasWin && (
+              <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+                {confetti.map((c, i) => (
+                  <div key={i} style={{
+                    position: 'absolute', top: -16, left: `${c.left}%`, width: c.size, height: c.size * 0.55,
+                    background: c.color, borderRadius: 2, transform: `rotate(${c.rot}deg)`,
+                    animation: `confettiFall ${c.dur}s ${c.delay}s ease-in forwards`,
+                  }} />
+                ))}
+              </div>
+            )}
+            <div style={{
+              position: 'relative', textAlign: 'center', padding: '22px 30px', borderRadius: 22, maxWidth: '92%',
+              animation: hasWin ? 'resultPop .45s ease, winGlow 1.5s ease-in-out infinite' : 'resultPop .4s ease',
+              background: mega ? 'linear-gradient(135deg,#ffd54f 0%,#ff7043 48%,#ff4fa3 100%)'
+                : net ? 'linear-gradient(135deg,#0ECB81 0%,#7be07b 55%,#ffd54f 100%)'
+                : hasWin ? 'linear-gradient(135deg,#ffb74d,#ff8a3d)'
+                : 'linear-gradient(135deg,#2a1147,#15091f)',
+              border: hasWin ? '2px solid #ffffffcc' : '1px solid #6d3aa8aa',
+              boxShadow: '0 16px 50px rgba(0,0,0,0.55)',
+            }}>
+              {hasWin ? (
+                <>
+                  <div style={{ fontSize: 'clamp(15px,4.4vw,20px)', fontWeight: 900, letterSpacing: 1, color: '#3a0030', textShadow: '0 1px 0 #ffffff66' }}>
+                    {mega ? '💥 MEGA WIN!' : net ? '🎉 YOU WIN!' : '✨ NICE WIN'}
+                  </div>
+                  <div style={{ fontSize: 'clamp(32px,10vw,50px)', fontWeight: 900, color: '#fff', lineHeight: 1.05, margin: '6px 0 0',
+                    textShadow: '0 2px 0 rgba(0,0,0,0.25), 0 0 22px rgba(255,255,255,0.55)', animation: 'coinBob 1.2s ease-in-out infinite' }}>
+                    +{fmt(shownPayout)}
+                  </div>
+                  <div style={{ fontSize: 'clamp(12px,3.4vw,15px)', fontWeight: 900, color: '#3a0030', marginTop: 2 }}>USDT</div>
+                  <div style={{ display: 'inline-block', marginTop: 12, padding: '5px 16px', borderRadius: 22, background: 'rgba(0,0,0,0.3)', color: '#fff', fontWeight: 900, fontSize: 'clamp(13px,3.6vw,16px)' }}>
+                    {result.multiplier}× WIN
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 'clamp(22px,6.5vw,30px)', fontWeight: 900, color: '#fff', letterSpacing: 1 }}>NO WIN</div>
+                  <div style={{ fontSize: 13, color: '#cbb8e6', marginTop: 8, fontWeight: 700 }}>🍬 Tap to spin again</div>
+                </>
+              )}
+              <div style={{ fontSize: 10, color: hasWin ? '#3a0030aa' : '#8a78a8', marginTop: 14, fontWeight: 800, letterSpacing: 0.5 }}>TAP TO DISMISS</div>
             </div>
           </div>
         )}
