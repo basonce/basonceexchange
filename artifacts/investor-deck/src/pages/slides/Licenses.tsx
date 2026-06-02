@@ -8,7 +8,7 @@ export default function Licenses() {
           <span className="font-display font-bold text-primary text-[1.2vw] tracking-tight">
             KITE EXCHANGE
           </span>
-          <span className="text-muted text-[1.1vw] font-body">10 / 13</span>
+          <span className="text-muted text-[1.1vw] font-body">10 / 12</span>
         </div>
         <div className="w-full h-px bg-white/10 mb-[3.5vh]" />
 
@@ -16,8 +16,8 @@ export default function Licenses() {
           Lisanslar
         </h2>
         <p className="text-muted text-[1.5vw] font-body max-w-[62vw] leading-snug mb-[4.5vh] text-pretty">
-          Net durum: lisanslar süreçte. Yatırımın bir kısmı doğrudan bu süreci
-          tamamlamaya ayrılır.
+          Net durum: lisanslar süreçte. Yıllık bütçeden bu süreci tamamlamaya
+          doğrudan kaynak ayrılır.
         </p>
 
         <div className="grid grid-cols-3 gap-[2vw] mb-[4vh]">

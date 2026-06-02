@@ -18,8 +18,8 @@ export default function Closing() {
             <span className="text-primary"> Sıradaki adım ölçek.</span>
           </h2>
           <p className="mt-[4vh] text-muted text-[1.9vw] font-body max-w-[58vw] leading-snug text-pretty">
-            Beş gelir motoru çalışıyor, marj %73. $5M ile likidite, kullanıcı ve
-            lisansları büyütüp ~9 ayda geri dönüş hedefliyoruz.
+            Beş gelir motoru çalışıyor: $20,5M yıllık gelir, $5,5M gider ve
+            $15,0M net kâr — %73 marjla.
           </p>
         </div>
 
@@ -30,7 +30,7 @@ export default function Closing() {
           </div>
           <div className="text-right text-muted text-[1.15vw] font-body leading-tight">
             <div className="text-text font-semibold">Kite Exchange</div>
-            <div>Stratejik Yatırım Sunumu · Haziran 2026</div>
+            <div>Yıllık Gelir-Gider Özeti · Haziran 2026</div>
           </div>
         </div>
       </div>

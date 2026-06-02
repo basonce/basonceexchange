@@ -8,7 +8,7 @@ export default function Strategy() {
           <span className="font-display font-bold text-primary text-[1.2vw] tracking-tight">
             KITE EXCHANGE
           </span>
-          <span className="text-muted text-[1.1vw] font-body">11 / 13</span>
+          <span className="text-muted text-[1.1vw] font-body">11 / 12</span>
         </div>
         <div className="w-full h-px bg-white/10 mb-[3.5vh]" />
 
@@ -16,7 +16,7 @@ export default function Strategy() {
           Büyüme stratejisi
         </h2>
         <p className="text-muted text-[1.5vw] font-body max-w-[62vw] leading-snug mb-[4vh] text-pretty">
-          $5M ile altı kollu net bir plan: likidite, kullanıcı, gelir ve güven.
+          Altı kollu net bir plan: likidite, kullanıcı, gelir ve güven.
         </p>
 
         <div className="grid grid-cols-2 gap-x-[3vw] gap-y-[2.6vh]">

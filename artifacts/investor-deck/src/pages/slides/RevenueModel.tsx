@@ -8,7 +8,7 @@ export default function RevenueModel() {
           <span className="font-display font-bold text-primary text-[1.2vw] tracking-tight">
             KITE EXCHANGE
           </span>
-          <span className="text-muted text-[1.1vw] font-body">03 / 13</span>
+          <span className="text-muted text-[1.1vw] font-body">03 / 12</span>
         </div>
         <div className="w-full h-px bg-white/10 mb-[3.5vh]" />
 

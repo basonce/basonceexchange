@@ -1,7 +1,7 @@
 export default function RevenueListings() {
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-bg text-text">
-      <div className="absolute top-[3vh] right-[8vw] text-muted text-[1.1vw] font-body">04 / 13</div>
+      <div className="absolute top-[3vh] right-[8vw] text-muted text-[1.1vw] font-body">04 / 12</div>
       <div className="relative h-full w-full flex px-[8vw] py-[7vh]">
         <div className="w-[44%] flex flex-col justify-center pr-[4vw]">
           <div className="text-primary font-body font-extrabold tracking-[0.25em] text-[1.1vw] uppercase mb-[2vh]">

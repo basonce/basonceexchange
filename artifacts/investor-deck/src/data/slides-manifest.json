@@ -4,8 +4,8 @@
     "position": 1,
     "filepath": "src/pages/slides/Cover.tsx",
     "title": "Kapak",
-    "description": "Kite Exchange tam kapsamlı kripto borsası, $5M yatırım talebi.",
-    "speakerNotes": "Spot, vadeli ve P2P tek borsada. Gelir getiren eksiksiz bir kripto borsası için $5.000.000 talebi."
+    "description": "Kite Exchange tam kapsamlı kripto borsası, yıllık gelir-gider özeti.",
+    "speakerNotes": "Spot, vadeli ve P2P tek borsada. Gelir getiren eksiksiz bir kripto borsasının yıllık finansal özeti."
   },
   {
     "id": "exchange",
@@ -77,7 +77,7 @@
     "filepath": "src/pages/slides/Licenses.tsx",
     "title": "Lisanslar",
     "description": "Türkiye/MASAK, VASP, yurtdışı yapı; $1,0M bütçe, 6-12 ay.",
-    "speakerNotes": "Net durum: lisanslar süreçte. Çoklu yargı bölgesi stratejisi. Yatırımdan $1,0M ayrılır."
+    "speakerNotes": "Net durum: lisanslar süreçte. Çoklu yargı bölgesi stratejisi. Yıllık bütçeden $1,0M ayrılır."
   },
   {
     "id": "strategy",
@@ -88,16 +88,8 @@
     "speakerNotes": "Altı kollu plan: likidite önce, viral büyüme, tahta motoru, elde tutma, güven, bölgesel genişleme."
   },
   {
-    "id": "ask",
-    "position": 12,
-    "filepath": "src/pages/slides/Ask.tsx",
-    "title": "$5M Talep",
-    "description": "$5M yatırım, fon kullanımı, ~9 ay geri ödeme.",
-    "speakerNotes": "$5M karşılığı ~%20 hisse (müzakereye açık). Geri ödeme ~9 ay, net kâr $15,0M."
-  },
-  {
     "id": "closing",
-    "position": 13,
+    "position": 12,
     "filepath": "src/pages/slides/Closing.tsx",
     "title": "Kapanış",
     "description": "Kapanış ve iletişim çağrısı.",

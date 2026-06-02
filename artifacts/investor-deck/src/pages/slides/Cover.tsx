@@ -15,7 +15,7 @@ export default function Cover() {
 
         <div className="max-w-[80vw]">
           <div className="text-primary font-body font-extrabold tracking-[0.3em] text-[1.3vw] uppercase mb-[3vh]">
-            Stratejik Yatırım Sunumu
+            Yıllık Gelir-Gider Özeti
           </div>
           <h1 className="font-display font-bold text-[6vw] leading-[0.98] tracking-tight text-balance">
             Spot, vadeli ve P2P.
@@ -29,9 +29,9 @@ export default function Cover() {
 
         <div className="flex items-end justify-between">
           <div className="flex items-baseline gap-[1.5vw]">
-            <span className="text-muted text-[1.3vw] font-body">Yatırım talebi</span>
+            <span className="text-muted text-[1.3vw] font-body">Yıllık net kâr</span>
             <span className="font-display font-bold text-primary text-[3.6vw] leading-none">
-              $5.000.000
+              $15,0M
             </span>
           </div>
           <div className="text-right text-muted text-[1.2vw] font-body leading-tight">
