@@ -28,8 +28,8 @@ const SND: Record<string, string> = { spin: sndSpin, pop: sndPop, win: sndWin, b
 
 // top pays (12+) for the mini paytable
 const PAYTABLE: { sym: number; pay: number }[] = [
-  { sym: 0, pay: 50 }, { sym: 1, pay: 25 }, { sym: 2, pay: 15 }, { sym: 3, pay: 12 },
-  { sym: 4, pay: 10 }, { sym: 5, pay: 8 }, { sym: 6, pay: 5 }, { sym: 7, pay: 4 }, { sym: 8, pay: 2 },
+  { sym: 0, pay: 15 }, { sym: 1, pay: 7.2 }, { sym: 2, pay: 4.2 }, { sym: 3, pay: 1.8 },
+  { sym: 4, pay: 0.9 }, { sym: 5, pay: 0.6 }, { sym: 6, pay: 0.3 }, { sym: 7, pay: 0.24 }, { sym: 8, pay: 0.15 },
 ];
 
 const IDLE_GRID = [0, 4, 6, 1, 7, 2, 8, 3, 5, 0, 4, 1, 2, 6, 7, 3, 8, 5, 1, 0, 6, 4, 2, 7, 8, 5, 3, 1, 0, 6];
@@ -63,6 +63,15 @@ export default function BonanzaGame({ balance, onBalance }: { balance: number; o
   const [muted, setMuted] = useState(false);
   const [showPay, setShowPay] = useState(false);
   const [shownPayout, setShownPayout] = useState(0);
+  const [mode, setMode] = useState<'manual' | 'auto'>('manual');
+  const [autoRunning, setAutoRunning] = useState(false);
+
+  const autoRef = useRef(false);
+  const mountedRef = useRef(true);
+  const balanceRef = useRef(balance);
+  const betRef = useRef(bet);
+  useEffect(() => { balanceRef.current = balance; }, [balance]);
+  useEffect(() => { betRef.current = bet; }, [bet]);
 
   const runId = useRef(0);
   const genRef = useRef(0);
@@ -75,7 +84,7 @@ export default function BonanzaGame({ balance, onBalance }: { balance: number; o
   useEffect(() => {
     Object.entries(SND).forEach(([k, src]) => { const a = new Audio(src); a.preload = 'auto'; sounds.current[k] = a; });
     const m = new Audio(musicFs); m.loop = true; m.volume = 0.35; music.current = m;
-    return () => { runId.current++; try { m.pause(); } catch { /* noop */ } };
+    return () => { mountedRef.current = false; autoRef.current = false; runId.current++; try { m.pause(); } catch { /* noop */ } };
   }, []);
 
   // Animated count-up of the final payout shown on the result card
@@ -136,19 +145,21 @@ export default function BonanzaGame({ balance, onBalance }: { balance: number; o
     if (spin.win > 0 && !isFree) play('win', 0.7);
   }
 
-  const run = async () => {
+  const run = async (): Promise<boolean> => {
+    if (!mountedRef.current) return false;
     setErr(''); setResult(null);
-    const betNum = parseFloat(bet) || 0;
-    if (betNum < 0.1) { setErr('Min bet is 0.1 USDT'); return; }
-    if (betNum > balance + 1e-9) { setErr('Insufficient USDT balance'); return; }
+    const betNum = parseFloat(betRef.current) || 0;
+    if (betNum < 0.1) { setErr('Min bet is 0.1 USDT'); return false; }
+    if (betNum > balanceRef.current + 1e-9) { setErr('Insufficient USDT balance'); return false; }
 
     setPhase('spinning');
     let r: PlayResult;
     try { r = await casinoApi.playBonanza(betNum); }
-    catch (e: any) { setErr(e.message || 'Error'); setPhase('idle'); return; }
+    catch (e: any) { setErr(e.message || 'Error'); setPhase('idle'); return false; }
+    if (!mountedRef.current) return false;
     const seq = r.sequence;
     if (!seq || !Array.isArray(seq.spins) || seq.spins.length === 0) {
-      setErr('No game data returned'); setPhase('idle'); return;
+      setErr('No game data returned'); setPhase('idle'); return false;
     }
 
     const myRun = ++runId.current;
@@ -176,9 +187,31 @@ export default function BonanzaGame({ balance, onBalance }: { balance: number; o
       if (r.payout >= betNum * 8) play('bigwin');
       else if (r.payout > 0) play('win');
       setPhase('idle');
+      return true;
     } catch (e) {
       if (e !== 'abort') { stopMusic(); setPhase('idle'); }
+      return false;
     }
+  };
+
+  const stopAuto = () => { autoRef.current = false; setAutoRunning(false); };
+  const startAuto = async () => {
+    if (autoRef.current) return;
+    autoRef.current = true; setAutoRunning(true);
+    while (autoRef.current && mountedRef.current) {
+      const betNum = parseFloat(betRef.current) || 0;
+      if (betNum < 0.1) { setErr('Min bet is 0.1 USDT'); break; }
+      if (betNum > balanceRef.current + 1e-9) { setErr('Insufficient USDT balance'); break; }
+      const ok = await run();
+      if (!ok || !autoRef.current || !mountedRef.current) break;
+      // let the win celebration breathe, then clear and keep them flowing
+      await new Promise<void>((res) => setTimeout(res, 1500));
+      if (!autoRef.current || !mountedRef.current) break;
+      setResult(null);
+      await new Promise<void>((res) => setTimeout(res, 300));
+    }
+    autoRef.current = false;
+    if (mountedRef.current) setAutoRunning(false);
   };
 
   const busy = phase !== 'idle';
@@ -274,54 +307,51 @@ export default function BonanzaGame({ balance, onBalance }: { balance: number; o
           </div>
         )}
 
-        {/* result overlay */}
-        {phase === 'idle' && result && (
+        {/* WIN celebration overlay */}
+        {phase === 'idle' && hasWin && (
           <div onClick={() => setResult(null)} style={{
             position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
             background: 'rgba(8,3,20,0.66)', backdropFilter: 'blur(3px)', cursor: 'pointer', zIndex: 6,
           }}>
-            {hasWin && (
-              <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-                {confetti.map((c, i) => (
-                  <div key={i} style={{
-                    position: 'absolute', top: -16, left: `${c.left}%`, width: c.size, height: c.size * 0.55,
-                    background: c.color, borderRadius: 2, transform: `rotate(${c.rot}deg)`,
-                    animation: `confettiFall ${c.dur}s ${c.delay}s ease-in forwards`,
-                  }} />
-                ))}
-              </div>
-            )}
+            <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+              {confetti.map((c, i) => (
+                <div key={i} style={{
+                  position: 'absolute', top: -16, left: `${c.left}%`, width: c.size, height: c.size * 0.55,
+                  background: c.color, borderRadius: 2, transform: `rotate(${c.rot}deg)`,
+                  animation: `confettiFall ${c.dur}s ${c.delay}s ease-in forwards`,
+                }} />
+              ))}
+            </div>
             <div style={{
               position: 'relative', textAlign: 'center', padding: '22px 30px', borderRadius: 22, maxWidth: '92%',
-              animation: hasWin ? 'resultPop .45s ease, winGlow 1.5s ease-in-out infinite' : 'resultPop .4s ease',
+              animation: 'resultPop .45s ease, winGlow 1.5s ease-in-out infinite',
               background: mega ? 'linear-gradient(135deg,#ffd54f 0%,#ff7043 48%,#ff4fa3 100%)'
                 : net ? 'linear-gradient(135deg,#0ECB81 0%,#7be07b 55%,#ffd54f 100%)'
-                : hasWin ? 'linear-gradient(135deg,#ffb74d,#ff8a3d)'
-                : 'linear-gradient(135deg,#2a1147,#15091f)',
-              border: hasWin ? '2px solid #ffffffcc' : '1px solid #6d3aa8aa',
-              boxShadow: '0 16px 50px rgba(0,0,0,0.55)',
+                : 'linear-gradient(135deg,#ffb74d,#ff8a3d)',
+              border: '2px solid #ffffffcc', boxShadow: '0 16px 50px rgba(0,0,0,0.55)',
             }}>
-              {hasWin ? (
-                <>
-                  <div style={{ fontSize: 'clamp(15px,4.4vw,20px)', fontWeight: 900, letterSpacing: 1, color: '#3a0030', textShadow: '0 1px 0 #ffffff66' }}>
-                    {mega ? '💥 MEGA WIN!' : net ? '🎉 YOU WIN!' : '✨ NICE WIN'}
-                  </div>
-                  <div style={{ fontSize: 'clamp(32px,10vw,50px)', fontWeight: 900, color: '#fff', lineHeight: 1.05, margin: '6px 0 0',
-                    textShadow: '0 2px 0 rgba(0,0,0,0.25), 0 0 22px rgba(255,255,255,0.55)', animation: 'coinBob 1.2s ease-in-out infinite' }}>
-                    +{fmt(shownPayout)}
-                  </div>
-                  <div style={{ fontSize: 'clamp(12px,3.4vw,15px)', fontWeight: 900, color: '#3a0030', marginTop: 2 }}>USDT</div>
-                  <div style={{ display: 'inline-block', marginTop: 12, padding: '5px 16px', borderRadius: 22, background: 'rgba(0,0,0,0.3)', color: '#fff', fontWeight: 900, fontSize: 'clamp(13px,3.6vw,16px)' }}>
-                    {result.multiplier}× WIN
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div style={{ fontSize: 'clamp(22px,6.5vw,30px)', fontWeight: 900, color: '#fff', letterSpacing: 1 }}>NO WIN</div>
-                  <div style={{ fontSize: 13, color: '#cbb8e6', marginTop: 8, fontWeight: 700 }}>🍬 Tap to spin again</div>
-                </>
-              )}
-              <div style={{ fontSize: 10, color: hasWin ? '#3a0030aa' : '#8a78a8', marginTop: 14, fontWeight: 800, letterSpacing: 0.5 }}>TAP TO DISMISS</div>
+              <div style={{ fontSize: 'clamp(15px,4.4vw,20px)', fontWeight: 900, letterSpacing: 1, color: '#3a0030', textShadow: '0 1px 0 #ffffff66' }}>
+                {mega ? '💥 MEGA WIN!' : net ? '🎉 YOU WIN!' : '✨ NICE WIN'}
+              </div>
+              <div style={{ fontSize: 'clamp(32px,10vw,50px)', fontWeight: 900, color: '#fff', lineHeight: 1.05, margin: '6px 0 0',
+                textShadow: '0 2px 0 rgba(0,0,0,0.25), 0 0 22px rgba(255,255,255,0.55)', animation: 'coinBob 1.2s ease-in-out infinite' }}>
+                +{fmt(shownPayout)}
+              </div>
+              <div style={{ fontSize: 'clamp(12px,3.4vw,15px)', fontWeight: 900, color: '#3a0030', marginTop: 2 }}>USDT</div>
+              <div style={{ display: 'inline-block', marginTop: 12, padding: '5px 16px', borderRadius: 22, background: 'rgba(0,0,0,0.3)', color: '#fff', fontWeight: 900, fontSize: 'clamp(13px,3.6vw,16px)' }}>
+                {result.multiplier}× WIN
+              </div>
+              {!autoRunning && <div style={{ fontSize: 10, color: '#3a0030aa', marginTop: 14, fontWeight: 800, letterSpacing: 0.5 }}>TAP TO DISMISS</div>}
+            </div>
+          </div>
+        )}
+
+        {/* LOSS indicator — small, non-blocking */}
+        {phase === 'idle' && result && result.payout <= 0 && (
+          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 10, textAlign: 'center', pointerEvents: 'none', zIndex: 6 }}>
+            <div style={{ display: 'inline-block', padding: '6px 18px', borderRadius: 20, fontWeight: 900, fontSize: 14, letterSpacing: 0.5,
+              background: 'rgba(20,8,40,0.82)', border: `1px solid ${RED}aa`, color: '#fff', boxShadow: '0 4px 14px rgba(0,0,0,0.4)' }}>
+              NO WIN
             </div>
           </div>
         )}
@@ -346,11 +376,35 @@ export default function BonanzaGame({ balance, onBalance }: { balance: number; o
         </div>
       )}
 
-      <BetBar bet={bet} setBet={setBet} balance={balance} disabled={busy} />
+      {/* Manual / Automatic mode toggle */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        {(['manual', 'auto'] as const).map((m) => {
+          const active = mode === m;
+          return (
+            <button key={m} onClick={() => { if (!autoRunning) setMode(m); }} disabled={autoRunning}
+              style={{ flex: 1, padding: '9px 0', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: autoRunning ? 'default' : 'pointer',
+                border: active ? '1px solid #ff4fa3' : `1px solid ${BORDER}`,
+                background: active ? 'rgba(255,79,163,0.16)' : 'transparent',
+                color: active ? '#ff7ab8' : SUB, opacity: autoRunning && !active ? 0.5 : 1, transition: 'all .15s' }}>
+              {m === 'manual' ? 'Manual' : 'Automatic'}
+            </button>
+          );
+        })}
+      </div>
+
+      <BetBar bet={bet} setBet={setBet} balance={balance} disabled={busy || autoRunning} />
       {err && <div style={{ color: RED, fontSize: 13, marginBottom: 8 }}>{err}</div>}
-      <button onClick={run} disabled={busy} style={playBtn(!busy, '#ff4fa3')}>
-        {phase === 'spinning' ? 'SPINNING…' : phase === 'anim' ? 'PLAYING…' : '🍬 SPIN'}
-      </button>
+
+      {mode === 'manual' ? (
+        <button onClick={run} disabled={busy} style={playBtn(!busy, '#ff4fa3')}>
+          {phase === 'spinning' ? 'SPINNING…' : phase === 'anim' ? 'PLAYING…' : '🍬 SPIN'}
+        </button>
+      ) : (
+        <button onClick={autoRunning ? stopAuto : startAuto} disabled={busy && !autoRunning}
+          style={playBtn(autoRunning || !busy, autoRunning ? '#f6465d' : '#ff4fa3')}>
+          {autoRunning ? '■ STOP AUTO' : '▶ START AUTO SPIN'}
+        </button>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
-- [basonce deploy topology](basonce-deploy.md) — basonce.com = Cloudflare Pages (_worker.js + dist/public); not live until deploy.sh runs (build exceeds 120s, run backgrounded).
-- [basonce Supabase admin](basonce-supabase-admin.md) — run DDL via Management API w/ SUPABASE_ACCESS_TOKEN; Replit SUPABASE_* creds can be stale; user identity is user_profiles.id not auth.users.
-- [Supabase money RPCs](supabase-money-rpc-security.md) — SECURITY DEFINER funcs default-grant EXECUTE to PUBLIC; lock money RPCs to service_role & recompute payout server-side.
-- [TON upgrade intent binding](ton-upgrade-intent-binding.md) — bind on-chain payments to one user via server-reserved unique amount; never credit whoever claims.
-- [Slides catalog gap](slides-artifact-catalog.md) — fresh slides scaffold needs wouter in pnpm-workspace catalog or install aborts.
+- [Bonanza hit-rate vs RTP tuning](bonanza-rtp-tuning.md) — tumble+freespin slot couples win-freq & RTP steeply; pin weights for hit%, scale pays for RTP; auto-spin must stop on unmount.
+- [basonce deploy](basonce-deploy.md) — Cloudflare Pages deploy procedure & gotchas for kite-exchange.
+- [basonce Supabase admin](basonce-supabase-admin.md) — how to run DB admin / get the real service-role key for the basonce Supabase project.
+- [Supabase money RPC security](supabase-money-rpc-security.md) — every balance-mutating SECURITY DEFINER RPC must be locked to service_role and self-validate.
+- [TON upgrade intent binding](ton-upgrade-intent-binding.md) — on-chain box-upgrade payments bound to a single user via server-reserved unique amount to stop hijack.
+- [Slides artifact catalog](slides-artifact-catalog.md) — pnpm catalog gap (missing wouter) that breaks fresh slides-artifact installs.

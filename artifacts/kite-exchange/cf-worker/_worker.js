@@ -291,17 +291,21 @@ function casinoRandFloat(seedHex) {
    Mechanics: 8+ of a symbol anywhere pays; winning symbols tumble away and
    refill; 4+ scatters trigger 10 free spins; in free spins, multiplier bombs
    on a winning sequence sum up and multiply that spin's win.
-   RTP ~0.93 (Monte-Carlo tuned), hard-capped at CASINO_MAX_MULT (1000x). */
+   See HIGH-WIN-FREQUENCY PROFILE below; hard-capped at CASINO_MAX_MULT (1000x). */
+// HIGH-WIN-FREQUENCY PROFILE (promotional): ~73-75% of spins return a payout,
+// RTP ~0.94 (Monte-Carlo tuned over 600k rounds). Weights concentrate on the
+// low-pay candies so wins are frequent but mostly small; cascade + free-spin
+// amplification kept in check (max ~16 tumbles, no 1000x caps in sim).
 const BONANZA_PAY = {            // [8-9, 10-11, 12+] as multiple of total bet
-  0: [10, 25, 50], 1: [2.5, 10, 25], 2: [2, 5, 15], 3: [1.5, 2, 12],
-  4: [1, 1.5, 10], 5: [0.8, 1.2, 8], 6: [0.5, 1, 5], 7: [0.4, 0.9, 4], 8: [0.25, 0.75, 2],
+  0: [3, 7.2, 15], 1: [0.9, 2.4, 7.2], 2: [0.48, 1.2, 4.2], 3: [0.24, 0.48, 1.8],
+  4: [0.12, 0.24, 0.9], 5: [0.09, 0.18, 0.6], 6: [0.06, 0.12, 0.3], 7: [0.05, 0.09, 0.24], 8: [0.03, 0.06, 0.15],
 };
-const BONANZA_W      = { 0: 6, 1: 8, 2: 10, 3: 12, 4: 14, 5: 15, 6: 16, 7: 17, 8: 18 };
-const BONANZA_WSCAT  = 4.2;      // scatter reel weight (controls free-spin frequency)
+const BONANZA_W      = { 0: 1.8, 1: 2.6, 2: 3.6, 3: 5.5, 4: 8.5, 5: 12, 6: 16.5, 7: 20, 8: 23.5 };
+const BONANZA_WSCAT  = 3.0;      // scatter reel weight (controls free-spin frequency)
 const BONANZA_WMULT  = 18;       // multiplier-bomb weight (free spins only)
-const BONANZA_SCAT_PAY = { 4: 3, 5: 5, 6: 100 };  // x total bet
+const BONANZA_SCAT_PAY = { 4: 1, 5: 2, 6: 10 };  // x total bet
 const BONANZA_MV = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 50, 100];
-const BONANZA_MW = [28, 22, 16, 12, 9, 6, 4, 3, 2, 1.5, 1, 0.4, 0.1];
+const BONANZA_MW = [40, 28, 16, 8, 4, 2, 1, 0.6, 0.3, 0.15, 0.05, 0.02, 0.005];
 const BONANZA_FS_START = 10;
 const BONANZA_FS_RETRIGGER = 5;
 const BONANZA_MAX_FS = 60;       // safety cap on total free spins per round
