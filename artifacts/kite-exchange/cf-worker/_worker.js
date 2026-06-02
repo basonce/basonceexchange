@@ -237,6 +237,30 @@ async function getAuthedUserId(request, env) {
   } catch { return null; }
 }
 
+/* ═══════════════════════════════════════════════
+   3D CASINO GAMES — server-authoritative betting
+   Outcomes are computed HERE (never trust client).
+   casino_play RPC applies the result atomically.
+═══════════════════════════════════════════════ */
+const CASINO_GAMES   = new Set(['dice', 'coinflip', 'crash']);
+const CASINO_RTP     = 0.97;    // return-to-player → 3% house edge
+const CASINO_MIN_BET = 0.1;     // USDT
+const CASINO_MAX_BET = 1000;    // USDT
+const CASINO_MAX_MULT = 1000;   // hard cap on payout multiplier
+
+// 16 random bytes → 32-char hex seed. The outcome float is derived from it,
+// so the round is reproducible/auditable from the stored server_seed.
+function casinoSeed() {
+  const b = new Uint8Array(16);
+  crypto.getRandomValues(b);
+  return [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+// Deterministic float in [0,1) from the seed (first 52 bits).
+function casinoRandFloat(seedHex) {
+  const n = parseInt(seedHex.slice(0, 13), 16);
+  return n / 0x10000000000000; // 2^52
+}
+
 // Welcome chest constants — kept in worker so no DB DDL is required
 const CHEST_REWARD_AMOUNT = 100;
 const CHEST_REWARD_SYMBOL = 'EQ';
@@ -1786,6 +1810,79 @@ export default {
     try {
       /* ── HEALTH ── */
       if (method==='GET' && path==='/healthz') return ok({status:'ok',platform:'cloudflare'});
+
+      /* ── 3D CASINO GAMES (logged-in web users, USDT) ── */
+      if (method==='POST' && path.startsWith('/games/')) {
+        const uid = await getAuthedUserId(request, env);
+        if (!uid) return err(401, 'Sign in to play');
+
+        if (path === '/games/play') {
+          const game = String(body.game || '');
+          const bet = Number(body.bet);
+          if (!CASINO_GAMES.has(game)) return err(400, 'Unknown game');
+          if (!Number.isFinite(bet) || bet < CASINO_MIN_BET) return err(400, `Minimum bet is ${CASINO_MIN_BET} USDT`);
+          if (bet > CASINO_MAX_BET) return err(400, `Maximum bet is ${CASINO_MAX_BET} USDT`);
+          const betR = Math.round(bet * 1e8) / 1e8;
+
+          const seed = casinoSeed();
+          const rng = casinoRandFloat(seed);
+          let won = false, multiplier = 0, outcome = {};
+
+          if (game === 'dice') {
+            const dir = body.dir === 'over' ? 'over' : 'under';
+            let target = Number(body.target);
+            if (!Number.isFinite(target)) return err(400, 'Invalid target');
+            target = Math.min(98, Math.max(2, Math.round(target)));
+            const rollVal = Math.floor(rng * 10000) / 100; // 0.00 .. 99.99
+            const p = dir === 'under' ? target / 100 : (100 - target) / 100;
+            won = dir === 'under' ? rollVal < target : rollVal > target;
+            multiplier = won ? Math.floor((CASINO_RTP / p) * 100) / 100 : 0;
+            outcome = { roll: rollVal, target, dir };
+          } else if (game === 'coinflip') {
+            const side = body.side === 'tails' ? 'tails' : 'heads';
+            const result = rng < 0.5 ? 'heads' : 'tails';
+            won = result === side;
+            multiplier = won ? Math.floor((CASINO_RTP / 0.5) * 100) / 100 : 0;
+            outcome = { result, side };
+          } else if (game === 'crash') {
+            let cashout = Number(body.cashout);
+            if (!Number.isFinite(cashout) || cashout < 1.01) return err(400, 'Auto cashout must be at least 1.01');
+            cashout = Math.min(CASINO_MAX_MULT, Math.floor(cashout * 100) / 100);
+            const e = 1 - CASINO_RTP;
+            let crash;
+            if (rng < e) crash = 1.00;
+            else { const r2 = (rng - e) / (1 - e); crash = Math.floor((1 / (1 - r2)) * 100) / 100; }
+            crash = Math.min(CASINO_MAX_MULT, Math.max(1, crash));
+            won = cashout <= crash;
+            multiplier = won ? cashout : 0;
+            outcome = { crash, cashout };
+          }
+
+          const payout = won ? Math.round(betR * multiplier * 1e8) / 1e8 : 0;
+          let balance;
+          try {
+            const res = await sbRpc('casino_play', {
+              p_user_id: uid, p_game: game, p_symbol: 'USDT',
+              p_bet: betR, p_multiplier: multiplier, p_payout: payout,
+              p_won: won, p_outcome: outcome, p_seed: seed,
+            }, env);
+            balance = typeof res === 'number' ? res : Number(res);
+          } catch (e) {
+            const msg = String((e && e.message) || e);
+            if (/insufficient/i.test(msg)) return err(400, 'Insufficient USDT balance');
+            return err(500, 'Bet failed, please try again');
+          }
+          return ok({ won, multiplier, payout, balance, outcome });
+        }
+
+        if (path === '/games/history') {
+          const rows = await sbGet('casino_bets',
+            `?user_id=eq.${uid}&select=game,bet_amount,multiplier,payout,won,outcome,created_at&order=created_at.desc&limit=20`, env);
+          return ok({ bets: rows });
+        }
+
+        return err(404, `Unknown game route: ${path}`);
+      }
 
       /* ── BNC MINER (Telegram Mini App) ── */
       if (method==='POST' && path.startsWith('/miner/')) {

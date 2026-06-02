@@ -25,6 +25,7 @@ const SupportModal = lazy(() => import('../components/SupportModal'));
 const AlphaEventsModal = lazy(() => import('../components/AlphaEventsModal'));
 const ReferralModal = lazy(() => import('../components/ReferralModal'));
 const EarnModal = lazy(() => import('../components/EarnModal'));
+const Casino3D = lazy(() => import('../components/casino/Casino3D'));
 const DepositMethodModal = lazy(() => import('../components/DepositMethodModal'));
 const MoreModal = lazy(() => import('../components/MoreModal'));
 const PayModal = lazy(() => import('../components/PayModal'));
@@ -108,6 +109,7 @@ export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) 
   const [showAlphaEvents, setShowAlphaEvents] = useState(false);
   const [showReferral, setShowReferral] = useState(false);
   const [showEarn, setShowEarn] = useState(false);
+  const [showCasino, setShowCasino] = useState(false);
   const [showDepositUSD, setShowDepositUSD] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [showPay, setShowPay] = useState(false);
@@ -261,12 +263,15 @@ export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) 
       ),
     },
     {
-      label: 'Earn',
-      onClick: () => setShowEarn(true),
+      label: 'Games',
+      onClick: () => setShowCasino(true),
       icon: (
         <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-          <path d="M14 4C10.5 4 7 6.5 7 11c0 4 2.5 6 4.5 7.5L14 24l2.5-5.5C18.5 17 21 15 21 11c0-4.5-3.5-7-7-7z" stroke="white" strokeWidth="1.8" strokeLinejoin="round"/>
-          <circle cx="14" cy="11" r="2.5" fill="#F0B90B"/>
+          <rect x="3" y="9" width="22" height="12" rx="6" stroke="white" strokeWidth="1.8"/>
+          <line x1="8" y1="13" x2="8" y2="17" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+          <line x1="6" y1="15" x2="10" y2="15" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+          <circle cx="18" cy="14" r="1.4" fill="#F0B90B"/>
+          <circle cx="21" cy="17" r="1.4" fill="#F0B90B"/>
         </svg>
       ),
     },
@@ -642,6 +647,7 @@ export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) 
       {showAlphaEvents && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><AlphaEventsModal isOpen={showAlphaEvents} onClose={() => setShowAlphaEvents(false)} /></Suspense>}
       {showReferral && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><ReferralModal isOpen={showReferral} onClose={() => setShowReferral(false)} /></Suspense>}
       {showEarn && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><EarnModal isOpen={showEarn} onClose={() => setShowEarn(false)} /></Suspense>}
+      {showCasino && createPortal(<Suspense fallback={<div className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><Casino3D onClose={() => setShowCasino(false)} /></Suspense>, document.body)}
       {showDepositUSD && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><DepositMethodModal isOpen={showDepositUSD} onClose={() => setShowDepositUSD(false)} /></Suspense>}
       {showMore && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><MoreModal isOpen={showMore} onClose={() => setShowMore(false)} /></Suspense>}
       {showPay && <Suspense fallback={<div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin"/></div>}><PayModal isOpen={showPay} onClose={() => setShowPay(false)} /></Suspense>}
