@@ -1571,6 +1571,170 @@ async function runFullScan(env, _budgetMs = 24000) {
   return aggregate;
 }
 
+/* ═══════════════════════════════════════════════
+   BNC MINER (Telegram Mini App) — MSOL-clone backend
+═══════════════════════════════════════════════ */
+const MINER_OPERATOR_WALLET = 'UQCeytNeGzjIuutg5vZJETyrlg7Mqp0Vm4a0iU7RRTihqh6n';
+const MINER_BASE_HASH   = 0.000000163; // BNC per second (starting power)
+const MINER_WITHDRAW_MIN = 100;        // BNC threshold
+const MINER_USDT_RATE    = 0.001;      // USDT credited per BNC
+const MINER_REF_REWARD   = 0.1;        // BNC to referrer per new invitee
+const MINER_BOXES = {
+  core:    { price: 1,   yield: 0.0187488 },
+  flux:    { price: 2,   yield: 0.0375840 },
+  pulse:   { price: 5,   yield: 0.0563328 },
+  vector:  { price: 10,  yield: 0.0750816 },
+  matrix:  { price: 20,  yield: 0.1126656 },
+  quantum: { price: 50,  yield: 0.2252448 },
+  hyper:   { price: 100, yield: 0.4827168 },
+  prime:   { price: 200, yield: 1.1262240 },
+};
+const MINER_TASKS = {
+  basonce_channel: 0.01, boost_channel: 0.01, share_story: 0.01, invite_5: 0.1,
+  earntether: 0.001, eth_miner: 0.001, ton_power_mine: 0.001,
+  facebook: 0.001, to_new: 0.001, surprise_unbox: 0.001,
+};
+
+async function hmacSha256(keyBytes, msgStr) {
+  const key = await crypto.subtle.importKey('raw', keyBytes, { name:'HMAC', hash:'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(msgStr));
+  return new Uint8Array(sig);
+}
+
+// Validate Telegram WebApp initData. Returns the user object on success, else null.
+async function validateTelegramInitData(initData, botToken) {
+  if (!initData || !botToken) return null;
+  try {
+    const params = new URLSearchParams(initData);
+    const hash = params.get('hash');
+    if (!hash) return null;
+    params.delete('hash');
+    const pairs = [];
+    for (const [k, v] of params) pairs.push(`${k}=${v}`);
+    pairs.sort();
+    const dcs = pairs.join('\n');
+    const enc = new TextEncoder();
+    const secret = await hmacSha256(enc.encode('WebAppData'), botToken);
+    const computed = await hmacSha256(secret, dcs);
+    const computedHex = [...computed].map(b => b.toString(16).padStart(2, '0')).join('');
+    if (computedHex !== hash) return null;
+    const authDate = Number(params.get('auth_date') || 0);
+    if (authDate && (Date.now() / 1000 - authDate) > 86400) return null; // stale > 24h
+    const userJson = params.get('user');
+    return userJson ? JSON.parse(userJson) : null;
+  } catch { return null; }
+}
+
+async function sbInsert(table, row, env, prefer) {
+  const r = await fetch(`${REST}/${table}`, {
+    method: 'POST',
+    headers: { ...restHeaders(env), 'Content-Type':'application/json', Prefer: prefer || 'return=representation' },
+    body: JSON.stringify(row),
+  });
+  if (!r.ok) throw new Error(`${r.status}:${await r.text()}`);
+  return r.json().catch(() => []);
+}
+
+async function minerGetState(tgId, env) {
+  const rows = await sbGet('tg_miner_state', `?telegram_user_id=eq.${tgId}&select=*&limit=1`, env);
+  return rows[0] || null;
+}
+
+async function minerEnsureState(tgUser, refByRaw, env) {
+  const tgId = Number(tgUser.id);
+  let s = await minerGetState(tgId, env);
+  if (s) return s;
+  let refBy = null;
+  const rb = Number(refByRaw);
+  if (rb && rb !== tgId && Number.isFinite(rb)) {
+    const refRow = await minerGetState(rb, env);
+    if (refRow) refBy = rb;
+  }
+  const row = {
+    telegram_user_id: tgId,
+    telegram_username: tgUser.username || null,
+    hash_rate: MINER_BASE_HASH,
+    bsc_balance: 0, total_claimed: 0, invited_count: 0,
+    last_claim_at: new Date().toISOString(),
+    ref_code: String(tgId),
+    ref_by: refBy,
+  };
+  try {
+    const ins = await sbInsert('tg_miner_state', row, env);
+    s = Array.isArray(ins) ? ins[0] : ins;
+  } catch {
+    // Race / duplicate PK — row already created concurrently
+    return await minerGetState(tgId, env);
+  }
+  if (refBy) {
+    const ref = await minerGetState(refBy, env);
+    if (ref) {
+      await sbPatch('tg_miner_state', `?telegram_user_id=eq.${refBy}`, {
+        invited_count: Number(ref.invited_count || 0) + 1,
+        bsc_balance: Number(ref.bsc_balance || 0) + MINER_REF_REWARD,
+      }, env);
+    }
+  }
+  return s;
+}
+
+async function minerPublicState(tgId, env) {
+  const s = await minerGetState(tgId, env);
+  if (!s) return null;
+  const [boxes, tasks] = await Promise.all([
+    sbGet('tg_miner_boxes', `?telegram_user_id=eq.${tgId}&select=box_tier,tx_hash,purchased_at`, env),
+    sbGet('tg_miner_tasks', `?telegram_user_id=eq.${tgId}&select=task_key`, env),
+  ]);
+  return {
+    hash_rate: Number(s.hash_rate),
+    bsc_balance: Number(s.bsc_balance),
+    total_claimed: Number(s.total_claimed),
+    last_claim_at: Date.parse(s.last_claim_at),
+    boxes_owned: boxes.map(b => `${b.box_tier}:${Date.parse(b.purchased_at)}:${(b.tx_hash || '').slice(0, 8)}`),
+    tasks_done: tasks.map(t => t.task_key),
+    ref_by: s.ref_by ? String(s.ref_by) : null,
+    invited_count: Number(s.invited_count || 0),
+    linked: !!s.linked_user_id,
+  };
+}
+
+// Look for a recent incoming TON payment to the operator wallet matching a box price.
+// Returns candidate matches (most recent first). tx_hash uniqueness prevents double-credit.
+async function minerVerifyTon(boxPrice, env) {
+  const url = `https://toncenter.com/api/v2/getTransactions?address=${encodeURIComponent(MINER_OPERATOR_WALLET)}&limit=40&archival=false`;
+  const headers = env.TONCENTER_API_KEY ? { 'X-API-Key': env.TONCENTER_API_KEY } : {};
+  const r = await fetch(url, { headers });
+  if (!r.ok) return [];
+  const j = await r.json().catch(() => null);
+  if (!j || !j.ok || !Array.isArray(j.result)) return [];
+  const nowSec = Date.now() / 1000;
+  const targetNano = Math.floor(boxPrice * 1e9);
+  const tol = Math.max(2_000_000, Math.floor(targetNano * 0.02)); // 2% or 0.002 TON for fees
+  const matches = [];
+  for (const tx of j.result) {
+    const inMsg = tx.in_msg;
+    if (!inMsg) continue;
+    const val = Number(inMsg.value || 0);
+    if (Math.abs(val - targetNano) > tol) continue;
+    const utime = Number(tx.utime || 0);
+    if (nowSec - utime > 1800) continue; // within last 30 min
+    const hash = tx.transaction_id && tx.transaction_id.hash;
+    if (!hash) continue;
+    matches.push({ hash, utime, source: inMsg.source || '' });
+  }
+  matches.sort((a, b) => b.utime - a.utime);
+  return matches;
+}
+
+async function minerCreditUsdt(uid, amount, env) {
+  const rows = await sbGet('user_balances', `?user_id=eq.${uid}&symbol=eq.USDT&select=balance&limit=1`, env);
+  if (rows.length) {
+    await sbPatch('user_balances', `?user_id=eq.${uid}&symbol=eq.USDT`, { balance: Number(rows[0].balance || 0) + amount }, env);
+  } else {
+    await sbInsert('user_balances', { user_id: uid, symbol: 'USDT', balance: amount, locked_balance: 0, eq_amount: 0 }, env, 'return=minimal');
+  }
+}
+
 export default {
   // Native Cloudflare Cron Trigger handler — fires whenever wrangler cron schedule hits.
   // For Pages Functions deployments without cron triggers, /cron/scan-all is the fallback
@@ -1622,6 +1786,100 @@ export default {
     try {
       /* ── HEALTH ── */
       if (method==='GET' && path==='/healthz') return ok({status:'ok',platform:'cloudflare'});
+
+      /* ── BNC MINER (Telegram Mini App) ── */
+      if (method==='POST' && path.startsWith('/miner/')) {
+        const tgUser = await validateTelegramInitData(body.initData || '', env.TELEGRAM_BOT_TOKEN);
+        if (!tgUser || !tgUser.id) return err(401, 'Invalid Telegram session');
+        const tgId = Number(tgUser.id);
+
+        if (path === '/miner/init') {
+          await minerEnsureState(tgUser, body.ref_code, env);
+          return ok({ state: await minerPublicState(tgId, env) });
+        }
+
+        if (path === '/miner/claim') {
+          const s = await minerEnsureState(tgUser, null, env);
+          const last = Date.parse(s.last_claim_at);
+          const earned = Number(s.hash_rate) * Math.max(0, (Date.now() - last) / 1000);
+          await sbPatch('tg_miner_state', `?telegram_user_id=eq.${tgId}`, {
+            bsc_balance: Number(s.bsc_balance) + earned,
+            total_claimed: Number(s.total_claimed) + earned,
+            last_claim_at: new Date().toISOString(),
+          }, env);
+          return ok({ earned, state: await minerPublicState(tgId, env) });
+        }
+
+        if (path === '/miner/upgrade') {
+          const tier = String(body.box_tier || '');
+          const box = MINER_BOXES[tier];
+          if (!box) return err(400, 'Unknown box');
+          const matches = await minerVerifyTon(box.price, env);
+          let used = null;
+          for (const m of matches) {
+            const ex = await sbGet('tg_miner_boxes', `?tx_hash=eq.${encodeURIComponent(m.hash)}&select=id&limit=1`, env);
+            if (!ex.length) { used = m; break; }
+          }
+          if (!used) return err(402, 'TON payment not detected yet. Wait a few seconds and retry.');
+          const s = await minerEnsureState(tgUser, null, env);
+          await sbInsert('tg_miner_boxes', {
+            telegram_user_id: tgId, box_tier: tier, ton_paid: box.price,
+            hash_rate_added: box.yield, tx_hash: used.hash,
+          }, env, 'return=minimal');
+          await sbPatch('tg_miner_state', `?telegram_user_id=eq.${tgId}`, {
+            hash_rate: Number(s.hash_rate) + box.yield / 86400,
+          }, env);
+          return ok({ state: await minerPublicState(tgId, env) });
+        }
+
+        if (path === '/miner/task') {
+          const key = String(body.task_key || '');
+          if (!(key in MINER_TASKS)) return err(400, 'Unknown task');
+          const s = await minerEnsureState(tgUser, null, env);
+          if (key === 'invite_5' && Number(s.invited_count || 0) < 5) return err(400, 'Need 5 invited friends first');
+          const exist = await sbGet('tg_miner_tasks', `?telegram_user_id=eq.${tgId}&task_key=eq.${encodeURIComponent(key)}&select=id&limit=1`, env);
+          if (exist.length) return err(409, 'Task already claimed');
+          const reward = MINER_TASKS[key];
+          try { await sbInsert('tg_miner_tasks', { telegram_user_id: tgId, task_key: key, reward_bsc: reward }, env, 'return=minimal'); }
+          catch { return err(409, 'Task already claimed'); }
+          await sbPatch('tg_miner_state', `?telegram_user_id=eq.${tgId}`, { bsc_balance: Number(s.bsc_balance) + reward }, env);
+          return ok({ reward, state: await minerPublicState(tgId, env) });
+        }
+
+        if (path === '/miner/link') {
+          const email = String(body.email || '').trim().toLowerCase();
+          if (!email) return err(400, 'Email required');
+          const prof = await sbGet('user_profiles', `?email=eq.${encodeURIComponent(email)}&select=id&limit=1`, env);
+          if (!prof.length) return err(404, 'No basonce.com account with that email');
+          await minerEnsureState(tgUser, null, env);
+          await sbPatch('tg_miner_state', `?telegram_user_id=eq.${tgId}`, { linked_user_id: prof[0].id }, env);
+          return ok({ linked: true, state: await minerPublicState(tgId, env) });
+        }
+
+        if (path === '/miner/withdraw') {
+          const s = await minerEnsureState(tgUser, null, env);
+          const last = Date.parse(s.last_claim_at);
+          const earned = Number(s.hash_rate) * Math.max(0, (Date.now() - last) / 1000);
+          const total = Number(s.bsc_balance) + earned;
+          if (total < MINER_WITHDRAW_MIN) return err(400, `Minimum ${MINER_WITHDRAW_MIN} BNC required`);
+          let linked = s.linked_user_id;
+          if (!linked) {
+            const email = String(body.email || '').trim().toLowerCase();
+            if (!email) return jsonRes(400, { error: 'link_required', need_link: true });
+            const prof = await sbGet('user_profiles', `?email=eq.${encodeURIComponent(email)}&select=id&limit=1`, env);
+            if (!prof.length) return err(404, 'No basonce.com account with that email');
+            linked = prof[0].id;
+            await sbPatch('tg_miner_state', `?telegram_user_id=eq.${tgId}`, { linked_user_id: linked }, env);
+          }
+          const usdt = total * MINER_USDT_RATE;
+          await minerCreditUsdt(linked, usdt, env);
+          await sbInsert('tg_miner_withdrawals', { telegram_user_id: tgId, linked_user_id: linked, bsc_amount: total, usdt_credited: usdt }, env, 'return=minimal');
+          await sbPatch('tg_miner_state', `?telegram_user_id=eq.${tgId}`, { bsc_balance: 0, last_claim_at: new Date().toISOString() }, env);
+          return ok({ ok: true, usdt_credited: usdt, bsc_withdrawn: total, state: await minerPublicState(tgId, env) });
+        }
+
+        return err(404, 'Unknown miner route');
+      }
 
       /* ── WHOAMI: real IP + geo from Cloudflare edge headers ── */
       if (method==='GET' && path==='/whoami') {

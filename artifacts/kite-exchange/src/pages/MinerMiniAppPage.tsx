@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, Sparkles, Users, Settings, X, ChevronRight, Zap, Gift, Share2, UserPlus, Send } from 'lucide-react';
 import { TonConnectButton, useTonConnectUI, useTonAddress } from '@tonconnect/ui-react';
 import { computeBncMarket, seededRand } from '../lib/bncMarket';
+import { minerApi, hasTelegram, type ServerMinerState } from '../lib/miner-api';
 
 type Tab = 'home' | 'upgrade' | 'friends';
 
@@ -14,6 +15,7 @@ interface MinerState {
   tasks_done: string[];
   ref_by: string | null;
   invited_count: number;
+  linked?: boolean;
 }
 
 const DEFAULT_STATE: MinerState = {
@@ -25,6 +27,7 @@ const DEFAULT_STATE: MinerState = {
   tasks_done: [],
   ref_by: null,
   invited_count: 0,
+  linked: false,
 };
 
 const BOXES = [
@@ -65,7 +68,22 @@ const SPONSORS = [
 
 const OPERATOR_WALLET = 'UQCeytNeGzjIuutg5vZJETyrlg7Mqp0Vm4a0iU7RRTihqh6n';
 const BOT_USERNAME = 'Basonce_Miner_Bot';
-const WITHDRAW_MIN = 50;
+const WITHDRAW_MIN = 100;
+const USDT_RATE = 0.001; // USDT credited per BNC (must match worker MINER_USDT_RATE)
+
+function serverToState(s: ServerMinerState): MinerState {
+  return {
+    hash_rate: Number(s.hash_rate) || DEFAULT_STATE.hash_rate,
+    bsc_balance: Number(s.bsc_balance) || 0,
+    total_claimed: Number(s.total_claimed) || 0,
+    last_claim_at: Number(s.last_claim_at) || Date.now(),
+    boxes_owned: Array.isArray(s.boxes_owned) ? s.boxes_owned : [],
+    tasks_done: Array.isArray(s.tasks_done) ? s.tasks_done : [],
+    ref_by: s.ref_by || null,
+    invited_count: Number(s.invited_count) || 0,
+    linked: !!s.linked,
+  };
+}
 
 // Telegram CloudStorage helpers with localStorage fallback
 const tg: any = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null;
@@ -130,6 +148,9 @@ export default function MinerMiniAppPage() {
   const [claiming, setClaiming] = useState(false);
   const [buying, setBuying] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [showLink, setShowLink] = useState(false);
+  const [withdrawEmail, setWithdrawEmail] = useState('');
+  const [withdrawing, setWithdrawing] = useState(false);
   // Deterministic market data — same numbers for every user worldwide
   const [market, setMarket] = useState(() => computeBncMarket());
   const bncPrice = market.price;
@@ -214,13 +235,20 @@ export default function MinerMiniAppPage() {
         tg.setBackgroundColor('#0a0a14');
       } catch {}
     }
-    // Ref code from URL
+    // Ref code from URL or Telegram start_param
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref') || tg?.initDataUnsafe?.start_param || null;
-    loadState().then((s) => {
+    (async () => {
+      if (hasTelegram()) {
+        try {
+          const { state: s } = await minerApi.init(ref);
+          if (s) { setState(serverToState(s)); return; }
+        } catch { /* fall through to local cache */ }
+      }
+      const s = await loadState();
       if (ref && !s.ref_by) s.ref_by = ref;
       setState(s);
-    });
+    })();
   }, []);
 
   // Live balance ticker (visual only)
@@ -241,20 +269,31 @@ export default function MinerMiniAppPage() {
   const handleClaim = async () => {
     if (!state || claiming) return;
     setClaiming(true);
-    const now = Date.now();
-    const earned = state.hash_rate * ((now - state.last_claim_at) / 1000);
-    if (earned <= 0) { setClaiming(false); return; }
-    const next: MinerState = {
-      ...state,
-      bsc_balance: state.bsc_balance + earned,
-      total_claimed: state.total_claimed + earned,
-      last_claim_at: now,
-    };
-    await saveState(next);
-    setState(next);
-    setClaiming(false);
-    showToast(`+${earned.toFixed(8)} BNC claimed`);
-    if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+    try {
+      if (hasTelegram()) {
+        const { earned, state: s } = await minerApi.claim();
+        setState(serverToState(s));
+        showToast(earned > 0 ? `+${Number(earned).toFixed(8)} BNC claimed` : 'Nothing to claim yet');
+      } else {
+        const now = Date.now();
+        const earned = state.hash_rate * ((now - state.last_claim_at) / 1000);
+        if (earned <= 0) { setClaiming(false); return; }
+        const next: MinerState = {
+          ...state,
+          bsc_balance: state.bsc_balance + earned,
+          total_claimed: state.total_claimed + earned,
+          last_claim_at: now,
+        };
+        await saveState(next);
+        setState(next);
+        showToast(`+${earned.toFixed(8)} BNC claimed`);
+      }
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+    } catch (e: any) {
+      showToast(e?.message || 'Claim failed');
+    } finally {
+      setClaiming(false);
+    }
   };
 
   const handleBuyBox = useCallback(async (box: typeof BOXES[0]) => {
@@ -275,17 +314,39 @@ export default function MinerMiniAppPage() {
           payload: undefined,
         }],
       });
-      // result.boc is the BoC of the signed message
-      const txHash = result.boc.slice(0, 32); // pseudo hash for client display
-      const next: MinerState = {
-        ...state,
-        hash_rate: state.hash_rate + (box.yield / 86400), // daily yield → per-second
-        boxes_owned: [...state.boxes_owned, `${box.id}:${Date.now()}:${txHash}`],
-      };
-      await saveState(next);
-      setState(next);
-      showToast(`✓ ${box.name} activated! +${box.yield.toFixed(4)} BNC/day`);
-      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      if (hasTelegram()) {
+        // Server verifies the on-chain payment before crediting hash power.
+        showToast('Confirming payment on-chain…');
+        let confirmed: ServerMinerState | null = null;
+        for (let i = 0; i < 8; i++) {
+          try {
+            const r = await minerApi.upgrade(box.id, tonAddress);
+            confirmed = r.state;
+            break;
+          } catch (err: any) {
+            if (err?.status === 402) { await new Promise((res) => setTimeout(res, 4000)); continue; }
+            throw err;
+          }
+        }
+        if (confirmed) {
+          setState(serverToState(confirmed));
+          showToast(`✓ ${box.name} activated! +${box.yield.toFixed(4)} BNC/day`);
+          if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        } else {
+          showToast('Payment sent — it will activate automatically once confirmed.');
+        }
+      } else {
+        // Browser (no Telegram): local-only optimistic update
+        const txHash = result.boc.slice(0, 32);
+        const next: MinerState = {
+          ...state,
+          hash_rate: state.hash_rate + (box.yield / 86400), // daily yield → per-second
+          boxes_owned: [...state.boxes_owned, `${box.id}:${Date.now()}:${txHash}`],
+        };
+        await saveState(next);
+        setState(next);
+        showToast(`✓ ${box.name} activated! +${box.yield.toFixed(4)} BNC/day`);
+      }
     } catch (e: any) {
       showToast(e?.message?.includes('UserReject') ? 'Transaction cancelled' : 'Payment failed');
     } finally {
@@ -311,6 +372,18 @@ export default function MinerMiniAppPage() {
       showToast(`${state.invited_count}/5 friends invited`);
       return;
     }
+    if (hasTelegram()) {
+      setTimeout(async () => {
+        try {
+          const { state: s } = await minerApi.task(task.id);
+          setState(serverToState(s));
+          showToast(`+${task.reward} BNC reward`);
+        } catch (e: any) {
+          showToast(e?.message || 'Could not verify task');
+        }
+      }, 3000);
+      return;
+    }
     setTimeout(async () => {
       const cur = stateRef.current;
       if (!cur || cur.tasks_done.includes(task.id)) return;
@@ -325,14 +398,31 @@ export default function MinerMiniAppPage() {
     }, 3000);
   };
 
+  const doWithdraw = async (email?: string) => {
+    setWithdrawing(true);
+    try {
+      const r = await minerApi.withdraw(email);
+      setShowLink(false);
+      setWithdrawEmail('');
+      setState(serverToState(r.state));
+      showToast(`✓ ${Number(r.usdt_credited).toFixed(4)} USDT credited to basonce.com`);
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    } catch (e: any) {
+      if (e?.data?.need_link) setShowLink(true);
+      else showToast(e?.message || 'Withdrawal failed');
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+
   const handleWithdraw = async () => {
     if (!state) return;
     if (liveBalance < WITHDRAW_MIN) {
       showToast(`Min withdrawal: ${WITHDRAW_MIN} BNC. You have ${liveBalance.toFixed(6)}`);
       return;
     }
-    showToast('Withdrawal request submitted to basonce.com');
-    // TODO: POST to /api/miner/withdraw
+    if (!hasTelegram()) { showToast('Open in Telegram to withdraw'); return; }
+    await doWithdraw();
   };
 
   const tgUser = getTelegramUser();
@@ -445,7 +535,7 @@ export default function MinerMiniAppPage() {
                   </div>
                   <div>
                     <div className="text-lg font-bold">{liveBalance.toFixed(4)}</div>
-                    <div className="text-xs text-gray-400">≈ ${(liveBalance * 0.05).toFixed(2)}</div>
+                    <div className="text-xs text-gray-400">≈ ${(liveBalance * USDT_RATE).toFixed(4)}</div>
                   </div>
                 </div>
                 <button
@@ -727,6 +817,34 @@ export default function MinerMiniAppPage() {
                 SELL BNC
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Withdraw account-link modal */}
+      {showLink && (
+        <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowLink(false)}>
+          <div className="w-full max-w-sm bg-[#0f0f1a] rounded-2xl border border-white/10 p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="text-base font-bold mb-1">Link your basonce.com account</div>
+            <div className="text-xs text-gray-400 mb-3">
+              Enter the email of your basonce.com account. Your BNC will be credited there as USDT.
+            </div>
+            <input
+              value={withdrawEmail}
+              onChange={(e) => setWithdrawEmail(e.target.value)}
+              type="email"
+              inputMode="email"
+              autoCapitalize="none"
+              placeholder="you@email.com"
+              className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm mb-3 outline-none focus:border-blue-500"
+            />
+            <button
+              disabled={withdrawing || !withdrawEmail.trim()}
+              onClick={() => doWithdraw(withdrawEmail.trim())}
+              className="w-full py-3 rounded-xl bg-blue-500 font-bold text-sm disabled:opacity-50"
+            >
+              {withdrawing ? 'Processing…' : 'Link & Withdraw'}
+            </button>
           </div>
         </div>
       )}
