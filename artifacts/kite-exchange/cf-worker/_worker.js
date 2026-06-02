@@ -1579,6 +1579,14 @@ const MINER_BASE_HASH   = 0.000000163; // BNC per second (starting power)
 const MINER_WITHDRAW_MIN = 100;        // BNC threshold
 const MINER_USDT_RATE    = 0.001;      // USDT credited per BNC
 const MINER_REF_REWARD   = 0.1;        // BNC to referrer per new invitee
+// Purchase-intent amount binding (anti front-run). Each box purchase reserves a
+// unique on-chain amount = box price + (1..KMAX)*GRID nanotons. Amounts sit on a
+// 0.0001-TON grid (>> TOL) so distinct intents never overlap; max surcharge is
+// KMAX*GRID = 0.02 TON. TOL absorbs any wallet fwd-fee dust on the received value.
+const MINER_INTENT_GRID = 100000;      // 0.0001 TON per slot (nanotons)
+const MINER_INTENT_KMAX = 200;         // up to +0.02 TON surcharge, 200 slots/tier
+const MINER_INTENT_TOL  = 40000;       // ±0.00004 TON match tolerance (< grid/2)
+const MINER_INTENT_TTL  = 3600;        // intent valid 60 min (> 30-min tx window)
 const MINER_BOXES = {
   core:    { price: 1,   yield: 0.0187488 },
   flux:    { price: 2,   yield: 0.0375840 },
@@ -1698,9 +1706,11 @@ async function minerPublicState(tgId, env) {
   };
 }
 
-// Look for a recent incoming TON payment to the operator wallet matching a box price.
-// Returns candidate matches (most recent first). tx_hash uniqueness prevents double-credit.
-async function minerVerifyTon(boxPrice, env) {
+// Look for a recent incoming TON payment to the operator wallet matching the exact
+// per-intent amount (nanotons). Because each active intent reserves a unique amount,
+// an exact-amount match maps a payment to exactly one intent/owner. Returns candidate
+// txs (most recent first); tx_hash uniqueness in miner_upgrade prevents double-credit.
+async function minerVerifyTon(expectedNano, env) {
   const url = `https://toncenter.com/api/v2/getTransactions?address=${encodeURIComponent(MINER_OPERATOR_WALLET)}&limit=40&archival=false`;
   const headers = env.TONCENTER_API_KEY ? { 'X-API-Key': env.TONCENTER_API_KEY } : {};
   const r = await fetch(url, { headers });
@@ -1708,14 +1718,13 @@ async function minerVerifyTon(boxPrice, env) {
   const j = await r.json().catch(() => null);
   if (!j || !j.ok || !Array.isArray(j.result)) return [];
   const nowSec = Date.now() / 1000;
-  const targetNano = Math.floor(boxPrice * 1e9);
-  const tol = Math.max(2_000_000, Math.floor(targetNano * 0.02)); // 2% or 0.002 TON for fees
+  const targetNano = Number(expectedNano);
   const matches = [];
   for (const tx of j.result) {
     const inMsg = tx.in_msg;
     if (!inMsg) continue;
     const val = Number(inMsg.value || 0);
-    if (Math.abs(val - targetNano) > tol) continue;
+    if (Math.abs(val - targetNano) > MINER_INTENT_TOL) continue;
     const utime = Number(tx.utime || 0);
     if (nowSec - utime > 1800) continue; // within last 30 min
     const hash = tx.transaction_id && tx.transaction_id.hash;
@@ -1724,15 +1733,6 @@ async function minerVerifyTon(boxPrice, env) {
   }
   matches.sort((a, b) => b.utime - a.utime);
   return matches;
-}
-
-async function minerCreditUsdt(uid, amount, env) {
-  const rows = await sbGet('user_balances', `?user_id=eq.${uid}&symbol=eq.USDT&select=balance&limit=1`, env);
-  if (rows.length) {
-    await sbPatch('user_balances', `?user_id=eq.${uid}&symbol=eq.USDT`, { balance: Number(rows[0].balance || 0) + amount }, env);
-  } else {
-    await sbInsert('user_balances', { user_id: uid, symbol: 'USDT', balance: amount, locked_balance: 0, eq_amount: 0 }, env, 'return=minimal');
-  }
 }
 
 export default {
@@ -1799,36 +1799,66 @@ export default {
         }
 
         if (path === '/miner/claim') {
-          const s = await minerEnsureState(tgUser, null, env);
-          const last = Date.parse(s.last_claim_at);
-          const earned = Number(s.hash_rate) * Math.max(0, (Date.now() - last) / 1000);
-          await sbPatch('tg_miner_state', `?telegram_user_id=eq.${tgId}`, {
-            bsc_balance: Number(s.bsc_balance) + earned,
-            total_claimed: Number(s.total_claimed) + earned,
-            last_claim_at: new Date().toISOString(),
-          }, env);
-          return ok({ earned, state: await minerPublicState(tgId, env) });
+          await minerEnsureState(tgUser, null, env);
+          const res = await sbRpc('miner_claim', { p_tg: tgId }, env);
+          if (res && res.error) return err(400, 'Claim failed');
+          return ok({ earned: Number(res?.earned || 0), state: await minerPublicState(tgId, env) });
         }
 
-        if (path === '/miner/upgrade') {
+        // Step 1 of a box purchase: reserve a unique payment amount bound to this
+        // user. The client then pays EXACTLY this amount; only this user can later
+        // claim the matching on-chain tx, so payments cannot be front-run/hijacked.
+        if (path === '/miner/upgrade/intent') {
           const tier = String(body.box_tier || '');
           const box = MINER_BOXES[tier];
           if (!box) return err(400, 'Unknown box');
-          const matches = await minerVerifyTon(box.price, env);
-          let used = null;
-          for (const m of matches) {
-            const ex = await sbGet('tg_miner_boxes', `?tx_hash=eq.${encodeURIComponent(m.hash)}&select=id&limit=1`, env);
-            if (!ex.length) { used = m; break; }
-          }
-          if (!used) return err(402, 'TON payment not detected yet. Wait a few seconds and retry.');
-          const s = await minerEnsureState(tgUser, null, env);
-          await sbInsert('tg_miner_boxes', {
-            telegram_user_id: tgId, box_tier: tier, ton_paid: box.price,
-            hash_rate_added: box.yield, tx_hash: used.hash,
-          }, env, 'return=minimal');
-          await sbPatch('tg_miner_state', `?telegram_user_id=eq.${tgId}`, {
-            hash_rate: Number(s.hash_rate) + box.yield / 86400,
+          await minerEnsureState(tgUser, null, env);
+          const baseNano = Math.round(box.price * 1e9);
+          const res = await sbRpc('miner_create_intent', {
+            p_tg: tgId, p_tier: tier, p_base_nano: baseNano,
+            p_grid: MINER_INTENT_GRID, p_kmax: MINER_INTENT_KMAX, p_ttl: MINER_INTENT_TTL,
           }, env);
+          if (!res || res.error) return err(503, 'Could not create payment intent, try again');
+          return ok({
+            intent_id: res.intent_id,
+            expected_nano: String(res.expected_nano),
+            expected_ton: Number(res.expected_nano) / 1e9,
+            operator_wallet: MINER_OPERATOR_WALLET,
+            expires_at: res.expires_at,
+          });
+        }
+
+        // Step 2: after paying, claim the box. The exact reserved amount maps the
+        // on-chain payment to this intent; ownership is enforced server-side.
+        if (path === '/miner/upgrade') {
+          const intentId = String(body.intent_id || '');
+          if (!intentId) return err(400, 'intent_id required');
+          const rows = await sbGet('tg_miner_intents',
+            `?id=eq.${encodeURIComponent(intentId)}&select=telegram_user_id,box_tier,expected_nano,status,expires_at&limit=1`, env);
+          if (!rows.length) return err(404, 'Payment intent not found');
+          const intent = rows[0];
+          if (String(intent.telegram_user_id) !== String(tgId)) return err(403, 'Intent does not belong to you');
+          if (intent.status !== 'pending') return err(409, 'Payment intent already used');
+          if (Date.parse(intent.expires_at) < Date.now()) return err(410, 'Payment intent expired — start the purchase again');
+          const box = MINER_BOXES[intent.box_tier];
+          if (!box) return err(400, 'Unknown box');
+          const matches = await minerVerifyTon(Number(intent.expected_nano), env);
+          if (!matches.length) return err(402, 'TON payment not detected yet. Wait a few seconds and retry.');
+          await minerEnsureState(tgUser, null, env);
+          // Try each matching tx; tx_used means that tx was already consumed, so skip
+          // to the next candidate (handles an old freed-amount tx still in the window).
+          let res = null;
+          for (const m of matches) {
+            const r = await sbRpc('miner_upgrade', {
+              p_tg: tgId, p_tier: intent.box_tier, p_price: box.price, p_yield: box.yield, p_tx: m.hash,
+            }, env);
+            if (r && r.error === 'tx_used') continue;
+            res = r; break;
+          }
+          if (!res) return err(402, 'TON payment not detected yet. Wait a few seconds and retry.');
+          if (res.error) return err(400, 'Upgrade failed');
+          // Best-effort: mark the intent consumed so its amount frees for reuse.
+          try { await sbPatch('tg_miner_intents', `?id=eq.${encodeURIComponent(intentId)}`, { status: 'consumed', consumed_tx: 'done' }, env); } catch {}
           return ok({ state: await minerPublicState(tgId, env) });
         }
 
@@ -1837,12 +1867,10 @@ export default {
           if (!(key in MINER_TASKS)) return err(400, 'Unknown task');
           const s = await minerEnsureState(tgUser, null, env);
           if (key === 'invite_5' && Number(s.invited_count || 0) < 5) return err(400, 'Need 5 invited friends first');
-          const exist = await sbGet('tg_miner_tasks', `?telegram_user_id=eq.${tgId}&task_key=eq.${encodeURIComponent(key)}&select=id&limit=1`, env);
-          if (exist.length) return err(409, 'Task already claimed');
           const reward = MINER_TASKS[key];
-          try { await sbInsert('tg_miner_tasks', { telegram_user_id: tgId, task_key: key, reward_bsc: reward }, env, 'return=minimal'); }
-          catch { return err(409, 'Task already claimed'); }
-          await sbPatch('tg_miner_state', `?telegram_user_id=eq.${tgId}`, { bsc_balance: Number(s.bsc_balance) + reward }, env);
+          const res = await sbRpc('miner_task', { p_tg: tgId, p_key: key, p_reward: reward }, env);
+          if (res && res.error === 'already') return err(409, 'Task already claimed');
+          if (res && res.error) return err(400, 'Task failed');
           return ok({ reward, state: await minerPublicState(tgId, env) });
         }
 
@@ -1858,24 +1886,28 @@ export default {
 
         if (path === '/miner/withdraw') {
           const s = await minerEnsureState(tgUser, null, env);
-          const last = Date.parse(s.last_claim_at);
-          const earned = Number(s.hash_rate) * Math.max(0, (Date.now() - last) / 1000);
-          const total = Number(s.bsc_balance) + earned;
-          if (total < MINER_WITHDRAW_MIN) return err(400, `Minimum ${MINER_WITHDRAW_MIN} BNC required`);
-          let linked = s.linked_user_id;
-          if (!linked) {
-            const email = String(body.email || '').trim().toLowerCase();
-            if (!email) return jsonRes(400, { error: 'link_required', need_link: true });
+          // Resolve the basonce.com account to credit (identity = user_profiles.id).
+          // If already linked, the RPC uses the stored link. If an email is supplied,
+          // validate it now so we can return a clear 404. The threshold check happens
+          // inside the RPC first, so a below-minimum user gets the "need 100 BNC"
+          // message rather than a premature link prompt.
+          let linked = s.linked_user_id || null;
+          const email = String(body.email || '').trim().toLowerCase();
+          if (!linked && email) {
             const prof = await sbGet('user_profiles', `?email=eq.${encodeURIComponent(email)}&select=id&limit=1`, env);
             if (!prof.length) return err(404, 'No basonce.com account with that email');
             linked = prof[0].id;
-            await sbPatch('tg_miner_state', `?telegram_user_id=eq.${tgId}`, { linked_user_id: linked }, env);
           }
-          const usdt = total * MINER_USDT_RATE;
-          await minerCreditUsdt(linked, usdt, env);
-          await sbInsert('tg_miner_withdrawals', { telegram_user_id: tgId, linked_user_id: linked, bsc_amount: total, usdt_credited: usdt }, env, 'return=minimal');
-          await sbPatch('tg_miner_state', `?telegram_user_id=eq.${tgId}`, { bsc_balance: 0, last_claim_at: new Date().toISOString() }, env);
-          return ok({ ok: true, usdt_credited: usdt, bsc_withdrawn: total, state: await minerPublicState(tgId, env) });
+          // Atomic: lock state, sum BNC incl. pending accrual, credit USDT, log,
+          // zero balance — all in one transaction so a concurrent claim cannot
+          // resurrect the withdrawn balance.
+          const res = await sbRpc('miner_withdraw', {
+            p_tg: tgId, p_min: MINER_WITHDRAW_MIN, p_rate: MINER_USDT_RATE, p_linked: linked,
+          }, env);
+          if (res && res.error === 'below_min') return err(400, `Minimum ${MINER_WITHDRAW_MIN} BNC required`);
+          if (res && res.error === 'link_required') return jsonRes(400, { error: 'link_required', need_link: true });
+          if (res && res.error) return err(400, 'Withdraw failed');
+          return ok({ ok: true, usdt_credited: Number(res.usdt_credited), bsc_withdrawn: Number(res.bsc_withdrawn), state: await minerPublicState(tgId, env) });
         }
 
         return err(404, 'Unknown miner route');

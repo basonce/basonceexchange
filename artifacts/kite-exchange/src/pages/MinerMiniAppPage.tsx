@@ -304,23 +304,24 @@ export default function MinerMiniAppPage() {
     }
     setBuying(box.id);
     try {
-      // Build TON transaction (nanotons: 1 TON = 1_000_000_000)
-      const amountNano = BigInt(Math.floor(box.price * 1_000_000_000)).toString();
-      const result = await tonConnectUI.sendTransaction({
-        validUntil: Math.floor(Date.now() / 1000) + 360,
-        messages: [{
-          address: OPERATOR_WALLET,
-          amount: amountNano,
-          payload: undefined,
-        }],
-      });
       if (hasTelegram()) {
-        // Server verifies the on-chain payment before crediting hash power.
+        // Step 1: reserve a unique payment amount bound to this user (anti front-run).
+        const intent = await minerApi.createUpgradeIntent(box.id);
+        // Step 2: pay EXACTLY the reserved amount to the operator wallet.
+        await tonConnectUI.sendTransaction({
+          validUntil: Math.floor(Date.now() / 1000) + 360,
+          messages: [{
+            address: intent.operator_wallet || OPERATOR_WALLET,
+            amount: intent.expected_nano,
+            payload: undefined,
+          }],
+        });
+        // Step 3: server verifies the on-chain payment before crediting hash power.
         showToast('Confirming payment on-chain…');
         let confirmed: ServerMinerState | null = null;
         for (let i = 0; i < 8; i++) {
           try {
-            const r = await minerApi.upgrade(box.id, tonAddress);
+            const r = await minerApi.upgrade(intent.intent_id);
             confirmed = r.state;
             break;
           } catch (err: any) {
@@ -337,6 +338,11 @@ export default function MinerMiniAppPage() {
         }
       } else {
         // Browser (no Telegram): local-only optimistic update
+        const amountNano = BigInt(Math.floor(box.price * 1_000_000_000)).toString();
+        const result = await tonConnectUI.sendTransaction({
+          validUntil: Math.floor(Date.now() / 1000) + 360,
+          messages: [{ address: OPERATOR_WALLET, amount: amountNano, payload: undefined }],
+        });
         const txHash = result.boc.slice(0, 32);
         const next: MinerState = {
           ...state,

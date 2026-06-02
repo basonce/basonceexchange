@@ -56,8 +56,14 @@ export const minerApi = {
     call<{ state: ServerMinerState }>('/miner/init', ref_code ? { ref_code } : {}),
   claim: () =>
     call<{ earned: number; state: ServerMinerState }>('/miner/claim', {}),
-  upgrade: (box_tier: string, sender_address: string) =>
-    call<{ state: ServerMinerState }>('/miner/upgrade', { box_tier, sender_address }),
+  // Step 1: reserve a unique payment amount bound to this user (anti front-run).
+  createUpgradeIntent: (box_tier: string) =>
+    call<{ intent_id: string; expected_nano: string; expected_ton: number; operator_wallet: string; expires_at: string }>(
+      '/miner/upgrade/intent', { box_tier },
+    ),
+  // Step 2: claim the box after paying the exact reserved amount.
+  upgrade: (intent_id: string) =>
+    call<{ state: ServerMinerState }>('/miner/upgrade', { intent_id }),
   task: (task_key: string) =>
     call<{ reward: number; state: ServerMinerState }>('/miner/task', { task_key }),
   link: (email: string) =>

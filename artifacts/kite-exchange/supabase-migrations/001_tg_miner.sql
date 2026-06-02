@@ -14,7 +14,9 @@ CREATE TABLE IF NOT EXISTS tg_miner_state (
   last_claim_at  timestamptz NOT NULL DEFAULT now(),
   ref_code       text UNIQUE,
   ref_by         bigint,
-  linked_user_id uuid REFERENCES auth.users(id),
+  -- App identity is user_profiles.id (many users predate auth.users), so NO FK to
+  -- auth.users here — that would block withdrawals for legacy accounts.
+  linked_user_id uuid,
   created_at     timestamptz NOT NULL DEFAULT now()
 );
 
