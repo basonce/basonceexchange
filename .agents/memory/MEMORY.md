@@ -1,0 +1,1 @@
+- [Slides artifact catalog](slides-artifact-catalog.md) — new slides scaffold needs `wouter` in pnpm-workspace.yaml catalog or `pnpm install` fails.

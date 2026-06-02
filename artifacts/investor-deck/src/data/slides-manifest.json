@@ -1,1 +1,98 @@
-[]
+[
+  {
+    "id": "cover",
+    "position": 1,
+    "filepath": "src/pages/slides/Cover.tsx",
+    "title": "Kapak",
+    "description": "Kite Exchange stratejik yatırım sunumu kapağı, $5M talebi.",
+    "speakerNotes": "Telegram nesli için kripto borsası. $5.000.000 stratejik yatırım talebi ile açılış."
+  },
+  {
+    "id": "opportunity",
+    "position": 2,
+    "filepath": "src/pages/slides/Opportunity.tsx",
+    "title": "Fırsat",
+    "description": "Telegram dağıtımı ve kripto pazar büyüklüğü fırsatı.",
+    "speakerNotes": "1 milyar+ Telegram kullanıcısı, sıfır indirme. Borsayı sohbetin içine taşıyan kazanır."
+  },
+  {
+    "id": "product",
+    "position": 3,
+    "filepath": "src/pages/slides/Product.tsx",
+    "title": "Ürün",
+    "description": "Beş gelir motoru: P2P, vadeli, kopya ticaret, token, TON.",
+    "speakerNotes": "Tüm ürün canlı ve basonce.com üzerinde çalışıyor. Tek çatı altında beş gelir motoru."
+  },
+  {
+    "id": "revenue-model",
+    "position": 4,
+    "filepath": "src/pages/slides/RevenueModel.tsx",
+    "title": "Gelir Modeli",
+    "description": "Dört gelir motoru ve $19,5M yıllık toplam.",
+    "speakerNotes": "Listeleme $9M, spot $2,9M, vadeli $5,8M, token $1,8M. Tam kapasite $19,5M yıllık."
+  },
+  {
+    "id": "revenue-listings",
+    "position": 5,
+    "filepath": "src/pages/slides/RevenueListings.tsx",
+    "title": "Gelir 1 — Listeleme",
+    "description": "Listeleme ücretleri: günlük $25k, yıllık $9M.",
+    "speakerNotes": "Liste başı $5.000, günde 5 listeleme. Sıfır maliyet, saf kâr."
+  },
+  {
+    "id": "revenue-fees",
+    "position": 6,
+    "filepath": "src/pages/slides/RevenueFees.tsx",
+    "title": "Gelir 2 & 3 — Komisyonlar",
+    "description": "Spot %0,1 ve vadeli %0,04 komisyon, toplam $8,7M.",
+    "speakerNotes": "Spot $2,9M, vadeli $5,8M. Kaldıraç hacmi büyütür, komisyon otomatik tahsil edilir."
+  },
+  {
+    "id": "revenue-token",
+    "position": 7,
+    "filepath": "src/pages/slides/RevenueToken.tsx",
+    "title": "Gelir 4 — Token & TON",
+    "description": "BNC madenciliği, TON kutuları, $1,8M yıllık katkı.",
+    "speakerNotes": "Ücretsiz madencilik büyüme kancası; TON kutu satışı doğrudan gelir ve en güçlü kazanım kanalı."
+  },
+  {
+    "id": "projection",
+    "position": 8,
+    "filepath": "src/pages/slides/Projection.tsx",
+    "title": "Yıllık Projeksiyon",
+    "description": "Çeyrek bazında büyüme, tam kapasite $19,5M ve net $14,2M.",
+    "speakerNotes": "12 ayda kademeli büyüme. 4. çeyrekte tam kapasiteye ulaşım. Tahmini değerler."
+  },
+  {
+    "id": "costs-licenses",
+    "position": 9,
+    "filepath": "src/pages/slides/CostsLicenses.tsx",
+    "title": "Giderler & Lisanslar",
+    "description": "Yıllık $5,3M OpEx ve lisans yol haritası.",
+    "speakerNotes": "Şeffaf maliyet yapısı. VASP, AML/KYC, MASAK ve yurtdışı opsiyonlar süreçte."
+  },
+  {
+    "id": "risks",
+    "position": 10,
+    "filepath": "src/pages/slides/Risks.tsx",
+    "title": "Riskler & Eksikler",
+    "description": "Lisans, likidite, marka, rekabet riskleri ve planlar.",
+    "speakerNotes": "Dürüst tablo. Her riskin yanında somut bir plan ve bütçe var."
+  },
+  {
+    "id": "ask",
+    "position": 11,
+    "filepath": "src/pages/slides/Ask.tsx",
+    "title": "$5M Talep",
+    "description": "$5M yatırım, fon kullanımı, ~10 ay geri ödeme.",
+    "speakerNotes": "$5M karşılığı ~%20 hisse (müzakereye açık). Geri ödeme ~10 ay, net kâr $14,2M."
+  },
+  {
+    "id": "closing",
+    "position": 12,
+    "filepath": "src/pages/slides/Closing.tsx",
+    "title": "Kapanış",
+    "description": "Kapanış ve iletişim çağrısı.",
+    "speakerNotes": "Ürün canlı, sıradaki adım ölçek. Telegram'ın borsasını birlikte kuralım."
+  }
+]

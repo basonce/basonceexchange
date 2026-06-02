@@ -1229,3 +1229,9 @@ id = "-wMyNVUyt6q5nAAM5GiQf"
 uri = "file://attached_assets/generated_images/canva_banner_wide_1408x768.png"
 type = "image"
 title = "Büyük Resim (1408x768) — Canva orijinal"
+
+[[outputs]]
+id = "6jsOgT5OHGVQ1xiZGCkDs"
+uri = "file://.local/outputs/Kite-Exchange---Yatirimci-Sunumu.pdf"
+type = "pdf"
+title = "Kite Exchange — Yatırımcı Sunumu (PDF)"
