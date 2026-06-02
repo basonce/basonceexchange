@@ -142,13 +142,13 @@ export default function PlinkoGame({ balance, onBalance }: { balance: number; on
             border: `1px solid ${risk === rk ? GOLD : BORDER}`,
             background: risk === rk ? 'rgba(240,185,11,0.12)' : 'transparent',
             color: risk === rk ? GOLD : SUB,
-          }}>{rk === 'low' ? 'Düşük' : rk === 'med' ? 'Orta' : 'Yüksek'}</button>
+          }}>{rk === 'low' ? 'Low' : rk === 'med' ? 'Medium' : 'High'}</button>
         ))}
       </div>
 
       <BetBar bet={bet} setBet={setBet} balance={balance} disabled={dropping} />
       {err && <div style={{ color: RED, fontSize: 13, marginBottom: 8 }}>{err}</div>}
-      <button onClick={drop} disabled={dropping} style={playBtn(!dropping)}>{dropping ? 'DÜŞÜYOR…' : '🎯 TOPU BIRAK'}</button>
+      <button onClick={drop} disabled={dropping} style={playBtn(!dropping)}>{dropping ? 'DROPPING…' : '🎯 DROP BALL'}</button>
     </div>
   );
 }

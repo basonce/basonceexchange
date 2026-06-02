@@ -174,12 +174,12 @@ export default function KiteGame({ balance, onBalance }: { balance: number; onBa
           </div>
           {flyingNow && (
             <div style={{ marginTop: 8, fontSize: 13, color: '#cfe0ee' }}>
-              Hedef <b style={{ color: GOLD }}>{target.toFixed(2)}×</b> · Olası kazanç <b style={{ color: GREEN }}>{fmt(potWin)}</b>
+              Target <b style={{ color: GOLD }}>{target.toFixed(2)}×</b> · Potential win <b style={{ color: GREEN }}>{fmt(potWin)}</b>
             </div>
           )}
           {phase === 'done' && res && (
             <div style={{ marginTop: 10, fontSize: 16, fontWeight: 900, color: res.won ? GREEN : RED }}>
-              {res.won ? `ÇEKİLDİ · +${fmt(res.payout)} USDT` : `İP KOPTU · ${(res.outcome.crash || 1).toFixed(2)}×`}
+              {res.won ? `CASHED OUT · +${fmt(res.payout)} USDT` : `CRASHED · ${(res.outcome.crash || 1).toFixed(2)}×`}
             </div>
           )}
         </div>
@@ -188,7 +188,7 @@ export default function KiteGame({ balance, onBalance }: { balance: number; onBa
       {/* auto cashout target */}
       <div style={{ marginBottom: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: SUB, marginBottom: 6 }}>
-          <span>Otomatik çekim çarpanı</span>
+          <span>Auto cashout multiplier</span>
           <span style={{ color: GOLD, fontWeight: 800 }}>{target.toFixed(2)}×</span>
         </div>
         <input type="range" min={1.1} max={20} step={0.1} value={target} disabled={flyingNow}
@@ -208,7 +208,7 @@ export default function KiteGame({ balance, onBalance }: { balance: number; onBa
       <BetBar bet={bet} setBet={setBet} balance={balance} disabled={flyingNow} />
       {err && <div style={{ color: RED, fontSize: 13, marginBottom: 8 }}>{err}</div>}
       <button onClick={launch} disabled={flyingNow} style={playBtn(!flyingNow)}>
-        {flyingNow ? 'UÇUYOR…' : '🪁 FIRLAT'}
+        {flyingNow ? 'FLYING…' : '🪁 LAUNCH'}
       </button>
     </div>
   );

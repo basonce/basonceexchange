@@ -8,9 +8,9 @@ import LootboxGame from './LootboxGame';
 type GameId = 'kite' | 'plinko' | 'lootbox';
 
 const GAMES: { id: GameId; name: string; emoji: string; desc: string; color: string; gradient: string }[] = [
-  { id: 'kite', name: 'Uçan Kite', emoji: '🪁', desc: 'Çarpan yükselir — ip kopmadan çek!', color: GOLD, gradient: 'linear-gradient(135deg,#13314f,#1d4e6b)' },
-  { id: 'plinko', name: 'Plinko 3D', emoji: '🎯', desc: 'Topu bırak, çarpan kutusunu yakala', color: '#0ECB81', gradient: 'linear-gradient(135deg,#16263a,#0b1320)' },
-  { id: 'lootbox', name: 'Kasa Aç', emoji: '📦', desc: 'Altın kasayı aç, 150×’e kadar kazan', color: '#A855F7', gradient: 'linear-gradient(135deg,#241a3a,#0d0a18)' },
+  { id: 'kite', name: 'Flying Kite', emoji: '🪁', desc: 'Multiplier climbs — cash out before it snaps!', color: GOLD, gradient: 'linear-gradient(135deg,#13314f,#1d4e6b)' },
+  { id: 'plinko', name: 'Plinko 3D', emoji: '🎯', desc: 'Drop the ball, catch the multiplier', color: '#0ECB81', gradient: 'linear-gradient(135deg,#16263a,#0b1320)' },
+  { id: 'lootbox', name: 'Open Case', emoji: '📦', desc: 'Open the gold case, win up to 150×', color: '#A855F7', gradient: 'linear-gradient(135deg,#241a3a,#0d0a18)' },
 ];
 
 export default function Casino3D({ onClose }: { onClose: () => void }) {
@@ -49,17 +49,17 @@ export default function Casino3D({ onClose }: { onClose: () => void }) {
 
       <div style={{ flex: 1, overflowY: 'auto', padding: 16, maxWidth: 560, width: '100%', margin: '0 auto' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', color: SUB, marginTop: 60 }}>Yükleniyor…</div>
+          <div style={{ textAlign: 'center', color: SUB, marginTop: 60 }}>Loading…</div>
         ) : !uid ? (
           <div style={{ textAlign: 'center', marginTop: 60 }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>Oynamak için giriş yap</div>
-            <div style={{ color: SUB, fontSize: 13 }}>Oyunlar gerçek USDT bakiyenle oynanır. Lütfen hesabına giriş yap.</div>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>Sign in to play</div>
+            <div style={{ color: SUB, fontSize: 13 }}>Games are played with your real USDT balance. Please sign in to your account.</div>
           </div>
         ) : !active ? (
           <>
             <div style={{ fontSize: 13, color: SUB, marginBottom: 16, lineHeight: 1.5 }}>
-              Gerçek <b style={{ color: GOLD }}>USDT</b> ile oyna. Tüm sonuçlar sunucuda belirlenir — kimse sonucu değiştiremez (kanıtlanabilir adil oyun).
+              Play with real <b style={{ color: GOLD }}>USDT</b>. All outcomes are decided on the server — nobody can change the result (provably fair).
             </div>
             <div style={{ display: 'grid', gap: 14 }}>
               {GAMES.map((g) => (
@@ -78,7 +78,7 @@ export default function Casino3D({ onClose }: { onClose: () => void }) {
               ))}
             </div>
             <div style={{ marginTop: 20, fontSize: 11.5, color: SUB, textAlign: 'center', lineHeight: 1.6 }}>
-              Min bahis 0.1 · Maks 1000 USDT · Kazanç/kayıp anında USDT bakiyene işlenir
+              Min bet 0.1 · Max 1000 USDT · Wins/losses applied instantly to your USDT balance
             </div>
           </>
         ) : (

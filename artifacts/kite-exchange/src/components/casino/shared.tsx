@@ -34,8 +34,8 @@ export function BetBar({
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: SUB, marginBottom: 6 }}>
-        <span>Bahis (USDT)</span>
-        <span>Bakiye: <b style={{ color: TEXT }}>{fmt(balance)}</b></span>
+        <span>Bet (USDT)</span>
+        <span>Balance: <b style={{ color: TEXT }}>{fmt(balance)}</b></span>
       </div>
       <div style={{ display: 'flex', gap: 6 }}>
         <input
@@ -60,7 +60,7 @@ export function ResultToast({ won, payout, label }: { won: boolean; payout: numb
       border: `1px solid ${won ? GREEN : RED}`,
       color: won ? GREEN : RED, fontWeight: 900, fontSize: 16,
     }}>
-      {label ?? (won ? `KAZANDIN +${fmt(payout)} USDT` : 'KAYBETTİN')}
+      {label ?? (won ? `YOU WON +${fmt(payout)} USDT` : 'YOU LOST')}
     </div>
   );
 }

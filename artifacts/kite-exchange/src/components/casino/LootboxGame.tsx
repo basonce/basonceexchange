@@ -122,7 +122,7 @@ export default function LootboxGame({ balance, onBalance }: { balance: number; o
           <div style={{ position: 'absolute', top: 16, left: 0, right: 0, textAlign: 'center', pointerEvents: 'none' }}>
             <div style={{ fontSize: 40, fontWeight: 900, color: res.won ? GOLD : RED, textShadow: `0 0 24px ${res.won ? GOLD : RED}` }}>{m}×</div>
             <div style={{ fontSize: 16, fontWeight: 800, color: res.won ? GREEN : SUB, marginTop: 2 }}>
-              {res.won ? `+${fmt(res.payout)} USDT` : (m > 0 ? `${fmt(res.payout)} USDT` : 'Boş çıktı')}
+              {res.won ? `+${fmt(res.payout)} USDT` : (m > 0 ? `${fmt(res.payout)} USDT` : 'Empty')}
             </div>
           </div>
         )}
@@ -140,7 +140,7 @@ export default function LootboxGame({ balance, onBalance }: { balance: number; o
 
       <BetBar bet={bet} setBet={setBet} balance={balance} disabled={opening} />
       {err && <div style={{ color: RED, fontSize: 13, marginBottom: 8 }}>{err}</div>}
-      <button onClick={start} disabled={opening} style={playBtn(!opening)}>{opening ? 'AÇILIYOR…' : '📦 KASAYI AÇ'}</button>
+      <button onClick={start} disabled={opening} style={playBtn(!opening)}>{opening ? 'OPENING…' : '📦 OPEN CASE'}</button>
     </div>
   );
 }
