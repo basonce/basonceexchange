@@ -8,7 +8,7 @@ export default function Ask() {
           <span className="font-display font-bold text-primary text-[1.2vw] tracking-tight">
             KITE EXCHANGE
           </span>
-          <span className="text-muted text-[1.1vw] font-body">11 / 12</span>
+          <span className="text-muted text-[1.1vw] font-body">12 / 13</span>
         </div>
         <div className="w-full h-px bg-white/10 mb-[4vh]" />
 
@@ -55,17 +55,17 @@ export default function Ask() {
           <div className="flex flex-col gap-[2.2vh]">
             <div className="rounded-2xl px-[2.2vw] py-[3vh] border border-accent/40 bg-accent/10">
               <div className="text-accent text-[1.4vw] font-semibold">Geri ödeme süresi (projeksiyon)</div>
-              <div className="font-display font-bold text-accent text-[4vw] leading-none mt-[1.5vh]">~10 ay</div>
+              <div className="font-display font-bold text-accent text-[4vw] leading-none mt-[1.5vh]">~9 ay</div>
             </div>
             <div className="rounded-2xl px-[2.2vw] py-[3vh] border border-white/8 bg-surface">
               <div className="text-muted text-[1.4vw]">Tam kapasite yıllık net kâr</div>
-              <div className="font-display font-bold text-text text-[3.2vw] leading-none mt-[1.5vh]">$14,2M</div>
+              <div className="font-display font-bold text-text text-[3.2vw] leading-none mt-[1.5vh]">$15,0M</div>
             </div>
           </div>
         </div>
 
         <div className="mt-auto pt-[3vh] text-muted text-[1.05vw] font-body">
-          ~10 ay geri ödeme, 12 aylık kademeli büyüme (ramp) senaryosunun kümülatif net nakit akışına dayanır; $14,2M net kâr ise tam kapasite yıllık rakamdır. Tahmini değerler, piyasa koşullarına göre değişebilir.
+          ~9 ay geri ödeme, 12 aylık kademeli büyüme (ramp) senaryosunun kümülatif net nakit akışına dayanır; $15,0M net kâr ise tam kapasite yıllık rakamdır. Tahmini değerler, piyasa koşullarına göre değişebilir.
         </div>
       </div>
     </div>

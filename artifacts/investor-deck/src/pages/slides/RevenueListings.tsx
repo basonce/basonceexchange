@@ -1,20 +1,21 @@
 export default function RevenueListings() {
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-bg text-text">
+      <div className="absolute top-[3vh] right-[8vw] text-muted text-[1.1vw] font-body">04 / 13</div>
       <div className="relative h-full w-full flex px-[8vw] py-[7vh]">
         <div className="w-[44%] flex flex-col justify-center pr-[4vw]">
           <div className="text-primary font-body font-extrabold tracking-[0.25em] text-[1.1vw] uppercase mb-[2vh]">
             Gelir Motoru 01
           </div>
-          <h2 className="font-display font-bold text-[3.8vw] leading-tight tracking-tight mb-[3vh]">
-            Listeleme ücretleri
+          <h2 className="font-display font-bold text-[3.6vw] leading-tight tracking-tight mb-[3vh]">
+            Tahta & listeleme ücretleri
           </h2>
-          <p className="text-muted text-[1.6vw] font-body leading-snug mb-[4vh] text-pretty">
-            Her yeni projeyi borsaya almak için sabit ücret. Sıfır maliyet, saf
+          <p className="text-muted text-[1.55vw] font-body leading-snug mb-[4vh] text-pretty">
+            Her yeni projeyi tahtaya almak için sabit ücret. Sıfır maliyet, saf
             kâr — talep her zaman arzdan fazla.
           </p>
           <div className="flex items-baseline gap-[1.2vw]">
-            <span className="text-muted text-[1.4vw]">Liste başı</span>
+            <span className="text-muted text-[1.4vw]">Tahta başı</span>
             <span className="font-display font-bold text-text text-[2.6vw]">$5.000</span>
           </div>
           <div className="flex items-baseline gap-[1.2vw] mt-[1.5vh]">

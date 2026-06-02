@@ -13,17 +13,17 @@ export default function Cover() {
           <span className="text-muted text-[1.2vw] font-body">· basonce.com</span>
         </div>
 
-        <div className="max-w-[78vw]">
+        <div className="max-w-[80vw]">
           <div className="text-primary font-body font-extrabold tracking-[0.3em] text-[1.3vw] uppercase mb-[3vh]">
             Stratejik Yatırım Sunumu
           </div>
-          <h1 className="font-display font-bold text-[6.4vw] leading-[0.98] tracking-tight text-balance">
-            Telegram nesli için
-            <span className="text-primary"> kripto borsası.</span>
+          <h1 className="font-display font-bold text-[6vw] leading-[0.98] tracking-tight text-balance">
+            Spot, vadeli ve P2P.
+            <span className="text-primary"> Tek borsada.</span>
           </h1>
-          <p className="mt-[4vh] text-muted text-[2vw] font-body max-w-[58vw] leading-snug text-pretty">
-            P2P agregatör, vadeli işlemler, kopya ticaret ve token madenciliği —
-            tek bir Telegram Mini App içinde.
+          <p className="mt-[4vh] text-muted text-[1.9vw] font-body max-w-[60vw] leading-snug text-pretty">
+            Tahtalar, işlem komisyonları, P2P alım-satım, kopya ticaret ve token
+            madenciliği — gelir getiren eksiksiz bir kripto borsası.
           </p>
         </div>
 

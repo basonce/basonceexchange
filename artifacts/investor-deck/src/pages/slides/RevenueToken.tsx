@@ -8,17 +8,17 @@ export default function RevenueToken() {
           <span className="font-display font-bold text-primary text-[1.2vw] tracking-tight">
             KITE EXCHANGE
           </span>
-          <span className="text-muted text-[1.1vw] font-body">07 / 12</span>
+          <span className="text-muted text-[1.1vw] font-body">06 / 13</span>
         </div>
         <div className="w-full h-px bg-white/10 mb-[4vh]" />
 
         <div className="text-primary font-body font-extrabold tracking-[0.25em] text-[1.1vw] uppercase mb-[1.5vh]">
-          Gelir Motoru 04
+          Gelir Motoru 05
         </div>
-        <h2 className="font-display font-bold text-[3.8vw] leading-tight tracking-tight mb-[1.5vh]">
-          BNC token, madencilik ve TON kutuları
+        <h2 className="font-display font-bold text-[3.6vw] leading-tight tracking-tight mb-[1.5vh]">
+          Mining, BNC token ve TON kutuları
         </h2>
-        <p className="text-muted text-[1.6vw] font-body max-w-[62vw] leading-snug mb-[5vh] text-pretty">
+        <p className="text-muted text-[1.55vw] font-body max-w-[64vw] leading-snug mb-[5vh] text-pretty">
           Ücretsiz madencilik kullanıcıyı içeri çeker; hız yükseltmesi için
           satılan TON kutuları doğrudan gelire dönüşür.
         </p>

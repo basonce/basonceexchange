@@ -6,7 +6,7 @@ export default function Projection() {
           <span className="font-display font-bold text-primary text-[1.2vw] tracking-tight">
             KITE EXCHANGE
           </span>
-          <span className="text-muted text-[1.1vw] font-body">08 / 12</span>
+          <span className="text-muted text-[1.1vw] font-body">08 / 13</span>
         </div>
         <div className="w-full h-px bg-white/10 mb-[4vh]" />
 
@@ -19,30 +19,30 @@ export default function Projection() {
           </div>
           <div className="text-right">
             <div className="text-muted text-[1.2vw]">Tam kapasite net kâr</div>
-            <div className="font-display font-bold text-accent text-[3.6vw] leading-none">$14,2M</div>
+            <div className="font-display font-bold text-accent text-[3.6vw] leading-none">$15,0M</div>
           </div>
         </div>
 
         <div className="flex items-end gap-[3vw] h-[40vh] px-[1vw]">
           <div className="flex-1 flex flex-col items-center justify-end h-full">
-            <span className="text-text text-[1.5vw] font-display font-bold mb-[1.5vh]">$5,3M</span>
+            <span className="text-text text-[1.5vw] font-display font-bold mb-[1.5vh]">$5,5M</span>
             <div className="w-full rounded-t-xl bg-white/15" style={{ height: "27%" }} />
-            <span className="text-muted text-[1.3vw] mt-[2vh] text-center">İlk çeyrek<br />başlangıç</span>
+            <span className="text-muted text-[1.3vw] mt-[2vh] text-center">1. çeyrek başlangıç</span>
           </div>
           <div className="flex-1 flex flex-col items-center justify-end h-full">
-            <span className="text-text text-[1.5vw] font-display font-bold mb-[1.5vh]">$10,2M</span>
-            <div className="w-full rounded-t-xl bg-white/30" style={{ height: "52%" }} />
-            <span className="text-muted text-[1.3vw] mt-[2vh] text-center">2. çeyrek<br />ölçeklenme</span>
+            <span className="text-text text-[1.5vw] font-display font-bold mb-[1.5vh]">$11,0M</span>
+            <div className="w-full rounded-t-xl bg-white/30" style={{ height: "54%" }} />
+            <span className="text-muted text-[1.3vw] mt-[2vh] text-center">2. çeyrek ölçeklenme</span>
           </div>
           <div className="flex-1 flex flex-col items-center justify-end h-full">
-            <span className="text-text text-[1.5vw] font-display font-bold mb-[1.5vh]">$15,6M</span>
+            <span className="text-text text-[1.5vw] font-display font-bold mb-[1.5vh]">$16,0M</span>
             <div className="w-full rounded-t-xl bg-primary/60" style={{ height: "78%" }} />
-            <span className="text-muted text-[1.3vw] mt-[2vh] text-center">3. çeyrek<br />olgunlaşma</span>
+            <span className="text-muted text-[1.3vw] mt-[2vh] text-center">3. çeyrek olgunlaşma</span>
           </div>
           <div className="flex-1 flex flex-col items-center justify-end h-full">
-            <span className="text-primary text-[1.7vw] font-display font-bold mb-[1.5vh]">$19,5M</span>
+            <span className="text-primary text-[1.7vw] font-display font-bold mb-[1.5vh]">$20,5M</span>
             <div className="w-full rounded-t-xl bg-primary" style={{ height: "100%" }} />
-            <span className="text-muted text-[1.3vw] mt-[2vh] text-center">4. çeyrek<br />tam kapasite</span>
+            <span className="text-muted text-[1.3vw] mt-[2vh] text-center">4. çeyrek tam kapasite</span>
           </div>
         </div>
 

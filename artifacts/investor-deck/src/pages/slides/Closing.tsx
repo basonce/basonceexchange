@@ -12,14 +12,14 @@ export default function Closing() {
           </span>
         </div>
 
-        <div className="max-w-[72vw]">
-          <h2 className="font-display font-bold text-[5.5vw] leading-[1.0] tracking-tight text-balance">
-            Telegram’ın borsasını
-            <span className="text-primary"> birlikte kuralım.</span>
+        <div className="max-w-[74vw]">
+          <h2 className="font-display font-bold text-[5.2vw] leading-[1.0] tracking-tight text-balance">
+            Borsa hazır.
+            <span className="text-primary"> Sıradaki adım ölçek.</span>
           </h2>
-          <p className="mt-[4vh] text-muted text-[1.9vw] font-body max-w-[56vw] leading-snug text-pretty">
-            Ürün canlı, gelir motorları çalışıyor. Sıradaki adım: ölçek.
-            $5M ile 10 ayda geri dönüş hedefliyoruz.
+          <p className="mt-[4vh] text-muted text-[1.9vw] font-body max-w-[58vw] leading-snug text-pretty">
+            Beş gelir motoru çalışıyor, marj %73. $5M ile likidite, kullanıcı ve
+            lisansları büyütüp ~9 ayda geri dönüş hedefliyoruz.
           </p>
         </div>
 
