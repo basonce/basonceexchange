@@ -29,8 +29,28 @@ async function call<T = any>(path: string, opts: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
-export type CasinoGame = 'crash' | 'plinko' | 'lootbox';
+export type CasinoGame = 'crash' | 'plinko' | 'lootbox' | 'bonanza';
 export type PlinkoRisk = 'low' | 'med' | 'high';
+
+export interface BonanzaWin { sym: number; count: number; pay: number; pos: number[]; }
+export interface BonanzaTumble { cells: number[]; wins: BonanzaWin[]; removed: number[]; }
+export interface BonanzaSpin {
+  type: 'base' | 'free';
+  index?: number;
+  tumbles: BonanzaTumble[];
+  scat: number;
+  scatPos: number[];
+  mults: { pos: number; value: number }[];
+  multSum: number;
+  win: number;
+  scatPay: number;
+}
+export interface BonanzaSequence {
+  spins: BonanzaSpin[];
+  freeSpinsCount: number;
+  scatPay: number;
+  totalMult: number;
+}
 
 export interface PlayResult {
   won: boolean;
@@ -41,7 +61,9 @@ export interface PlayResult {
     crash?: number; cashout?: number;
     bucket?: number; risk?: PlinkoRisk;
     multiplier?: number;
+    totalMult?: number; freeSpins?: number; scatters?: number;
   };
+  sequence?: BonanzaSequence | null;
 }
 
 export interface BetRow {
@@ -64,6 +86,10 @@ export const casinoApi = {
 
   playLootbox: (bet: number) =>
     call<PlayResult>('/games/play', { method: 'POST', body: JSON.stringify({ game: 'lootbox', bet }) }),
+
+  // Sweet Candy (Sweet Bonanza-style) — server resolves the full tumble sequence.
+  playBonanza: (bet: number) =>
+    call<PlayResult>('/games/play', { method: 'POST', body: JSON.stringify({ game: 'bonanza', bet }) }),
 
   history: () => call<{ bets: BetRow[] }>('/games/history', { method: 'POST', body: JSON.stringify({}) }),
 };

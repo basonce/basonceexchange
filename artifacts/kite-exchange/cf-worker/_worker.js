@@ -242,7 +242,7 @@ async function getAuthedUserId(request, env) {
    Outcomes are computed HERE (never trust client).
    casino_play RPC applies the result atomically.
 ═══════════════════════════════════════════════ */
-const CASINO_GAMES   = new Set(['dice', 'coinflip', 'crash', 'plinko', 'lootbox']);
+const CASINO_GAMES   = new Set(['dice', 'coinflip', 'crash', 'plinko', 'lootbox', 'bonanza']);
 const CASINO_RTP     = 0.97;    // return-to-player → 3% house edge
 const CASINO_MIN_BET = 0.1;     // USDT
 const CASINO_MAX_BET = 1000;    // USDT
@@ -285,6 +285,114 @@ function casinoSeed() {
 function casinoRandFloat(seedHex) {
   const n = parseInt(seedHex.slice(0, 13), 16);
   return n / 0x10000000000000; // 2^52
+}
+
+/* ── SWEET CANDY (Sweet Bonanza-style) — 6x5 pay-anywhere tumble slot ──
+   Mechanics: 8+ of a symbol anywhere pays; winning symbols tumble away and
+   refill; 4+ scatters trigger 10 free spins; in free spins, multiplier bombs
+   on a winning sequence sum up and multiply that spin's win.
+   RTP ~0.93 (Monte-Carlo tuned), hard-capped at CASINO_MAX_MULT (1000x). */
+const BONANZA_PAY = {            // [8-9, 10-11, 12+] as multiple of total bet
+  0: [10, 25, 50], 1: [2.5, 10, 25], 2: [2, 5, 15], 3: [1.5, 2, 12],
+  4: [1, 1.5, 10], 5: [0.8, 1.2, 8], 6: [0.5, 1, 5], 7: [0.4, 0.9, 4], 8: [0.25, 0.75, 2],
+};
+const BONANZA_W      = { 0: 6, 1: 8, 2: 10, 3: 12, 4: 14, 5: 15, 6: 16, 7: 17, 8: 18 };
+const BONANZA_WSCAT  = 4.2;      // scatter reel weight (controls free-spin frequency)
+const BONANZA_WMULT  = 18;       // multiplier-bomb weight (free spins only)
+const BONANZA_SCAT_PAY = { 4: 3, 5: 5, 6: 100 };  // x total bet
+const BONANZA_MV = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 50, 100];
+const BONANZA_MW = [28, 22, 16, 12, 9, 6, 4, 3, 2, 1.5, 1, 0.4, 0.1];
+const BONANZA_FS_START = 10;
+const BONANZA_FS_RETRIGGER = 5;
+const BONANZA_MAX_FS = 60;       // safety cap on total free spins per round
+
+// Deterministic PRNG (mulberry32) seeded from the audited server seed.
+function casinoPRNG(seedHex) {
+  let a = (parseInt(seedHex.slice(0, 8), 16) >>> 0) || 1;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function bonanzaTier(c) { return c >= 12 ? 2 : (c >= 10 ? 1 : 0); }
+function bonanzaPicker(scat, mult) {
+  const it = []; let t = 0;
+  for (const s in BONANZA_W) { it.push([+s, BONANZA_W[s]]); t += BONANZA_W[s]; }
+  if (scat) { it.push([9, BONANZA_WSCAT]); t += BONANZA_WSCAT; }
+  if (mult) { it.push([10, BONANZA_WMULT]); t += BONANZA_WMULT; }
+  return { it, t };
+}
+function bonanzaPick(p, r) { let x = r * p.t; for (const [s, w] of p.it) { if (x < w) return s; x -= w; } return p.it[p.it.length - 1][0]; }
+function bonanzaMultValue(rng) {
+  let tw = 0; for (const w of BONANZA_MW) tw += w;
+  let x = rng() * tw;
+  for (let j = 0; j < BONANZA_MV.length; j++) { if (x < BONANZA_MW[j]) return BONANZA_MV[j]; x -= BONANZA_MW[j]; }
+  return BONANZA_MV[0];
+}
+// One spin: initial 6x5 fill, then resolve tumbles until no win.
+function bonanzaSpin(rng, freeMode) {
+  const p = bonanzaPicker(true, freeMode);
+  const g = new Array(30);
+  for (let i = 0; i < 30; i++) g[i] = bonanzaPick(p, rng());
+  let win = 0; const tumbles = [];
+  while (true) {
+    const cnt = {};
+    for (let i = 0; i < 30; i++) cnt[g[i]] = (cnt[g[i]] || 0) + 1;
+    let w = 0; const removeSym = new Set(); const wins = [];
+    for (let s = 0; s <= 8; s++) {
+      const c = cnt[s] || 0;
+      if (c >= 8) { const pay = BONANZA_PAY[s][bonanzaTier(c)]; w += pay; removeSym.add(s); const pos = []; for (let i = 0; i < 30; i++) if (g[i] === s) pos.push(i); wins.push({ sym: s, count: c, pay, pos }); }
+    }
+    const removed = []; if (w > 0) for (let i = 0; i < 30; i++) if (removeSym.has(g[i])) removed.push(i);
+    tumbles.push({ cells: g.slice(), wins, removed });
+    win += w;
+    if (w > 0) {
+      for (let col = 0; col < 6; col++) {
+        const keep = [];
+        for (let row = 0; row < 5; row++) { const v = g[row * 6 + col]; if (!removeSym.has(v)) keep.push(v); }
+        const miss = 5 - keep.length; const nc = [];
+        for (let k = 0; k < miss; k++) nc.push(bonanzaPick(p, rng()));
+        for (const v of keep) nc.push(v);
+        for (let row = 0; row < 5; row++) g[row * 6 + col] = nc[row];
+      }
+    } else break;
+  }
+  const mults = [];
+  if (freeMode) for (let i = 0; i < 30; i++) if (g[i] === 10) mults.push({ pos: i, value: bonanzaMultValue(rng) });
+  let multSum = 0; for (const m of mults) multSum += m.value;
+  if (freeMode && win > 0 && multSum > 0) win *= multSum;
+  let scat = 0; const scatPos = [];
+  for (let i = 0; i < 30; i++) if (g[i] === 9) { scat++; scatPos.push(i); }
+  return { win, scat, scatPos, tumbles, mults, multSum: (freeMode ? multSum : 0) };
+}
+// Full round: base game + (if 4+ scatters) free spins. Returns final multiplier
+// (capped) plus the full animatable sequence for the client.
+function bonanzaPlay(seedHex) {
+  const rng = casinoPRNG(seedHex);
+  let total = 0; const spins = [];
+  const base = bonanzaSpin(rng, false);
+  spins.push({ type: 'base', tumbles: base.tumbles, scat: base.scat, scatPos: base.scatPos, mults: [], multSum: 0, win: base.win, scatPay: 0 });
+  total += base.win;
+  let freeSpinsCount = 0, scatPay = 0;
+  if (base.scat >= 4) {
+    scatPay = BONANZA_SCAT_PAY[Math.min(6, base.scat)] || BONANZA_SCAT_PAY[6];
+    spins[0].scatPay = scatPay; total += scatPay;
+    let remaining = BONANZA_FS_START, used = 0;
+    while (remaining-- > 0 && used < BONANZA_MAX_FS) {
+      used++;
+      const fs = bonanzaSpin(rng, true);
+      spins.push({ type: 'free', index: used, tumbles: fs.tumbles, scat: fs.scat, scatPos: fs.scatPos, mults: fs.mults, multSum: fs.multSum, win: fs.win, scatPay: 0 });
+      total += fs.win;
+      if (fs.scat >= 3) remaining += BONANZA_FS_RETRIGGER;
+    }
+    // Report the number of free spins actually executed (capped), so UI never
+    // announces more spins than were played.
+    freeSpinsCount = used;
+  }
+  const totalMult = Math.min(CASINO_MAX_MULT, Math.round(total * 1e6) / 1e6);
+  return { totalMult, rawMult: total, freeSpinsCount, scatPay, baseScatters: base.scat, spins };
 }
 
 // Welcome chest constants — kept in worker so no DB DDL is required
@@ -1852,7 +1960,7 @@ export default {
 
           const seed = casinoSeed();
           const rng = casinoRandFloat(seed);
-          let won = false, multiplier = 0, outcome = {};
+          let won = false, multiplier = 0, outcome = {}, extra = null;
 
           if (game === 'dice') {
             const dir = body.dir === 'over' ? 'over' : 'under';
@@ -1892,6 +2000,12 @@ export default {
             for (const rwd of LOOTBOX_REWARDS) { acc += rwd.w; if (rng <= acc) { m = rwd.m; break; } }
             multiplier = m;
             outcome = { multiplier: m };
+          } else if (game === 'bonanza') {
+            const r = bonanzaPlay(seed);
+            multiplier = r.totalMult;
+            // Compact summary for DB; the full animatable sequence goes only in the HTTP response.
+            outcome = { totalMult: r.totalMult, freeSpins: r.freeSpinsCount, scatters: r.baseScatters };
+            extra = { spins: r.spins, freeSpinsCount: r.freeSpinsCount, scatPay: r.scatPay, totalMult: r.totalMult };
           }
 
           const payout = multiplier > 0 ? Math.round(betR * multiplier * 1e8) / 1e8 : 0;
@@ -1909,7 +2023,7 @@ export default {
             if (/insufficient/i.test(msg)) return err(400, 'Insufficient USDT balance');
             return err(500, 'Bet failed, please try again');
           }
-          return ok({ won, multiplier, payout, balance, outcome });
+          return ok({ won, multiplier, payout, balance, outcome, sequence: extra });
         }
 
         if (path === '/games/history') {

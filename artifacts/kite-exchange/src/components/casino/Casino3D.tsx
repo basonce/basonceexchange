@@ -4,10 +4,12 @@ import { GOLD, BG, CARD, BORDER, TEXT, SUB, fmt } from './shared';
 import KiteGame from './KiteGame';
 import PlinkoGame from './PlinkoGame';
 import LootboxGame from './LootboxGame';
+import BonanzaGame from './BonanzaGame';
 
-type GameId = 'kite' | 'plinko' | 'lootbox';
+type GameId = 'kite' | 'plinko' | 'lootbox' | 'bonanza';
 
 const GAMES: { id: GameId; name: string; emoji: string; desc: string; color: string; gradient: string }[] = [
+  { id: 'bonanza', name: 'Sweet Candy', emoji: '🍬', desc: 'Tumbling candies, free spins & multiplier bombs', color: '#ff4fa3', gradient: 'linear-gradient(135deg,#4a1d6e,#23103b)' },
   { id: 'kite', name: 'Flying Kite', emoji: '🪁', desc: 'Multiplier climbs — cash out before it snaps!', color: GOLD, gradient: 'linear-gradient(135deg,#13314f,#1d4e6b)' },
   { id: 'plinko', name: 'Plinko 3D', emoji: '🎯', desc: 'Drop the ball, catch the multiplier', color: '#0ECB81', gradient: 'linear-gradient(135deg,#16263a,#0b1320)' },
   { id: 'lootbox', name: 'Open Case', emoji: '📦', desc: 'Open the gold case, win up to 150×', color: '#A855F7', gradient: 'linear-gradient(135deg,#241a3a,#0d0a18)' },
@@ -83,6 +85,7 @@ export default function Casino3D({ onClose }: { onClose: () => void }) {
           </>
         ) : (
           <>
+            {active === 'bonanza' && <BonanzaGame balance={balance} onBalance={setBalance} />}
             {active === 'kite' && <KiteGame balance={balance} onBalance={setBalance} />}
             {active === 'plinko' && <PlinkoGame balance={balance} onBalance={setBalance} />}
             {active === 'lootbox' && <LootboxGame balance={balance} onBalance={setBalance} />}

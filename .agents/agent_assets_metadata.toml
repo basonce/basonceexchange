@@ -1188,6 +1188,48 @@ uri = "file://artifacts/kite-exchange/public/miner/bnc-logo.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "SThFNi_cqlcmP7iJCmpQd"
+uri = "file://attached_assets/sweet_bonanza/sym_heart.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "b6KzlYkir22Of0WTLAqZd"
+uri = "file://attached_assets/sweet_bonanza/sym_purple.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "_yIpMA8GNboTgTRQE7qcL"
+uri = "file://attached_assets/sweet_bonanza/sym_grape.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "y--frCz30RGXdgOkc11z7"
+uri = "file://attached_assets/sweet_bonanza/sym_green.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "lTThe-QT6w-t54hJlCKtx"
+uri = "file://attached_assets/sweet_bonanza/sym_banana.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "WoeFwSauyWB24Y8_tFSZW"
+uri = "file://attached_assets/sweet_bonanza/sym_scatter.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Jz79K2VBWb2fIoULmCrxE"
+uri = "file://attached_assets/sweet_bonanza/sym_plum.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "aFS2ugqH_E7RWoACMQsWq"
 uri = "file://attached_assets/exports/basonce_logo_for_coinzilla.png"
@@ -1235,3 +1277,51 @@ id = "6jsOgT5OHGVQ1xiZGCkDs"
 uri = "file://.local/outputs/Kite-Exchange---Yatirimci-Sunumu.pdf"
 type = "pdf"
 title = "Kite Exchange — Yıllık Gelir-Gider Sunumu (PDF)"
+
+[[outputs]]
+id = "SRnCX170GC72tljRQOla-"
+uri = "file://attached_assets/sweet_bonanza/snd_pop.mp3"
+type = "audio"
+title = "pop"
+
+[[outputs]]
+id = "bMCNkIQVIRUSJtr_prg2j"
+uri = "file://attached_assets/sweet_bonanza/snd_spin.mp3"
+type = "audio"
+title = "spin"
+
+[[outputs]]
+id = "aWQ3k5UAvdq2mlhUuUg2l"
+uri = "file://attached_assets/sweet_bonanza/snd_win.mp3"
+type = "audio"
+title = "win"
+
+[[outputs]]
+id = "JyAgnBeCSNmg30YXNt9jJ"
+uri = "file://attached_assets/sweet_bonanza/snd_scatter.mp3"
+type = "audio"
+title = "scatter"
+
+[[outputs]]
+id = "ZvW8Rmf6q1cC6Q9Vs1JJU"
+uri = "file://attached_assets/sweet_bonanza/snd_mult.mp3"
+type = "audio"
+title = "mult"
+
+[[outputs]]
+id = "A3FuEUe668Jh4xmEjwjkp"
+uri = "file://attached_assets/sweet_bonanza/snd_bigwin.mp3"
+type = "audio"
+title = "bigwin"
+
+[[outputs]]
+id = "NXnglOqcThVt493EAmAPk"
+uri = "file://attached_assets/sweet_bonanza/music_fs.mp3"
+type = "audio"
+title = "fs loop"
+
+[[outputs]]
+id = "97FMXRNzxYcNTOG7Ergd4"
+uri = "file://attached_assets/sweet_bonanza/snd_tick.mp3"
+type = "audio"
+title = "tick"
