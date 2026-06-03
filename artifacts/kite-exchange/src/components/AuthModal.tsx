@@ -8,7 +8,7 @@ function fireGoogleAdsConversion() {
   try {
     if (typeof (window as any).gtag === 'function') {
       (window as any).gtag('event', 'conversion', {
-        send_to: 'AW-18085254361/zi8xCNaRi5sCENmp3K9D',
+        send_to: 'AW-18085254361/xvVsCJDByrgcENmp3K9D',
         value: 1.0,
         currency: 'USD',
       });
