@@ -3,6 +3,7 @@ import { supabase } from './lib/supabase';
 import { analyticsTracker } from './lib/analytics-tracker';
 import { setActivityUserId, trackPageView as trackActivityPage, initGlobalTracking, destroyGlobalTracking } from './lib/activity-tracker';
 import { initAnonTracker, stopAnonTracker, setTrackerIdentity } from './lib/anonymous-tracker';
+import { fireDepositConversion } from './lib/google-ads';
 import ExchangeModeProvider from './components/ExchangeModeProvider';
 import ExchangeModeBanner from './components/ExchangeModeBanner';
 import BottomNav from './components/BottomNav';
@@ -291,6 +292,38 @@ function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Google Ads — "Para Yatırma" dönüşümü: kullanıcı sitedeyken gerçek bir
+  // kripto yatırma onaylandığında (NOWPayments IPN, user_balances'a NOWPAY_*
+  // sentinel satırı INSERT eder) yatırılan tutarla dönüşüm tetiklenir.
+  useEffect(() => {
+    if (!user?.id) return;
+    const fired = new Set<string>();
+    const channel = supabase
+      .channel(`deposit-conv-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'user_balances',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload: any) => {
+          const row = payload?.new;
+          const symbol: string = row?.symbol || '';
+          if (!symbol.startsWith('NOWPAY_')) return;
+          if (fired.has(symbol)) return;
+          fired.add(symbol);
+          const amount = Number(row?.balance) || 0;
+          fireDepositConversion(amount);
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     localStorage.setItem('currentTab', mobileTab);

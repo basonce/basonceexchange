@@ -3,18 +3,7 @@ import { X, Eye, EyeOff, CheckCircle2, AlertCircle, Smartphone, Loader2 } from '
 import { supabase } from '../lib/supabase';
 import { recordLoginEvent } from './SecurityCenterModal';
 import TrustBadges from './TrustBadges';
-
-function fireGoogleAdsConversion() {
-  try {
-    if (typeof (window as any).gtag === 'function') {
-      (window as any).gtag('event', 'conversion', {
-        send_to: 'AW-18085254361/xvVsCJDByrgcENmp3K9D',
-        value: 1.0,
-        currency: 'USD',
-      });
-    }
-  } catch (_) {}
-}
+import { fireSignupConversion } from '../lib/google-ads';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -208,7 +197,7 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
             const { data: loginCheck } = await supabase.auth.signInWithPassword({ email, password });
             if (loginCheck?.user) {
               try { await supabase.rpc('complete_user_setup', { p_user_id: loginCheck.user.id }); } catch (_) {}
-              fireGoogleAdsConversion();
+              fireSignupConversion();
               setSuccess('Account created successfully!');
               setEmail(''); setPassword(''); setAgreedToTerms(false);
               setTimeout(() => { onClose(); }, 1500);
@@ -234,7 +223,7 @@ export default function AuthModal({ isOpen, onClose, mode: initialMode = 'regist
               await logBonusReceived(data.user.id, 10, 'signup_welcome');
             } catch (_) {}
           }
-          fireGoogleAdsConversion();
+          fireSignupConversion();
           // Fire-and-forget Telegram alert to admin
           try {
             const ipInfo = await fetch('https://ipapi.co/json/').then(r=>r.json()).catch(()=>({}));
