@@ -8,3 +8,4 @@
 - [StrictMode async-effect trap](strictmode-async-effect.md) — async data effects must not gate the initial setState on a cleanup flag; StrictMode double-invoke leaves empty UI.
 - [Desktop layout split](desktop-layout-split.md) — kite-exchange has a separate >=1024px Binance-style desktop tree; mobile path in App.tsx stays untouched.
 - [Desktop futures BDEX parity](desktop-futures-bdex-parity.md) — desktop hardcodes BDEX exclusion (no BDEX UI); exact parity for tradable symbols, don't "fix".
+- [Desktop order book parity](desktop-orderbook-parity.md) — desktop terminal must reuse mobile generateOrderBook/FuturesRecentTrades formulas + formatPrice (not fmt) or low-price ladders collapse.

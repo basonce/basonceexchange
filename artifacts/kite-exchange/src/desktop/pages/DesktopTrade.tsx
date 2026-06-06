@@ -5,6 +5,7 @@ import CoinLogo from '../../components/CoinLogo';
 import { useMarkets, DeskMarket } from '../useMarkets';
 import { useSpotTrading } from '../hooks/useSpotTrading';
 import { useOrderBook } from '../hooks/useOrderBook';
+import { formatPrice } from '../../lib/format-utils';
 
 const TIMEFRAMES = ['Time', '15m', '1h', '4h', '1D', '1W'];
 
@@ -40,7 +41,7 @@ export default function DesktopTrade({ user, onAuth, onDeposit }: Props) {
   const change = market?.change24h || 0;
 
   const st = useSpotTrading(symbol);
-  const { bids, asks, trades } = useOrderBook(binanceSymbol || null, price);
+  const { bids, asks, trades } = useOrderBook(binanceSymbol || `${symbol}USDT`, price);
 
   const [orderType, setOrderType] = useState<'market' | 'limit'>('limit');
   const [buyAmount, setBuyAmount] = useState('');
@@ -208,9 +209,9 @@ export default function DesktopTrade({ user, onAuth, onDeposit }: Props) {
           <div className="overflow-y-auto max-h-[200px]">
             {trades.map((t, i) => (
               <div key={i} className="px-3 grid grid-cols-3 text-[11px] leading-5 font-mono">
-                <span className={t.isBuy ? 'text-[#0ECB81]' : 'text-[#F6465D]'}>{fmt(t.price)}</span>
-                <span className="text-right text-[#EAECEF]">{t.amount}</span>
-                <span className="text-right text-[#848E9C]">{t.time}</span>
+                <span className={t.isBuy ? 'text-[#0ECB81]' : 'text-[#F6465D]'}>{formatPrice(t.price)}</span>
+                <span className="text-right text-[#EAECEF]">{t.amount.toFixed(3)}</span>
+                <span className="text-right text-[#848E9C]">{t.time.slice(-8)}</span>
               </div>
             ))}
           </div>
@@ -277,7 +278,7 @@ function Stat({ label, value, pos }: { label: string; value: string; pos?: boole
 function Row({ price, amount, total, color }: { price: number; amount: number; total: number; color: string }) {
   return (
     <div className="px-3 grid grid-cols-3 text-[11px] leading-5 font-mono hover:bg-[#2B3139]">
-      <span style={{ color }}>{fmt(price)}</span>
+      <span style={{ color }}>{formatPrice(price)}</span>
       <span className="text-right text-[#EAECEF]">{amount.toFixed(3)}</span>
       <span className="text-right text-[#848E9C]">{total.toFixed(2)}</span>
     </div>
