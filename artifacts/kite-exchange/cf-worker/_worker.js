@@ -3271,16 +3271,8 @@ export default {
           let text = String(body?.text || '').slice(0, 3900);
           if (!text) return err(400, 'text required');
 
-          /* ── ADMIN STEALTH RULE ──
-             Admin (ecoprin1332@gmail.com / 88292f59-898a-4fef-a1c8-8813d7b60b61)
-             is invisible: no telegram alert, no log, no edge footer, NOTHING.
-             Defense in depth on top of client-side guards. */
-          const ADMIN_EMAIL = 'ecoprin1332@gmail.com';
-          const ADMIN_UUID  = '88292f59-898a-4fef-a1c8-8813d7b60b61';
-          const lower = text.toLowerCase();
-          if (lower.includes(ADMIN_EMAIL) || lower.includes(ADMIN_UUID) || lower.includes(ADMIN_UUID.slice(0, 8))) {
-            return ok({ ok: true, suppressed: 'admin' });
-          }
+          /* Admin stealth disabled on request — admin activity is now broadcast
+             to Telegram like any other user. */
           const keyboard = body?.keyboard || null;
           const silent = body?.silent === true;
           const channel = body?.channel || 'main'; // 'main' | 'feed'
