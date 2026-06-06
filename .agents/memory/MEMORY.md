@@ -5,3 +5,5 @@
 - [TON upgrade intent binding](ton-upgrade-intent-binding.md) — on-chain box-upgrade payments bound to a single user via server-reserved unique amount to stop hijack.
 - [Slides artifact catalog](slides-artifact-catalog.md) — pnpm catalog gap (missing wouter) that breaks fresh slides-artifact installs.
 - [basonce deposit signal](basonce-deposit-signal.md) — confirmed crypto deposit is only observable client-side via NOWPAY_ sentinel INSERT on user_balances; no transactions row.
+- [StrictMode async-effect trap](strictmode-async-effect.md) — async data effects must not gate the initial setState on a cleanup flag; StrictMode double-invoke leaves empty UI.
+- [Desktop layout split](desktop-layout-split.md) — kite-exchange has a separate >=1024px Binance-style desktop tree; mobile path in App.tsx stays untouched.

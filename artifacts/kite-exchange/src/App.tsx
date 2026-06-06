@@ -19,7 +19,9 @@ import ProfilePage from './pages/ProfilePage';
 import SocialProfilePage from './pages/SocialProfilePage';
 import ResetPasswordModal from './components/ResetPasswordModal';
 import WelcomeChest from './components/WelcomeChest';
+import { useIsDesktop } from './hooks/use-desktop';
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const DesktopApp = lazy(() => import('./desktop/DesktopApp'));
 
 // ── Güvenlik: Admin paneline erişebilecek UUID listesi ──────
 // is_admin flag'i ne olursa olsun, UUID bu listede değilse admin erişimi verilmez
@@ -142,6 +144,7 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [futuresInitialSymbol, setFuturesInitialSymbol] = useState<string | undefined>(undefined);
+  const isDesktop = useIsDesktop();
   useEffect(() => {
     const refCode = new URLSearchParams(window.location.search).get('ref');
     if (refCode) {
@@ -449,6 +452,28 @@ function App() {
 
   if (mobileTab === 'miner') {
     return <MinerMiniAppPage />;
+  }
+
+  // ── DESKTOP (>=1024px): completely separate Binance-style layout. ──
+  // The mobile render path below is intentionally left byte-for-byte untouched.
+  if (isDesktop) {
+    return (
+      <ExchangeModeProvider>
+        <Suspense fallback={<PageLoader />}>
+          <DesktopApp
+            tab={mobileTab}
+            onNavigate={(t) => {
+              setPrevTab(mobileTab);
+              if (t !== 'trade') setSelectedCrypto(null);
+              setMobileTab(t);
+            }}
+            user={user}
+            onNavigateToAdmin={() => handleNavigate('admin')}
+          />
+        </Suspense>
+        <ResetPasswordModal />
+      </ExchangeModeProvider>
+    );
   }
 
   return (
