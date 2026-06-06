@@ -3,10 +3,10 @@ import DesktopNav, { DeskTab } from './components/DesktopNav';
 import DesktopFooter from './components/DesktopFooter';
 import DesktopHome from './pages/DesktopHome';
 import DesktopMarkets from './pages/DesktopMarkets';
+import DesktopTrade from './pages/DesktopTrade';
+import DesktopFutures from './pages/DesktopFutures';
 import AuthModal from '../components/AuthModal';
 
-const TradePage = lazy(() => import('../pages/TradePage'));
-const FuturesPage = lazy(() => import('../pages/FuturesPage'));
 const AIBotPage = lazy(() => import('../pages/AIBotPage'));
 const MiningPage = lazy(() => import('../pages/MiningPage'));
 const AssetsPage = lazy(() => import('../pages/AssetsPage'));
@@ -72,15 +72,13 @@ export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }:
     // Dedicated desktop layouts
     if (tab === 'home') return <DesktopHome user={user} onNavigate={onNavigate} onAuth={openAuth} onDeposit={onDeposit} />;
     if (tab === 'markets') return <DesktopMarkets onNavigate={onNavigate} />;
+    if (tab === 'trade') return <DesktopTrade user={user} onAuth={openAuth} onDeposit={onDeposit} />;
+    if (tab === 'futures') return <DesktopFutures user={user} onAuth={openAuth} onDeposit={onDeposit} />;
 
     // Functional fallback pages (dedicated desktop layout coming next).
     // These reuse the exact mobile page components so real-money flows are untouched.
     const title = PAGE_LABELS[tab] || 'Basonce';
     switch (tab) {
-      case 'trade':
-        return <FramedPage title={title}><Suspense fallback={<Loader />}><TradePage onBack={() => onNavigate('markets')} /></Suspense></FramedPage>;
-      case 'futures':
-        return <FramedPage title={title}><Suspense fallback={<Loader />}><FuturesPage /></Suspense></FramedPage>;
       case 'aibot':
         return <FramedPage title={title}><Suspense fallback={<Loader />}><AIBotPage /></Suspense></FramedPage>;
       case 'mining':
