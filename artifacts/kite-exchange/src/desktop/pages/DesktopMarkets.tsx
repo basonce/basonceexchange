@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Search, Star } from 'lucide-react';
 import { useMarkets, DeskMarket } from '../useMarkets';
 import type { DeskTab } from '../components/DesktopNav';
@@ -11,12 +11,36 @@ interface DesktopMarketsProps {
 }
 
 const FILTERS = ['All', 'Favorites', 'Top Gainers', 'Top Losers', '24h Volume', 'New'] as const;
+const FAVS_KEY = 'gm_favs_v9';
 
 export default function DesktopMarkets({ onNavigate }: DesktopMarketsProps) {
   const { markets, loading } = useMarkets();
   const [view, setView] = useState<'overview' | 'trading'>('overview');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('All');
+
+  const [favs, setFavs] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(FAVS_KEY) || '[]')); }
+    catch { return new Set(); }
+  });
+
+  useEffect(() => {
+    const sync = (e: StorageEvent) => {
+      if (e.key !== FAVS_KEY) return;
+      try { setFavs(new Set(JSON.parse(e.newValue || '[]'))); } catch { /* ignore */ }
+    };
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
+  }, []);
+
+  const toggleFav = useCallback((s: string) => {
+    setFavs(prev => {
+      const n = new Set(prev);
+      n.has(s) ? n.delete(s) : n.add(s);
+      localStorage.setItem(FAVS_KEY, JSON.stringify([...n]));
+      return n;
+    });
+  }, []);
 
   const goTrade = (symbol: string) => {
     localStorage.setItem('selectedCoinSymbol', symbol);
@@ -36,12 +60,13 @@ export default function DesktopMarkets({ onNavigate }: DesktopMarketsProps) {
       m.symbol.toLowerCase().includes(query.toLowerCase()) ||
       m.fullName.toLowerCase().includes(query.toLowerCase())
     );
-    if (filter === 'Top Gainers') r = [...r].sort((a, b) => b.change24h - a.change24h);
+    if (filter === 'Favorites') r = r.filter(m => favs.has(m.symbol));
+    else if (filter === 'Top Gainers') r = [...r].sort((a, b) => b.change24h - a.change24h);
     else if (filter === 'Top Losers') r = [...r].sort((a, b) => a.change24h - b.change24h);
     else if (filter === '24h Volume') r = [...r].sort((a, b) => b.volume - a.volume);
     else if (filter === 'New') r = r.filter(m => m.isIndependent || m.isEarnQuest);
     return r;
-  }, [valid, query, filter]);
+  }, [valid, query, filter, favs]);
 
   return (
     <div className="bg-[#0B0E11] min-h-screen">
@@ -126,7 +151,13 @@ export default function DesktopMarkets({ onNavigate }: DesktopMarketsProps) {
                     onClick={() => goTrade(m.symbol)}
                     className="grid grid-cols-[40px_2fr_1.2fr_1fr_1.3fr_1.5fr_1.4fr_120px] gap-4 px-6 py-4 items-center border-b border-[#2B3139]/60 last:border-0 hover:bg-[#1E2329] cursor-pointer transition-colors group"
                   >
-                    <Star className="w-4 h-4 text-[#474D57] group-hover:text-[#848E9C]" onClick={(e) => e.stopPropagation()} />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleFav(m.symbol); }}
+                      className="flex items-center justify-center"
+                      aria-label={favs.has(m.symbol) ? 'Remove from favorites' : 'Add to favorites'}
+                    >
+                      <Star className={`w-4 h-4 transition-colors ${favs.has(m.symbol) ? 'text-[#F0B90B] fill-[#F0B90B]' : 'text-[#474D57] group-hover:text-[#848E9C]'}`} />
+                    </button>
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-8 h-8 shrink-0"><CoinLogo symbol={m.symbol} dbUrl={m.logo} /></div>
                       <div className="min-w-0">
