@@ -142,6 +142,7 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
                           <Star size={12} className="text-[#848E9C]" />
                           <CoinLogo symbol={m.symbol} dbUrl={m.logo} size={18} className="w-[18px] h-[18px] rounded-full object-cover shrink-0" />
                           <span className="font-medium">{m.symbol}USDT</span>
+                          <span className="text-[9px] bg-[#2B3139] text-[#848E9C] px-1 rounded">Perp</span>
                         </div>
                         <span className={m.change24h >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}>
                           {m.change24h >= 0 ? '+' : ''}{m.change24h.toFixed(2)}%
