@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense, lazy } from 'react';
+import { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import DesktopNav, { DeskTab } from './components/DesktopNav';
 import DesktopFooter from './components/DesktopFooter';
 import DesktopHome from './pages/DesktopHome';
@@ -56,6 +56,34 @@ const Loader = () => (
   </div>
 );
 
+/**
+ * Desktop-only Sports wrapper. Renders the mobile HomePage with the Sports
+ * sheet auto-opened. When the user closes that sheet (the `.sports-modal-sheet`
+ * element is removed from the DOM), navigate back to the desktop home instead
+ * of showing the framed mobile home. Pure desktop code — mobile is untouched.
+ */
+function DesktopSports({ title, onNavigate }: { title: string; onNavigate: (tab: DeskTab) => void }) {
+  const seenRef = useRef(false);
+  useEffect(() => {
+    const id = setInterval(() => {
+      const present = !!document.querySelector('.sports-modal-sheet');
+      if (present) {
+        seenRef.current = true;
+      } else if (seenRef.current) {
+        clearInterval(id);
+        onNavigate('home');
+      }
+    }, 200);
+    return () => clearInterval(id);
+  }, [onNavigate]);
+
+  return (
+    <FramedPage title={title}>
+      <Suspense fallback={<Loader />}><HomePage autoOpenSports /></Suspense>
+    </FramedPage>
+  );
+}
+
 export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }: DesktopAppProps) {
   const [authMode, setAuthMode] = useState<'login' | 'register' | null>(null);
 
@@ -86,7 +114,7 @@ export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }:
       case 'assets':
         return <FramedPage title={title}><Suspense fallback={<Loader />}><AssetsPage /></Suspense></FramedPage>;
       case 'sports':
-        return <FramedPage title={title}><Suspense fallback={<Loader />}><HomePage autoOpenSports /></Suspense></FramedPage>;
+        return <DesktopSports title={title} onNavigate={onNavigate} />;
       case 'profile':
         return <FramedPage title={title}><Suspense fallback={<Loader />}><ProfilePage onNavigateToAdmin={onNavigateToAdmin} onBack={() => onNavigate('home')} /></Suspense></FramedPage>;
       case 'social-profile':
