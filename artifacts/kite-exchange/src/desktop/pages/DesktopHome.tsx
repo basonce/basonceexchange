@@ -55,27 +55,36 @@ export default function DesktopHome({ user, onNavigate, onAuth, onDeposit }: Des
       {/* HERO */}
       <section className="max-w-[1600px] mx-auto px-6 pt-14 pb-16 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
         <div>
-          <div className="text-[#F0B90B] font-bold text-5xl xl:text-6xl tracking-tight tabular-nums">
-            {users.toLocaleString('en-US')}
+          <div className="inline-flex items-center gap-2 bg-[#F0B90B]/10 border border-[#F0B90B]/25 rounded-full px-3.5 py-1.5 mb-6">
+            <ShieldCheck className="w-4 h-4 text-[#F0B90B]" />
+            <span className="text-[#F0B90B] text-xs font-semibold tracking-wide">Institutional-grade security · 350+ assets</span>
           </div>
-          <h1 className="text-white font-bold text-5xl xl:text-6xl leading-[1.05] mt-2">
-            USERS<br />TRUST US
+
+          <h1 className="text-white font-bold text-5xl xl:text-[3.7rem] leading-[1.08] tracking-tight">
+            Where the world
+            <br />
+            trades <span className="bg-gradient-to-r from-[#F0B90B] to-[#FCD535] bg-clip-text text-transparent">digital assets</span>
           </h1>
-          <p className="text-[#B7BDC6] text-lg mt-5">The World's Leading Cryptocurrency Exchange</p>
+          <p className="text-[#B7BDC6] text-lg mt-5 max-w-xl leading-relaxed">
+            Buy, sell and grow your portfolio across hundreds of cryptocurrencies — on the exchange millions trust every day.
+          </p>
 
-          <div className="flex items-center gap-6 mt-8">
-            <div className="flex flex-col">
-              <span className="text-[#F0B90B] font-bold text-2xl">No.1</span>
-              <span className="text-[#848E9C] text-sm">Customer Assets</span>
+          <div className="grid grid-cols-3 gap-3 mt-8 max-w-xl">
+            <div className="bg-[#181A20] border border-[#2B3139] rounded-xl px-4 py-3.5">
+              <div className="text-[#F0B90B] font-bold text-xl xl:text-2xl tabular-nums leading-tight">{users.toLocaleString('en-US')}</div>
+              <div className="text-[#848E9C] text-xs mt-1">Registered users</div>
             </div>
-            <div className="w-px h-10 bg-[#2B3139]" />
-            <div className="flex flex-col">
-              <span className="text-[#F0B90B] font-bold text-2xl">No.1</span>
-              <span className="text-[#848E9C] text-sm">Trading Volume</span>
+            <div className="bg-[#181A20] border border-[#2B3139] rounded-xl px-4 py-3.5">
+              <div className="text-[#F0B90B] font-bold text-xl xl:text-2xl leading-tight">No.1</div>
+              <div className="text-[#848E9C] text-xs mt-1">Trading volume</div>
+            </div>
+            <div className="bg-[#181A20] border border-[#2B3139] rounded-xl px-4 py-3.5">
+              <div className="text-[#F0B90B] font-bold text-xl xl:text-2xl leading-tight">350+</div>
+              <div className="text-[#848E9C] text-xs mt-1">Listed assets</div>
             </div>
           </div>
 
-          <div className="mt-8 flex flex-col sm:flex-row gap-3 max-w-lg">
+          <div className="mt-8 flex flex-col sm:flex-row gap-3 max-w-xl">
             {user ? (
               <button
                 onClick={onDeposit}

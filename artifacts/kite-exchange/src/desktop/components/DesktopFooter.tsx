@@ -98,9 +98,11 @@ export default function DesktopFooter({ onNavigate }: Props) {
       <div className="max-w-[1600px] mx-auto px-6 py-12">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
           <div className="col-span-2 md:col-span-3 lg:col-span-1">
-            <div className="flex items-center gap-2 mb-4">
-              <img src="/basonce_logo_son_biten.png" alt="Basonce" className="h-7 w-auto" />
-              <span className="text-[#EAECEF] font-bold text-lg">BASONCE</span>
+            <div className="flex items-center gap-2.5 mb-4">
+              <span className="h-9 w-9 flex items-center justify-center overflow-hidden shrink-0">
+                <img src="/basonce_logo_son_biten.png" alt="Basonce" className="w-[175%] max-w-none mix-blend-lighten" />
+              </span>
+              <span className="text-[#EAECEF] font-semibold text-lg tracking-[0.2em]">BASONCE</span>
             </div>
             <p className="text-[#848E9C] text-sm leading-relaxed">{t('footerDesc')}</p>
           </div>

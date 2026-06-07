@@ -76,9 +76,11 @@ export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }:
     <header className="sticky top-0 z-50 h-16 bg-[#181A20] border-b border-[#2B3139]">
       <div className="max-w-[1600px] mx-auto h-full px-6 flex items-center gap-8">
         {/* Logo */}
-        <button onClick={() => onNavigate('home')} className="flex items-center gap-2 shrink-0">
-          <img src="/basonce_logo_son_biten.png" alt="Basonce" className="h-7 w-auto" />
-          <span className="text-[#EAECEF] font-bold text-xl tracking-tight hidden xl:block">BASONCE</span>
+        <button onClick={() => onNavigate('home')} className="flex items-center gap-2.5 shrink-0">
+          <span className="h-9 w-9 flex items-center justify-center overflow-hidden shrink-0">
+            <img src="/basonce_logo_son_biten.png" alt="Basonce" className="w-[175%] max-w-none mix-blend-lighten" />
+          </span>
+          <span className="text-[#EAECEF] font-semibold text-[17px] tracking-[0.22em] hidden xl:block">BASONCE</span>
         </button>
 
         {/* Primary nav */}
