@@ -3,6 +3,7 @@ import { Search, ChevronDown, Globe, Wallet, Download, X, Check } from 'lucide-r
 import { QRCodeSVG } from 'qrcode.react';
 import { useLang } from '../i18n/LanguageContext';
 import { useMarkets } from '../useMarkets';
+import { supabase } from '../../lib/supabase';
 import type { TKey } from '../i18n/translations';
 
 export type DeskTab = 'home' | 'markets' | 'trade' | 'futures' | 'aibot' | 'mining' | 'assets' | 'profile' | 'sports';
@@ -62,6 +63,19 @@ export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }:
       : list;
     return base.slice(0, 8);
   }, [markets, query]);
+
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    if (!user?.id) { setAvatarUrl(null); return; }
+    supabase
+      .from('user_profiles')
+      .select('avatar_url')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data }) => { if (active) setAvatarUrl((data as any)?.avatar_url ?? null); });
+    return () => { active = false; };
+  }, [user?.id]);
 
   const selectCoin = (symbol: string) => {
     localStorage.setItem('selectedCoinSymbol', symbol);
@@ -185,10 +199,14 @@ export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }:
               </button>
               <button
                 onClick={() => onNavigate('profile')}
-                className="w-9 h-9 rounded-full bg-gradient-to-br from-[#F0B90B] to-[#FCD535] flex items-center justify-center text-black text-sm font-bold"
+                className="w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-[#F0B90B] to-[#FCD535] flex items-center justify-center text-black text-sm font-bold"
                 aria-label="Profile"
               >
-                {(user.email?.[0] || 'U').toUpperCase()}
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  (user.email?.[0] || 'U').toUpperCase()
+                )}
               </button>
             </>
           ) : (
