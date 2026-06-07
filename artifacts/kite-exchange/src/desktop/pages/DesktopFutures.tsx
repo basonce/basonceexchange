@@ -115,7 +115,7 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
     <div className="bg-[#0B0E11] min-h-screen text-white">
       {/* ── Symbol header bar ───────────────────────────── */}
       <div className="border-b border-[#2B3139] bg-[#181A20]">
-        <div className="flex items-center gap-6 px-4 py-2.5 overflow-x-auto">
+        <div className="flex items-center gap-6 px-4 py-2.5">
           <div className="relative shrink-0">
             <button onClick={() => setPairOpen(o => !o)} className="flex items-center gap-2 hover:bg-[#2B3139] px-2 py-1 rounded">
               {market && <CoinLogo symbol={market.symbol} dbUrl={market.logo} size={26} className="w-[26px] h-[26px] rounded-full object-cover shrink-0" />}
@@ -154,14 +154,16 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
             )}
           </div>
 
-          <div className={`text-xl font-semibold shrink-0 ${change >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
-            {fmt(price)}
+          <div className="flex items-center gap-6 overflow-x-auto min-w-0">
+            <div className={`text-xl font-semibold shrink-0 ${change >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+              {fmt(price)}
+            </div>
+            <Stat label="24h Change" value={`${change >= 0 ? '+' : ''}${change.toFixed(2)}%`} pos={change >= 0} />
+            <Stat label="24h High" value={fmt(market?.high24h || 0)} />
+            <Stat label="24h Low" value={fmt(market?.low24h || 0)} />
+            <Stat label="24h Volume (USDT)" value={fmtVol(market?.volume || 0)} />
+            <Stat label="Funding / Countdown" value={funding} />
           </div>
-          <Stat label="24h Change" value={`${change >= 0 ? '+' : ''}${change.toFixed(2)}%`} pos={change >= 0} />
-          <Stat label="24h High" value={fmt(market?.high24h || 0)} />
-          <Stat label="24h Low" value={fmt(market?.low24h || 0)} />
-          <Stat label="24h Volume (USDT)" value={fmtVol(market?.volume || 0)} />
-          <Stat label="Funding / Countdown" value={funding} />
         </div>
       </div>
 
