@@ -41,7 +41,7 @@ const TABS = ['Popular', 'New Listing', 'Top Gainers'] as const;
 export default function DesktopHome({ user, onNavigate, onAuth, onDeposit }: DesktopHomeProps) {
   const { markets } = useMarkets();
   const [tab, setTab] = useState<(typeof TABS)[number]>('Popular');
-  const users = useCountUp(320648507);
+  const users = useCountUp(103453069);
 
   const list = (() => {
     const real = markets.filter(m => m.price > 0);
@@ -55,7 +55,7 @@ export default function DesktopHome({ user, onNavigate, onAuth, onDeposit }: Des
       {/* HERO */}
       <section className="max-w-[1600px] mx-auto px-6 pt-14 pb-16 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
         <div>
-          <div className="inline-flex items-center gap-2 bg-[#F0B90B]/10 border border-[#F0B90B]/25 rounded-full px-3.5 py-1.5 mb-6">
+          <div className="inline-flex items-center gap-2 bg-[#1E2329] border border-[#2B3139] rounded-full px-3.5 py-1.5 mb-6">
             <ShieldCheck className="w-4 h-4 text-[#F0B90B]" />
             <span className="text-[#F0B90B] text-xs font-semibold tracking-wide">Institutional-grade security · 350+ assets</span>
           </div>
