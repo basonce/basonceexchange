@@ -6,6 +6,7 @@ import DesktopMarkets from './pages/DesktopMarkets';
 import DesktopTrade from './pages/DesktopTrade';
 import DesktopFutures from './pages/DesktopFutures';
 import AuthModal from '../components/AuthModal';
+import { LanguageProvider } from './i18n/LanguageContext';
 
 const AIBotPage = lazy(() => import('../pages/AIBotPage'));
 const MiningPage = lazy(() => import('../pages/MiningPage'));
@@ -125,15 +126,17 @@ export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }:
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0E11] flex flex-col">
-      <DesktopNav tab={tab} onNavigate={onNavigate} user={user} onAuth={openAuth} onDeposit={onDeposit} />
-      <main className="flex-1">{renderPage()}</main>
-      <DesktopFooter />
-      <AuthModal
-        isOpen={authMode !== null}
-        onClose={() => setAuthMode(null)}
-        mode={authMode || 'register'}
-      />
-    </div>
+    <LanguageProvider>
+      <div className="min-h-screen bg-[#0B0E11] flex flex-col">
+        <DesktopNav tab={tab} onNavigate={onNavigate} user={user} onAuth={openAuth} onDeposit={onDeposit} />
+        <main className="flex-1">{renderPage()}</main>
+        <DesktopFooter onNavigate={onNavigate} />
+        <AuthModal
+          isOpen={authMode !== null}
+          onClose={() => setAuthMode(null)}
+          mode={authMode || 'register'}
+        />
+      </div>
+    </LanguageProvider>
   );
 }

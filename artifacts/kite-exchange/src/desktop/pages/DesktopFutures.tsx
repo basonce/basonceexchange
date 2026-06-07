@@ -60,6 +60,14 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
   }, []);
 
   useEffect(() => { if (market) localStorage.setItem('selectedCoinSymbol', market.symbol); }, [market]);
+  useEffect(() => {
+    const onSelect = (e: Event) => {
+      const sym = (e as CustomEvent).detail;
+      if (typeof sym === 'string' && sym) setBaseSymbol(sym);
+    };
+    window.addEventListener('desk-select-coin', onSelect);
+    return () => window.removeEventListener('desk-select-coin', onSelect);
+  }, []);
   useEffect(() => { if (orderType === 'limit' && !limitPrice && price > 0) setLimitPrice(price.toString()); }, [orderType, price, limitPrice]);
 
   // Live mark prices for open positions across symbols.

@@ -48,6 +48,14 @@ export default function DesktopTrade({ user, onAuth, onDeposit }: Props) {
 
   useEffect(() => { if (market) localStorage.setItem('selectedCoinSymbol', market.symbol); }, [market]);
   useEffect(() => {
+    const onSelect = (e: Event) => {
+      const sym = (e as CustomEvent).detail;
+      if (typeof sym === 'string' && sym) setBaseSymbol(sym);
+    };
+    window.addEventListener('desk-select-coin', onSelect);
+    return () => window.removeEventListener('desk-select-coin', onSelect);
+  }, []);
+  useEffect(() => {
     if (price > 0) {
       setBuyPrice(p => p || price.toString());
       setSellPrice(p => p || price.toString());
