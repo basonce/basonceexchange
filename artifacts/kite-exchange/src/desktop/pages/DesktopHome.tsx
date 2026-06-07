@@ -60,12 +60,12 @@ export default function DesktopHome({ user, onNavigate, onAuth, onDeposit }: Des
             <span className="text-[#F0B90B] text-xs font-semibold tracking-wide">Institutional-grade security · 350+ assets</span>
           </div>
 
-          <h1 className="text-white font-bold text-5xl xl:text-[3.7rem] leading-[1.08] tracking-tight">
+          <h1 className="text-white font-bold text-5xl xl:text-[3.7rem] leading-[1.08] tracking-tight capitalize">
             Where the world
             <br />
             trades <span className="bg-gradient-to-r from-[#F0B90B] to-[#FCD535] bg-clip-text text-transparent">digital assets</span>
           </h1>
-          <p className="text-[#B7BDC6] text-lg mt-5 max-w-xl leading-relaxed">
+          <p className="text-[#B7BDC6] text-lg mt-5 max-w-xl leading-relaxed capitalize">
             Buy, sell and grow your portfolio across hundreds of cryptocurrencies — on the exchange millions trust every day.
           </p>
 
