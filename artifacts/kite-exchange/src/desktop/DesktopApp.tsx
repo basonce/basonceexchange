@@ -5,6 +5,8 @@ import DesktopHome from './pages/DesktopHome';
 import DesktopMarkets from './pages/DesktopMarkets';
 import DesktopTrade from './pages/DesktopTrade';
 import DesktopFutures from './pages/DesktopFutures';
+import DesktopMorePage from './pages/DesktopMorePage';
+import { MORE_PAGES } from './pages/morePagesData';
 import AuthModal from '../components/AuthModal';
 import { LanguageProvider } from './i18n/LanguageContext';
 
@@ -103,6 +105,9 @@ export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }:
     if (tab === 'markets') return <DesktopMarkets onNavigate={onNavigate} />;
     if (tab === 'trade') return <DesktopTrade user={user} onAuth={openAuth} onDeposit={onDeposit} />;
     if (tab === 'futures') return <DesktopFutures user={user} onAuth={openAuth} onDeposit={onDeposit} />;
+
+    // "More" menu landing pages (VIP, Affiliate, Academy, etc.) — desktop only.
+    if (MORE_PAGES[tab]) return <DesktopMorePage slug={tab} onNavigate={onNavigate} />;
 
     // Functional fallback pages (dedicated desktop layout coming next).
     // These reuse the exact mobile page components so real-money flows are untouched.

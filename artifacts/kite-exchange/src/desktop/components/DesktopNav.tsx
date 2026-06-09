@@ -11,7 +11,10 @@ import { useMarkets } from '../useMarkets';
 import { supabase } from '../../lib/supabase';
 import type { TKey } from '../i18n/translations';
 
-export type DeskTab = 'home' | 'markets' | 'trade' | 'futures' | 'aibot' | 'mining' | 'assets' | 'profile' | 'sports';
+export type DeskTab =
+  | 'home' | 'markets' | 'trade' | 'futures' | 'aibot' | 'mining' | 'assets' | 'profile' | 'sports'
+  | 'vip' | 'affiliate' | 'referral' | 'junior' | 'launchpool' | 'megadrop' | 'miningpool' | 'aipro'
+  | 'pay' | 'nft' | 'fantoken' | 'wallet' | 'chain' | 'academy' | 'charity' | 'travelrule';
 
 interface DesktopNavProps {
   tab: string;
@@ -45,24 +48,24 @@ type MoreItem = { icon: LucideIcon; title: string; desc: string; tab?: DeskTab }
 
 const MORE_MENU: MoreItem[][] = [
   [
-    { icon: Crown, title: 'VIP & Institutional', desc: 'Trusted digital asset platform for VIPs and institutions' },
-    { icon: Users, title: 'Affiliate', desc: 'Earn up to 50% commission per trade from referrals' },
-    { icon: UserPlus, title: 'Referral', desc: 'Invite friends to earn a commission rebate or a one-time reward' },
-    { icon: Baby, title: 'Basonce Junior', desc: 'A parent-supervised crypto account for kids and teens' },
-    { icon: Rocket, title: 'Launchpool', desc: 'Discover and gain early access to new token launches' },
-    { icon: Gift, title: 'Megadrop', desc: 'Lock tokens and complete quests for boosted airdrop rewards' },
-    { icon: Pickaxe, title: 'Mining Pool', desc: 'Earn more rewards by connecting to the pool', tab: 'mining' },
-    { icon: Sparkles, title: 'Basonce AI Pro', desc: 'Your AI-powered trading copilot', tab: 'aibot' },
+    { icon: Crown, title: 'VIP & Institutional', desc: 'Trusted digital asset platform for VIPs and institutions', tab: 'vip' },
+    { icon: Users, title: 'Affiliate', desc: 'Earn up to 50% commission per trade from referrals', tab: 'affiliate' },
+    { icon: UserPlus, title: 'Referral', desc: 'Invite friends to earn a commission rebate or a one-time reward', tab: 'referral' },
+    { icon: Baby, title: 'Basonce Junior', desc: 'A parent-supervised crypto account for kids and teens', tab: 'junior' },
+    { icon: Rocket, title: 'Launchpool', desc: 'Discover and gain early access to new token launches', tab: 'launchpool' },
+    { icon: Gift, title: 'Megadrop', desc: 'Lock tokens and complete quests for boosted airdrop rewards', tab: 'megadrop' },
+    { icon: Pickaxe, title: 'Mining Pool', desc: 'Earn more rewards by connecting to the pool', tab: 'miningpool' },
+    { icon: Sparkles, title: 'Basonce AI Pro', desc: 'Your AI-powered trading copilot', tab: 'aipro' },
   ],
   [
-    { icon: CreditCard, title: 'Pay', desc: 'Send, receive and spend crypto' },
-    { icon: ImageIcon, title: 'NFT', desc: 'Explore NFTs from creators worldwide' },
-    { icon: Trophy, title: 'Fan Token', desc: 'Discover fandom and unlock unlimited fan experiences' },
-    { icon: Wallet, title: 'Basonce Wallet', desc: 'Access and navigate Web3 effortlessly', tab: 'assets' },
-    { icon: Boxes, title: 'Chain', desc: 'A popular blockchain to build your own dApp' },
-    { icon: GraduationCap, title: 'Basonce Academy', desc: 'Free crypto & blockchain education' },
-    { icon: HeartHandshake, title: 'Charity', desc: 'Transparent, efficient and traceable blockchain giving' },
-    { icon: ShieldCheck, title: 'Travel Rule', desc: 'Combat money laundering and terrorism financing' },
+    { icon: CreditCard, title: 'Basonce Pay', desc: 'Send, receive and spend crypto', tab: 'pay' },
+    { icon: ImageIcon, title: 'NFT', desc: 'Explore NFTs from creators worldwide', tab: 'nft' },
+    { icon: Trophy, title: 'Fan Token', desc: 'Discover fandom and unlock unlimited fan experiences', tab: 'fantoken' },
+    { icon: Wallet, title: 'Basonce Wallet', desc: 'Access and navigate Web3 effortlessly', tab: 'wallet' },
+    { icon: Boxes, title: 'Chain', desc: 'A popular blockchain to build your own dApp', tab: 'chain' },
+    { icon: GraduationCap, title: 'Basonce Academy', desc: 'Free crypto & blockchain education', tab: 'academy' },
+    { icon: HeartHandshake, title: 'Charity', desc: 'Transparent, efficient and traceable blockchain giving', tab: 'charity' },
+    { icon: ShieldCheck, title: 'Travel Rule', desc: 'Combat money laundering and terrorism financing', tab: 'travelrule' },
   ],
 ];
 
