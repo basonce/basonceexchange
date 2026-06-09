@@ -99,9 +99,11 @@ export default function DesktopMorePage({ slug, onNavigate }: DesktopMorePagePro
 
       {/* Features */}
       <section className="max-w-[1280px] mx-auto px-6 py-20">
-        <h2 className="text-white font-bold text-2xl lg:text-3xl text-center">Why choose it</h2>
+        <h2 className="text-white font-bold text-2xl lg:text-3xl text-center">
+          {cfg.featuresTitle || 'Why choose it'}
+        </h2>
         <p className="text-[#848E9C] text-center mt-3 max-w-xl mx-auto">
-          Everything you need, built into one seamless experience on Basonce.
+          {cfg.featuresSubtitle || 'Everything you need, built into one seamless experience on Basonce.'}
         </p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-12">
           {cfg.features.map((f) => {
@@ -126,7 +128,7 @@ export default function DesktopMorePage({ slug, onNavigate }: DesktopMorePagePro
       {cfg.steps && cfg.steps.length > 0 && (
         <section className="border-y border-[#1E2329] bg-[#0d1014]">
           <div className="max-w-[1280px] mx-auto px-6 py-20">
-            <h2 className="text-white font-bold text-2xl lg:text-3xl text-center">How it works</h2>
+            <h2 className="text-white font-bold text-2xl lg:text-3xl text-center">{cfg.stepsTitle || 'How it works'}</h2>
             <div className="grid md:grid-cols-3 gap-6 mt-12">
               {cfg.steps.map((s, i) => (
                 <div key={s.title} className="relative bg-[#181A20] border border-[#2B3139] rounded-2xl p-7">
