@@ -6,7 +6,6 @@ import DesktopMarkets from './pages/DesktopMarkets';
 import DesktopTrade from './pages/DesktopTrade';
 import DesktopFutures from './pages/DesktopFutures';
 import DesktopMorePage from './pages/DesktopMorePage';
-import DesktopSportsFx from './components/DesktopSportsFx';
 import { MORE_PAGES } from './pages/morePagesData';
 import AuthModal from '../components/AuthModal';
 import { LanguageProvider } from './i18n/LanguageContext';
@@ -69,10 +68,7 @@ const Loader = () => (
 function DesktopSports(_props: { title: string; onNavigate: (tab: DeskTab) => void }) {
   return (
     <div className="bg-[#0B0E11] min-h-screen">
-      {/* Hidden goal-sound engine (desktop only) */}
-      <DesktopSportsFx />
-
-      {/* Mobile Sports UI, widened for web */}
+      {/* Mobile Sports UI, widened for web — all audio disabled */}
       <div className="w-full max-w-[1760px] mx-auto px-6 py-6">
         <Suspense fallback={<Loader />}><GamesSection /></Suspense>
       </div>
