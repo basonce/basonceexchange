@@ -92,12 +92,10 @@ function DesktopSports(_props: { title: string; onNavigate: (tab: DeskTab) => vo
         </div>
       </div>
 
-      {/* Functional betting experience */}
+      {/* Functional betting experience — wide desktop sportsbook */}
       <div className="relative max-w-[1600px] mx-auto px-6 py-8">
-        <div className="flex justify-center">
-          <div className="w-full max-w-[560px] bg-[#0B0E11]/80 backdrop-blur border border-[#2B3139] rounded-2xl overflow-hidden shadow-2xl shadow-black/40">
-            <Suspense fallback={<Loader />}><GamesSection /></Suspense>
-          </div>
+        <div className="w-full bg-[#0B0E11]/80 backdrop-blur border border-[#2B3139] rounded-2xl p-5 shadow-2xl shadow-black/40">
+          <Suspense fallback={<Loader />}><GamesSection variant="desktop" /></Suspense>
         </div>
       </div>
     </div>

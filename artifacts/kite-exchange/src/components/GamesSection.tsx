@@ -973,13 +973,13 @@ function MatchRow({
           borderBottom: '1px solid rgba(59,130,246,0.2)',
         }}>
           <span style={{ fontSize: 9.5 }}>🎟️</span>
-          <span style={{ fontSize: 9.5, color: '#93c5fd', fontWeight: 700 }}>KUPONUM VAR</span>
+          <span style={{ fontSize: 9.5, color: '#93c5fd', fontWeight: 700 }}>YOUR BET</span>
           <span style={{ marginLeft: 4, fontSize: 9, color: '#60a5fa' }}>
             {activeBet.betType === 'W1' ? `1 (${activeBet.homeTeam.split(' ')[0]})` :
              activeBet.betType === 'W2' ? `2 (${activeBet.awayTeam.split(' ')[0]})` :
-             activeBet.betType === 'X' ? 'Beraberlik' :
-             activeBet.betType === 'OVER' ? `Üst ${ln}` :
-             activeBet.betType === 'UNDER' ? `Alt ${ln}` :
+             activeBet.betType === 'X' ? 'Draw' :
+             activeBet.betType === 'OVER' ? `Over ${ln}` :
+             activeBet.betType === 'UNDER' ? `Under ${ln}` :
              activeBet.betType}
           </span>
           <span style={{ marginLeft: 'auto', fontSize: 9.5, color: '#fbbf24', fontWeight: 900 }}>x{activeBet.odds}</span>
@@ -1049,10 +1049,10 @@ function MatchRow({
           <OddBtn label="W2" value={m.odds.w2} trend={od?.w2}            onClick={() => onSelectBet(m.id,'W2',m.odds.w2)}/>
         </div>
 
-        {/* Total odds: A (Under) LEFT | Ü (Over) RIGHT */}
+        {/* Total odds: U (Under) LEFT | O (Over) RIGHT */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '4px 4px' }}>
-          <OddBtn label={`A ${ln}`} value={m.totalOdds.under} onClick={() => onSelectBet(m.id,'UNDER',m.totalOdds.under)}/>
-          <OddBtn label={`Ü ${ln}`} value={m.totalOdds.over}  onClick={() => onSelectBet(m.id,'OVER', m.totalOdds.over)} />
+          <OddBtn label={`U ${ln}`} value={m.totalOdds.under} onClick={() => onSelectBet(m.id,'UNDER',m.totalOdds.under)}/>
+          <OddBtn label={`O ${ln}`} value={m.totalOdds.over}  onClick={() => onSelectBet(m.id,'OVER', m.totalOdds.over)} />
         </div>
 
       </div>
@@ -2188,7 +2188,338 @@ function mergeServerMatch(srv: ServerMatch, prev?: LiveMatch): LiveMatch {
 /* ══════════════════════════════════════════════════════════
    MAIN COMPONENT
 ══════════════════════════════════════════════════════════ */
-export default function GamesSection() {
+/* ══════════════════════════════════════════════════════════
+   DESKTOP SPORTSBOOK — Binance-web style wide layout.
+   Shares ALL data + betting logic with the mobile view (same
+   matches, logos, scores, odds, coupons). Desktop design only.
+══════════════════════════════════════════════════════════ */
+function DeskOdd({ label, value, trend, active, onClick }: {
+  label: string; value: number; trend?: OddsDir; active?: boolean; onClick: () => void;
+}) {
+  const arrow = trend === 'up' ? '▲' : trend === 'down' ? '▼' : '';
+  const arrowColor = trend === 'up' ? '#0ECB81' : '#F6465D';
+  return (
+    <button
+      onClick={onClick}
+      className="odds-btn"
+      style={{
+        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        gap: 2, padding: '9px 4px', borderRadius: 8, minWidth: 0,
+        background: active ? 'rgba(240,185,11,0.14)' : '#11161d',
+        border: `1px solid ${active ? '#F0B90B' : '#1f2630'}`,
+        cursor: 'pointer', transition: 'all 0.15s',
+      }}
+    >
+      <span style={{ fontSize: 9.5, color: '#5b6673', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{label}</span>
+      <span style={{ fontSize: 14, color: active ? '#F0B90B' : '#EAECEF', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+        {value.toFixed(2)}
+        {arrow && <span style={{ fontSize: 8, marginLeft: 3, color: arrowColor }}>{arrow}</span>}
+      </span>
+    </button>
+  );
+}
+
+const DESK_GRID = '72px minmax(220px,1fr) 232px 232px 132px';
+
+function DeskMatchRow({ m, activeBetMatchId, onSelectBet, onOpenSim, placedBets }: {
+  m: LiveMatch;
+  activeBetMatchId: string | null;
+  onSelectBet: (matchId: string, type: BetType, odds: number) => void;
+  onOpenSim: (id: string) => void;
+  placedBets: PlacedBet[];
+}) {
+  const ht = m.tmpl.homeTeam;
+  const at = m.tmpl.awayTeam;
+  const now = Date.now();
+  const isGoalFlash = !!(m.goalFlash && now - m.flashTs < 3500);
+  const isHT = m.phase === 'ht_break';
+  const clockStr = displayMinute(m);
+  const halfLabel = isHT ? 'HT' : m.half === 1 ? '1st' : '2nd';
+  const sel = activeBetMatchId === m.id;
+  const homeWin = m.homeScore > m.awayScore;
+  const awayWin = m.awayScore > m.homeScore;
+  const od = m.oddsDir;
+  const ln = m.totalOdds.line;
+  const marketCount = (m.extMarkets ?? []).reduce((s, g) => s + g.markets.length, 0);
+  const activeBet = placedBets.find(b => b.matchId === m.id && b.status === 'open');
+
+  return (
+    <div
+      className={isGoalFlash ? 'goal-ring' : ''}
+      style={{
+        display: 'grid',
+        gridTemplateColumns: DESK_GRID,
+        alignItems: 'center',
+        borderBottom: '1px solid #161B22',
+        borderLeft: `3px solid ${activeBet ? '#F0B90B' : isGoalFlash ? '#0ECB81' : 'transparent'}`,
+        background: sel ? 'rgba(240,185,11,0.05)' : isGoalFlash ? 'rgba(14,203,129,0.05)' : 'transparent',
+        transition: 'background 0.3s',
+      }}
+    >
+      {/* Time */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, padding: '10px 0', borderRight: '1px solid #161B22' }}>
+        {m.adminCtrl?.pinned && <span style={{ fontSize: 8, lineHeight: 1 }}>📌</span>}
+        <span style={{ fontSize: isHT ? 10 : 12, color: isHT ? '#F0B90B' : '#F6465D', fontWeight: 900, lineHeight: 1 }}>
+          {isHT ? 'HT' : `${clockStr}'`}
+        </span>
+        {!isHT && <span style={{ fontSize: 8, color: '#4b5563', fontWeight: 700 }}>{halfLabel}</span>}
+      </div>
+
+      {/* Teams */}
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5, padding: '8px 14px', borderRight: '1px solid #161B22', minWidth: 0 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '26px 1fr 22px', alignItems: 'center', gap: 8 }}>
+          <TeamShield abbr={ht.abbr} color={ht.color} size={26} logoUrl={ht.logoUrl} name={ht.name} />
+          <span style={{ fontSize: 13, fontWeight: homeWin ? 800 : 600, color: isGoalFlash && m.goalFlash === 'home' ? '#4ade80' : homeWin ? '#EAECEF' : '#aeb6c2', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{ht.name}</span>
+          <span style={{ fontSize: 15, fontWeight: 900, textAlign: 'center', color: isGoalFlash && m.goalFlash === 'home' ? '#4ade80' : '#F0B90B' }}>{m.homeScore}</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '26px 1fr 22px', alignItems: 'center', gap: 8 }}>
+          <TeamShield abbr={at.abbr} color={at.color} size={26} logoUrl={at.logoUrl} name={at.name} />
+          <span style={{ fontSize: 13, fontWeight: awayWin ? 800 : 600, color: isGoalFlash && m.goalFlash === 'away' ? '#4ade80' : awayWin ? '#EAECEF' : '#aeb6c2', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{at.name}</span>
+          <span style={{ fontSize: 15, fontWeight: 900, textAlign: 'center', color: isGoalFlash && m.goalFlash === 'away' ? '#4ade80' : '#F0B90B' }}>{m.awayScore}</span>
+        </div>
+      </div>
+
+      {/* 1X2 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', borderRight: '1px solid #161B22' }}>
+        <DeskOdd label="1" value={m.odds.w1} trend={od?.w1} active={sel} onClick={() => onSelectBet(m.id, 'W1', m.odds.w1)} />
+        <DeskOdd label="X" value={m.odds.x}  trend={od?.x}  onClick={() => onSelectBet(m.id, 'X',  m.odds.x)} />
+        <DeskOdd label="2" value={m.odds.w2} trend={od?.w2} onClick={() => onSelectBet(m.id, 'W2', m.odds.w2)} />
+      </div>
+
+      {/* Total O/U */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', borderRight: '1px solid #161B22' }}>
+        <DeskOdd label={`Under ${ln}`} value={m.totalOdds.under} onClick={() => onSelectBet(m.id, 'UNDER', m.totalOdds.under)} />
+        <DeskOdd label={`Over ${ln}`}  value={m.totalOdds.over}  onClick={() => onSelectBet(m.id, 'OVER',  m.totalOdds.over)} />
+      </div>
+
+      {/* Markets */}
+      <button
+        onClick={() => onOpenSim(m.id)}
+        className="odds-btn"
+        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, height: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px' }}
+      >
+        <span style={{ fontSize: 12, color: '#aeb6c2', fontWeight: 700 }}>+{marketCount}</span>
+        <span style={{ fontSize: 9, color: '#5b6673', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Markets ›</span>
+      </button>
+    </div>
+  );
+}
+
+function DeskBetSlip({ item, usdtBalance, onPlace, onCancel }: BetSlipProps) {
+  const [amount, setAmount] = useState('');
+  const num = parseFloat(amount) || 0;
+  const potential = num > 0 ? fmt(num * item.odds) : '—';
+  const notEnough = num > usdtBalance;
+  const presets = [5, 10, 25, 50, 100].filter(v => v <= usdtBalance + 0.01);
+
+  return (
+    <div style={{ background: 'linear-gradient(180deg,#161B22,#12161B)', border: '1px solid #2B3139', borderRadius: 14, padding: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 4, height: 18, background: '#F0B90B', borderRadius: 2 }} />
+          <span style={{ fontSize: 14, color: '#fff', fontWeight: 800 }}>Bet Slip</span>
+        </div>
+        <button onClick={onCancel} style={{ background: 'none', border: 'none', color: '#848E9C', fontSize: 18, cursor: 'pointer' }}>✕</button>
+      </div>
+
+      <div style={{ background: '#0B0E11', borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
+        <p style={{ fontSize: 10, color: '#848E9C', marginBottom: 3 }}>{item.league}</p>
+        <p style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 700, marginBottom: 6 }}>{item.homeTeam} — {item.awayTeam}</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>{betLabel(item.betType, item.homeTeam, item.awayTeam, item.ouLine)}</span>
+          <span style={{ fontSize: 16, color: '#F0B90B', fontWeight: 900 }}>× {item.odds}</span>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ fontSize: 11, color: '#848E9C' }}>Available Balance</span>
+        <span style={{ fontSize: 12, color: '#4ade80', fontWeight: 700 }}>{fmt(usdtBalance)} USDT</span>
+      </div>
+
+      <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+        {presets.map(v => (
+          <button key={v} onClick={() => setAmount(String(v))} style={{ flex: 1, padding: '6px 0', borderRadius: 6, background: num === v ? '#a87f08' : '#1C2128', border: `1px solid ${num === v ? '#F0B90B' : '#2B3139'}`, color: num === v ? '#fff' : '#94a3b8', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>{v}</button>
+        ))}
+        <button onClick={() => setAmount(usdtBalance.toFixed(2))} style={{ flex: 1, padding: '6px 0', borderRadius: 6, background: '#1C2128', border: '1px solid #2B3139', color: '#F0B90B', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>MAX</button>
+      </div>
+
+      <div style={{ position: 'relative', marginBottom: 12 }}>
+        <input
+          type="number" value={amount} onChange={e => setAmount(e.target.value)}
+          placeholder="Enter amount (USDT)" min={0.5} step={0.5}
+          style={{ width: '100%', padding: '11px 48px 11px 12px', background: '#0B0E11', border: `1.5px solid ${notEnough ? '#ef4444' : '#2B3139'}`, borderRadius: 8, color: '#fff', fontSize: 14, fontWeight: 700, boxSizing: 'border-box', outline: 'none' }}
+        />
+        <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#848E9C', fontWeight: 700 }}>USDT</span>
+      </div>
+
+      {notEnough && <p style={{ fontSize: 11, color: '#ef4444', marginBottom: 8, textAlign: 'center' }}>Insufficient USDT balance</p>}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0B0E11', borderRadius: 8, padding: '9px 12px', marginBottom: 14 }}>
+        <span style={{ fontSize: 12, color: '#848E9C' }}>Potential Win</span>
+        <span style={{ fontSize: 16, color: '#4ade80', fontWeight: 900 }}>{potential} USDT</span>
+      </div>
+
+      <button
+        disabled={num < 0.5 || notEnough}
+        onClick={() => onPlace(num)}
+        style={{ width: '100%', padding: '13px 0', background: num >= 0.5 && !notEnough ? 'linear-gradient(135deg,#F0B90B,#f8c431)' : '#1C2128', border: 'none', borderRadius: 10, cursor: num >= 0.5 && !notEnough ? 'pointer' : 'not-allowed', color: num >= 0.5 && !notEnough ? '#0B0E11' : '#4B5563', fontSize: 15, fontWeight: 900, transition: 'all 0.2s' }}
+      >
+        {num >= 0.5 && !notEnough ? `Place Bet · ${num} USDT` : 'Enter Amount'}
+      </button>
+    </div>
+  );
+}
+
+interface DesktopSportsbookProps {
+  live: LiveMatch[];
+  finished: LiveMatch[];
+  byLeague: Record<string, LiveMatch[]>;
+  matches: LiveMatch[];
+  placedBets: PlacedBet[];
+  openBets: number;
+  usdtBalance: number;
+  activeBetMatchId: string | null;
+  activeView: 'live' | 'bets';
+  setActiveView: (v: 'live' | 'bets') => void;
+  winnersFeeds: WinnerFeed[];
+  betSlip: BetSlipItem | null;
+  onSelectBet: (matchId: string, type: BetType, odds: number) => void;
+  onOpenSim: (id: string) => void;
+  onPlaceBet: (amount: number) => void;
+  onCancelBet: () => void;
+}
+
+function DesktopSportsbook(p: DesktopSportsbookProps) {
+  const leagues = Object.entries(p.byLeague);
+
+  return (
+    <div style={{ maxWidth: 1500, margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 2px 14px' }}>
+        <span style={{ fontSize: 20 }}>⚽</span>
+        <span style={{ fontSize: 19, color: '#EAECEF', fontWeight: 800 }}>Football</span>
+        <span style={{ fontSize: 13, color: '#848E9C' }}>{p.live.length} live</span>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
+          {p.usdtBalance > 0 && (
+            <span style={{ fontSize: 13, color: '#4ade80', fontWeight: 700 }}>{fmt(p.usdtBalance)} USDT</span>
+          )}
+          <div style={{ display: 'flex', background: '#11161d', border: '1px solid #1f2630', borderRadius: 10, padding: 3 }}>
+            {([['live', '🔴 Live'], ['bets', `📋 My Bets${p.openBets > 0 ? ` (${p.openBets})` : ''}`]] as const).map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => p.setActiveView(id)}
+                style={{ padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, background: p.activeView === id ? '#F0B90B' : 'transparent', color: p.activeView === id ? '#0B0E11' : '#aeb6c2', transition: 'all 0.15s' }}
+              >{label}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Winners ticker */}
+      <WinnersTickerBar feeds={p.winnersFeeds} />
+
+      {/* Two-column body */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 348px', gap: 16, marginTop: 14, alignItems: 'start' }}>
+        {/* Main */}
+        <div style={{ minWidth: 0 }}>
+          {p.activeView === 'bets' ? (
+            <div style={{ border: '1px solid #1C2128', borderRadius: 12, overflow: 'hidden', background: '#0B0E11' }}>
+              <MyBets bets={p.placedBets} matches={p.matches} />
+            </div>
+          ) : (
+            <div style={{ border: '1px solid #1C2128', borderRadius: 12, overflow: 'hidden', background: '#0B0E11' }}>
+              {/* Column header */}
+              <div style={{ display: 'grid', gridTemplateColumns: DESK_GRID, background: '#11161d', borderBottom: '1px solid #1C2128' }}>
+                <div style={{ padding: '8px 0', textAlign: 'center', fontSize: 9.5, color: '#5b6673', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Time</div>
+                <div style={{ padding: '8px 14px', fontSize: 9.5, color: '#5b6673', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Match</div>
+                <div style={{ padding: '8px 0', textAlign: 'center', fontSize: 9.5, color: '#5b6673', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Match Result</div>
+                <div style={{ padding: '8px 0', textAlign: 'center', fontSize: 9.5, color: '#5b6673', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Goals</div>
+                <div style={{ padding: '8px 0', textAlign: 'center', fontSize: 9.5, color: '#5b6673', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Markets</div>
+              </div>
+
+              {p.live.length === 0 && (
+                <div style={{ padding: '48px 16px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 30, marginBottom: 10 }}>⚽</div>
+                  <p style={{ fontSize: 13, color: '#aeb6c2', fontWeight: 700, marginBottom: 4 }}>No live matches right now</p>
+                  <p style={{ fontSize: 11, color: '#5b6673' }}>The next round kicks off shortly — odds will appear here live.</p>
+                </div>
+              )}
+
+              {leagues.map(([lid, ms]) => {
+                const lg = getLeague(lid);
+                return (
+                  <div key={lid}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 14px', background: '#0d1117', borderBottom: '1px solid #161B22' }}>
+                      <span style={{ fontSize: 14 }}>{lg?.flag}</span>
+                      <span style={{ fontSize: 11.5, color: '#64748b', fontWeight: 700 }}>
+                        {lg?.country} · <span style={{ color: '#aeb6c2' }}>{lg?.name}</span>
+                      </span>
+                    </div>
+                    {ms.map(m => (
+                      <DeskMatchRow key={m.id} m={m} activeBetMatchId={p.activeBetMatchId} onSelectBet={p.onSelectBet} onOpenSim={p.onOpenSim} placedBets={p.placedBets} />
+                    ))}
+                  </div>
+                );
+              })}
+
+              {p.finished.length > 0 && (
+                <div>
+                  <div style={{ padding: '7px 14px', background: '#0d1117', borderBottom: '1px solid #161B22', borderTop: '1px solid #161B22' }}>
+                    <span style={{ fontSize: 10, color: '#5b6673', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Completed</span>
+                  </div>
+                  {p.finished.map(m => (
+                    <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderBottom: '1px solid #161B22', opacity: 0.45 }}>
+                      <span style={{ fontSize: 12 }}>{getLeague(m.tmpl.leagueId)?.flag}</span>
+                      <span style={{ fontSize: 12.5, color: '#aeb6c2', flex: 1 }}>{m.tmpl.homeTeam.name}</span>
+                      <span style={{ fontSize: 14, fontWeight: 900, color: '#F0B90B' }}>{m.homeScore} – {m.awayScore}</span>
+                      <span style={{ fontSize: 12.5, color: '#aeb6c2', flex: 1, textAlign: 'right' }}>{m.tmpl.awayTeam.name}</span>
+                      <span style={{ fontSize: 10, color: '#5b6673', fontWeight: 700 }}>FT</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p style={{ textAlign: 'center', fontSize: 10, color: '#1C2128', margin: '18px 0', padding: '0 16px' }}>
+                Basonce Sports · 28 African Leagues · Simulated Events · Entertainment Only
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar */}
+        <div style={{ position: 'sticky', top: 16 }}>
+          {p.betSlip ? (
+            <DeskBetSlip
+              key={`${p.betSlip.matchId}_${p.betSlip.betType}`}
+              item={p.betSlip}
+              usdtBalance={p.usdtBalance}
+              onPlace={p.onPlaceBet}
+              onCancel={p.onCancelBet}
+            />
+          ) : (
+            <div style={{ background: 'linear-gradient(180deg,#161B22,#12161B)', border: '1px solid #2B3139', borderRadius: 14, padding: 20, textAlign: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, justifyContent: 'flex-start' }}>
+                <div style={{ width: 4, height: 18, background: '#2B3139', borderRadius: 2 }} />
+                <span style={{ fontSize: 14, color: '#aeb6c2', fontWeight: 800 }}>Bet Slip</span>
+              </div>
+              <div style={{ fontSize: 30, margin: '12px 0 8px' }}>🎟️</div>
+              <p style={{ fontSize: 12.5, color: '#aeb6c2', fontWeight: 700, marginBottom: 4 }}>Your bet slip is empty</p>
+              <p style={{ fontSize: 11, color: '#5b6673', marginBottom: p.openBets > 0 ? 14 : 0 }}>Tap any odds to start building a bet.</p>
+              {p.openBets > 0 && (
+                <button
+                  onClick={() => p.setActiveView('bets')}
+                  style={{ width: '100%', padding: '10px 0', background: '#11161d', border: '1px solid #1f2630', borderRadius: 10, color: '#F0B90B', fontSize: 12.5, fontWeight: 800, cursor: 'pointer' }}
+                >View {p.openBets} open bet{p.openBets > 1 ? 's' : ''} →</button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function GamesSection({ variant = 'mobile' }: { variant?: 'mobile' | 'desktop' } = {}) {
   const [matches, setMatches] = useState<LiveMatch[]>([]);
   const [betSlip, setBetSlip] = useState<BetSlipItem | null>(null);
   const [activeBetMatchId, setActiveBetMatchId] = useState<string | null>(null);
@@ -2430,7 +2761,7 @@ export default function GamesSection() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'lost' }),
           }).catch(() => {});
-          notify(`❌ Bahis kaybedildi — ${bet.homeTeam} vs ${bet.awayTeam}`, 'loss');
+          notify(`❌ Bet lost — ${bet.homeTeam} vs ${bet.awayTeam}`, 'loss');
           return { ...bet, status: 'lost' as const, result: `${m.homeScore}–${m.awayScore}` };
         }
 
@@ -2441,7 +2772,7 @@ export default function GamesSection() {
 
     // Balance update OUTSIDE updater — single batched write
     if (earlyCredit > 0) {
-      earlyWins.forEach(w => notify(`🏆 Kazandın! +${fmt(w.win)} USDT — ${w.home} vs ${w.away}`, 'win'));
+      earlyWins.forEach(w => notify(`🏆 You won! +${fmt(w.win)} USDT — ${w.home} vs ${w.away}`, 'win'));
       setUsdtBalance(b => {
         const newBal = b + earlyCredit;
         const upd = supabase
@@ -2524,9 +2855,9 @@ export default function GamesSection() {
       else if (status === 'refunded') lastRefund = credit;
       else lostCount++;
     });
-    if (lastWin > 0) notify(`🏆 Kazandın! +${fmt(lastWin)} USDT`, 'win');
-    if (lastRefund > 0) notify(`↩️ Stake iade edildi: +${fmt(lastRefund)} USDT`, 'info');
-    if (lostCount > 0 && lastWin === 0) notify(`❌ Bahis kaybedildi`, 'loss');
+    if (lastWin > 0) notify(`🏆 You won! +${fmt(lastWin)} USDT`, 'win');
+    if (lastRefund > 0) notify(`↩️ Stake refunded: +${fmt(lastRefund)} USDT`, 'info');
+    if (lostCount > 0 && lastWin === 0) notify(`❌ Bet lost`, 'loss');
 
     if (creditTotal > 0) {
       setUsdtBalance(b => {
@@ -2702,6 +3033,52 @@ export default function GamesSection() {
   });
 
   const openBets = placedBets.filter(b => b.status === 'open').length;
+
+  /* ── DESKTOP-ONLY Binance-style sportsbook layout (shares all logic) ── */
+  if (variant === 'desktop') {
+    const simMatch = simMatchId ? matches.find(x => x.id === simMatchId) : null;
+    return (
+      <div style={{ position: 'relative', minHeight: '60vh', paddingBottom: 40 }}>
+        <style>{`
+          .odds-btn:hover { background:#161d26; border-color:#2b3441; }
+          input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; }
+          input[type=number] { -moz-appearance:textfield; }
+        `}</style>
+
+        {notification && (
+          <div style={{
+            position: 'fixed', top: 70, left: '50%', transform: 'translateX(-50%)',
+            background: notification.type === 'win' ? '#052e16' : notification.type === 'loss' ? '#1c0808' : '#1C2128',
+            border: `1px solid ${notification.type === 'win' ? '#16a34a' : notification.type === 'loss' ? '#ef4444' : '#3b82f6'}`,
+            borderRadius: 10, padding: '10px 16px', zIndex: 9998, maxWidth: 360,
+            color: notification.type === 'win' ? '#4ade80' : notification.type === 'loss' ? '#f87171' : '#93c5fd',
+            fontSize: 12, fontWeight: 700, textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+          }}>
+            {notification.msg}
+          </div>
+        )}
+
+        <DesktopSportsbook
+          live={live} finished={finished} byLeague={byLeague} matches={matches}
+          placedBets={placedBets} openBets={openBets} usdtBalance={usdtBalance}
+          activeBetMatchId={activeBetMatchId} activeView={activeView} setActiveView={setActiveView}
+          winnersFeeds={winnersFeeds} betSlip={betSlip}
+          onSelectBet={handleSelectBet} onOpenSim={handleOpenSim}
+          onPlaceBet={handlePlaceBet}
+          onCancelBet={() => { setBetSlip(null); setActiveBetMatchId(null); }}
+        />
+
+        {simMatch && (
+          <MatchSimModal
+            m={simMatch}
+            onClose={() => setSimMatchId(null)}
+            onSelectBet={(mId, type, odds) => { setSimMatchId(null); handleSelectBet(mId, type, odds); }}
+            placedBets={placedBets}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div style={{ background: '#0B0E11', minHeight: '60vh', paddingBottom: 40, position: 'relative' }}>
