@@ -20,6 +20,7 @@ import SocialProfilePage from './pages/SocialProfilePage';
 import ResetPasswordModal from './components/ResetPasswordModal';
 import WelcomeChest from './components/WelcomeChest';
 import { useIsDesktop } from './hooks/use-desktop';
+import { MORE_PAGES } from './desktop/pages/morePagesData';
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const DesktopApp = lazy(() => import('./desktop/DesktopApp'));
 
@@ -121,6 +122,16 @@ type Page = 'markets' | 'trade' | 'wallet' | 'admin';
 
 const VALID_TABS = new Set(['home', 'sports', 'markets', 'trade', 'futures', 'aibot', 'mining', 'assets', 'profile', 'social-profile', 'miner']);
 
+// Desktop-only "More" landing pages (VIP, Affiliate, Academy, NFT, …) are
+// intentionally kept out of VALID_TABS so a mobile deep-link to one of them
+// falls back to home instead of rendering a blank mobile screen. On desktop we
+// still want them to be directly linkable/refreshable, so we allow the slug only
+// when the viewport is desktop-width.
+const DESKTOP_BREAKPOINT = 1024;
+function isDesktopViewport(): boolean {
+  return typeof window !== 'undefined' && window.innerWidth >= DESKTOP_BREAKPOINT;
+}
+
 function getTabFromHash(): string {
   const rawHash = window.location.hash;
   // Telegram Mini App: detect via hash containing tgWebApp params OR the flag set in index.html
@@ -132,8 +143,11 @@ function getTabFromHash(): string {
   // Path-based route, e.g. https://basonce.com/miner — works in Safari/Chrome
   const path = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
   if (path && VALID_TABS.has(path)) return path;
+  if (path && MORE_PAGES[path] && isDesktopViewport()) return path;
   const hash = rawHash.replace(/^#\/?/, '').toLowerCase().split('?')[0];
-  return VALID_TABS.has(hash) ? hash : 'home';
+  if (VALID_TABS.has(hash)) return hash;
+  if (hash && MORE_PAGES[hash] && isDesktopViewport()) return hash;
+  return 'home';
 }
 
 function App() {
