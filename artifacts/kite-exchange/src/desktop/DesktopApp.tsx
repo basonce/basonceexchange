@@ -6,6 +6,7 @@ import DesktopMarkets from './pages/DesktopMarkets';
 import DesktopTrade from './pages/DesktopTrade';
 import DesktopFutures from './pages/DesktopFutures';
 import DesktopMorePage from './pages/DesktopMorePage';
+import DesktopSportsFx from './components/DesktopSportsFx';
 import { MORE_PAGES } from './pages/morePagesData';
 import AuthModal from '../components/AuthModal';
 import { LanguageProvider } from './i18n/LanguageContext';
@@ -15,6 +16,7 @@ const MiningPage = lazy(() => import('../pages/MiningPage'));
 const AssetsPage = lazy(() => import('../pages/AssetsPage'));
 const ProfilePage = lazy(() => import('../pages/ProfilePage'));
 const HomePage = lazy(() => import('../pages/HomePage'));
+const GamesSection = lazy(() => import('../components/GamesSection'));
 const SocialProfilePage = lazy(() => import('../pages/SocialProfilePage'));
 
 interface DesktopAppProps {
@@ -65,25 +67,40 @@ const Loader = () => (
  * element is removed from the DOM), navigate back to the desktop home instead
  * of showing the framed mobile home. Pure desktop code — mobile is untouched.
  */
-function DesktopSports({ title, onNavigate }: { title: string; onNavigate: (tab: DeskTab) => void }) {
-  const seenRef = useRef(false);
-  useEffect(() => {
-    const id = setInterval(() => {
-      const present = !!document.querySelector('.sports-modal-sheet');
-      if (present) {
-        seenRef.current = true;
-      } else if (seenRef.current) {
-        clearInterval(id);
-        onNavigate('home');
-      }
-    }, 200);
-    return () => clearInterval(id);
-  }, [onNavigate]);
-
+function DesktopSports(_props: { title: string; onNavigate: (tab: DeskTab) => void }) {
   return (
-    <FramedPage title={title}>
-      <Suspense fallback={<Loader />}><HomePage autoOpenSports /></Suspense>
-    </FramedPage>
+    <div className="fx-stadium min-h-screen relative">
+      <div className="fx-pitch-stripes absolute inset-0 pointer-events-none" />
+
+      {/* Broadcast header */}
+      <div className="relative max-w-[1600px] mx-auto px-6 pt-8">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F6465D]/15 border border-[#F6465D]/40 text-[#F6465D] text-xs font-bold uppercase tracking-wider">
+            <span className="w-2 h-2 rounded-full bg-[#F6465D] animate-pulse" /> Live
+          </span>
+          <h1 className="text-white font-extrabold text-3xl tracking-tight">Alpha Sports</h1>
+        </div>
+        <p className="text-[#848E9C] text-sm mt-2">
+          Real-time match action with stadium sound — goals roar, the whistle blows. Place your bets as it happens.
+        </p>
+      </div>
+
+      {/* Sound engine + live ticker + event banners (desktop only) */}
+      <div className="relative max-w-[1600px] mx-auto px-6 mt-5">
+        <div className="rounded-2xl overflow-hidden border border-[#2B3139]">
+          <DesktopSportsFx />
+        </div>
+      </div>
+
+      {/* Functional betting experience */}
+      <div className="relative max-w-[1600px] mx-auto px-6 py-8">
+        <div className="flex justify-center">
+          <div className="w-full max-w-[560px] bg-[#0B0E11]/80 backdrop-blur border border-[#2B3139] rounded-2xl overflow-hidden shadow-2xl shadow-black/40">
+            <Suspense fallback={<Loader />}><GamesSection /></Suspense>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

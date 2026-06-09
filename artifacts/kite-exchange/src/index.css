@@ -729,3 +729,27 @@ input[type="range"].slider-blue::-moz-range-thumb {
 .pv-arrow    { animation: pitchArrow 0.55s ease-out both; stroke-dasharray: 130; }
 .pv-ball     { animation: pitchBall  0.45s ease-out both; transform-box: fill-box; transform-origin: center; }
 .pv-flash    { animation: pitchFlash 0.75s ease-out both; }
+
+/* ── Desktop Sports broadcast FX ── */
+@keyframes fxTicker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+.fx-ticker-track { animation: fxTicker 38s linear infinite; will-change: transform; }
+.fx-ticker-track:hover { animation-play-state: paused; }
+@keyframes fxPop {
+  0%   { opacity: 0; transform: translateY(-14px) scale(0.9); }
+  12%  { opacity: 1; transform: translateY(0) scale(1.03); }
+  20%  { transform: translateY(0) scale(1); }
+  85%  { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-8px) scale(0.97); }
+}
+.fx-pop { animation: fxPop 5s ease-out both; }
+@keyframes fxPitchPan { 0% { background-position: 0 0; } 100% { background-position: 56px 0; } }
+.fx-stadium {
+  background:
+    radial-gradient(1200px 500px at 50% -10%, rgba(240,185,11,0.10), transparent 60%),
+    radial-gradient(900px 600px at 50% 120%, rgba(14,203,129,0.06), transparent 60%),
+    #07090c;
+}
+.fx-pitch-stripes {
+  background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.018) 0 28px, transparent 28px 56px);
+  animation: fxPitchPan 6s linear infinite;
+}

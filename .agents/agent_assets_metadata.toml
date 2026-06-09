@@ -1325,3 +1325,15 @@ id = "97FMXRNzxYcNTOG7Ergd4"
 uri = "file://attached_assets/sweet_bonanza/snd_tick.mp3"
 type = "audio"
 title = "tick"
+
+[[outputs]]
+id = "sncJmNSU-rjsgDoCaKe69"
+uri = "file://attached_assets/generated_audio/sfx_goal.mp3"
+type = "audio"
+title = "sports goal roar"
+
+[[outputs]]
+id = "B7jTOP-jOXembmRttc_CS"
+uri = "file://attached_assets/generated_audio/sfx_whistle.mp3"
+type = "audio"
+title = "referee whistle"
