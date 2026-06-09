@@ -317,6 +317,19 @@ input[type="range"].slider-blue::-moz-range-thumb {
   animation: shimmer 3s infinite;
 }
 
+@keyframes marqueeX {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee-x {
+  animation: marqueeX 40s linear infinite;
+}
+
 .animate-float-up {
   animation: floatUp 2s ease-out forwards;
 }

@@ -11,7 +11,7 @@ import AuthModal from '../components/AuthModal';
 import { LanguageProvider } from './i18n/LanguageContext';
 
 const AIBotPage = lazy(() => import('../pages/AIBotPage'));
-const MiningPage = lazy(() => import('../pages/MiningPage'));
+const DesktopMiningPage = lazy(() => import('./pages/DesktopMiningPage'));
 const AssetsPage = lazy(() => import('../pages/AssetsPage'));
 const ProfilePage = lazy(() => import('../pages/ProfilePage'));
 const GamesSection = lazy(() => import('../components/GamesSection'));
@@ -105,7 +105,7 @@ export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }:
       case 'aibot':
         return <FramedPage title={title}><Suspense fallback={<Loader />}><AIBotPage /></Suspense></FramedPage>;
       case 'mining':
-        return <FramedPage title={title}><Suspense fallback={<Loader />}><MiningPage /></Suspense></FramedPage>;
+        return <div className="bg-[#0B0E11] min-h-screen"><Suspense fallback={<Loader />}><DesktopMiningPage /></Suspense></div>;
       case 'assets':
         return <FramedPage title={title}><Suspense fallback={<Loader />}><AssetsPage /></Suspense></FramedPage>;
       case 'sports':
