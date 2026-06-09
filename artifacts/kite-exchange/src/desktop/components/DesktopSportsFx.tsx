@@ -190,7 +190,7 @@ export default function DesktopSportsFx() {
               </div>
             ) : (
               <div className="py-2.5 px-4 text-[#848E9C] text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-                Maçlar yakında başlıyor — ses açık, gol ve kart anında duyulacak.
+                Matches kicking off soon — sound on, every goal and card heard live.
               </div>
             )}
           </div>

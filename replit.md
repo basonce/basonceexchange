@@ -201,3 +201,9 @@ Generated React Query hooks and fetch client from the OpenAPI spec.
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package.
+
+## User Preferences
+
+- All user-facing website/app content (UI text, labels, messages) MUST be in **English** — no Turkish strings in the product. (Chat replies to the user are in Turkish, but the product itself is English-only.)
+- The desktop web Sports section must mirror the mobile data exactly (same matches, logos, scores, coupons, betting logic) but with a professional, Binance-style **desktop** design. NEVER modify the mobile design.
+- Deployment is done manually to Cloudflare Pages (project `basonce`) — not via Replit publish or git push.
