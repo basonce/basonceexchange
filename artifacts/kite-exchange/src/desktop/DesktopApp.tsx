@@ -73,7 +73,7 @@ function DesktopSports(_props: { title: string; onNavigate: (tab: DeskTab) => vo
       <DesktopSportsFx />
 
       {/* Mobile Sports UI, widened for web */}
-      <div className="max-w-[920px] mx-auto px-4 py-6">
+      <div className="w-full max-w-[1760px] mx-auto px-6 py-6">
         <Suspense fallback={<Loader />}><GamesSection /></Suspense>
       </div>
     </div>
