@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import DesktopNav, { DeskTab } from './components/DesktopNav';
 import DesktopFooter from './components/DesktopFooter';
 import DesktopHome from './pages/DesktopHome';
@@ -15,7 +15,6 @@ const AIBotPage = lazy(() => import('../pages/AIBotPage'));
 const MiningPage = lazy(() => import('../pages/MiningPage'));
 const AssetsPage = lazy(() => import('../pages/AssetsPage'));
 const ProfilePage = lazy(() => import('../pages/ProfilePage'));
-const HomePage = lazy(() => import('../pages/HomePage'));
 const GamesSection = lazy(() => import('../components/GamesSection'));
 const SocialProfilePage = lazy(() => import('../pages/SocialProfilePage'));
 
@@ -62,41 +61,20 @@ const Loader = () => (
 );
 
 /**
- * Desktop-only Sports wrapper. Renders the mobile HomePage with the Sports
- * sheet auto-opened. When the user closes that sheet (the `.sports-modal-sheet`
- * element is removed from the DOM), navigate back to the desktop home instead
- * of showing the framed mobile home. Pure desktop code — mobile is untouched.
+ * Desktop-only Sports wrapper. Renders the EXACT mobile Sports UI (same look
+ * the user prefers) inside a wide, web-friendly centered frame so it's more
+ * usable on big screens. A hidden goal-sound engine plays only the goal sound
+ * on real goals — no other sounds. Mobile is untouched.
  */
 function DesktopSports(_props: { title: string; onNavigate: (tab: DeskTab) => void }) {
   return (
-    <div className="fx-stadium min-h-screen relative">
-      <div className="fx-pitch-stripes absolute inset-0 pointer-events-none" />
+    <div className="bg-[#0B0E11] min-h-screen">
+      {/* Hidden goal-sound engine (desktop only) */}
+      <DesktopSportsFx />
 
-      {/* Broadcast header */}
-      <div className="relative max-w-[1600px] mx-auto px-6 pt-8">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F6465D]/15 border border-[#F6465D]/40 text-[#F6465D] text-xs font-bold uppercase tracking-wider">
-            <span className="w-2 h-2 rounded-full bg-[#F6465D] animate-pulse" /> Live
-          </span>
-          <h1 className="text-white font-extrabold text-3xl tracking-tight">Alpha Sports</h1>
-        </div>
-        <p className="text-[#848E9C] text-sm mt-2">
-          Real-time match action with stadium sound — every goal roars live. Place your bets as it happens.
-        </p>
-      </div>
-
-      {/* Sound engine + live ticker + event banners (desktop only) */}
-      <div className="relative max-w-[1600px] mx-auto px-6 mt-5">
-        <div className="rounded-2xl overflow-hidden border border-[#2B3139]">
-          <DesktopSportsFx />
-        </div>
-      </div>
-
-      {/* Functional betting experience — wide desktop sportsbook */}
-      <div className="relative max-w-[1600px] mx-auto px-6 py-8">
-        <div className="w-full bg-[#0B0E11]/80 backdrop-blur border border-[#2B3139] rounded-2xl p-5 shadow-2xl shadow-black/40">
-          <Suspense fallback={<Loader />}><GamesSection variant="desktop" /></Suspense>
-        </div>
+      {/* Mobile Sports UI, widened for web */}
+      <div className="max-w-[920px] mx-auto px-4 py-6">
+        <Suspense fallback={<Loader />}><GamesSection /></Suspense>
       </div>
     </div>
   );
