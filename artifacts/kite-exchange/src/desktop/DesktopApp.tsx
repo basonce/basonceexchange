@@ -81,7 +81,7 @@ function DesktopSports(_props: { title: string; onNavigate: (tab: DeskTab) => vo
           <h1 className="text-white font-extrabold text-3xl tracking-tight">Alpha Sports</h1>
         </div>
         <p className="text-[#848E9C] text-sm mt-2">
-          Real-time match action with stadium sound — goals roar, the whistle blows. Place your bets as it happens.
+          Real-time match action with stadium sound — every goal roars live. Place your bets as it happens.
         </p>
       </div>
 

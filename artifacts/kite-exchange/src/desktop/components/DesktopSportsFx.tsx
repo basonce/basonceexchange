@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import sfxGoalUrl from '@assets/generated_audio/sfx_goal.mp3';
-import sfxWhistleUrl from '@assets/generated_audio/sfx_whistle.mp3';
 
 /* ════════════════════════════════════════════════════════════
    DESKTOP-ONLY Sports broadcast FX layer.
    Reads the SAME /api/sport/snapshot the betting UI uses, plays a
-   stadium roar when a real goal is scored and a referee whistle on
-   (simulated) yellow cards, and renders a broadcast-style live score
-   ticker + event banners. Never mounted on mobile — mobile is untouched.
+   stadium roar when a real goal is scored, and renders a broadcast-style
+   live score ticker + goal banners. Simulated yellow cards are emitted as
+   a 'sport-card' window event so the match list can show an inline card
+   chip next to the booked team — NO banner, NO alert sound.
+   Never mounted on mobile — mobile is untouched.
 ══════════════════════════════════════════════════════════════ */
 
 interface SnapMatch {
@@ -24,9 +25,7 @@ interface SnapMatch {
   status: 'live' | 'finished';
 }
 
-type FxEvent =
-  | { id: string; kind: 'goal'; team: string; opponent: string; score: string; side: 'home' | 'away' }
-  | { id: string; kind: 'card'; team: string; opponent: string };
+type FxEvent = { id: string; kind: 'goal'; team: string; opponent: string; score: string; side: 'home' | 'away' };
 
 const LOGO = (name: string) => `/api/team-logo-img?name=${encodeURIComponent(name)}`;
 
@@ -60,7 +59,6 @@ export default function DesktopSportsFx() {
   const [muted, setMuted] = useState(false);
 
   const goalAudio = useRef<HTMLAudioElement | null>(null);
-  const whistleAudio = useRef<HTMLAudioElement | null>(null);
   const scoresRef = useRef<Map<string, { h: number; a: number }>>(new Map());
   const unlockedRef = useRef(false);
   const mutedRef = useRef(false);
@@ -72,11 +70,10 @@ export default function DesktopSportsFx() {
   /* preload + unlock audio on first user gesture (browser autoplay policy) */
   useEffect(() => {
     const g = new Audio(sfxGoalUrl); g.preload = 'auto'; g.volume = 0.7; goalAudio.current = g;
-    const w = new Audio(sfxWhistleUrl); w.preload = 'auto'; w.volume = 0.55; whistleAudio.current = w;
     const unlock = () => {
       if (unlockedRef.current) return;
       unlockedRef.current = true;
-      [g, w].forEach((a) => {
+      [g].forEach((a) => {
         a.muted = true;
         a.play().then(() => { a.pause(); a.currentTime = 0; a.muted = false; }).catch(() => { a.muted = false; });
       });
@@ -138,21 +135,13 @@ export default function DesktopSportsFx() {
           }
         }
 
-        // Simulated yellow card: at most one per tick, only for in-play halves
+        // Simulated yellow card: rare, NO banner and NO alert sound — shown
+        // inline next to the booked team's name in the match list via event.
         const inPlay = live.filter((m) => m.phase === 'first_half' || m.phase === 'second_half');
-        if (!firstSnap && inPlay.length && Math.random() < 0.22) {
+        if (!firstSnap && inPlay.length && Math.random() < 0.07) {
           const m = inPlay[Math.floor(Math.random() * inPlay.length)];
-          const homeBooked = Math.random() < 0.5;
-          play(whistleAudio);
-          pushEvent(
-            {
-              id: `c_${m.id}_${Date.now()}`,
-              kind: 'card',
-              team: homeBooked ? m.homeTeam : m.awayTeam,
-              opponent: homeBooked ? m.awayTeam : m.homeTeam,
-            },
-            3600,
-          );
+          const side: 'home' | 'away' = Math.random() < 0.5 ? 'home' : 'away';
+          window.dispatchEvent(new CustomEvent('sport-card', { detail: { matchId: m.id, side } }));
         }
       } catch { /* ignore */ }
     }
@@ -190,7 +179,7 @@ export default function DesktopSportsFx() {
               </div>
             ) : (
               <div className="py-2.5 px-4 text-[#848E9C] text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-                Matches kicking off soon — sound on, every goal and card heard live.
+                Matches kicking off soon — sound on, every goal heard live.
               </div>
             )}
           </div>
@@ -206,32 +195,19 @@ export default function DesktopSportsFx() {
 
       {/* Event banners */}
       <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center gap-3 pointer-events-none">
-        {events.map((ev) =>
-          ev.kind === 'goal' ? (
-            <div
-              key={ev.id}
-              className="fx-pop flex items-center gap-4 px-7 py-4 rounded-2xl border border-[#0ECB81]/50 bg-[#0B0E11]/95 shadow-2xl shadow-[#0ECB81]/20"
-            >
-              <span className="text-3xl">⚽</span>
-              <div>
-                <div className="text-[#0ECB81] font-extrabold text-lg tracking-wide uppercase">Goal!</div>
-                <div className="text-[#EAECEF] text-sm font-semibold">{ev.team}</div>
-                <div className="text-[#848E9C] text-xs">vs {ev.opponent} · {ev.score}</div>
-              </div>
+        {events.map((ev) => (
+          <div
+            key={ev.id}
+            className="fx-pop flex items-center gap-4 px-7 py-4 rounded-2xl border border-[#0ECB81]/50 bg-[#0B0E11]/95 shadow-2xl shadow-[#0ECB81]/20"
+          >
+            <span className="text-3xl">⚽</span>
+            <div>
+              <div className="text-[#0ECB81] font-extrabold text-lg tracking-wide uppercase">Goal!</div>
+              <div className="text-[#EAECEF] text-sm font-semibold">{ev.team}</div>
+              <div className="text-[#848E9C] text-xs">vs {ev.opponent} · {ev.score}</div>
             </div>
-          ) : (
-            <div
-              key={ev.id}
-              className="fx-pop flex items-center gap-3 px-6 py-3.5 rounded-2xl border border-[#F0B90B]/40 bg-[#0B0E11]/95 shadow-2xl"
-            >
-              <span className="inline-block w-5 h-7 rounded-sm bg-[#F0B90B] shadow" />
-              <div>
-                <div className="text-[#F0B90B] font-bold text-sm uppercase tracking-wide">Yellow Card</div>
-                <div className="text-[#EAECEF] text-xs">{ev.team}</div>
-              </div>
-            </div>
-          ),
-        )}
+          </div>
+        ))}
       </div>
     </>
   );

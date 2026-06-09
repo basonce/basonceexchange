@@ -2221,12 +2221,13 @@ function DeskOdd({ label, value, trend, active, onClick }: {
 
 const DESK_GRID = '72px minmax(220px,1fr) 232px 232px 132px';
 
-function DeskMatchRow({ m, activeBetMatchId, onSelectBet, onOpenSim, placedBets }: {
+function DeskMatchRow({ m, activeBetMatchId, onSelectBet, onOpenSim, placedBets, card }: {
   m: LiveMatch;
   activeBetMatchId: string | null;
   onSelectBet: (matchId: string, type: BetType, odds: number) => void;
   onOpenSim: (id: string) => void;
   placedBets: PlacedBet[];
+  card?: 'home' | 'away';
 }) {
   const ht = m.tmpl.homeTeam;
   const at = m.tmpl.awayTeam;
@@ -2269,12 +2270,18 @@ function DeskMatchRow({ m, activeBetMatchId, onSelectBet, onOpenSim, placedBets 
       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5, padding: '8px 14px', borderRight: '1px solid #161B22', minWidth: 0 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '26px 1fr 22px', alignItems: 'center', gap: 8 }}>
           <TeamShield abbr={ht.abbr} color={ht.color} size={26} logoUrl={ht.logoUrl} name={ht.name} />
-          <span style={{ fontSize: 13, fontWeight: homeWin ? 800 : 600, color: isGoalFlash && m.goalFlash === 'home' ? '#4ade80' : homeWin ? '#EAECEF' : '#aeb6c2', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{ht.name}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            <span style={{ fontSize: 13, fontWeight: homeWin ? 800 : 600, color: isGoalFlash && m.goalFlash === 'home' ? '#4ade80' : homeWin ? '#EAECEF' : '#aeb6c2', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{ht.name}</span>
+            {card === 'home' && <span title="Yellow card" className="animate-pulse" style={{ width: 9, height: 13, borderRadius: 2, background: '#F0B90B', boxShadow: '0 0 6px rgba(240,185,11,0.7)', flexShrink: 0 }} />}
+          </span>
           <span style={{ fontSize: 15, fontWeight: 900, textAlign: 'center', color: isGoalFlash && m.goalFlash === 'home' ? '#4ade80' : '#F0B90B' }}>{m.homeScore}</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '26px 1fr 22px', alignItems: 'center', gap: 8 }}>
           <TeamShield abbr={at.abbr} color={at.color} size={26} logoUrl={at.logoUrl} name={at.name} />
-          <span style={{ fontSize: 13, fontWeight: awayWin ? 800 : 600, color: isGoalFlash && m.goalFlash === 'away' ? '#4ade80' : awayWin ? '#EAECEF' : '#aeb6c2', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{at.name}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            <span style={{ fontSize: 13, fontWeight: awayWin ? 800 : 600, color: isGoalFlash && m.goalFlash === 'away' ? '#4ade80' : awayWin ? '#EAECEF' : '#aeb6c2', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{at.name}</span>
+            {card === 'away' && <span title="Yellow card" className="animate-pulse" style={{ width: 9, height: 13, borderRadius: 2, background: '#F0B90B', boxShadow: '0 0 6px rgba(240,185,11,0.7)', flexShrink: 0 }} />}
+          </span>
           <span style={{ fontSize: 15, fontWeight: 900, textAlign: 'center', color: isGoalFlash && m.goalFlash === 'away' ? '#4ade80' : '#F0B90B' }}>{m.awayScore}</span>
         </div>
       </div>
@@ -2383,6 +2390,7 @@ interface DesktopSportsbookProps {
   setActiveView: (v: 'live' | 'bets') => void;
   winnersFeeds: WinnerFeed[];
   betSlip: BetSlipItem | null;
+  cardFlash: Record<string, 'home' | 'away'>;
   onSelectBet: (matchId: string, type: BetType, odds: number) => void;
   onOpenSim: (id: string) => void;
   onPlaceBet: (amount: number) => void;
@@ -2456,7 +2464,7 @@ function DesktopSportsbook(p: DesktopSportsbookProps) {
                       </span>
                     </div>
                     {ms.map(m => (
-                      <DeskMatchRow key={m.id} m={m} activeBetMatchId={p.activeBetMatchId} onSelectBet={p.onSelectBet} onOpenSim={p.onOpenSim} placedBets={p.placedBets} />
+                      <DeskMatchRow key={m.id} m={m} activeBetMatchId={p.activeBetMatchId} onSelectBet={p.onSelectBet} onOpenSim={p.onOpenSim} placedBets={p.placedBets} card={p.cardFlash[m.id]} />
                     ))}
                   </div>
                 );
@@ -2542,6 +2550,7 @@ export default function GamesSection({ variant = 'mobile' }: { variant?: 'mobile
   const [userId, setUserId] = useState<string | null>(null);
   const [balanceId, setBalanceId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<'live' | 'bets'>('live');
+  const [cardFlash, setCardFlash] = useState<Record<string, 'home' | 'away'>>({});
   const [notification, setNotification] = useState<{ msg: string; type: 'win' | 'loss' | 'info' } | null>(null);
   const [winnersFeeds, setWinnersFeeds] = useState<WinnerFeed[]>(() => {
     const descOpts = ['Match Result 1','Match Result 2','Draw','Over 2.5','Under 2.5','Asian Handicap','Double Chance','BTTS Yes','Correct Score','Half-Time 1'];
@@ -2562,6 +2571,37 @@ export default function GamesSection({ variant = 'mobile' }: { variant?: 'mobile
   const initialized = useRef(false);
   const topScrollRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<Map<string, AdminCtrl>>(new Map());
+
+  // Inline yellow-card flash: a card briefly appears next to the booked team's
+  // name in the match row (no banner / alert). Driven by the desktop FX layer.
+  useEffect(() => {
+    const timers = new Map<string, number>();
+    const onCard = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { matchId?: string; side?: 'home' | 'away' };
+      if (!detail?.matchId || (detail.side !== 'home' && detail.side !== 'away')) return;
+      const { matchId, side } = detail;
+      setCardFlash(prev => ({ ...prev, [matchId]: side }));
+      // One timer per match: a newer card resets the countdown so rapid
+      // repeats can't clear a still-fresh flash early.
+      const existing = timers.get(matchId);
+      if (existing !== undefined) clearTimeout(existing);
+      const t = window.setTimeout(() => {
+        timers.delete(matchId);
+        setCardFlash(prev => {
+          const next = { ...prev };
+          delete next[matchId];
+          return next;
+        });
+      }, 6000);
+      timers.set(matchId, t);
+    };
+    window.addEventListener('sport-card', onCard);
+    return () => {
+      window.removeEventListener('sport-card', onCard);
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+  }, []);
 
   /* Smooth continuous auto-scroll — pixel-by-pixel via RAF */
   useEffect(() => {
@@ -3062,7 +3102,7 @@ export default function GamesSection({ variant = 'mobile' }: { variant?: 'mobile
           live={live} finished={finished} byLeague={byLeague} matches={matches}
           placedBets={placedBets} openBets={openBets} usdtBalance={usdtBalance}
           activeBetMatchId={activeBetMatchId} activeView={activeView} setActiveView={setActiveView}
-          winnersFeeds={winnersFeeds} betSlip={betSlip}
+          winnersFeeds={winnersFeeds} betSlip={betSlip} cardFlash={cardFlash}
           onSelectBet={handleSelectBet} onOpenSim={handleOpenSim}
           onPlaceBet={handlePlaceBet}
           onCancelBet={() => { setBetSlip(null); setActiveBetMatchId(null); }}
