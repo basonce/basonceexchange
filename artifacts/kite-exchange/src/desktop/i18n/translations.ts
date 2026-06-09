@@ -38,7 +38,7 @@ export type TKey =
   | 'helpCenter' | 'chatSupport' | 'submitRequest' | 'lawEnforcement' | 'notices'
   | 'buyBitcoin' | 'buyEthereum' | 'cryptoGlossary' | 'tradingGuide' | 'marketsOverview'
   | 'terms' | 'privacy' | 'cookies' | 'riskWarning'
-  | 'close' | 'comingSoon' | 'statusOk';
+  | 'close' | 'comingSoon' | 'statusOk' | 'more';
 
 type Dict = Partial<Record<TKey, string>>;
 
@@ -55,7 +55,7 @@ const en: Record<TKey, string> = {
   helpCenter: 'Help Center', chatSupport: '24/7 Chat Support', submitRequest: 'Submit a Request', lawEnforcement: 'Law Enforcement', notices: 'Notices',
   buyBitcoin: 'Buy Bitcoin', buyEthereum: 'Buy Ethereum', cryptoGlossary: 'Crypto Glossary', tradingGuide: 'Trading Guide', marketsOverview: 'Markets Overview',
   terms: 'Terms', privacy: 'Privacy', cookies: 'Cookies', riskWarning: 'Risk Warning',
-  close: 'Close', comingSoon: 'Detailed information will be available soon.', statusOk: 'All systems operational.',
+  close: 'Close', comingSoon: 'Detailed information will be available soon.', statusOk: 'All systems operational.', more: 'More',
 };
 
 const tr: Dict = {
@@ -71,7 +71,7 @@ const tr: Dict = {
   helpCenter: 'Yardım Merkezi', chatSupport: '7/24 Canlı Destek', submitRequest: 'Talep Oluştur', lawEnforcement: 'Kolluk Kuvvetleri', notices: 'Bildirimler',
   buyBitcoin: 'Bitcoin Al', buyEthereum: 'Ethereum Al', cryptoGlossary: 'Kripto Sözlüğü', tradingGuide: 'İşlem Rehberi', marketsOverview: 'Piyasa Genel Bakış',
   terms: 'Şartlar', privacy: 'Gizlilik', cookies: 'Çerezler', riskWarning: 'Risk Uyarısı',
-  close: 'Kapat', comingSoon: 'Detaylı bilgi yakında eklenecek.', statusOk: 'Tüm sistemler çalışıyor.',
+  close: 'Kapat', comingSoon: 'Detaylı bilgi yakında eklenecek.', statusOk: 'Tüm sistemler çalışıyor.', more: 'Daha Fazla',
 };
 
 const es: Dict = {

@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, ChevronDown, Globe, Wallet, Download, X, Check } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import {
+  Search, ChevronDown, Globe, Wallet, Download, X, Check,
+  Crown, Users, UserPlus, Baby, Rocket, Gift, Pickaxe, Sparkles,
+  CreditCard, Image as ImageIcon, Trophy, Boxes, GraduationCap, HeartHandshake, ShieldCheck,
+} from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useLang } from '../i18n/LanguageContext';
 import { useMarkets } from '../useMarkets';
@@ -36,11 +41,38 @@ const NAV_ITEMS: { key: TKey; tab: DeskTab; dropdown?: { key: TKey; tab: DeskTab
   { key: 'sports', tab: 'sports' },
 ];
 
+type MoreItem = { icon: LucideIcon; title: string; desc: string; tab?: DeskTab };
+
+const MORE_MENU: MoreItem[][] = [
+  [
+    { icon: Crown, title: 'VIP & Institutional', desc: 'Trusted digital asset platform for VIPs and institutions' },
+    { icon: Users, title: 'Affiliate', desc: 'Earn up to 50% commission per trade from referrals' },
+    { icon: UserPlus, title: 'Referral', desc: 'Invite friends to earn a commission rebate or a one-time reward' },
+    { icon: Baby, title: 'Basonce Junior', desc: 'A parent-supervised crypto account for kids and teens' },
+    { icon: Rocket, title: 'Launchpool', desc: 'Discover and gain early access to new token launches' },
+    { icon: Gift, title: 'Megadrop', desc: 'Lock tokens and complete quests for boosted airdrop rewards' },
+    { icon: Pickaxe, title: 'Mining Pool', desc: 'Earn more rewards by connecting to the pool', tab: 'mining' },
+    { icon: Sparkles, title: 'Basonce AI Pro', desc: 'Your AI-powered trading copilot', tab: 'aibot' },
+  ],
+  [
+    { icon: CreditCard, title: 'Pay', desc: 'Send, receive and spend crypto' },
+    { icon: ImageIcon, title: 'NFT', desc: 'Explore NFTs from creators worldwide' },
+    { icon: Trophy, title: 'Fan Token', desc: 'Discover fandom and unlock unlimited fan experiences' },
+    { icon: Wallet, title: 'Basonce Wallet', desc: 'Access and navigate Web3 effortlessly', tab: 'assets' },
+    { icon: Boxes, title: 'Chain', desc: 'A popular blockchain to build your own dApp' },
+    { icon: GraduationCap, title: 'Basonce Academy', desc: 'Free crypto & blockchain education' },
+    { icon: HeartHandshake, title: 'Charity', desc: 'Transparent, efficient and traceable blockchain giving' },
+    { icon: ShieldCheck, title: 'Travel Rule', desc: 'Combat money laundering and terrorism financing' },
+  ],
+];
+
 export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }: DesktopNavProps) {
   const { t, lang, setLang, languages } = useLang();
   const { markets } = useMarkets();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [panel, setPanel] = useState<null | 'search' | 'lang' | 'download'>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -76,6 +108,16 @@ export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }:
       .then(({ data }) => { if (active) setAvatarUrl((data as any)?.avatar_url ?? null); });
     return () => { active = false; };
   }, [user?.id]);
+
+  const onMoreItem = (item: MoreItem) => {
+    setOpenMenu(null);
+    if (item.tab) { onNavigate(item.tab); return; }
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(item.title);
+    toastTimer.current = setTimeout(() => setToast(null), 2600);
+  };
+
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
   const selectCoin = (symbol: string) => {
     localStorage.setItem('selectedCoinSymbol', symbol);
@@ -133,6 +175,50 @@ export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }:
               )}
             </div>
           ))}
+
+          {/* More mega-menu */}
+          <div
+            className="relative"
+            onMouseEnter={() => setOpenMenu('__more')}
+            onMouseLeave={() => setOpenMenu(null)}
+          >
+            <button
+              className={`flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                openMenu === '__more' ? 'text-[#F0B90B]' : 'text-[#EAECEF] hover:text-[#F0B90B]'
+              }`}
+            >
+              {t('more')}
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+            {openMenu === '__more' && (
+              <div className="absolute top-full left-0 pt-2">
+                <div className="w-[640px] max-w-[calc(100vw-3rem)] bg-[#1E2329] border border-[#2B3139] rounded-2xl shadow-2xl shadow-black/50 p-4 grid grid-cols-2 gap-x-4">
+                  {MORE_MENU.map((col, ci) => (
+                    <div key={ci} className="flex flex-col gap-1">
+                      {col.map((m) => {
+                        const Icon = m.icon;
+                        return (
+                          <button
+                            key={m.title}
+                            onClick={() => onMoreItem(m)}
+                            className="group flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-[#2B3139] transition-colors text-left"
+                          >
+                            <span className="mt-0.5 shrink-0 w-8 h-8 rounded-lg bg-[#2B3139] group-hover:bg-[#181A20] flex items-center justify-center text-[#F0B90B] transition-colors">
+                              <Icon className="w-[18px] h-[18px]" />
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block text-sm font-semibold text-[#EAECEF] group-hover:text-[#F0B90B] transition-colors">{m.title}</span>
+                              <span className="block text-xs text-[#848E9C] mt-0.5 leading-snug">{m.desc}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* Right cluster */}
@@ -285,6 +371,14 @@ export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }:
 
       {/* Click-away backdrop for popovers */}
       {panel && <div className="fixed inset-0 z-40" onClick={() => setPanel(null)} />}
+
+      {/* Coming-soon toast for More items */}
+      {toast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] bg-[#1E2329] border border-[#2B3139] rounded-xl shadow-2xl shadow-black/50 px-5 py-3 flex items-center gap-3">
+          <span className="text-sm font-semibold text-[#EAECEF]">{toast}</span>
+          <span className="text-xs text-[#848E9C]">{t('comingSoon')}</span>
+        </div>
+      )}
     </header>
   );
 }
