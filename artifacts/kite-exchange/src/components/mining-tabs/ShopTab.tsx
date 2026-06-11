@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Star, TrendingUp, Zap, Clock, Users, ShoppingCart, AlertCircle, Check, X, Timer, Sparkles, Trophy, Target, Crown, Flame, ArrowRight, Shield } from 'lucide-react';
 import { supabase, getCurrentUser } from '../../lib/supabase';
 import { globalMiningStats } from '../../lib/global-mining-stats';
+import { buildChestMap, type ShopChest } from '../../lib/shopChests';
 
 interface MiningEquipment {
   id: string;
@@ -489,7 +490,9 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
     }
   };
 
-  const EquipmentCard = ({ item }: { item: MiningEquipment }) => {
+  const chestMap = useMemo(() => buildChestMap(equipment), [equipment]);
+
+  const EquipmentCard = ({ item, chest }: { item: MiningEquipment; chest?: ShopChest }) => {
     const canAfford = userBalance >= item.price;
     const hourlyEarning = item.daily_earning / 24;
     const roiDays = Math.ceil(item.price / item.daily_earning);
@@ -564,28 +567,47 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
             </div>
 
             <div className="flex gap-3 mb-3">
-              <div className={`relative flex-shrink-0 w-16 h-16 bg-gradient-to-br ${levelGrad.from} ${levelGrad.to} rounded-xl flex items-center justify-center shadow-2xl ${levelGrad.glow} group-hover:shadow-[0_0_30px] transition-all duration-500`}
-                style={{
-                  transform: 'translateZ(20px)',
-                  boxShadow: `0 10px 30px ${item.level === 5 ? 'rgba(251, 191, 36, 0.3)' : item.level >= 3 ? 'rgba(249, 115, 22, 0.3)' : 'rgba(59, 130, 246, 0.3)'}`
-                }}
-              >
-                <div className="absolute inset-0 rounded-xl opacity-50 group-hover:opacity-100 transition-opacity animate-glow"
+              {chest ? (
+                <div
+                  className="relative flex-shrink-0 w-16 h-16 rounded-xl flex items-center justify-center overflow-hidden border border-[#2B3139] transition-all duration-500"
                   style={{
-                    background: `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3), transparent 60%)`
+                    transform: 'translateZ(20px)',
+                    background: `radial-gradient(circle at 50% 35%, ${chest.glow}26, #0B0E11 72%)`,
+                    boxShadow: `0 10px 30px ${chest.glow}40`
                   }}
-                ></div>
-
-                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-xl"></div>
-
-                <div className="text-2xl transform group-hover:scale-125 group-hover:rotate-12 transition-all duration-500 relative z-10 drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)]">
-                  {item.icon}
+                >
+                  <img
+                    src={chest.img}
+                    alt={item.name}
+                    className="w-[88%] h-[88%] object-contain transform group-hover:scale-110 transition-transform duration-500"
+                    style={{ filter: `drop-shadow(0 0 8px ${chest.glow}66)` }}
+                    draggable={false}
+                  />
                 </div>
+              ) : (
+                <div className={`relative flex-shrink-0 w-16 h-16 bg-gradient-to-br ${levelGrad.from} ${levelGrad.to} rounded-xl flex items-center justify-center shadow-2xl ${levelGrad.glow} group-hover:shadow-[0_0_30px] transition-all duration-500`}
+                  style={{
+                    transform: 'translateZ(20px)',
+                    boxShadow: `0 10px 30px ${item.level === 5 ? 'rgba(251, 191, 36, 0.3)' : item.level >= 3 ? 'rgba(249, 115, 22, 0.3)' : 'rgba(59, 130, 246, 0.3)'}`
+                  }}
+                >
+                  <div className="absolute inset-0 rounded-xl opacity-50 group-hover:opacity-100 transition-opacity animate-glow"
+                    style={{
+                      background: `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3), transparent 60%)`
+                    }}
+                  ></div>
 
-                <div className="absolute inset-0 bg-white/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity animate-pulse"></div>
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-xl"></div>
 
-                <div className="absolute -inset-1 bg-gradient-to-br from-white/20 to-transparent rounded-xl opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500"></div>
-              </div>
+                  <div className="text-2xl transform group-hover:scale-125 group-hover:rotate-12 transition-all duration-500 relative z-10 drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)]">
+                    {item.icon}
+                  </div>
+
+                  <div className="absolute inset-0 bg-white/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity animate-pulse"></div>
+
+                  <div className="absolute -inset-1 bg-gradient-to-br from-white/20 to-transparent rounded-xl opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500"></div>
+                </div>
+              )}
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1.5">
@@ -940,7 +962,7 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
 
             <div className="space-y-4">
               {starterEquipment.map(item => (
-                <EquipmentCard key={item.id} item={item} />
+                <EquipmentCard key={item.id} item={item} chest={chestMap.get(item.id)} />
               ))}
             </div>
           </div>
@@ -959,7 +981,7 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
 
             <div className="space-y-4">
               {advancedEquipment.map(item => (
-                <EquipmentCard key={item.id} item={item} />
+                <EquipmentCard key={item.id} item={item} chest={chestMap.get(item.id)} />
               ))}
             </div>
           </div>
@@ -978,7 +1000,7 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
 
             <div className="space-y-4">
               {legendaryEquipment.map(item => (
-                <EquipmentCard key={item.id} item={item} />
+                <EquipmentCard key={item.id} item={item} chest={chestMap.get(item.id)} />
               ))}
             </div>
           </div>
