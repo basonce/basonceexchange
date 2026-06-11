@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useDesktopMining } from '../hooks/useDesktopMining';
 import type { MinerDevice, ShopEquipment } from '../hooks/useDesktopMining';
 import AuthModal from '../../components/AuthModal';
@@ -11,6 +11,38 @@ import ConfirmPurchaseModal from '../components/mining/ConfirmPurchaseModal';
 import ToastContainer, { useToast } from '../components/mining/ToastContainer';
 import { Pickaxe, Zap, Activity, Clock, ShoppingCart, HelpCircle, AlertCircle, ArrowRight, ShieldCheck, Flame, Star, Target, Server, ChevronRight, Play, Square, Users } from 'lucide-react';
 import { supabase, getCurrentUser } from '../../lib/supabase';
+import chestBlue from '@assets/image_1781218358087.png';
+import chestBlueDeep from '@assets/image_1781218376742.png';
+import chestGold from '@assets/image_1781218313770.png';
+import chestFire from '@assets/image_1781218423839.png';
+import chestQuantum from '@assets/image_1781218398098.png';
+import chestPrime from '@assets/image_1781218444835.png';
+
+// Equipment chest art ordered from entry-tier (simple) to premium (paid),
+// each paired with a signature glow color for the shop card.
+const SHOP_CHESTS: { img: string; glow: string }[] = [
+  { img: chestBlue, glow: '#3B82F6' },
+  { img: chestBlueDeep, glow: '#22D3EE' },
+  { img: chestGold, glow: '#F0B90B' },
+  { img: chestFire, glow: '#FB923C' },
+  { img: chestQuantum, glow: '#A855F7' },
+  { img: chestPrime, glow: '#D946EF' },
+];
+
+// Map each shop item to a chest, spreading the art evenly across the
+// price range so the cheapest item gets the simplest chest and the most
+// expensive gets the most premium one.
+function buildChestMap(items: ShopEquipment[]): Map<string, { img: string; glow: string }> {
+  const map = new Map<string, { img: string; glow: string }>();
+  const ordered = [...items].sort((a, b) => a.price - b.price);
+  const n = ordered.length;
+  ordered.forEach((item, idx) => {
+    const ratio = n <= 1 ? 0 : idx / (n - 1);
+    const chestIdx = Math.round(ratio * (SHOP_CHESTS.length - 1));
+    map.set(item.id, SHOP_CHESTS[chestIdx]);
+  });
+  return map;
+}
 
 // Helper to format remaining time
 const formatTime = (seconds: number) => {
@@ -26,6 +58,7 @@ export default function DesktopMiningPage() {
 
   const [collectModalOpen, setCollectModalOpen] = useState(false);
   const [purchaseModalItem, setPurchaseModalItem] = useState<ShopEquipment | null>(null);
+  const chestMap = useMemo(() => buildChestMap(mining.shopItems), [mining.shopItems]);
   const [faqOpen, setFaqOpen] = useState(false);
   const [currentLevel, setCurrentLevel] = useState(0);
 
@@ -247,6 +280,7 @@ export default function DesktopMiningPage() {
                   <DesktopShopCard 
                     key={item.id} 
                     item={item} 
+                    chest={chestMap.get(item.id)}
                     userBalance={mining.dbUsdtBalance}
                     onBuy={() => setPurchaseModalItem(item)}
                   />
@@ -272,6 +306,7 @@ export default function DesktopMiningPage() {
         onClose={() => setPurchaseModalItem(null)}
         onConfirm={handlePurchase}
         item={purchaseModalItem}
+        chest={purchaseModalItem ? chestMap.get(purchaseModalItem.id) : undefined}
         purchasing={mining.purchasing}
         currentBalance={mining.dbUsdtBalance}
         currentLevel={currentLevel}
@@ -418,37 +453,66 @@ function DesktopMinerCard({ miner, onToggle }: { miner: MinerDevice; onToggle: (
   );
 }
 
-function DesktopShopCard({ item, userBalance, onBuy }: { item: ShopEquipment; userBalance: number; onBuy: () => void }) {
+function DesktopShopCard({ item, chest, userBalance, onBuy }: { item: ShopEquipment; chest?: { img: string; glow: string }; userBalance: number; onBuy: () => void }) {
   const canAfford = userBalance >= item.price;
-  
+  const glow = chest?.glow ?? '#F0B90B';
+
   return (
-    <div className="bg-[#0B0E11] border border-[#2B3139] hover:border-[#F0B90B]/40 rounded-xl p-4 transition-colors flex flex-col xl:flex-row gap-4 group">
-      <div className="w-16 h-16 rounded-xl bg-[#1E2329] border border-[#2B3139] flex items-center justify-center text-3xl shrink-0 group-hover:scale-110 transition-transform shadow-inner relative">
-        {item.icon}
+    <div
+      className="relative rounded-2xl p-4 transition-all duration-300 flex items-stretch gap-4 group border border-[#2B3139] hover:border-[var(--glow)]/50 bg-[#0B0E11]"
+      style={{ ['--glow' as any]: glow }}
+    >
+      {/* Tier ambient glow (own clipped layer so it never crops the card content) */}
+      <div className="pointer-events-none absolute inset-0 rounded-2xl overflow-hidden">
+        <div
+          className="absolute -top-16 -left-16 w-44 h-44 rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity duration-300"
+          style={{ background: glow }}
+        />
+      </div>
+
+      {/* Chest hero */}
+      <div
+        className="relative w-24 h-24 self-center rounded-xl shrink-0 overflow-hidden flex items-center justify-center border border-[#2B3139]"
+        style={{ background: `radial-gradient(circle at 50% 35%, ${glow}26, #0B0E11 70%)` }}
+      >
+        {chest ? (
+          <img
+            src={chest.img}
+            alt={item.name}
+            className="w-[90%] h-[90%] object-contain group-hover:scale-110 transition-transform duration-300"
+            style={{ filter: `drop-shadow(0 0 10px ${glow}55)` }}
+            draggable={false}
+          />
+        ) : (
+          <span className="text-4xl">{item.icon}</span>
+        )}
         {item.badge && (
-          <div className="absolute -top-2 -right-2 bg-[#F0B90B] text-black text-[10px] font-black px-1.5 py-0.5 rounded shadow-md uppercase tracking-wider">
+          <div className="absolute top-1.5 left-1.5 bg-[#F0B90B] text-black text-[9px] font-black px-1.5 py-0.5 rounded shadow-md uppercase tracking-wider">
             {item.badge}
           </div>
         )}
       </div>
 
-      <div className="flex-1 min-w-0 flex flex-col justify-center">
-        <div className="flex justify-between items-start mb-1">
-          <h4 className="text-white font-bold text-base truncate pr-2">{item.name}</h4>
-          <span className="text-white font-bold tabular-nums">${item.price.toLocaleString()}</span>
+      <div className="relative flex-1 min-w-0 flex flex-col">
+        <div className="flex justify-between items-start mb-2 gap-2">
+          <h4 className="text-white font-bold text-base leading-tight pr-1 truncate">{item.name}</h4>
+          <div className="text-right shrink-0">
+            <div className="text-white font-bold text-lg tabular-nums leading-none">${item.price.toLocaleString()}</div>
+            <div className="text-[10px] text-[#848E9C] uppercase tracking-wider mt-0.5">USDT</div>
+          </div>
         </div>
-        
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium mb-3">
-          <span className="text-[#0ECB81] flex items-center gap-1"><Zap className="w-3.5 h-3.5" /> +${(item.daily_earning/24).toFixed(2)}/hr</span>
-          <span className="text-[#848E9C]">LV {item.level}</span>
-          <span className="text-[#848E9C]">Limit: ${item.withdrawal_limit.toLocaleString()}</span>
+
+        <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium mb-3">
+          <span className="text-[#0ECB81] flex items-center gap-1 bg-[#0ECB81]/10 px-2 py-1 rounded-md"><Zap className="w-3.5 h-3.5" /> +${(item.daily_earning/24).toFixed(2)}/hr</span>
+          <span className="text-[#EAECEF] bg-[#1E2329] px-2 py-1 rounded-md">LV {item.level}</span>
+          <span className="text-[#848E9C] bg-[#1E2329] px-2 py-1 rounded-md">Limit ${item.withdrawal_limit.toLocaleString()}</span>
         </div>
 
         <button
           onClick={onBuy}
-          className={`w-full py-2 rounded-lg font-bold text-sm transition-all ${
+          className={`mt-auto w-full py-2.5 rounded-lg font-bold text-sm transition-all ${
             canAfford 
-              ? 'bg-[#F0B90B] hover:bg-[#FCD535] text-black shadow-[0_0_10px_rgba(240,185,11,0.1)] hover:shadow-[0_0_15px_rgba(240,185,11,0.3)]' 
+              ? 'bg-[#F0B90B] hover:bg-[#FCD535] text-black shadow-[0_0_10px_rgba(240,185,11,0.1)] hover:shadow-[0_0_18px_rgba(240,185,11,0.35)]' 
               : 'bg-[#2B3139] text-[#EAECEF] hover:bg-[#363E48]'
           }`}
         >

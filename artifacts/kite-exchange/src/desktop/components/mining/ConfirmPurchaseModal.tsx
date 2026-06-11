@@ -6,12 +6,13 @@ interface ConfirmPurchaseModalProps {
   onClose: () => void;
   onConfirm: () => void;
   item: ShopEquipment | null;
+  chest?: { img: string; glow: string };
   purchasing: boolean;
   currentBalance: number;
   currentLevel: number;
 }
 
-export default function ConfirmPurchaseModal({ isOpen, onClose, onConfirm, item, purchasing, currentBalance, currentLevel }: ConfirmPurchaseModalProps) {
+export default function ConfirmPurchaseModal({ isOpen, onClose, onConfirm, item, chest, purchasing, currentBalance, currentLevel }: ConfirmPurchaseModalProps) {
   if (!isOpen || !item) return null;
 
   const isLevelUp = item.level > currentLevel;
@@ -38,8 +39,21 @@ export default function ConfirmPurchaseModal({ isOpen, onClose, onConfirm, item,
           )}
 
           <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 rounded-xl bg-[#1E2329] border border-[#2B3139] flex items-center justify-center text-3xl shrink-0 shadow-inner">
-              {item.icon}
+            <div
+              className="w-20 h-20 rounded-xl border border-[#2B3139] flex items-center justify-center text-3xl shrink-0 overflow-hidden"
+              style={{ background: chest ? `radial-gradient(circle at 50% 35%, ${chest.glow}26, #0B0E11 70%)` : '#1E2329' }}
+            >
+              {chest ? (
+                <img
+                  src={chest.img}
+                  alt={item.name}
+                  className="w-[88%] h-[88%] object-contain"
+                  style={{ filter: `drop-shadow(0 0 10px ${chest.glow}55)` }}
+                  draggable={false}
+                />
+              ) : (
+                item.icon
+              )}
             </div>
             <div>
               <h3 className="text-white font-bold text-lg">{item.name}</h3>
