@@ -219,15 +219,15 @@ function SummaryCard({ title, coins, onTrade, loading }: { title: string; coins:
             <button
               key={m.symbol}
               onClick={() => onTrade(m.symbol)}
-              className="w-full flex items-center justify-between py-1.5 hover:bg-[#1E2329] rounded-md px-1 -mx-1 transition-colors"
+              className="w-full flex items-center justify-between gap-2 py-1.5 hover:bg-[#1E2329] rounded-md px-1 -mx-1 transition-colors"
             >
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
                 <div className="w-5 h-5 shrink-0"><CoinLogo symbol={m.symbol} dbUrl={m.logo} /></div>
                 <span className="text-white text-sm font-medium truncate">{m.symbol}</span>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                <span className="text-[#EAECEF] text-sm tabular-nums">{formatPriceWithSymbol(m.price)}</span>
-                <span className={`text-sm font-medium tabular-nums w-16 text-right ${m.change24h >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+                <span className="text-[#EAECEF] text-sm tabular-nums whitespace-nowrap">{formatPriceWithSymbol(m.price)}</span>
+                <span className={`text-sm font-medium tabular-nums text-right whitespace-nowrap ${m.change24h >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
                   {m.change24h >= 0 ? '+' : ''}{m.change24h.toFixed(2)}%
                 </span>
               </div>
@@ -243,7 +243,7 @@ function RankingCard({ title, coins, metric, onTrade, loading }: { title: string
   return (
     <div className="bg-[#181A20] border border-[#2B3139] rounded-xl p-5">
       <div className="text-white font-semibold text-base mb-4">{title}</div>
-      <div className="grid grid-cols-[24px_1.6fr_1.2fr_1fr] gap-2 text-[11px] text-[#848E9C] pb-2 border-b border-[#2B3139]">
+      <div className="grid grid-cols-[24px_minmax(0,1.6fr)_minmax(0,1.2fr)_minmax(0,1fr)] gap-2 text-[11px] text-[#848E9C] pb-2 border-b border-[#2B3139]">
         <div>#</div>
         <div>Name</div>
         <div className="text-right">Price</div>
@@ -258,18 +258,18 @@ function RankingCard({ title, coins, metric, onTrade, loading }: { title: string
           <button
             key={m.symbol}
             onClick={() => onTrade(m.symbol)}
-            className="w-full grid grid-cols-[24px_1.6fr_1.2fr_1fr] gap-2 items-center py-2 hover:bg-[#1E2329] rounded-md transition-colors text-left"
+            className="w-full grid grid-cols-[24px_minmax(0,1.6fr)_minmax(0,1.2fr)_minmax(0,1fr)] gap-2 items-center py-2 hover:bg-[#1E2329] rounded-md transition-colors text-left"
           >
             <span className="text-[#848E9C] text-xs tabular-nums">{i + 1}</span>
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-5 h-5 shrink-0"><CoinLogo symbol={m.symbol} dbUrl={m.logo} /></div>
               <span className="text-white text-sm font-medium truncate">{m.symbol}</span>
             </div>
-            <span className="text-right text-[#EAECEF] text-sm tabular-nums">{formatPriceWithSymbol(m.price)}</span>
+            <span className="text-right text-[#EAECEF] text-sm tabular-nums whitespace-nowrap">{formatPriceWithSymbol(m.price)}</span>
             {metric === 'volume' ? (
-              <span className="text-right text-[#B7BDC6] text-sm tabular-nums">{formatVolumeWithSymbol(m.volume)}</span>
+              <span className="text-right text-[#B7BDC6] text-sm tabular-nums whitespace-nowrap">{formatVolumeWithSymbol(m.volume)}</span>
             ) : (
-              <span className={`text-right text-sm font-medium tabular-nums ${m.change24h >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+              <span className={`text-right text-sm font-medium tabular-nums whitespace-nowrap ${m.change24h >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
                 {m.change24h >= 0 ? '+' : ''}{m.change24h.toFixed(2)}%
               </span>
             )}
