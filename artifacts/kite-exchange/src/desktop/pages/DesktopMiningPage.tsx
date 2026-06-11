@@ -9,6 +9,7 @@ import AnimatedCounter from '../../components/AnimatedCounter';
 import ConfirmCollectModal from '../components/mining/ConfirmCollectModal';
 import ConfirmPurchaseModal from '../components/mining/ConfirmPurchaseModal';
 import ToastContainer, { useToast } from '../components/mining/ToastContainer';
+import PayoutTicker from '../components/mining/PayoutTicker';
 import { Pickaxe, Zap, Activity, Clock, ShoppingCart, HelpCircle, AlertCircle, ArrowRight, ShieldCheck, Flame, Star, Target, Server, ChevronRight, Play, Square, Users } from 'lucide-react';
 import { supabase, getCurrentUser } from '../../lib/supabase';
 import { buildChestMap } from '../../lib/shopChests';
@@ -105,6 +106,9 @@ export default function DesktopMiningPage() {
           ))}
         </div>
       </div>
+
+      {/* Latest Payouts Ticker */}
+      <PayoutTicker />
 
       {mining.isDemoMode && (
         <div className="bg-gradient-to-r from-[#F0B90B]/20 via-[#F0B90B]/10 to-transparent border-b border-[#F0B90B]/30">
