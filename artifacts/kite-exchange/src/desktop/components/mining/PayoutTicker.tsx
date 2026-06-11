@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Banknote } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 
@@ -11,20 +11,48 @@ interface Payout {
   action: string;
 }
 
+interface PoolUser {
+  name: string;
+  country: string;
+  avatar: string;
+}
+
 const FALLBACK_NAMES = ['Emma S.', 'James B.', 'Sofia M.', 'Lucas W.', 'Olivia K.', 'Noah T.', 'Ava P.', 'Ethan R.', 'Isabella D.', 'Mason H.', 'Liam C.', 'Mia G.'];
 const FALLBACK_COUNTRIES = ['🇺🇸', '🇬🇧', '🇩🇪', '🇫🇷', '🇯🇵', '🇨🇦', '🇦🇺', '🇮🇹', '🇪🇸', '🇧🇷'];
 const WITHDRAW_ACTIONS = ['Withdrew', 'Cashed out', 'Got paid', 'Received payout', 'Collected'];
 
+const BATCH_SIZE = 40;
+
 const randomAmount = (min: number, max: number) => Math.floor((Math.random() * (max - min) + min) * 100) / 100;
 
-const loadUsers = async (): Promise<{ name: string; country: string; avatar: string }[]> => {
+const shuffle = <T,>(arr: T[]): T[] => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
+const loadUsers = async (): Promise<PoolUser[]> => {
   try {
     const { data, error } = await supabase
       .from('anonymous_profiles')
       .select('username, country, avatar_url')
-      .limit(2000);
+      .limit(5000);
     if (!error && data && data.length > 0) {
-      return data.map((u: any) => ({ name: u.username, country: u.country, avatar: u.avatar_url }));
+      const seen = new Set<string>();
+      const users: PoolUser[] = [];
+      for (const u of data as any[]) {
+        if (!u.username || seen.has(u.username)) continue;
+        seen.add(u.username);
+        users.push({
+          name: u.username,
+          country: u.country || '🌐',
+          avatar: u.avatar_url || `https://i.pravatar.cc/150?u=${encodeURIComponent(u.username)}`,
+        });
+      }
+      if (users.length > 0) return users;
     }
   } catch {
     // fall through to fallback
@@ -36,46 +64,64 @@ const loadUsers = async (): Promise<{ name: string; country: string; avatar: str
   }));
 };
 
-const buildPayouts = (users: { name: string; country: string; avatar: string }[], count: number): Payout[] => {
-  const list: Payout[] = [];
-  const used = new Set<number>();
-  for (let i = 0; i < count; i++) {
-    let idx = Math.floor(Math.random() * users.length);
-    let guard = 0;
-    while (used.has(idx) && used.size < users.length && guard < 50) {
-      idx = Math.floor(Math.random() * users.length);
-      guard++;
-    }
-    used.add(idx);
-    const u = users[idx];
-    list.push({
-      id: Date.now() + i,
-      name: u.name,
-      country: u.country,
-      avatar: u.avatar,
-      amount: randomAmount(150, 15000),
-      action: WITHDRAW_ACTIONS[Math.floor(Math.random() * WITHDRAW_ACTIONS.length)],
-    });
-  }
-  return list;
-};
+let payoutIdSeq = 1;
+const toPayouts = (users: PoolUser[]): Payout[] =>
+  users.map((u) => ({
+    id: payoutIdSeq++,
+    name: u.name,
+    country: u.country,
+    avatar: u.avatar,
+    amount: randomAmount(150, 15000),
+    action: WITHDRAW_ACTIONS[Math.floor(Math.random() * WITHDRAW_ACTIONS.length)],
+  }));
 
 export default function PayoutTicker() {
   const [payouts, setPayouts] = useState<Payout[]>([]);
+  const deckRef = useRef<PoolUser[]>([]);
+  const cursorRef = useRef(0);
+
+  // Draw the next BATCH_SIZE unique users from the shuffled deck.
+  // Reshuffle and restart only after the entire pool is exhausted, so the
+  // same profile is never shown twice until everyone has appeared.
+  const nextBatch = (): PoolUser[] => {
+    if (deckRef.current.length === 0) return [];
+    const target = Math.min(BATCH_SIZE, deckRef.current.length);
+    const out: PoolUser[] = [];
+    const picked = new Set<string>();
+    let guard = 0;
+    const maxIterations = deckRef.current.length * 2 + BATCH_SIZE;
+    while (out.length < target && guard < maxIterations) {
+      guard += 1;
+      if (cursorRef.current >= deckRef.current.length) {
+        deckRef.current = shuffle(deckRef.current);
+        cursorRef.current = 0;
+      }
+      const user = deckRef.current[cursorRef.current];
+      cursorRef.current += 1;
+      // Skip anyone already shown in this same cycle (only possible right
+      // after a mid-batch reshuffle); all deck names are unique, so a full
+      // batch of distinct users is always reachable.
+      if (picked.has(user.name)) continue;
+      picked.add(user.name);
+      out.push(user);
+    }
+    return out;
+  };
 
   useEffect(() => {
     let active = true;
+
     loadUsers().then((users) => {
       if (!active) return;
-      setPayouts(buildPayouts(users, 14));
+      deckRef.current = shuffle(users);
+      cursorRef.current = 0;
+      setPayouts(toPayouts(nextBatch()));
     });
 
     const refresh = setInterval(() => {
-      loadUsers().then((users) => {
-        if (!active) return;
-        setPayouts(buildPayouts(users, 14));
-      });
-    }, 30000);
+      if (!active || deckRef.current.length === 0) return;
+      setPayouts(toPayouts(nextBatch()));
+    }, 25000);
 
     return () => {
       active = false;
