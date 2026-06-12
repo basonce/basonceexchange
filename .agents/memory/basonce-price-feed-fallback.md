@@ -28,3 +28,11 @@ new feature reading Binance data should degrade to CoinGecko rather than freeze.
 - Symbol mapping: strip `USDT/USDC/BUSD/USD` then `getCoinGeckoId(base)`.
 - Respect CoinGecko free rate limits: cache (short TTL) and reuse stale cache on
   failure instead of returning empty.
+
+## Symbol format gotcha
+`fetchCoinGeckoPrices(symbols)` and `getCoinGeckoId(symbol)` key on **base** symbols
+(`BTC`, `ETH`, `SOL`) via `SYMBOL_TO_COINGECKO_ID` — NOT trading pairs (`BTCUSDT`).
+Passing pair symbols returns an empty Map (no IDs match), silently breaking any live
+feed. The AI bot config (`config.selectedCoins`) and most UI key everything by pair
+(`BTCUSDT`), so any new caller must strip the quote suffix (`/(USDT|USDC|BUSD|USD)$/`)
+before fetching, then re-key results back onto the pair symbol for the UI.

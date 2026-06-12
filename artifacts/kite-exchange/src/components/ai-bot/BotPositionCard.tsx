@@ -1,16 +1,28 @@
 import { TrendingUp, TrendingDown, X } from 'lucide-react';
 import { BotPosition } from '../../lib/ai-bot-engine';
+import { LiveTick } from '../../lib/useLivePrices';
 
 interface BotPositionCardProps {
   position: BotPosition;
   onClose?: (id: string) => void;
+  livePrice?: LiveTick;
 }
 
-export default function BotPositionCard({ position, onClose }: BotPositionCardProps) {
+export default function BotPositionCard({ position, onClose, livePrice }: BotPositionCardProps) {
   const isLong = position.side === 'LONG';
   const isOpen = position.status === 'open';
-  const pnlPositive = position.pnl >= 0;
   const base = position.symbol.replace('USDT', '');
+
+  // Live, display-only mark price + P&L (mirrors engine calcPnL). Real money
+  // is only settled by the bot's scan loop, never by this ticking layer.
+  const markPrice = isOpen && livePrice ? livePrice.price : position.currentPrice;
+  const priceDiff = isLong
+    ? (markPrice - position.entryPrice) / position.entryPrice
+    : (position.entryPrice - markPrice) / position.entryPrice;
+  const livePnlPct = isOpen && livePrice ? priceDiff * position.leverage * 100 : position.pnlPct;
+  const livePnl = isOpen && livePrice ? (position.sizeUsdt * livePnlPct) / 100 : position.pnl;
+  const pnlPositive = livePnl >= 0;
+  const livePosition = { ...position, currentPrice: markPrice };
 
   const statusColors: Record<string, string> = {
     open: '#F0B90B',
@@ -79,15 +91,21 @@ export default function BotPositionCard({ position, onClose }: BotPositionCardPr
           </div>
           <div className="bg-[#2B3139] rounded-xl p-2.5">
             <div className="text-xs text-gray-500">{isOpen ? 'Current' : 'Exit'}</div>
-            <div className="text-xs font-bold text-white mt-0.5">${formatPrice(position.currentPrice)}</div>
+            <div
+              key={isOpen && livePrice ? markPrice : undefined}
+              className="text-xs font-bold text-white mt-0.5 tabular-nums rounded"
+              style={isOpen && livePrice ? { animation: `${livePrice.dir >= 0 ? 'liveFlashUp' : 'liveFlashDown'} 0.7s ease-out` } : undefined}
+            >
+              ${formatPrice(markPrice)}
+            </div>
           </div>
           <div className={`rounded-xl p-2.5 ${pnlPositive ? 'bg-[#10B98115] border border-[#10B98130]' : 'bg-[#EF444415] border border-[#EF444430]'}`}>
             <div className="text-xs" style={{ color: pnlPositive ? '#10B981' : '#EF4444' }}>PnL</div>
-            <div className="text-xs font-bold mt-0.5" style={{ color: pnlPositive ? '#10B981' : '#EF4444' }}>
-              {pnlPositive ? '+' : ''}{position.pnl.toFixed(2)}
+            <div className="text-xs font-bold mt-0.5 tabular-nums" style={{ color: pnlPositive ? '#10B981' : '#EF4444' }}>
+              {pnlPositive ? '+' : ''}{livePnl.toFixed(2)}
             </div>
-            <div className="text-xs" style={{ color: pnlPositive ? '#10B981' : '#EF4444' }}>
-              {pnlPositive ? '+' : ''}{position.pnlPct.toFixed(2)}%
+            <div className="text-xs tabular-nums" style={{ color: pnlPositive ? '#10B981' : '#EF4444' }}>
+              {pnlPositive ? '+' : ''}{livePnlPct.toFixed(2)}%
             </div>
           </div>
         </div>
@@ -100,9 +118,9 @@ export default function BotPositionCard({ position, onClose }: BotPositionCardPr
             </div>
             <div className="relative h-1.5 bg-[#2B3139] rounded-full overflow-hidden">
               <div
-                className="absolute top-0 left-0 h-full rounded-full transition-all"
+                className="absolute top-0 left-0 h-full rounded-full transition-all duration-700"
                 style={{
-                  width: `${getProgressPct(position)}%`,
+                  width: `${getProgressPct(livePosition)}%`,
                   backgroundColor: pnlPositive ? '#10B981' : '#EF4444',
                 }}
               />

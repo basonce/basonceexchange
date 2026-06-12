@@ -1,14 +1,16 @@
 import { TrendingUp, TrendingDown, Minus, Target, Shield, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
 import { BotSignal } from '../../lib/ai-bot-engine';
+import { LiveTick, fmtLivePrice } from '../../lib/useLivePrices';
 
 interface BotSignalCardProps {
   signal: BotSignal;
   onFollow?: (signal: BotSignal) => void;
   isFollowing?: boolean;
+  livePrice?: LiveTick;
 }
 
-export default function BotSignalCard({ signal, onFollow, isFollowing }: BotSignalCardProps) {
+export default function BotSignalCard({ signal, onFollow, isFollowing, livePrice }: BotSignalCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   const isLong = signal.signalType === 'LONG';
@@ -41,7 +43,22 @@ export default function BotSignalCard({ signal, onFollow, isFollowing }: BotSign
               onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${base}&background=f0b90b&color=000&size=64`; }}
             />
             <div>
-              <div className="font-bold text-white text-sm">{base}/USDT</div>
+              <div className="font-bold text-white text-sm flex items-center gap-2">
+                {base}/USDT
+                {livePrice && (
+                  <span
+                    key={livePrice.price}
+                    className="inline-flex items-center gap-0.5 text-xs font-bold tabular-nums whitespace-nowrap rounded-md px-1.5 py-0.5"
+                    style={{
+                      color: livePrice.dir >= 0 ? '#10B981' : '#EF4444',
+                      animation: `${livePrice.dir >= 0 ? 'liveFlashUp' : 'liveFlashDown'} 0.7s ease-out`,
+                    }}
+                  >
+                    {livePrice.dir >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                    ${fmtLivePrice(livePrice.price)}
+                  </span>
+                )}
+              </div>
               <div className="text-xs text-gray-500 flex items-center gap-1">
                 <Clock className="w-3 h-3" />
                 {signal.timeframe} · {new Date(signal.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -63,13 +80,18 @@ export default function BotSignalCard({ signal, onFollow, isFollowing }: BotSign
         </div>
 
         <div className="flex items-center gap-2 mb-3">
-          <div className="flex-1 bg-[#2B3139] rounded-xl h-2 overflow-hidden">
+          <div className="relative flex-1 bg-[#2B3139] rounded-xl h-2 overflow-hidden">
             <div
-              className="h-full rounded-xl transition-all"
+              className="relative h-full rounded-xl transition-all duration-700 overflow-hidden"
               style={{ width: `${signal.confidence}%`, backgroundColor: confidenceColor }}
-            />
+            >
+              <span
+                className="absolute inset-y-0 w-1/3 -skew-x-12"
+                style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent)', animation: 'botSheen 1.8s ease-in-out infinite' }}
+              />
+            </div>
           </div>
-          <span className="text-xs font-bold" style={{ color: confidenceColor }}>{signal.confidence}%</span>
+          <span className="text-xs font-bold tabular-nums" style={{ color: confidenceColor }}>{signal.confidence}%</span>
           <span className="text-xs text-gray-500">confidence</span>
         </div>
 

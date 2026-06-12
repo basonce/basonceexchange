@@ -11,8 +11,25 @@ import BotStatsPanel from '../../components/ai-bot/BotStatsPanel';
 import { useAIBot } from '../../hooks/useAIBot';
 import { STRATEGY_CONFIGS, TOP_BOT_COINS } from '../../lib/ai-bot-engine';
 import { fetchCoinGeckoPrices } from '../../lib/coingecko-price';
+import { useLivePrices, fmtLivePrice, LivePriceMap } from '../../lib/useLivePrices';
 
 const SHELL = 'w-full max-w-[1600px] mx-auto px-6';
+
+const SCAN_INTERVAL_MS: Record<string, number> = {
+  scalper: 30000,
+  aggressive: 60000,
+  swing: 120000,
+  conservative: 300000,
+};
+
+function useNow(intervalMs = 1000): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(t);
+  }, [intervalMs]);
+  return now;
+}
 
 function getCMCId(symbol: string): number {
   const map: Record<string, number> = {
@@ -32,6 +49,10 @@ function BotStyles() {
       @keyframes botPulseRing { 0% { transform: scale(.85); opacity: .55; } 100% { transform: scale(1.7); opacity: 0; } }
       @keyframes botDash { to { stroke-dashoffset: 0; } }
       @keyframes botSheen { 0% { transform: translateX(-150%); } 100% { transform: translateX(250%); } }
+      @keyframes liveFlashUp { 0% { background-color: rgba(16,185,129,0.35); } 100% { background-color: transparent; } }
+      @keyframes liveFlashDown { 0% { background-color: rgba(239,68,68,0.35); } 100% { background-color: transparent; } }
+      @keyframes tickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+      @keyframes liveDot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
     `}</style>
   );
 }
@@ -115,7 +136,27 @@ export default function DesktopAIBot() {
     handleToggleBot,
   } = useAIBot();
 
-  const totalReturn = initialBalance > 0 ? ((simBalance - initialBalance) / initialBalance) * 100 : 0;
+  const live = useLivePrices(config.selectedCoins, hasConfig && !!user);
+  const now = useNow(1000);
+
+  // Live unrealized P&L across open positions (display-only; mirrors engine calcPnL).
+  const unrealized = openPositions.reduce((acc, p) => {
+    const lp = live.get(p.symbol);
+    if (!lp) return acc + p.pnl;
+    const diff = p.side === 'LONG'
+      ? (lp.price - p.entryPrice) / p.entryPrice
+      : (p.entryPrice - lp.price) / p.entryPrice;
+    return acc + (p.sizeUsdt * diff * p.leverage);
+  }, 0);
+
+  const liveEquity = simBalance + unrealized;
+  const liveTotalPnl = stats.totalPnl + unrealized;
+  const totalReturn = initialBalance > 0 ? ((liveEquity - initialBalance) / initialBalance) * 100 : 0;
+
+  const scanInterval = SCAN_INTERVAL_MS[config.strategy] ?? 120000;
+  const nextScanSec = isRunning && lastScan
+    ? Math.max(0, Math.ceil((lastScan.getTime() + scanInterval - now) / 1000))
+    : 0;
 
   if (showSetup) {
     return (
@@ -202,6 +243,8 @@ export default function DesktopAIBot() {
         </div>
       </div>
 
+      {user && hasConfig && <LiveTicker symbols={config.selectedCoins} live={live} />}
+
       <div className={`${SHELL} pt-7`}>
         {!user ? (
           <GetStarted onSetup={() => setShowSetup(true)} locked />
@@ -213,10 +256,10 @@ export default function DesktopAIBot() {
           <>
             {/* KPI strip */}
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-              <Kpi icon={Wallet} label="Bot Balance" value={`$${simBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} accent="#F0B90B" />
-              <Kpi icon={totalReturn >= 0 ? TrendingUp : TrendingDown} label="Total Return" value={`${totalReturn >= 0 ? '+' : ''}${totalReturn.toFixed(2)}%`} accent={totalReturn >= 0 ? '#0ECB81' : '#F6465D'} />
+              <Kpi icon={Wallet} label="Equity" value={`$${liveEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} sub={unrealized !== 0 ? `${unrealized >= 0 ? '+' : ''}$${unrealized.toFixed(2)} unrealized` : `$${simBalance.toFixed(2)} balance`} accent="#F0B90B" live />
+              <Kpi icon={totalReturn >= 0 ? TrendingUp : TrendingDown} label="Total Return" value={`${totalReturn >= 0 ? '+' : ''}${totalReturn.toFixed(2)}%`} accent={totalReturn >= 0 ? '#0ECB81' : '#F6465D'} live={unrealized !== 0} />
               <Kpi icon={Target} label="Win Rate" value={`${stats.winRate.toFixed(1)}%`} sub={`${stats.winningTrades}/${stats.totalTrades} trades`} accent="#0ECB81" />
-              <Kpi icon={LineChart} label="Total PnL" value={`${stats.totalPnl >= 0 ? '+' : ''}$${stats.totalPnl.toFixed(2)}`} accent={stats.totalPnl >= 0 ? '#0ECB81' : '#F6465D'} />
+              <Kpi icon={LineChart} label="Total PnL" value={`${liveTotalPnl >= 0 ? '+' : ''}$${liveTotalPnl.toFixed(2)}`} accent={liveTotalPnl >= 0 ? '#0ECB81' : '#F6465D'} live={unrealized !== 0} />
               <Kpi icon={Award} label="Best Trade" value={`+${stats.bestTradePct.toFixed(2)}%`} accent="#F0B90B" />
               <Kpi icon={Activity} label="Open Positions" value={`${openPositions.length}`} sub={`${closedPositions.length} closed`} accent="#8B5CF6" />
             </div>
@@ -243,7 +286,7 @@ export default function DesktopAIBot() {
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {signals.map((signal, i) => (
-                        <BotSignalCard key={`${signal.symbol}-${i}`} signal={signal} onFollow={handleFollowSignal} isFollowing={openPositions.some(p => p.symbol === signal.symbol)} />
+                        <BotSignalCard key={`${signal.symbol}-${i}`} signal={signal} onFollow={handleFollowSignal} isFollowing={openPositions.some(p => p.symbol === signal.symbol)} livePrice={live.get(signal.symbol)} />
                       ))}
                     </div>
                   )
@@ -254,7 +297,7 @@ export default function DesktopAIBot() {
                     <EmptyState title="No open positions" subtitle="The bot opens positions automatically based on high-confidence signals" />
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {openPositions.map(pos => (<BotPositionCard key={pos.id} position={pos} onClose={handleClosePosition} />))}
+                      {openPositions.map(pos => (<BotPositionCard key={pos.id} position={pos} onClose={handleClosePosition} livePrice={live.get(pos.symbol)} />))}
                     </div>
                   )
                 )}
@@ -279,14 +322,28 @@ export default function DesktopAIBot() {
               {/* Right — sidebar */}
               <aside className="space-y-4 xl:sticky xl:top-4">
                 {isRunning && (
-                  <div className="p-4 bg-[#10B98112] border border-[#10B98130] rounded-2xl flex items-center gap-3">
-                    <Wifi className="w-5 h-5 text-green-400 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm text-green-400 font-semibold">Live · scanning {config.selectedCoins.length} coins</div>
-                      {lastScan && <div className="text-xs text-gray-500 mt-0.5">Last scan {lastScan.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>}
+                  <div className="relative p-4 bg-[#10B98112] border border-[#10B98130] rounded-2xl overflow-hidden">
+                    <div className="flex items-center gap-3">
+                      <Wifi className="w-5 h-5 text-green-400 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-green-400 font-semibold flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-400" style={{ animation: 'liveDot 1.1s ease-in-out infinite' }} />
+                          Live · scanning {config.selectedCoins.length} coins
+                        </div>
+                        <div className="text-xs text-gray-500 mt-0.5 whitespace-nowrap">
+                          {nextScanSec > 0 ? `Next scan in ${nextScanSec}s` : isScanning ? 'Scanning now…' : 'Scanning…'}
+                          {lastScan && ` · last ${lastScan.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`}
+                        </div>
+                      </div>
+                      <div className="flex gap-1 items-end">
+                        {[1, 2, 3].map(i => (<div key={i} className="w-1 bg-green-400 rounded-full animate-pulse" style={{ height: `${8 + i * 4}px`, animationDelay: `${i * 0.15}s` }} />))}
+                      </div>
                     </div>
-                    <div className="flex gap-1 items-end">
-                      {[1, 2, 3].map(i => (<div key={i} className="w-1 bg-green-400 rounded-full animate-pulse" style={{ height: `${8 + i * 4}px`, animationDelay: `${i * 0.15}s` }} />))}
+                    <div className="mt-3 h-1 bg-[#10B98120] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-green-400 rounded-full transition-all duration-1000 ease-linear"
+                        style={{ width: `${scanInterval > 0 ? Math.max(0, Math.min(100, ((scanInterval / 1000 - nextScanSec) / (scanInterval / 1000)) * 100)) : 0}%` }}
+                      />
                     </div>
                   </div>
                 )}
@@ -307,19 +364,37 @@ export default function DesktopAIBot() {
                 </div>
 
                 <div className="bg-[#181A20] border border-[#2B3139] rounded-2xl p-5">
-                  <h3 className="text-sm font-bold text-white mb-4">Active Markets</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-bold text-white">Active Markets</h3>
+                    <span className="inline-flex items-center gap-1.5 text-xs text-green-400 font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400" style={{ animation: 'liveDot 1.1s ease-in-out infinite' }} />
+                      LIVE
+                    </span>
+                  </div>
                   <div className="space-y-2.5">
                     {config.selectedCoins.map(symbol => {
                       const base = symbol.replace('USDT', '');
                       const sig = signals.find(s => s.symbol === symbol);
                       const sigColor = sig?.signalType === 'LONG' ? '#0ECB81' : sig?.signalType === 'SHORT' ? '#F6465D' : '#848E9C';
+                      const lp = live.get(symbol);
                       return (
                         <div key={symbol} className="flex items-center gap-3 min-w-0">
                           <img src={`https://s2.coinmarketcap.com/static/img/coins/64x64/${getCMCId(base)}.png`} alt={base} className="w-7 h-7 rounded-full shrink-0" onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${base}&background=f0b90b&color=000&size=64`; }} />
-                          <div className="flex-1 min-w-0 truncate text-sm font-medium text-white">{base}<span className="text-gray-500">/USDT</span></div>
+                          <div className="flex-1 min-w-0">
+                            <div className="truncate text-sm font-medium text-white">{base}<span className="text-gray-500">/USDT</span></div>
+                            {lp && (
+                              <div
+                                key={lp.price}
+                                className="text-xs font-semibold tabular-nums whitespace-nowrap rounded px-1 -ml-1"
+                                style={{ color: lp.dir >= 0 ? '#0ECB81' : '#F6465D', animation: `${lp.dir >= 0 ? 'liveFlashUp' : 'liveFlashDown'} 0.7s ease-out` }}
+                              >
+                                ${fmtLivePrice(lp.price)}
+                              </div>
+                            )}
+                          </div>
                           {sig ? (
-                            <span className="text-xs font-bold whitespace-nowrap px-2 py-0.5 rounded-md" style={{ color: sigColor, backgroundColor: `${sigColor}1A` }}>{sig.signalType === 'WAIT' ? 'WAIT' : `${sig.signalType} ${sig.confidence}%`}</span>
-                          ) : (<span className="text-xs text-gray-600 whitespace-nowrap">—</span>)}
+                            <span className="text-xs font-bold whitespace-nowrap px-2 py-0.5 rounded-md shrink-0" style={{ color: sigColor, backgroundColor: `${sigColor}1A` }}>{sig.signalType === 'WAIT' ? 'WAIT' : `${sig.signalType} ${sig.confidence}%`}</span>
+                          ) : (<span className="text-xs text-gray-600 whitespace-nowrap shrink-0">—</span>)}
                         </div>
                       );
                     })}
@@ -341,18 +416,56 @@ export default function DesktopAIBot() {
 
 /* ---------- KPI ---------- */
 
-function Kpi({ icon: Icon, label, value, sub, accent }: { icon: any; label: string; value: string; sub?: string; accent: string }) {
+function Kpi({ icon: Icon, label, value, sub, accent, live }: { icon: any; label: string; value: string; sub?: string; accent: string; live?: boolean }) {
   return (
     <div className="relative overflow-hidden bg-[#181A20] border border-[#2B3139] rounded-2xl p-4 min-w-0 group hover:border-[#3B4049] transition-colors">
       <div className="absolute -right-6 -top-6 w-20 h-20 rounded-full blur-2xl opacity-20 group-hover:opacity-40 transition-opacity" style={{ backgroundColor: accent }} />
+      {live && <span className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: accent, animation: 'liveDot 1.1s ease-in-out infinite' }} />}
       <div className="relative flex items-center gap-2 mb-2.5">
         <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${accent}1A`, border: `1px solid ${accent}33` }}>
           <Icon className="w-4 h-4" style={{ color: accent }} />
         </div>
         <span className="text-xs text-gray-400 truncate">{label}</span>
       </div>
-      <div className="relative text-xl font-bold whitespace-nowrap" style={{ color: accent }}>{value}</div>
+      <div className="relative text-xl font-bold whitespace-nowrap tabular-nums" style={{ color: accent }}>{value}</div>
       {sub && <div className="relative text-xs text-gray-500 mt-0.5 truncate">{sub}</div>}
+    </div>
+  );
+}
+
+/* ---------- live ticker strip ---------- */
+
+function LiveTicker({ symbols, live }: { symbols: string[]; live: LivePriceMap }) {
+  const items = symbols.filter(s => live.get(s));
+  if (items.length === 0) return null;
+  const row = (keyPrefix: string) => items.map((symbol) => {
+    const base = symbol.replace('USDT', '');
+    const lp = live.get(symbol)!;
+    const up = lp.change24h >= 0;
+    return (
+      <div key={`${keyPrefix}-${symbol}`} className="flex items-center gap-2 px-5 whitespace-nowrap">
+        <span className="text-xs font-bold text-gray-300">{base}<span className="text-gray-600">/USDT</span></span>
+        <span
+          key={lp.price}
+          className="text-xs font-semibold tabular-nums rounded px-1"
+          style={{ color: lp.dir >= 0 ? '#0ECB81' : '#F6465D', animation: `${lp.dir >= 0 ? 'liveFlashUp' : 'liveFlashDown'} 0.7s ease-out` }}
+        >
+          ${fmtLivePrice(lp.price)}
+        </span>
+        <span className="text-xs font-medium tabular-nums" style={{ color: up ? '#0ECB81' : '#F6465D' }}>
+          {up ? '▲' : '▼'} {Math.abs(lp.change24h).toFixed(2)}%
+        </span>
+      </div>
+    );
+  });
+  return (
+    <div className="relative border-b border-[#1E2329] bg-[#0B0E11] overflow-hidden">
+      <div className="flex w-max" style={{ animation: 'tickerScroll 28s linear infinite' }}>
+        <div className="flex py-2.5">{row('a')}</div>
+        <div className="flex py-2.5" aria-hidden>{row('b')}</div>
+      </div>
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-[#0B0E11] to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-[#0B0E11] to-transparent" />
     </div>
   );
 }
