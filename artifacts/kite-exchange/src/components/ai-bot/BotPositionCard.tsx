@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, X } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import { BotPosition } from '../../lib/ai-bot-engine';
 import { LiveTick } from '../../lib/useLivePrices';
 
@@ -73,14 +73,6 @@ export default function BotPositionCard({ position, onClose, livePrice }: BotPos
             >
               {statusLabels[position.status]}
             </span>
-            {isOpen && onClose && (
-              <button
-                onClick={() => onClose(position.id)}
-                className="w-7 h-7 rounded-lg bg-[#2B3139] flex items-center justify-center hover:bg-[#3B4049] transition-all"
-              >
-                <X className="w-3.5 h-3.5 text-gray-400" />
-              </button>
-            )}
           </div>
         </div>
 
@@ -126,6 +118,21 @@ export default function BotPositionCard({ position, onClose, livePrice }: BotPos
               />
             </div>
           </div>
+        )}
+
+        {isOpen && onClose && (
+          <button
+            onClick={() => onClose(position.id)}
+            className="mt-3 w-full py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all hover:brightness-110"
+            style={{
+              backgroundColor: pnlPositive ? '#10B98122' : '#EF444422',
+              color: pnlPositive ? '#10B981' : '#EF4444',
+              border: `1px solid ${pnlPositive ? '#10B98155' : '#EF444455'}`,
+            }}
+          >
+            {pnlPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+            {pnlPositive ? 'Take Profit · Close Now' : 'Close Position Now'}
+          </button>
         )}
       </div>
     </div>
