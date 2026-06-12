@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import BotSetupScreen from '../../components/ai-bot/BotSetupScreen';
 import BotSignalCard from '../../components/ai-bot/BotSignalCard';
+import BotLiveTape from '../../components/ai-bot/BotLiveTape';
 import BotPositionCard from '../../components/ai-bot/BotPositionCard';
 import BotStatsPanel from '../../components/ai-bot/BotStatsPanel';
 import { useAIBot } from '../../hooks/useAIBot';
@@ -473,15 +474,20 @@ export default function DesktopAIBot() {
                 </div>
 
                 {activeTab === 'signals' && (
-                  signals.length === 0 ? (
-                    <EmptyState title={isRunning ? 'Scanning markets…' : 'No signals yet'} subtitle={isRunning ? 'AI is analyzing your selected coins' : 'Start the bot to generate signals'} scanning={isScanning} />
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {signals.map((signal, i) => (
-                        <BotSignalCard key={`${signal.symbol}-${i}`} signal={signal} onFollow={handleFollowSignal} isFollowing={openPositions.some(p => p.symbol === signal.symbol)} livePrice={live.get(signal.symbol)} />
-                      ))}
-                    </div>
-                  )
+                  <>
+                    {signals.length === 0 ? (
+                      <EmptyState title={isRunning ? 'Scanning markets…' : 'No signals yet'} subtitle={isRunning ? 'AI is analyzing your selected coins' : 'Start the bot to generate signals'} scanning={isScanning} />
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {signals.map((signal, i) => (
+                          <BotSignalCard key={`${signal.symbol}-${i}`} signal={signal} onFollow={handleFollowSignal} isFollowing={openPositions.some(p => p.symbol === signal.symbol)} livePrice={live.get(signal.symbol)} />
+                        ))}
+                      </div>
+                    )}
+                    {config.selectedCoins.length > 0 && (
+                      <BotLiveTape coins={config.selectedCoins} live={live} signals={signals} leverage={config.leverage} closedCount={closedPositions.length} />
+                    )}
+                  </>
                 )}
 
                 {activeTab === 'positions' && (
