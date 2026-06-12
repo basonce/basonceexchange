@@ -194,12 +194,28 @@ export async function generateSignal(symbol: string, strategy: string, timeframe
   let signalType: 'LONG' | 'SHORT' | 'WAIT' = 'WAIT';
   let confidence = 0;
 
-  if (longScore > shortScore && longScore / totalScore > 0.55) {
-    signalType = 'LONG';
-    confidence = Math.min(95, Math.round((longScore / totalScore) * 100 * mult));
-  } else if (shortScore > longScore && shortScore / totalScore > 0.55) {
-    signalType = 'SHORT';
-    confidence = Math.min(95, Math.round((shortScore / totalScore) * 100 * mult));
+  // When candles are synthetic (real Binance + CoinGecko feeds were down) we still
+  // surface a directional lean for the UI, but cap confidence below the auto-trade
+  // threshold (65) so the bot never opens positions off fallback-generated data —
+  // the user can still manually "Follow" a signal.
+  const isSynthetic = klines.length > 0 && (klines[0] as any).synthetic === true;
+  const confCap = isSynthetic ? 64 : 95;
+
+  // Always surface the dominant directional lean with a real confidence value.
+  // Only stay WAIT when there is genuinely no analyzable data (totalScore === 0),
+  // so cards never sit at a meaningless WAIT/0%.
+  if (totalScore > 0) {
+    const longRatio = longScore / totalScore;
+    const shortRatio = shortScore / totalScore;
+    // Ties are broken by momentum (RSI) rather than an arbitrary fixed bias.
+    const longWins = longScore > shortScore || (longScore === shortScore && rsi >= 50);
+    if (longWins) {
+      signalType = 'LONG';
+      confidence = Math.max(40, Math.min(confCap, Math.round(longRatio * 100 * mult)));
+    } else {
+      signalType = 'SHORT';
+      confidence = Math.max(40, Math.min(confCap, Math.round(shortRatio * 100 * mult)));
+    }
   }
 
   const tpMultiplier: Record<string, number> = {

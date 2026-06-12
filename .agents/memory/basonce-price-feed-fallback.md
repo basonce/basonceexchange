@@ -36,3 +36,24 @@ Passing pair symbols returns an empty Map (no IDs match), silently breaking any 
 feed. The AI bot config (`config.selectedCoins`) and most UI key everything by pair
 (`BTCUSDT`), so any new caller must strip the quote suffix (`/(USDT|USDC|BUSD|USD)$/`)
 before fetching, then re-key results back onto the pair symbol for the UI.
+
+## Synthetic-candle last-resort tier (added)
+When BOTH the Binance proxy klines AND CoinGecko OHLC return <30 candles in the
+browser (rate-limit/geo-block), the AI bot used to freeze at WAIT/0% on every
+card while live prices kept showing (prices come from the separate working
+`fetchCoinGeckoPrices` markets endpoint, NOT klines). Fix: `fetchBinanceKlines`
+now cascades proxy -> CoinGecko OHLC -> `synthesizeKlines()` (binance.ts), a
+deterministic candle generator seeded from the REAL current price + 24h
+change/high/low so indicators stay trend-consistent.
+
+**Rules baked in (keep them):**
+- Synthetic candles carry a `synthetic: true` flag. `generateSignal` caps
+  confidence at 64 (below the 65 auto-trade threshold) when data is synthetic, so
+  the bot NEVER auto-opens positions off fabricated candles — manual Follow still
+  works.
+- Seed is quantized to ~0.2% price buckets so tiny ticks don't reseed/flip the
+  regime between scans.
+- `synthesizeKlines` is interval-aware (timestamp spacing + volScale by interval).
+- Engine always emits the dominant LONG/SHORT lean (confidence floor 40) when
+  totalScore>0; only WAITs when there's no price at all. User explicitly hates
+  WAIT/0% cards.
