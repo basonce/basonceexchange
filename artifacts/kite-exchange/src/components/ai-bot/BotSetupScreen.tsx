@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Zap, TrendingUp, Shield, Flame, ChevronRight, Info } from 'lucide-react';
+import { useState, useId } from 'react';
+import { ChevronRight, Info } from 'lucide-react';
 import { STRATEGY_CONFIGS, TOP_BOT_COINS, BotConfig } from '../../lib/ai-bot-engine';
 
 interface BotSetupScreenProps {
@@ -9,9 +9,71 @@ interface BotSetupScreenProps {
   realUsdtBalance?: number;
 }
 
-const STRATEGY_ICONS: Record<string, any> = {
-  Zap, TrendingUp, Shield, Flame,
-};
+/* ===== Premium animated strategy icons (bespoke per strategy) ===== */
+function BotIconStyles() {
+  return (
+    <style>{`
+      @keyframes setupBarPulse { 0%,100% { transform: scaleY(.32); } 50% { transform: scaleY(1); } }
+      @keyframes setupFlame { 0%,100% { transform: scale(1) translateY(0); opacity: .9; } 45% { transform: scale(1.14) translateY(-1px); opacity: 1; } 72% { transform: scale(.95) translateY(.5px); opacity: .95; } }
+      @keyframes setupBreathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+    `}</style>
+  );
+}
+
+function ScalperIcon({ color, size = 24 }: { color: string; size?: number }) {
+  const bars = [{ x: 3, d: 0 }, { x: 8.5, d: 0.12 }, { x: 14, d: 0.24 }, { x: 19.5, d: 0.36 }];
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} style={{ overflow: 'visible' }}>
+      {bars.map((b, i) => (
+        <rect key={i} x={b.x} y={3} width={2.4} height={18} rx={1.2} fill={color}
+          style={{ transformBox: 'fill-box', transformOrigin: 'center bottom', animation: `setupBarPulse 0.8s ease-in-out ${b.d}s infinite` }} />
+      ))}
+    </svg>
+  );
+}
+
+function SwingIcon({ color, size = 24 }: { color: string; size?: number }) {
+  const uid = useId().replace(/:/g, '');
+  const pid = `setup-swing-${uid}`;
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} style={{ overflow: 'visible' }}>
+      <path id={pid} d="M2 17 Q6.5 6 11 12 T22 6" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" opacity={0.55} />
+      <circle r={2.4} fill={color} style={{ filter: `drop-shadow(0 0 4px ${color})` }}>
+        <animateMotion dur="2.4s" repeatCount="indefinite" rotate="auto">
+          <mpath href={`#${pid}`} xlinkHref={`#${pid}`} />
+        </animateMotion>
+      </circle>
+    </svg>
+  );
+}
+
+function ShieldIcon({ color, size = 24 }: { color: string; size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size}
+      style={{ transformBox: 'fill-box', transformOrigin: 'center', animation: 'setupBreathe 2.6s ease-in-out infinite' }}>
+      <path d="M12 2 L20 5.2 V11 C20 16 16.4 19.6 12 21.5 C7.6 19.6 4 16 4 11 V5.2 Z" fill={`${color}22`} stroke={color} strokeWidth={1.6} strokeLinejoin="round" />
+      <path d="M8.4 12 l2.5 2.5 L15.8 8.8" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function AggressiveIcon({ color, size = 24 }: { color: string; size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} style={{ overflow: 'visible' }}>
+      <path d="M12 2 C13.6 6.4 18 8 18 13.2 A6 6 0 0 1 6 13.2 C6 9.9 8.4 9 9.3 6.6 C11 7.8 11.4 9.5 11 11 C12.7 10.4 12.9 6.6 12 2 Z"
+        fill={color} style={{ transformBox: 'fill-box', transformOrigin: 'center bottom', animation: 'setupFlame 1.1s ease-in-out infinite' }} />
+      <path d="M12 10 C12.8 11.8 14 12.8 14 14.8 A2.4 2.4 0 0 1 9.2 14.8 C9.2 13.1 10.5 12.6 11 11.5 C11.6 12.1 11.7 12.9 11.5 13.6 C12.4 13.2 12.6 11.4 12 10 Z"
+        fill="rgba(255,236,205,0.92)" style={{ transformBox: 'fill-box', transformOrigin: 'center bottom', animation: 'setupFlame 0.8s ease-in-out 0.15s infinite' }} />
+    </svg>
+  );
+}
+
+function StrategyIcon({ kind, color, size = 24 }: { kind: string; color: string; size?: number }) {
+  if (kind === 'swing') return <SwingIcon color={color} size={size} />;
+  if (kind === 'conservative') return <ShieldIcon color={color} size={size} />;
+  if (kind === 'aggressive') return <AggressiveIcon color={color} size={size} />;
+  return <ScalperIcon color={color} size={size} />;
+}
 
 export default function BotSetupScreen({ config, onConfigChange, onStart, realUsdtBalance = 0 }: BotSetupScreenProps) {
   const [step, setStep] = useState<'strategy' | 'coins' | 'risk'>('strategy');
@@ -20,6 +82,7 @@ export default function BotSetupScreen({ config, onConfigChange, onStart, realUs
 
   return (
     <div className="flex flex-col h-full">
+      <BotIconStyles />
       <div className="px-4 pt-6 pb-4">
         <h2 className="text-xl font-bold text-white mb-1">Configure Your AI Bot</h2>
         <p className="text-sm text-gray-400">Set up your trading strategy and risk preferences</p>
@@ -41,7 +104,6 @@ export default function BotSetupScreen({ config, onConfigChange, onStart, realUs
             <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">Choose Strategy</h3>
             {strategyKeys.map((key) => {
               const s = STRATEGY_CONFIGS[key];
-              const Icon = STRATEGY_ICONS[s.icon];
               const isSelected = config.strategy === key;
               return (
                 <button
@@ -50,8 +112,8 @@ export default function BotSetupScreen({ config, onConfigChange, onStart, realUs
                   className={`w-full p-4 rounded-2xl border transition-all text-left ${isSelected ? 'border-[#F0B90B] bg-[#F0B90B]/10' : 'border-[#2B3139] bg-[#1E2026] hover:border-[#3B4049]'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${s.color}20` }}>
-                      {Icon && <Icon className="w-5 h-5" style={{ color: s.color }} />}
+                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0" style={{ background: `linear-gradient(135deg, ${s.color}2E, ${s.color}0D)`, border: `1px solid ${s.color}45`, boxShadow: isSelected ? `0 0 16px ${s.color}55` : 'none' }}>
+                      <StrategyIcon kind={key as string} color={s.color} size={24} />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
