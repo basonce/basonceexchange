@@ -1,9 +1,68 @@
+import { getCoinGeckoId } from './coingecko-price';
+
 const EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/binance-proxy`;
 const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 const EDGE_HEADERS = {
   'Authorization': `Bearer ${ANON_KEY}`,
   'Content-Type': 'application/json',
 };
+
+const COINGECKO_API = 'https://api.coingecko.com/api/v3';
+
+// CoinGecko OHLC granularity is auto-selected by `days`: 1 -> 30m candles,
+// 7-14 -> 4h candles. We pick a window that yields >=30 candles for the engine.
+function cgDaysForInterval(interval: string): number {
+  if (['1h', '2h', '4h', '6h', '8h', '12h'].includes(interval)) return 14;
+  if (['1d', '3d', '1w'].includes(interval)) return 90;
+  return 1;
+}
+
+const cgKlineCache = new Map<string, { ts: number; data: any[] }>();
+const CG_KLINE_TTL = 45000;
+
+// Fallback klines source via CoinGecko OHLC, used when the Binance proxy is
+// empty/unavailable so the AI bot keeps producing signals during outages.
+async function fetchCoinGeckoKlines(symbol: string, interval: string, limit: number): Promise<any[]> {
+  const base = symbol.replace(/(USDT|BUSD|USDC|USD)$/i, '');
+  const id = getCoinGeckoId(base);
+  if (!id) return [];
+
+  const cacheKey = `${id}:${interval}`;
+  const cached = cgKlineCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < CG_KLINE_TTL) {
+    return cached.data.slice(-limit);
+  }
+
+  try {
+    const days = cgDaysForInterval(interval);
+    const resp = await fetch(`${COINGECKO_API}/coins/${id}/ohlc?vs_currency=usd&days=${days}`, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!resp.ok) return cached ? cached.data.slice(-limit) : [];
+    const data = await resp.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      return cached ? cached.data.slice(-limit) : [];
+    }
+
+    const mapped = data
+      .filter((k: any) => Array.isArray(k) && k.length >= 5)
+      .map((k: any) => ({
+        time: k[0] / 1000,
+        open: k[1],
+        high: k[2],
+        low: k[3],
+        close: k[4],
+        volume: 1, // CoinGecko OHLC has no volume; neutral constant keeps volumeChange ~0
+      }));
+
+    cgKlineCache.set(cacheKey, { ts: Date.now(), data: mapped });
+    return mapped.slice(-limit);
+  } catch {
+    // On network failure, reuse the last cached candles if we have them.
+    return cached ? cached.data.slice(-limit) : [];
+  }
+}
 
 export interface BinanceTicker {
   symbol: string;
@@ -97,6 +156,10 @@ export async function fetchBinanceKlines(
     );
     if (!response.ok) throw new Error('Failed to fetch klines');
     const data = await response.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      // Binance proxy returned empty — fall back to CoinGecko so the bot keeps running.
+      return await fetchCoinGeckoKlines(symbol, interval, limit);
+    }
     return data.map((k: any) => ({
       time: k[0] / 1000,
       open: parseFloat(k[1]),
@@ -106,7 +169,7 @@ export async function fetchBinanceKlines(
       volume: parseFloat(k[5]),
     }));
   } catch {
-    return [];
+    return await fetchCoinGeckoKlines(symbol, interval, limit);
   }
 }
 
