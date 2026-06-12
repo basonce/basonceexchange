@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import {
   Bot, Play, Pause, RefreshCw, Settings, AlertCircle, Wifi, ChevronLeft,
   Wallet, Target, TrendingUp, TrendingDown, Award, Zap, Activity, ShieldCheck,
@@ -8,7 +9,8 @@ import BotSignalCard from '../../components/ai-bot/BotSignalCard';
 import BotPositionCard from '../../components/ai-bot/BotPositionCard';
 import BotStatsPanel from '../../components/ai-bot/BotStatsPanel';
 import { useAIBot } from '../../hooks/useAIBot';
-import { STRATEGY_CONFIGS } from '../../lib/ai-bot-engine';
+import { STRATEGY_CONFIGS, TOP_BOT_COINS } from '../../lib/ai-bot-engine';
+import { fetchCoinGeckoPrices } from '../../lib/coingecko-price';
 
 const SHELL = 'w-full max-w-[1600px] mx-auto px-6';
 
@@ -366,28 +368,121 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 /* ---------- live signal terminal (hero graphic) ---------- */
 
-const PREVIEW_SIGNALS = [
-  { base: 'BTC', side: 'LONG' as const, conf: 91, spark: [42, 44, 43, 46, 48, 47, 50, 53, 52, 56], price: '109,842.50' },
-  { base: 'ETH', side: 'LONG' as const, conf: 78, spark: [30, 31, 29, 32, 34, 33, 35, 34, 37, 39], price: '3,512.18' },
-  { base: 'SOL', side: 'SHORT' as const, conf: 84, spark: [60, 58, 59, 55, 53, 54, 50, 48, 47, 44], price: '184.07' },
-  { base: 'BNB', side: 'LONG' as const, conf: 69, spark: [20, 21, 22, 21, 23, 24, 23, 25, 26, 27], price: '642.90' },
-];
+type LiveSig = { side: 'LONG' | 'SHORT'; conf: number; spark: number[]; price: number; changePct: number; hasPrice: boolean };
+
+function fmtPrice(p: number): string {
+  if (p <= 0) return '—';
+  if (p >= 1000) return p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (p >= 1) return p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return p.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+}
+
+function LiveSparkline({ data, color, width = 84, height = 26 }: { data: number[]; color: string; width?: number; height?: number }) {
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const span = max - min || 1;
+  const step = width / (data.length - 1);
+  const pts = data.map((v, i) => [i * step, height - ((v - min) / span) * (height - 6) - 3]);
+  const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+  const area = `${line} L${width},${height} L0,${height} Z`;
+  const gid = `lsg-${color.replace('#', '')}`;
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${gid})`} />
+      <path d={line} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r="2.2" fill={color} />
+    </svg>
+  );
+}
 
 function SignalTerminal() {
+  const [sigs, setSigs] = useState<Record<string, LiveSig>>(() => {
+    const init: Record<string, LiveSig> = {};
+    TOP_BOT_COINS.forEach((c, i) => {
+      const base = 40 + i * 4;
+      init[c.symbol] = {
+        side: i % 3 === 2 ? 'SHORT' : 'LONG',
+        conf: 62 + Math.round(Math.random() * 28),
+        spark: Array.from({ length: 14 }, (_, k) => base + Math.sin(k / 2 + i) * 5 + Math.random() * 4),
+        price: 0,
+        changePct: 0,
+        hasPrice: false,
+      };
+    });
+    return init;
+  });
+  const [scanIdx, setScanIdx] = useState(0);
+  const tickRef = useRef(0);
+
+  // Real-time prices via the app's live price source (CoinGecko)
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      const prices = await fetchCoinGeckoPrices(TOP_BOT_COINS.map((c) => c.base));
+      if (!alive || prices.size === 0) return;
+      setSigs((prev) => {
+        const next = { ...prev };
+        TOP_BOT_COINS.forEach((c) => {
+          const p = prices.get(c.base.toUpperCase());
+          if (p && p.price > 0) {
+            next[c.symbol] = { ...next[c.symbol], price: p.price, changePct: p.change24h, hasPrice: true };
+          }
+        });
+        return next;
+      });
+    };
+    load();
+    const id = setInterval(load, 20000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
+  // Live "scanning" loop — updates one market per tick so the list stays alive
+  useEffect(() => {
+    const id = setInterval(() => {
+      const idx = tickRef.current % TOP_BOT_COINS.length;
+      tickRef.current += 1;
+      setScanIdx(idx);
+      const sym = TOP_BOT_COINS[idx].symbol;
+      setSigs((prev) => {
+        const cur = prev[sym];
+        if (!cur) return prev;
+        let conf = cur.conf + (Math.random() * 16 - 8);
+        conf = Math.max(55, Math.min(96, conf));
+        let side = cur.side;
+        if (Math.random() < 0.22) {
+          const bull = cur.changePct >= 0;
+          side = Math.random() < (bull ? 0.72 : 0.28) ? 'LONG' : 'SHORT';
+        }
+        const last = cur.spark[cur.spark.length - 1];
+        const np = last + (Math.random() * 6 - 3);
+        const spark = [...cur.spark.slice(1), np];
+        return { ...prev, [sym]: { ...cur, conf: Math.round(conf), side, spark } };
+      });
+    }, 1400);
+    return () => clearInterval(id);
+  }, []);
+
+  const scanningBase = TOP_BOT_COINS[scanIdx]?.base ?? '';
+
   return (
     <div className="relative overflow-hidden rounded-3xl border border-[#2B3139] bg-[#0E1116] flex flex-col">
-      {/* scan line */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-12 z-10" style={{ background: 'linear-gradient(180deg, rgba(240,185,11,0.18), transparent)', animation: 'botScan 3.4s linear infinite' }} />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-12 z-10" style={{ background: 'linear-gradient(180deg, rgba(240,185,11,0.16), transparent)', animation: 'botScan 3.4s linear infinite' }} />
       <div className="absolute -top-24 -right-16 w-72 h-72 rounded-full bg-[#F0B90B]/10 blur-[90px] pointer-events-none" />
 
       <div className="relative flex items-center justify-between px-5 py-4 border-b border-[#2B3139]">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-9 h-9 rounded-xl bg-[#F0B90B]/12 border border-[#F0B90B]/25 flex items-center justify-center shrink-0">
-            <Radar className="w-5 h-5 text-[#F0B90B]" />
+            <Radar className="w-5 h-5 text-[#F0B90B]" style={{ animation: 'botFloat 2.5s ease-in-out infinite' }} />
           </div>
           <div className="min-w-0">
             <div className="text-sm font-bold text-white truncate">Live Signal Terminal</div>
-            <div className="text-[11px] text-gray-500 truncate">Real-time confidence scoring</div>
+            <div className="text-[11px] text-gray-500 truncate">Scanning {scanningBase}/USDT · {TOP_BOT_COINS.length} markets</div>
           </div>
         </div>
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold text-green-400 bg-green-500/12 border border-green-500/30 whitespace-nowrap">
@@ -396,27 +491,32 @@ function SignalTerminal() {
       </div>
 
       <div className="relative divide-y divide-[#1E2329]">
-        {PREVIEW_SIGNALS.map((s) => {
+        {TOP_BOT_COINS.map((c, i) => {
+          const s = sigs[c.symbol];
           const color = s.side === 'LONG' ? '#0ECB81' : '#F6465D';
+          const isScanning = i === scanIdx;
           return (
-            <div key={s.base} className="flex items-center gap-3 px-5 py-3.5">
-              <img src={`https://s2.coinmarketcap.com/static/img/coins/64x64/${getCMCId(s.base)}.png`} alt={s.base} className="w-8 h-8 rounded-full shrink-0" onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${s.base}&background=f0b90b&color=000&size=64`; }} />
-              <div className="w-[88px] min-w-0">
-                <div className="text-sm font-semibold text-white truncate">{s.base}<span className="text-gray-500 text-xs">/USDT</span></div>
-                <div className="text-[11px] text-gray-500 tabular-nums whitespace-nowrap">${s.price}</div>
+            <div key={c.symbol} className="relative flex items-center gap-3 px-5 py-2.5 transition-colors" style={isScanning ? { background: 'linear-gradient(90deg, rgba(240,185,11,0.10), transparent 70%)' } : undefined}>
+              {isScanning && <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-[#F0B90B]" />}
+              <img src={`https://s2.coinmarketcap.com/static/img/coins/64x64/${getCMCId(c.base)}.png`} alt={c.base} className="w-7 h-7 rounded-full shrink-0" onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${c.base}&background=f0b90b&color=000&size=64`; }} />
+              <div className="w-[92px] min-w-0">
+                <div className="text-[13px] font-semibold text-white truncate">{c.base}<span className="text-gray-500 text-[11px]">/USDT</span></div>
+                <div className="text-[11px] tabular-nums whitespace-nowrap" style={{ color: s.hasPrice ? (s.changePct >= 0 ? '#0ECB81' : '#F6465D') : '#848E9C' }}>
+                  {s.hasPrice ? `$${fmtPrice(s.price)}` : '···'}
+                </div>
               </div>
               <div className="hidden sm:block shrink-0">
-                <Sparkline data={s.spark} color={color} width={96} height={30} />
+                <LiveSparkline data={s.spark} color={color} />
               </div>
-              <div className="flex-1 min-w-0 flex flex-col items-end gap-1.5">
-                <span className="inline-flex items-center gap-1 text-xs font-bold whitespace-nowrap px-2 py-0.5 rounded-md" style={{ color, backgroundColor: `${color}1A`, border: `1px solid ${color}33` }}>
+              <div className="flex-1 min-w-0 flex flex-col items-end gap-1">
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold whitespace-nowrap px-2 py-0.5 rounded-md" style={{ color, backgroundColor: `${color}1A`, border: `1px solid ${color}33` }}>
                   {s.side === 'LONG' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />} {s.side}
                 </span>
-                <div className="flex items-center gap-1.5 w-full max-w-[120px]">
+                <div className="flex items-center gap-1.5 w-full max-w-[118px]">
                   <div className="flex-1 h-1.5 rounded-full bg-[#2B3139] overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${s.conf}%`, backgroundColor: color }} />
+                    <div className="h-full rounded-full transition-[width] duration-700 ease-out" style={{ width: `${s.conf}%`, backgroundColor: color }} />
                   </div>
-                  <span className="text-[11px] font-bold tabular-nums whitespace-nowrap" style={{ color }}>{s.conf}%</span>
+                  <span className="text-[11px] font-bold tabular-nums whitespace-nowrap w-8 text-right" style={{ color }}>{s.conf}%</span>
                 </div>
               </div>
             </div>
@@ -425,7 +525,7 @@ function SignalTerminal() {
       </div>
 
       <div className="relative mt-auto px-5 py-3 border-t border-[#2B3139] flex items-center justify-between text-[11px] text-gray-500">
-        <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><Cpu className="w-3.5 h-3.5 text-[#F0B90B]" /> Engine analyzing 10 markets</span>
+        <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><Cpu className="w-3.5 h-3.5 text-[#F0B90B]" /> Engine analyzing {TOP_BOT_COINS.length} markets</span>
         <span className="inline-flex items-center gap-1 text-[#F0B90B] font-semibold whitespace-nowrap">Auto-execute <ArrowUpRight className="w-3.5 h-3.5" /></span>
       </div>
     </div>
@@ -519,49 +619,90 @@ function GetStarted({ onSetup, locked }: { onSetup: () => void; locked?: boolean
         ))}
       </div>
 
-      {/* Strategies + disclaimer */}
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)] gap-6 items-start">
-        <div className="bg-[#181A20] border border-[#2B3139] rounded-3xl p-6">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Available Strategies</h3>
-            <span className="text-xs text-gray-500">Pick one during setup</span>
+      {/* Strategies */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-[#15171D] to-[#0B0E11] border border-[#2B3139] rounded-3xl p-6 sm:p-7">
+        <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[520px] h-[260px] rounded-full bg-[#F0B90B]/5 blur-[120px] pointer-events-none" />
+        <div className="relative flex items-center justify-between mb-6 flex-wrap gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-[#F0B90B]/12 border border-[#F0B90B]/25 flex items-center justify-center shrink-0">
+              <Boxes className="w-5 h-5 text-[#F0B90B]" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-base font-bold text-white">Trading Strategies</h3>
+              <p className="text-xs text-gray-500">Four professionally tuned presets — choose one during setup</p>
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {strategyKeys.map((key) => {
-              const s = STRATEGY_CONFIGS[key];
-              const SIcon = stratIcons[key] || Bot;
-              return (
-                <div key={key} className="relative overflow-hidden flex items-center gap-3 bg-[#0B0E11]/50 border border-[#2B3139] rounded-2xl p-4 hover:border-[#3B4049] transition-colors">
-                  <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: s.color }} />
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ml-1" style={{ backgroundColor: `${s.color}1A`, border: `1px solid ${s.color}33` }}>
-                    <SIcon className="w-5 h-5" style={{ color: s.color }} />
+          <span className="inline-flex items-center gap-1.5 text-xs text-gray-400 px-3 py-1.5 rounded-full border border-[#2B3139] bg-[#0B0E11]/50 whitespace-nowrap">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#F0B90B]" /> Auto TP / SL on every trade
+          </span>
+        </div>
+
+        <div className="relative grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {strategyKeys.map((key) => {
+            const s = STRATEGY_CONFIGS[key];
+            const SIcon = stratIcons[key] || Bot;
+            const riskTier = s.leverage <= 3 ? 1 : s.leverage <= 5 ? 2 : s.leverage <= 10 ? 3 : 4;
+            const riskLabel = ['', 'Low', 'Medium', 'High', 'Very High'][riskTier];
+            return (
+              <div key={key} className="relative overflow-hidden bg-[#0E1116] border border-[#2B3139] rounded-2xl p-5 hover:border-[#3B4049] transition-all group">
+                <div className="absolute inset-x-0 top-0 h-1" style={{ background: `linear-gradient(90deg, ${s.color}, transparent)` }} />
+                <div className="absolute -right-10 -top-10 w-28 h-28 rounded-full blur-2xl opacity-10 group-hover:opacity-20 transition-opacity" style={{ backgroundColor: s.color }} />
+                <div className="relative flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${s.color}1A`, border: `1px solid ${s.color}40` }}>
+                    <SIcon className="w-6 h-6" style={{ color: s.color }} />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-white text-sm truncate">{s.label}</span>
-                      <span className="text-[11px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap shrink-0" style={{ backgroundColor: `${s.color}1A`, color: s.color }}>{s.timeframe}</span>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-0.5 truncate">{s.description}</p>
-                  </div>
-                  <span className="text-xs font-semibold text-gray-400 whitespace-nowrap shrink-0">{s.leverage}x</span>
+                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg whitespace-nowrap" style={{ backgroundColor: `${s.color}1A`, color: s.color }}>{s.timeframe}</span>
                 </div>
-              );
-            })}
+                <div className="relative text-[15px] font-bold text-white mb-1 truncate">{s.label}</div>
+                <p className="relative text-xs text-gray-400 leading-relaxed mb-4 min-h-[32px]">{s.description}</p>
+                <div className="relative pt-3 border-t border-[#1E2329] flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-[10px] uppercase tracking-wider text-gray-500">Max Leverage</div>
+                    <div className="text-sm font-bold text-white whitespace-nowrap">{s.leverage}×</div>
+                  </div>
+                  <div className="text-right min-w-0">
+                    <div className="text-[10px] uppercase tracking-wider text-gray-500">Risk</div>
+                    <div className="flex items-center justify-end gap-1 mt-1">
+                      {[1, 2, 3, 4].map((d) => (
+                        <span key={d} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: d <= riskTier ? s.color : '#2B3139' }} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="sr-only">{riskLabel} risk</div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Trust footer */}
+        <div className="relative mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="flex items-start gap-3 rounded-2xl bg-[#0B0E11]/50 border border-[#2B3139] p-4">
+            <div className="w-9 h-9 rounded-xl bg-[#F0B90B]/12 border border-[#F0B90B]/25 flex items-center justify-center shrink-0"><ShieldCheck className="w-5 h-5 text-[#F0B90B]" /></div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-white">Disciplined risk management</div>
+              <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">Automatic take-profit, stop-loss and a configurable daily loss limit.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 rounded-2xl bg-[#0B0E11]/50 border border-[#2B3139] p-4">
+            <div className="w-9 h-9 rounded-xl bg-[#0ECB8118] border border-[#0ECB8130] flex items-center justify-center shrink-0"><Wallet className="w-5 h-5 text-[#0ECB81]" /></div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-white">Real USDT settlement</div>
+              <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">Profits are credited and losses deducted from your real balance.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 rounded-2xl bg-[#0B0E11]/50 border border-[#2B3139] p-4">
+            <div className="w-9 h-9 rounded-xl bg-[#8B5CF618] border border-[#8B5CF630] flex items-center justify-center shrink-0"><Radar className="w-5 h-5 text-[#8B5CF6]" /></div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-white">24/7 market scanning</div>
+              <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">Continuous analysis across all selected markets, around the clock.</p>
+            </div>
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="relative overflow-hidden rounded-3xl border border-[#2B3139] bg-gradient-to-br from-[#15171D] to-[#0B0E11] p-6">
-            <ShieldCheck className="w-8 h-8 text-[#F0B90B] mb-3" />
-            <h4 className="text-base font-bold text-white mb-2">Disciplined risk management</h4>
-            <p className="text-xs text-gray-400 leading-relaxed">
-              Every position ships with automatic take-profit and stop-loss levels, plus a configurable daily loss limit that pauses trading to protect your capital.
-            </p>
-          </div>
-          <div className="bg-[#181A20] border border-[#2B3139] rounded-3xl p-4 flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 text-[#F0B90B] mt-0.5 shrink-0" />
-            <p className="text-xs text-gray-400 leading-relaxed">Bot PnL is reflected in your real USDT balance. Profitable trades add to your balance, losses are deducted. Trade responsibly.</p>
-          </div>
+        <div className="relative mt-4 flex items-start gap-2.5 rounded-2xl bg-[#181A20] border border-[#2B3139] p-3.5">
+          <AlertCircle className="w-4 h-4 text-[#F0B90B] mt-0.5 shrink-0" />
+          <p className="text-xs text-gray-400 leading-relaxed">Bot PnL is reflected in your real USDT balance. Profitable trades add to your balance, losses are deducted. Trade responsibly.</p>
         </div>
       </div>
     </div>
