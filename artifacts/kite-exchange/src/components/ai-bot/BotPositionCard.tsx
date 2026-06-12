@@ -123,7 +123,7 @@ export default function BotPositionCard({ position, onClose, livePrice }: BotPos
         {isOpen && onClose && (
           <button
             onClick={() => onClose(position.id)}
-            className="mt-3 w-full py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all hover:brightness-110"
+            className="mt-3 w-full py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 whitespace-nowrap transition-all hover:brightness-110"
             style={{
               backgroundColor: pnlPositive ? '#10B98122' : '#EF444422',
               color: pnlPositive ? '#10B981' : '#EF4444',
