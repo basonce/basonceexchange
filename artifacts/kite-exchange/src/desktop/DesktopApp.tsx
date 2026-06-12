@@ -10,7 +10,7 @@ import { MORE_PAGES } from './pages/morePagesData';
 import AuthModal from '../components/AuthModal';
 import { LanguageProvider } from './i18n/LanguageContext';
 
-const AIBotPage = lazy(() => import('../pages/AIBotPage'));
+const DesktopAIBot = lazy(() => import('./pages/DesktopAIBot'));
 const DesktopMiningPage = lazy(() => import('./pages/DesktopMiningPage'));
 const AssetsPage = lazy(() => import('../pages/AssetsPage'));
 const ProfilePage = lazy(() => import('../pages/ProfilePage'));
@@ -103,7 +103,7 @@ export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }:
     const title = PAGE_LABELS[tab] || 'Basonce';
     switch (tab) {
       case 'aibot':
-        return <FramedPage title={title}><Suspense fallback={<Loader />}><AIBotPage /></Suspense></FramedPage>;
+        return <div className="bg-[#0B0E11] min-h-screen"><Suspense fallback={<Loader />}><DesktopAIBot /></Suspense></div>;
       case 'mining':
         return <div className="bg-[#0B0E11] min-h-screen"><Suspense fallback={<Loader />}><DesktopMiningPage /></Suspense></div>;
       case 'assets':
