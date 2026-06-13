@@ -5,7 +5,10 @@ import {
   Crown, Users, UserPlus, Baby, Rocket, Gift, Pickaxe, Gem,
   CreditCard, Image as ImageIcon, Trophy, Boxes, GraduationCap, HeartHandshake, ShieldCheck,
   CandlestickChart, Building2, Scale, ArrowLeftRight, Repeat, Bot, Copy, KeyRound,
+  Settings, LogOut, LayoutGrid, ArrowDownToLine, ArrowUpFromLine, History, Eye, EyeOff,
 } from 'lucide-react';
+import { PriceCache } from '../../lib/price-cache';
+import { EarnQuestPriceManager } from '../../lib/earnquest-price';
 import { QRCodeSVG } from 'qrcode.react';
 import { useLang } from '../i18n/LanguageContext';
 import { useMarkets } from '../useMarkets';
@@ -101,7 +104,10 @@ export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }:
   const { t, lang, setLang, languages } = useLang();
   const { markets } = useMarkets();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const [panel, setPanel] = useState<null | 'search' | 'lang' | 'download'>(null);
+  const [panel, setPanel] = useState<null | 'search' | 'lang' | 'download' | 'wallet' | 'profile'>(null);
+  const [hideBalance, setHideBalance] = useState(false);
+  const [wallet, setWallet] = useState<{ spot: number; futures: number } | null>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [query, setQuery] = useState('');
@@ -139,6 +145,51 @@ export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }:
       .then(({ data }) => { if (active) setAvatarUrl((data as any)?.avatar_url ?? null); });
     return () => { active = false; };
   }, [user?.id]);
+
+  const fetchWallet = async () => {
+    if (!user?.id) { setWallet(null); return; }
+    setWalletLoading(true);
+    try {
+      const { data } = await supabase
+        .from('user_balances')
+        .select('symbol, balance, futures_balance')
+        .eq('user_id', user.id);
+      const pc = PriceCache.getInstance();
+      const eq = EarnQuestPriceManager.getInstance();
+      // futures_balance is a single account value stored on the USDT row only
+      const SENTINEL = new Set(['WELCOME_CHEST', 'WELCOME_CHEST_SEEN']);
+      let spot = 0;
+      let futures = 0;
+      (data || []).forEach((row: any) => {
+        if (SENTINEL.has(row.symbol)) return;
+        if (row.symbol === 'USDT') futures = parseFloat(row.futures_balance) || 0;
+        const bal = parseFloat(row.balance) || 0;
+        if (bal <= 0) return;
+        let price = 0;
+        if (row.symbol === 'USDT') price = 1;
+        else if (row.symbol === 'EQ' || row.symbol === 'EQL') price = eq.getPrice() || 0;
+        else price = pc.getBySymbol(row.symbol)?.price ?? pc.get(`${row.symbol}USDT`)?.price ?? 0;
+        spot += bal * price;
+      });
+      setWallet({ spot, futures });
+    } finally {
+      setWalletLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (panel === 'wallet') fetchWallet();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panel, user?.id]);
+
+  const handleLogout = async () => {
+    setPanel(null);
+    await supabase.auth.signOut();
+    onNavigate('home');
+  };
+
+  const fmtUsd = (n: number) =>
+    n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const onMoreItem = (item: MoreItem) => {
     setOpenMenu(null);
@@ -352,24 +403,168 @@ export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }:
               >
                 {t('deposit')}
               </button>
-              <button
-                onClick={() => onNavigate('assets')}
-                className={`p-2 transition-colors ${tab === 'assets' ? 'text-[#F0B90B]' : 'text-[#848E9C] hover:text-[#EAECEF]'}`}
-                aria-label="Assets"
-              >
-                <Wallet className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => onNavigate('profile')}
-                className="w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-[#F0B90B] to-[#FCD535] flex items-center justify-center text-black text-sm font-bold"
-                aria-label="Profile"
-              >
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  (user.email?.[0] || 'U').toUpperCase()
+              {/* Wallet dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setPanel(panel === 'wallet' ? null : 'wallet')}
+                  className={`p-2 transition-colors ${panel === 'wallet' || tab === 'assets' ? 'text-[#F0B90B]' : 'text-[#848E9C] hover:text-[#EAECEF]'}`}
+                  aria-label="Wallet"
+                >
+                  <Wallet className="w-5 h-5" />
+                </button>
+                {panel === 'wallet' && (
+                  <div className="absolute top-full right-0 mt-2 w-80 bg-[#1E2329] border border-[#2B3139] rounded-xl shadow-2xl shadow-black/50 z-50 overflow-hidden">
+                    {/* Est. total balance */}
+                    <div className="p-4 border-b border-[#2B3139]">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <span className="text-xs text-[#848E9C]">Est. Total Value</span>
+                        <button
+                          onClick={() => setHideBalance(v => !v)}
+                          className="text-[#5E6673] hover:text-[#EAECEF] transition-colors"
+                          aria-label={hideBalance ? 'Show balance' : 'Hide balance'}
+                        >
+                          {hideBalance ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                      <div className="flex items-baseline gap-1.5 h-8">
+                        {walletLoading && !wallet ? (
+                          <span className="h-6 w-32 rounded bg-[#2B3139] animate-pulse" />
+                        ) : (
+                          <>
+                            <span className="text-2xl font-semibold text-[#EAECEF] tabular-nums whitespace-nowrap">
+                              {hideBalance ? '******' : (wallet ? fmtUsd(wallet.spot) : '0.00')}
+                            </span>
+                            <span className="text-sm text-[#848E9C]">USDT</span>
+                          </>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 mt-3">
+                        {[
+                          { icon: ArrowDownToLine, label: 'Deposit' },
+                          { icon: ArrowUpFromLine, label: 'Withdraw' },
+                          { icon: ArrowLeftRight, label: 'Transfer' },
+                          { icon: History, label: 'History' },
+                        ].map(({ icon: Icon, label }) => (
+                          <button
+                            key={label}
+                            onClick={() => { setPanel(null); onNavigate('assets'); }}
+                            className="group flex flex-col items-center gap-1.5 py-2 rounded-lg hover:bg-[#2B3139] transition-colors"
+                          >
+                            <span className="w-9 h-9 rounded-full bg-[#2B3139] group-hover:bg-[#181A20] flex items-center justify-center text-[#F0B90B] transition-colors">
+                              <Icon className="w-[18px] h-[18px]" />
+                            </span>
+                            <span className="text-[11px] text-[#B7BDC6] group-hover:text-[#EAECEF] whitespace-nowrap">{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Account breakdown */}
+                    <div className="p-2">
+                      {[
+                        { icon: Wallet, label: 'Spot Account', value: wallet?.spot ?? 0 },
+                        { icon: CandlestickChart, label: 'Futures Account', value: wallet?.futures ?? 0 },
+                      ].map(({ icon: Icon, label, value }) => (
+                        <button
+                          key={label}
+                          onClick={() => { setPanel(null); onNavigate('assets'); }}
+                          className="w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg hover:bg-[#2B3139] transition-colors text-left"
+                        >
+                          <span className="shrink-0 w-8 h-8 rounded-lg bg-[#2B3139] flex items-center justify-center text-[#848E9C]">
+                            <Icon className="w-4 h-4" />
+                          </span>
+                          <span className="flex-1 min-w-0 text-sm text-[#EAECEF] truncate">{label}</span>
+                          <span className="text-sm font-medium text-[#EAECEF] tabular-nums whitespace-nowrap">
+                            {hideBalance ? '****' : fmtUsd(value)}
+                          </span>
+                          <ChevronRight className="shrink-0 w-4 h-4 text-[#5E6673]" />
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => { setPanel(null); onNavigate('assets'); }}
+                      className="w-full px-4 py-3 border-t border-[#2B3139] text-sm font-medium text-[#F0B90B] hover:bg-[#2B3139] transition-colors"
+                    >
+                      View All Assets
+                    </button>
+                  </div>
                 )}
-              </button>
+              </div>
+
+              {/* Profile dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setPanel(panel === 'profile' ? null : 'profile')}
+                  className={`w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-black text-sm font-bold transition-shadow ${panel === 'profile' ? 'ring-2 ring-[#F0B90B]' : ''} bg-gradient-to-br from-[#F0B90B] to-[#FCD535]`}
+                  aria-label="Profile"
+                >
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    (user.email?.[0] || 'U').toUpperCase()
+                  )}
+                </button>
+                {panel === 'profile' && (
+                  <div className="absolute top-full right-0 mt-2 w-72 bg-[#1E2329] border border-[#2B3139] rounded-xl shadow-2xl shadow-black/50 z-50 overflow-hidden">
+                    {/* Identity header */}
+                    <div className="flex items-center gap-3 p-4 border-b border-[#2B3139]">
+                      <span className="shrink-0 w-11 h-11 rounded-full overflow-hidden bg-gradient-to-br from-[#F0B90B] to-[#FCD535] flex items-center justify-center text-black text-base font-bold">
+                        {avatarUrl ? (
+                          <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          (user.email?.[0] || 'U').toUpperCase()
+                        )}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold text-[#EAECEF] truncate">{user.email || 'Account'}</div>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#0ECB81] bg-[#0ECB811A] px-1.5 py-0.5 rounded">
+                            <ShieldCheck className="w-3 h-3" /> Verified
+                          </span>
+                          <span className="text-[10px] font-bold text-[#F0B90B] bg-[#F0B90B1A] px-1.5 py-0.5 rounded">Regular</span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Menu */}
+                    <div className="p-2">
+                      {([
+                        { icon: LayoutGrid, label: 'Dashboard', t: 'profile' as DeskTab },
+                        { icon: Wallet, label: 'Assets', t: 'assets' as DeskTab },
+                        { icon: Gift, label: 'Rewards Hub', t: 'megadrop' as DeskTab },
+                        { icon: UserPlus, label: 'Referral', t: 'referral' as DeskTab },
+                        { icon: Crown, label: 'VIP', t: 'vip' as DeskTab },
+                        { icon: KeyRound, label: 'API Management', t: 'apikeys' as DeskTab },
+                      ]).map(({ icon: Icon, label, t: target }) => (
+                        <button
+                          key={label}
+                          onClick={() => { setPanel(null); onNavigate(target); }}
+                          className="w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg hover:bg-[#2B3139] transition-colors text-left"
+                        >
+                          <Icon className="shrink-0 w-[18px] h-[18px] text-[#848E9C]" />
+                          <span className="flex-1 min-w-0 text-sm text-[#EAECEF] truncate">{label}</span>
+                          <ChevronRight className="shrink-0 w-4 h-4 text-[#5E6673]" />
+                        </button>
+                      ))}
+                    </div>
+                    <div className="p-2 border-t border-[#2B3139]">
+                      <button
+                        onClick={() => { setPanel(null); onNavigate('profile'); }}
+                        className="w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg hover:bg-[#2B3139] transition-colors text-left"
+                      >
+                        <Settings className="shrink-0 w-[18px] h-[18px] text-[#848E9C]" />
+                        <span className="flex-1 min-w-0 text-sm text-[#EAECEF] truncate">Security & Settings</span>
+                        <ChevronRight className="shrink-0 w-4 h-4 text-[#5E6673]" />
+                      </button>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg hover:bg-[#2B3139] transition-colors text-left"
+                      >
+                        <LogOut className="shrink-0 w-[18px] h-[18px] text-[#F6465D]" />
+                        <span className="flex-1 min-w-0 text-sm text-[#F6465D] truncate">Log Out</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             <>

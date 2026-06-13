@@ -1,3 +1,4 @@
+- [basonce balance surfaces](basonce-balance-surfaces.md) — every "Est. Total Value" surface must match the Assets-page spot-only calc; futures_balance lives only on the USDT row, never summed.
 - [Bonanza hit-rate vs RTP tuning](bonanza-rtp-tuning.md) — tumble+freespin slot couples win-freq & RTP steeply; pin weights for hit%, scale pays for RTP; auto-spin must stop on unmount.
 - [basonce deploy](basonce-deploy.md) — Cloudflare Pages deploy procedure & gotchas for kite-exchange.
 - [basonce Supabase admin](basonce-supabase-admin.md) — how to run DB admin / get the real service-role key for the basonce Supabase project.
