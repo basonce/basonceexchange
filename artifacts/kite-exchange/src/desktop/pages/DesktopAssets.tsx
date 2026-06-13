@@ -489,9 +489,14 @@ export default function DesktopAssets({ onNavigate }: DesktopAssetsProps) {
                   rows.map((coin) => {
                     const change = coin.priceChange24h || 0;
                     const up = change >= 0;
-                    const canWithdraw = coin.balance > 0;
+                    const owned = coin.balance > 0;
+                    const canWithdraw = owned;
                     return (
-                      <tr key={coin.symbol} className="border-b border-[#2B3139]/60 hover:bg-[#1E2329] transition-colors group">
+                      <tr
+                        key={coin.symbol}
+                        className={`border-b border-[#2B3139]/60 transition-colors group ${owned ? 'bg-[#1E2329] hover:bg-[#252b33]' : 'hover:bg-[#1E2329]'}`}
+                        style={owned ? { boxShadow: 'inset 3px 0 0 0 #F0B90B' } : undefined}
+                      >
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="w-8 h-8 flex-shrink-0">
@@ -502,13 +507,13 @@ export default function DesktopAssets({ onNavigate }: DesktopAssetsProps) {
                                 : <CoinLogo symbol={coin.symbol} dbUrl={coin.logo} />}
                             </div>
                             <div className="min-w-0">
-                              <div className="font-semibold text-sm truncate">{coin.symbol}</div>
-                              <div className="text-xs text-[#848E9C] truncate">{coin.name}</div>
+                              <div className={`font-semibold text-sm truncate ${owned ? 'text-[#EAECEF]' : 'text-[#5E6673]'}`}>{coin.symbol}</div>
+                              <div className={`text-xs truncate ${owned ? 'text-[#848E9C]' : 'text-[#5E6673]'}`}>{coin.name}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-5 py-4 text-right">
-                          <div className="text-sm font-medium tabular-nums whitespace-nowrap">{mask(num(coin.balance, 2, 6))}</div>
+                          <div className={`text-sm font-medium tabular-nums whitespace-nowrap ${owned ? 'text-[#EAECEF]' : 'text-[#5E6673]'}`}>{mask(num(coin.balance, 2, 6))}</div>
                           {coin.locked_balance > 0 && !hideBalance && (
                             <div className="text-xs text-[#F0B90B] flex items-center justify-end gap-1 tabular-nums whitespace-nowrap">
                               <Lock className="w-3 h-3" /> {num(coin.locked_balance, 2, 6)}
@@ -522,7 +527,7 @@ export default function DesktopAssets({ onNavigate }: DesktopAssetsProps) {
                           </div>
                         </td>
                         <td className="px-5 py-4 text-right">
-                          <div className="text-sm font-medium tabular-nums whitespace-nowrap">{mask(num(coin.value))}</div>
+                          <div className={`text-sm font-semibold tabular-nums whitespace-nowrap ${owned ? 'text-[#EAECEF]' : 'text-[#5E6673]'}`}>{mask(num(coin.value))}</div>
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center justify-end gap-3 text-xs font-medium whitespace-nowrap">
