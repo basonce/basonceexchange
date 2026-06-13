@@ -154,10 +154,15 @@ export function generateMerchantsForCountry(country: Country, count: number = 20
     const seed = country.code.charCodeAt(0) * 1000 + i * 17 + (mode === 'sell' ? 5000 : 0);
     const r = (offset: number) => seededRandom(seed + offset);
 
-    let avatarIdx: number;
-    do {
-      avatarIdx = Math.floor(r(i * 3 + 7) * 50);
-    } while (usedAvatars.has(avatarIdx) && usedAvatars.size < 50);
+    let avatarIdx = Math.floor(r(i * 3 + 7) * 50);
+    // Vary the seed offset on each retry (r() is deterministic, so reusing the
+    // same offset would re-pick the same index forever -> infinite loop/freeze).
+    // Cap attempts so a fully-used pool can never hang the main thread.
+    let attempts = 0;
+    while (usedAvatars.has(avatarIdx) && usedAvatars.size < 50 && attempts < 50) {
+      attempts++;
+      avatarIdx = Math.floor(r(i * 3 + 7 + attempts * 101) * 50);
+    }
     usedAvatars.add(avatarIdx);
 
     const nameIdx = Math.floor(r(1) * MERCHANT_NAMES.length);

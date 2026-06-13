@@ -3,7 +3,25 @@ name: basonce P2P spinner — chunk-load loop + preview CANCEL
 description: Two distinct "P2P spinning" causes — a real production infinite-spinner from lazy-chunk + unbounded reload, and a benign dev-preview screenshot CANCEL.
 ---
 
-## Real production bug: perpetual spinner on /#p2p (desktop web)
+## TRUE root cause: infinite-loop freeze in generateMerchantsForCountry
+**Symptom:** clicking P2P froze the ENTIRE site (not just a spinner).
+
+**Cause:** `generateMerchantsForCountry` (lib/p2p-data.ts) picked unique avatars
+with a `do/while (used.has(idx) && used.size<50)` loop, but the index came from
+`r(i*3+7)` — a DETERMINISTIC seeded RNG with a FIXED offset per iteration. On the
+first avatar-index collision (near-certain: 24 picks from a pool of 50, birthday
+paradox) it re-picked the SAME index forever → infinite loop → main-thread freeze.
+
+**Fix:** vary the seed offset on each retry (`r(i*3+7 + attempts*101)`) AND cap
+attempts (`attempts < 50`). A capped loop can never hang regardless of pool state.
+
+**Why this hid for so long:** while DesktopP2P was a lazy chunk that "never
+resolved", the component never mounted, so this code never ran — the symptom looked
+like a stuck spinner. Eager-importing it made it mount, which exposed the freeze.
+**Lesson:** a deterministic RNG inside a rejection/retry loop MUST change its input
+each attempt and be attempt-capped, or it is an infinite loop waiting to happen.
+
+## Earlier change: spinner from lazy chunk + unbounded reload
 **Symptom:** basonce.com/#p2p showed the desktop nav + a lone centered spinner
 forever, never the P2P page.
 
