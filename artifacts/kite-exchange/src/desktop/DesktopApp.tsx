@@ -1,4 +1,5 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
+import { Headphones } from 'lucide-react';
 import DesktopNav, { DeskTab } from './components/DesktopNav';
 import DesktopFooter from './components/DesktopFooter';
 import DesktopHome from './pages/DesktopHome';
@@ -16,6 +17,7 @@ const AssetsPage = lazy(() => import('../pages/AssetsPage'));
 const ProfilePage = lazy(() => import('../pages/ProfilePage'));
 const GamesSection = lazy(() => import('../components/GamesSection'));
 const SocialProfilePage = lazy(() => import('../pages/SocialProfilePage'));
+const SupportModal = lazy(() => import('../components/SupportModal'));
 
 interface DesktopAppProps {
   tab: string;
@@ -78,6 +80,7 @@ function DesktopSports(_props: { title: string; onNavigate: (tab: DeskTab) => vo
 
 export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }: DesktopAppProps) {
   const [authMode, setAuthMode] = useState<'login' | 'register' | null>(null);
+  const [showSupport, setShowSupport] = useState(false);
 
   useEffect(() => {
     const onOpenAuth = (e: any) => setAuthMode(e?.detail?.mode === 'login' ? 'login' : 'register');
@@ -130,6 +133,22 @@ export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }:
           onClose={() => setAuthMode(null)}
           mode={authMode || 'register'}
         />
+
+        {/* Floating support button */}
+        <button
+          onClick={() => setShowSupport(true)}
+          aria-label="Customer support"
+          className="fixed bottom-6 right-6 z-[55] w-14 h-14 rounded-full bg-[#F0B90B] hover:bg-[#FCD535] text-black shadow-2xl shadow-black/50 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+        >
+          <Headphones className="w-6 h-6" />
+          <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#0ECB81] border-2 border-[#0B0E11]" />
+        </button>
+
+        {showSupport && (
+          <Suspense fallback={null}>
+            <SupportModal isOpen={showSupport} onClose={() => setShowSupport(false)} />
+          </Suspense>
+        )}
       </div>
     </LanguageProvider>
   );

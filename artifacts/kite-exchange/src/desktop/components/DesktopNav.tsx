@@ -4,6 +4,7 @@ import {
   Search, ChevronDown, Globe, Wallet, Download, X, Check,
   Crown, Users, UserPlus, Baby, Rocket, Gift, Pickaxe, Sparkles,
   CreditCard, Image as ImageIcon, Trophy, Boxes, GraduationCap, HeartHandshake, ShieldCheck,
+  CandlestickChart, Building2, Scale, ArrowLeftRight, Repeat, Bot, Copy, KeyRound,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useLang } from '../i18n/LanguageContext';
@@ -42,6 +43,32 @@ const NAV_ITEMS: { key: TKey; tab: DeskTab; dropdown?: { key: TKey; tab: DeskTab
     ],
   },
   { key: 'sports', tab: 'sports' },
+];
+
+type TradeItem = { icon: LucideIcon; title: string; desc: string; tab?: DeskTab; badge?: string };
+
+const TRADE_MENU: { heading: string; items: TradeItem[] }[] = [
+  {
+    heading: 'Basic',
+    items: [
+      { icon: CandlestickChart, title: 'Spot', desc: 'Trade Spot and Margin with advanced tools', tab: 'trade' },
+      { icon: Building2, title: 'Stock', desc: 'Trade Stocks & ETFs with crypto', badge: 'New' },
+      { icon: Scale, title: 'Margin', desc: 'Increase your profits with leverage', tab: 'futures' },
+      { icon: ArrowLeftRight, title: 'P2P', desc: 'Buy & sell crypto with bank transfer and 800+ options' },
+      { icon: Repeat, title: 'Convert & Block Trade', desc: 'The easiest way to trade at all sizes' },
+      { icon: GraduationCap, title: 'Demo Trading', desc: 'Use virtual funds to experience real trading with zero risk', tab: 'aibot' },
+    ],
+  },
+  {
+    heading: 'Advanced',
+    items: [
+      { icon: Boxes, title: 'DEX', desc: 'On-chain trading with Basonce Wallet', badge: 'Beta' },
+      { icon: Sparkles, title: 'Alpha', desc: 'Quick access to Web3 via Alpha Trading' },
+      { icon: Bot, title: 'Trading Bots', desc: 'Trade smarter with our automated strategies', tab: 'aibot' },
+      { icon: Copy, title: 'Copy Trading', desc: 'Follow the most popular traders' },
+      { icon: KeyRound, title: 'APIs', desc: 'Unlimited opportunities with one key' },
+    ],
+  },
 ];
 
 type MoreItem = { icon: LucideIcon; title: string; desc: string; tab?: DeskTab };
@@ -120,6 +147,14 @@ export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }:
     toastTimer.current = setTimeout(() => setToast(null), 2600);
   };
 
+  const onTradeItem = (item: TradeItem) => {
+    setOpenMenu(null);
+    if (item.tab) { onNavigate(item.tab); return; }
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(item.title);
+    toastTimer.current = setTimeout(() => setToast(null), 2600);
+  };
+
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
   const selectCoin = (symbol: string) => {
@@ -160,7 +195,39 @@ export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }:
                 {t(item.key)}
                 {item.dropdown && <ChevronDown className="w-3.5 h-3.5" />}
               </button>
-              {item.dropdown && openMenu === item.key && (
+              {item.dropdown && openMenu === item.key && item.key === 'trade' && (
+                <div className="absolute top-full left-0 pt-2">
+                  <div className="w-[600px] max-w-[calc(100vw-3rem)] bg-[#1E2329] border border-[#2B3139] rounded-2xl shadow-2xl shadow-black/50 p-4 grid grid-cols-2 gap-x-4">
+                    {TRADE_MENU.map((col) => (
+                      <div key={col.heading} className="flex flex-col gap-0.5">
+                        <div className="px-3 pt-1 pb-2 text-[11px] font-semibold text-[#5E6673] uppercase tracking-wider">{col.heading}</div>
+                        {col.items.map((it) => {
+                          const Icon = it.icon;
+                          return (
+                            <button
+                              key={it.title}
+                              onClick={() => onTradeItem(it)}
+                              className="group flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-[#2B3139] transition-colors text-left"
+                            >
+                              <span className="mt-0.5 shrink-0 w-8 h-8 rounded-lg bg-[#2B3139] group-hover:bg-[#181A20] flex items-center justify-center text-[#F0B90B] transition-colors">
+                                <Icon className="w-[18px] h-[18px]" />
+                              </span>
+                              <span className="min-w-0">
+                                <span className="flex items-center gap-1.5">
+                                  <span className="text-sm font-semibold text-[#EAECEF] group-hover:text-[#F0B90B] transition-colors whitespace-nowrap">{it.title}</span>
+                                  {it.badge && <span className="text-[10px] font-bold text-[#F0B90B] bg-[#F0B90B1A] px-1.5 py-0.5 rounded whitespace-nowrap">{it.badge}</span>}
+                                </span>
+                                <span className="block text-xs text-[#848E9C] mt-0.5 leading-snug">{it.desc}</span>
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {item.dropdown && openMenu === item.key && item.key !== 'trade' && (
                 <div className="absolute top-full left-0 pt-2">
                   <div className="w-72 bg-[#1E2329] border border-[#2B3139] rounded-xl shadow-2xl shadow-black/50 p-2">
                     {item.dropdown.map((d) => (
