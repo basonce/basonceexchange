@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
-  Search, ChevronDown, Globe, Wallet, Download, X, Check,
+  Search, ChevronDown, ChevronRight, Globe, Wallet, Download, X, Check,
   Crown, Users, UserPlus, Baby, Rocket, Gift, Pickaxe, Gem,
   CreditCard, Image as ImageIcon, Trophy, Boxes, GraduationCap, HeartHandshake, ShieldCheck,
   CandlestickChart, Building2, Scale, ArrowLeftRight, Repeat, Bot, Copy, KeyRound,
@@ -208,18 +208,19 @@ export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }:
                             <button
                               key={it.title}
                               onClick={() => onTradeItem(it)}
-                              className="group flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-[#2B3139] transition-colors text-left"
+                              className="group flex items-start gap-3 px-3 py-2.5 rounded-xl border-l-2 border-transparent hover:border-[#F0B90B] hover:bg-[#2B3139] transition-colors text-left"
                             >
                               <span className="mt-0.5 shrink-0 w-8 h-8 rounded-lg bg-[#2B3139] group-hover:bg-[#181A20] flex items-center justify-center text-[#F0B90B] transition-colors">
                                 <Icon className="w-[18px] h-[18px]" />
                               </span>
-                              <span className="min-w-0">
+                              <span className="min-w-0 flex-1">
                                 <span className="flex items-center gap-1.5">
                                   <span className="text-sm font-semibold text-[#EAECEF] group-hover:text-[#F0B90B] transition-colors whitespace-nowrap">{it.title}</span>
                                   {it.badge && <span className="text-[10px] font-bold text-[#F0B90B] bg-[#F0B90B1A] px-1.5 py-0.5 rounded whitespace-nowrap">{it.badge}</span>}
                                 </span>
                                 <span className="block text-xs text-[#848E9C] mt-0.5 leading-snug">{it.desc}</span>
                               </span>
+                              <ChevronRight className="self-center shrink-0 w-4 h-4 text-[#F0B90B] opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
                             </button>
                           );
                         })}
@@ -235,10 +236,13 @@ export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }:
                       <button
                         key={d.key}
                         onClick={() => { onNavigate(d.tab); setOpenMenu(null); }}
-                        className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[#2B3139] transition-colors"
+                        className="group w-full flex items-center gap-2 text-left px-3 py-2.5 rounded-lg border-l-2 border-transparent hover:border-[#F0B90B] hover:bg-[#2B3139] transition-colors"
                       >
-                        <div className="text-sm font-semibold text-[#EAECEF]">{t(d.key)}</div>
-                        <div className="text-xs text-[#848E9C] mt-0.5">{d.desc}</div>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold text-[#EAECEF] group-hover:text-[#F0B90B] transition-colors">{t(d.key)}</span>
+                          <span className="block text-xs text-[#848E9C] mt-0.5">{d.desc}</span>
+                        </span>
+                        <ChevronRight className="shrink-0 w-4 h-4 text-[#F0B90B] opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
                       </button>
                     ))}
                   </div>
@@ -272,15 +276,16 @@ export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }:
                           <button
                             key={m.title}
                             onClick={() => onMoreItem(m)}
-                            className="group flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-[#2B3139] transition-colors text-left"
+                            className="group flex items-start gap-3 px-3 py-2.5 rounded-xl border-l-2 border-transparent hover:border-[#F0B90B] hover:bg-[#2B3139] transition-colors text-left"
                           >
                             <span className="mt-0.5 shrink-0 w-8 h-8 rounded-lg bg-[#2B3139] group-hover:bg-[#181A20] flex items-center justify-center text-[#F0B90B] transition-colors">
                               <Icon className="w-[18px] h-[18px]" />
                             </span>
-                            <span className="min-w-0">
+                            <span className="min-w-0 flex-1">
                               <span className="block text-sm font-semibold text-[#EAECEF] group-hover:text-[#F0B90B] transition-colors">{m.title}</span>
                               <span className="block text-xs text-[#848E9C] mt-0.5 leading-snug">{m.desc}</span>
                             </span>
+                            <ChevronRight className="self-center shrink-0 w-4 h-4 text-[#F0B90B] opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
                           </button>
                         );
                       })}
