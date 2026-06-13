@@ -21,7 +21,7 @@ const DesktopStock = lazy(() => import('./pages/DesktopStock'));
 const DesktopCopyTrading = lazy(() => import('./pages/DesktopCopyTrading'));
 const DesktopConvert = lazy(() => import('./pages/DesktopConvert'));
 const DesktopApiKeys = lazy(() => import('./pages/DesktopApiKeys'));
-const AssetsPage = lazy(() => import('../pages/AssetsPage'));
+const DesktopAssets = lazy(() => import('./pages/DesktopAssets'));
 const ProfilePage = lazy(() => import('../pages/ProfilePage'));
 const GamesSection = lazy(() => import('../components/GamesSection'));
 const SocialProfilePage = lazy(() => import('../pages/SocialProfilePage'));
@@ -104,7 +104,11 @@ export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }:
   }, []);
 
   const openAuth = (mode: 'login' | 'register') => setAuthMode(mode);
-  const onDeposit = () => onNavigate('assets');
+  const onDeposit = () => {
+    (window as any).__deskAssetsIntent = 'deposit';
+    onNavigate('assets');
+    window.dispatchEvent(new CustomEvent('desk-open-deposit'));
+  };
 
   const renderPage = () => {
     // Dedicated desktop layouts
@@ -142,7 +146,7 @@ export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }:
       case 'apikeys':
         return <div className="bg-[#0B0E11] min-h-screen"><Suspense fallback={<Loader />}><DesktopApiKeys user={user} onAuth={openAuth} onDeposit={onDeposit} onNavigate={onNavigate} /></Suspense></div>;
       case 'assets':
-        return <FramedPage title={title}><Suspense fallback={<Loader />}><AssetsPage /></Suspense></FramedPage>;
+        return <Suspense fallback={<Loader />}><DesktopAssets onNavigate={onNavigate} /></Suspense>;
       case 'sports':
         return <DesktopSports title={title} onNavigate={onNavigate} />;
       case 'profile':

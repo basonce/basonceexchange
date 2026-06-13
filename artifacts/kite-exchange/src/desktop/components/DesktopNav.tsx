@@ -440,14 +440,14 @@ export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }:
                       </div>
                       <div className="grid grid-cols-4 gap-2 mt-3">
                         {[
-                          { icon: ArrowDownToLine, label: 'Deposit' },
-                          { icon: ArrowUpFromLine, label: 'Withdraw' },
-                          { icon: ArrowLeftRight, label: 'Transfer' },
-                          { icon: History, label: 'History' },
-                        ].map(({ icon: Icon, label }) => (
+                          { icon: ArrowDownToLine, label: 'Deposit', evt: 'desk-open-deposit' },
+                          { icon: ArrowUpFromLine, label: 'Withdraw', evt: 'desk-open-withdraw' },
+                          { icon: ArrowLeftRight, label: 'Transfer', evt: 'desk-open-transfer' },
+                          { icon: History, label: 'History', evt: 'desk-open-history' },
+                        ].map(({ icon: Icon, label, evt }) => (
                           <button
                             key={label}
-                            onClick={() => { setPanel(null); onNavigate('assets'); }}
+                            onClick={() => { setPanel(null); (window as any).__deskAssetsIntent = label.toLowerCase(); onNavigate('assets'); window.dispatchEvent(new CustomEvent(evt)); }}
                             className="group flex flex-col items-center gap-1.5 py-2 rounded-lg hover:bg-[#2B3139] transition-colors"
                           >
                             <span className="w-9 h-9 rounded-full bg-[#2B3139] group-hover:bg-[#181A20] flex items-center justify-center text-[#F0B90B] transition-colors">
