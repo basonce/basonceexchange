@@ -4,12 +4,11 @@ import { TRANSLATIONS, EN, LANGUAGES, type TKey } from './translations';
 const STORAGE_KEY = 'desk_lang';
 
 function detectInitial(): string {
+  // Always default to English. Only honor a language the user EXPLICITLY chose
+  // before (saved in localStorage). We intentionally ignore navigator.language
+  // so the site never auto-opens in the browser's locale (e.g. Turkish).
   const saved = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
   if (saved && TRANSLATIONS[saved]) return saved;
-  const nav = typeof navigator !== 'undefined' ? (navigator.language || 'en') : 'en';
-  if (TRANSLATIONS[nav]) return nav;
-  const short = nav.split('-')[0];
-  if (TRANSLATIONS[short]) return short;
   return 'en';
 }
 
