@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Plus, TrendingUp, Sparkles, ThumbsUp, Award, Search, X, Crown, Flame, Zap, Bot, Gamepad2, Layers, Coins, Globe, Activity } from 'lucide-react';
+import { Plus, TrendingUp, Gem, ThumbsUp, Award, Search, X, Crown, Flame, Zap, Bot, Gamepad2, Layers, Coins, Globe, Activity } from 'lucide-react';
 import type { AlphaToken } from '../../types/alpha';
 import { fetchAlphaTokens } from '../../lib/alpha-service';
 import { STATIC_MOCK_TOKENS, getNextNewListing } from '../../lib/alpha-mock-tokens';
@@ -13,7 +13,7 @@ import { supabase } from '../../lib/supabase';
 
 const SORT_FILTERS = [
   { id: 'trending', label: 'Trending', icon: TrendingUp },
-  { id: 'new', label: 'New', icon: Sparkles },
+  { id: 'new', label: 'New', icon: Gem },
   { id: 'voted', label: 'Top Voted', icon: ThumbsUp },
   { id: 'graduated', label: 'Graduated', icon: Award },
 ];
@@ -393,7 +393,7 @@ export default function AlphaLaunchpad() {
           ))
         ) : filteredTokens.length === 0 ? (
           <div className="py-16 text-center">
-            <Sparkles className="w-8 h-8 text-gray-700 mx-auto mb-3" />
+            <Gem className="w-8 h-8 text-gray-700 mx-auto mb-3" />
             <span className="text-gray-500 text-sm block">
               {searchQuery ? `No tokens found for "${searchQuery}"` : 'No tokens in this category'}
             </span>

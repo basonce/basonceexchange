@@ -207,3 +207,4 @@ Utility scripts package.
 - All user-facing website/app content (UI text, labels, messages) MUST be in **English** — no Turkish strings in the product. (Chat replies to the user are in Turkish, but the product itself is English-only.)
 - The desktop web Sports section must mirror the mobile data exactly (same matches, logos, scores, coupons, betting logic) but with a professional, Binance-style **desktop** design. NEVER modify the mobile design.
 - Deployment is done manually to Cloudflare Pages (project `basonce`) — not via Replit publish or git push.
+- The lucide-react **`Sparkles`** icon is **BANNED** — never use it anywhere in the UI. Use a clean, fitting icon instead (currently replaced with `Gem`). Note: the `Sparkles` from `@react-three/drei` is a 3D particle effect, not an icon, and is allowed.

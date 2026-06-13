@@ -6,7 +6,7 @@ import {
   Users, Repeat, BarChart, Coins, Cpu, Zap, Percent,
   PiggyBank, Trophy, Gift, BookOpen, Package, Headphones,
   AlertTriangle, CheckCircle, HelpCircle, HandMetal,
-  Layers, Star, Grid, Sparkles, Activity, DollarSign,
+  Layers, Star, Grid, Gem, Activity, DollarSign,
   MessageSquare, Heart, Globe, Tag, Award, Target
 } from 'lucide-react';
 import ServiceSubPage from './service-pages/ServiceSubPage';
@@ -60,7 +60,7 @@ const SECTIONS: ServiceSection[] = [
     items: [
       { icon: Grid, label: 'WOTD', key: 'wotd', accent: true },
       { icon: Trophy, label: 'Spot Colosseum', key: 'spot-colosseum', accent: true },
-      { icon: Sparkles, label: 'Basonce Junior', key: 'junior', accent: true },
+      { icon: Gem, label: 'Basonce Junior', key: 'junior', accent: true },
       { icon: Target, label: 'Monthly Missions', key: 'missions', accent: true },
       { icon: Gift, label: 'Rewards Hub', key: 'rewards' },
       { icon: Package, label: 'My Gifts', key: 'gifts' },
@@ -76,7 +76,7 @@ const SECTIONS: ServiceSection[] = [
       { icon: RefreshCw, label: 'Convert', key: 'convert' },
       { icon: BarChart2, label: 'Spot', key: 'spot' },
       { icon: Bot, label: 'Trading Bots', key: 'ai-bot', accent: true },
-      { icon: Sparkles, label: 'Alpha', key: 'alpha', accent: true },
+      { icon: Gem, label: 'Alpha', key: 'alpha', accent: true },
       { icon: TrendingUp, label: 'Margin', key: 'margin' },
       { icon: Activity, label: 'Futures', key: 'futures' },
       { icon: Copy, label: 'Copy Trading', key: 'copy' },
@@ -119,7 +119,7 @@ const SECTIONS: ServiceSection[] = [
     items: [
       { icon: MessageSquare, label: 'Square', key: 'square' },
       { icon: Activity, label: 'Market Updates', key: 'market-updates' },
-      { icon: Sparkles, label: 'Alpha News', key: 'alpha-news', accent: true },
+      { icon: Gem, label: 'Alpha News', key: 'alpha-news', accent: true },
       { icon: BookOpen, label: 'Research', key: 'research' },
       { icon: Globe, label: 'Global News', key: 'global-news' },
     ],

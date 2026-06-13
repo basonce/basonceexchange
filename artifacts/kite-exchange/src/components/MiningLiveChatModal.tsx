@@ -3,7 +3,7 @@ import { GENERATED_CHAT_POOL } from './generatedChatPool';
 import {
   X, Send, Radio, TrendingUp, MessageCircle, DollarSign, ArrowUpCircle,
   Award, Flame, Crown, Zap, CheckCircle2, Clock, Trophy, Users,
-  ChevronRight, Sparkles, Wifi
+  ChevronRight, Gem, Wifi
 } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { globalMiningStats } from '../lib/global-mining-stats';
@@ -362,7 +362,7 @@ function MessageCard({ msg }: { msg: Message }) {
     profit: { icon: <TrendingUp className="w-3.5 h-3.5" />, color: 'text-emerald-400', label: 'Profit' },
     milestone: { icon: <Award className="w-3.5 h-3.5" />, color: 'text-[#F0B90B]', label: 'Milestone' },
     upgrade: { icon: <ArrowUpCircle className="w-3.5 h-3.5" />, color: 'text-blue-400', label: 'Upgrade' },
-    celebration: { icon: <Sparkles className="w-3.5 h-3.5" />, color: 'text-purple-400', label: 'Win' },
+    celebration: { icon: <Gem className="w-3.5 h-3.5" />, color: 'text-purple-400', label: 'Win' },
     tip: { icon: <Zap className="w-3.5 h-3.5" />, color: 'text-cyan-400', label: 'Tip' },
     general: { icon: <MessageCircle className="w-3.5 h-3.5" />, color: 'text-gray-400', label: '' },
   };

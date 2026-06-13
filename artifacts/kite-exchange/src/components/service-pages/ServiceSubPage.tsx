@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronRight, CheckCircle, Zap, TrendingUp, BarChart2, Users, Shield, Gift, Star, Globe, BookOpen, AlertTriangle, HelpCircle, ArrowLeftRight, CreditCard, FileText, Wallet, Coins, Percent, Activity, MessageSquare, Layers, Tag, Award, Target, RefreshCw, Sparkles, Cpu, Trophy, Heart, Package, PiggyBank, Download } from 'lucide-react';
+import { ArrowLeft, ChevronRight, CheckCircle, Zap, TrendingUp, BarChart2, Users, Shield, Gift, Star, Globe, BookOpen, AlertTriangle, HelpCircle, ArrowLeftRight, CreditCard, FileText, Wallet, Coins, Percent, Activity, MessageSquare, Layers, Tag, Award, Target, RefreshCw, Gem, Cpu, Trophy, Heart, Package, PiggyBank, Download } from 'lucide-react';
 
 interface ServiceSubPageProps {
   serviceKey: string;
@@ -106,7 +106,7 @@ const PAGES: Record<string, {
   },
   launchpool: {
     title: 'Launchpool',
-    icon: Sparkles,
+    icon: Gem,
     accent: true,
     hero: { bg: 'from-[#F0B90B]/20 to-[#0B0E11]', text: 'Basonce Launchpool', sub: 'Stake tokens to earn new coin rewards' },
     sections: [
@@ -251,7 +251,7 @@ const PAGES: Record<string, {
   },
   'alpha-events': {
     title: 'Alpha Events',
-    icon: Sparkles,
+    icon: Gem,
     accent: true,
     hero: { bg: 'from-[#F0B90B]/20 to-[#0B0E11]', text: 'Alpha Events', sub: 'Exclusive trading events and competitions' },
     sections: [
@@ -989,7 +989,7 @@ const PAGES: Record<string, {
   },
   junior: {
     title: 'Basonce Junior',
-    icon: Sparkles,
+    icon: Gem,
     accent: true,
     hero: { bg: 'from-green-800/30 to-[#0B0E11]', text: 'Basonce Junior', sub: 'Learn crypto basics in a fun, simple way' },
     sections: [
@@ -1053,7 +1053,7 @@ const PAGES: Record<string, {
   },
   'alpha-news': {
     title: 'Alpha News',
-    icon: Sparkles,
+    icon: Gem,
     accent: true,
     hero: { bg: 'from-[#F0B90B]/15 to-[#0B0E11]', text: 'Basonce Alpha News', sub: 'Exclusive insights for Alpha traders' },
     sections: [

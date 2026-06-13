@@ -1,4 +1,4 @@
-import { X, ChevronRight, ChevronLeft, Search, Zap, DollarSign, Lock, ShoppingBag, Shield, Sparkles, ThumbsUp, ThumbsDown, MessageCircle, Ticket, HelpCircle, AlertTriangle, CheckCircle, ArrowRight, Lightbulb } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Search, Zap, DollarSign, Lock, ShoppingBag, Shield, Gem, ThumbsUp, ThumbsDown, MessageCircle, Ticket, HelpCircle, AlertTriangle, CheckCircle, ArrowRight, Lightbulb } from 'lucide-react';
 import { useState, useMemo } from 'react';
 
 interface FAQModalProps {
@@ -100,7 +100,7 @@ const categories: Category[] = [
     id: 'demo',
     title: 'Demo Mode',
     subtitle: 'Free trial process',
-    icon: Sparkles,
+    icon: Gem,
     color: 'text-cyan-400',
     bg: 'bg-cyan-500/10',
     border: 'border-cyan-500/20',

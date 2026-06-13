@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Star, TrendingUp, Zap, Clock, Users, ShoppingCart, AlertCircle, Check, X, Timer, Sparkles, Trophy, Target, Crown, Flame, ArrowRight, Shield } from 'lucide-react';
+import { Star, TrendingUp, Zap, Clock, Users, ShoppingCart, AlertCircle, Check, X, Timer, Gem, Trophy, Target, Crown, Flame, ArrowRight, Shield } from 'lucide-react';
 import { supabase, getCurrentUser } from '../../lib/supabase';
 import { globalMiningStats } from '../../lib/global-mining-stats';
 import { buildChestMap, type ShopChest } from '../../lib/shopChests';
@@ -777,9 +777,9 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-4 rounded-2xl shadow-2xl animate-bounce">
             <div className="flex items-center gap-3">
-              <Sparkles className="w-6 h-6" />
+              <Gem className="w-6 h-6" />
               <span className="text-lg font-black">PURCHASE SUCCESSFUL!</span>
-              <Sparkles className="w-6 h-6" />
+              <Gem className="w-6 h-6" />
             </div>
           </div>
         </div>
@@ -796,13 +796,13 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
 
         <div className="relative max-w-md mx-auto px-4 py-12 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <Sparkles className="w-8 h-8 text-yellow-400 animate-pulse" />
+            <Gem className="w-8 h-8 text-yellow-400 animate-pulse" />
             <h1 className="text-4xl font-black">
               <span className="bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-600 text-transparent bg-clip-text">
                 PREMIUM
               </span>
             </h1>
-            <Sparkles className="w-8 h-8 text-yellow-400 animate-pulse" />
+            <Gem className="w-8 h-8 text-yellow-400 animate-pulse" />
           </div>
           <h2 className="text-3xl font-black mb-3">
             <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 text-transparent bg-clip-text">
@@ -914,7 +914,7 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
                 <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
                 <h3 className="text-sm font-black text-white tracking-wide">LIVE STATISTICS</h3>
               </div>
-              <Sparkles className="w-4 h-4 text-yellow-400 animate-pulse" />
+              <Gem className="w-4 h-4 text-yellow-400 animate-pulse" />
             </div>
 
             <div className="grid grid-cols-3 gap-3 mb-4">
@@ -954,7 +954,7 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
             <div className="flex items-center justify-center gap-3 mb-6">
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent"></div>
               <div className="flex items-center gap-2 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/30 px-4 py-2 rounded-full">
-                <Sparkles className="w-4 h-4 text-blue-400" />
+                <Gem className="w-4 h-4 text-blue-400" />
                 <h2 className="text-sm font-black text-blue-300 tracking-wider">STARTER & POPULAR</h2>
               </div>
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent"></div>

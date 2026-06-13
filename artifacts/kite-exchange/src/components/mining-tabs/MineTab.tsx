@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Zap, Clock, Download, Lock, Sparkles, Lightbulb } from 'lucide-react';
+import { Zap, Clock, Download, Lock, Gem, Lightbulb } from 'lucide-react';
 import { supabase, getCurrentUser } from '../../lib/supabase';
 import { getUserRestrictions } from '../../lib/user-restrictions';
 import { EarnQuestPriceManager } from '../../lib/earnquest-price';
@@ -834,7 +834,7 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
           <div className="max-w-2xl mx-auto px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-blue-400 animate-pulse" />
+                <Gem className="w-5 h-5 text-blue-400 animate-pulse" />
                 <div>
                   <div className="text-sm font-bold text-white">FREE Demo Mining</div>
                   <div className="text-xs text-gray-300">No signup required - Try now!</div>

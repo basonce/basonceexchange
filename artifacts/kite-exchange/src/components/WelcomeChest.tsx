@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Sparkles, Gift, Clock, X } from 'lucide-react';
+import { Gem, Gift, Clock, X } from 'lucide-react';
 
 type ChestState = {
   status: 'pending' | 'claimed' | 'expired';
@@ -123,7 +123,7 @@ export default function WelcomeChest() {
           <div className="relative">
             <div className="absolute inset-0 animate-ping rounded-full bg-[#F0B90B]/30" />
             <div className="relative grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-[#F0B90B] to-[#F8D12F] shadow-lg">
-              <Sparkles className="h-7 w-7 text-black" />
+              <Gem className="h-7 w-7 text-black" />
             </div>
           </div>
           <div className="flex-1">

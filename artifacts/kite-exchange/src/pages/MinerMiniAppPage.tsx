@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, Sparkles, Users, Settings, X, ChevronRight, Zap, Gift, Share2, UserPlus, Send } from 'lucide-react';
+import { Home, Gem, Users, Settings, X, ChevronRight, Zap, Gift, Share2, UserPlus, Send } from 'lucide-react';
 import { TonConnectButton, useTonConnectUI, useTonAddress } from '@tonconnect/ui-react';
 import { computeBncMarket, seededRand } from '../lib/bncMarket';
 import { minerApi, hasTelegram, type ServerMinerState } from '../lib/miner-api';
@@ -690,7 +690,7 @@ export default function MinerMiniAppPage() {
       <div className="fixed bottom-0 left-0 right-0 bg-[#0a0a14] border-t border-gray-800 grid grid-cols-3" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {[
           { id: 'home', label: 'Home', icon: Home },
-          { id: 'upgrade', label: 'Upgrade', icon: Sparkles },
+          { id: 'upgrade', label: 'Upgrade', icon: Gem },
           { id: 'friends', label: 'Friends', icon: Users },
         ].map((t) => {
           const Icon = t.icon;

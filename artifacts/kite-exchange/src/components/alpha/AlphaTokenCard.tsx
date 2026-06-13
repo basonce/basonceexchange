@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { TrendingUp, Users, Activity, ThumbsUp, Clock, Flame, Sparkles, Award, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { TrendingUp, Users, Activity, ThumbsUp, Clock, Flame, Gem, Award, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import type { AlphaToken } from '../../types/alpha';
 
 const NETWORK_COLORS: Record<string, string> = {
@@ -419,7 +419,7 @@ export default function AlphaTokenCard({ token, onClick, isNew }: Props) {
             )}
             {isActuallyNew && !token.is_graduated && (
               <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-[#00D1FF]/12 border border-[#00D1FF]/20">
-                <Sparkles className="w-2.5 h-2.5 text-[#00D1FF]" />
+                <Gem className="w-2.5 h-2.5 text-[#00D1FF]" />
                 <span className="text-[#00D1FF] text-[9px] font-black tracking-wide">NEW</span>
               </div>
             )}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, TrendingUp, Wallet, ArrowRight, Sparkles, Gift, AlertTriangle, Clock, DollarSign, Lock } from 'lucide-react';
+import { X, TrendingUp, Wallet, ArrowRight, Gem, Gift, AlertTriangle, Clock, DollarSign, Lock } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { checkWithdrawalPermission } from '../lib/withdrawal-permission';
 
@@ -318,7 +318,7 @@ export default function SmartWithdrawalModal({ isOpen, onClose, eqBalance, eqPri
 
                 <div className="space-y-3 mb-4">
                   <div className="flex items-center gap-2 text-sm">
-                    <Sparkles className="w-4 h-4 text-yellow-400" />
+                    <Gem className="w-4 h-4 text-yellow-400" />
                     <span className="text-gray-300">Instant transfer</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
@@ -343,7 +343,7 @@ export default function SmartWithdrawalModal({ isOpen, onClose, eqBalance, eqPri
                     </div>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-green-400 flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" />
+                        <Gem className="w-3 h-3" />
                         10% Bonus:
                       </span>
                       <span className="text-lg font-bold text-green-400">+${futuresBonus.toFixed(2)}</span>

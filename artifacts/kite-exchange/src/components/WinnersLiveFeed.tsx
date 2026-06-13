@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Sparkles } from 'lucide-react';
+import { Trophy, Gem } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface Winner {
@@ -70,7 +70,7 @@ export default function WinnersLiveFeed() {
         </div>
         <div>
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-yellow-400 animate-pulse" />
+            <Gem className="w-4 h-4 text-yellow-400 animate-pulse" />
             Recent Winners
           </h3>
           <p className="text-xs text-gray-400">Live wheel results</p>

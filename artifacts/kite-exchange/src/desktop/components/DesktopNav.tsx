@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   Search, ChevronDown, Globe, Wallet, Download, X, Check,
-  Crown, Users, UserPlus, Baby, Rocket, Gift, Pickaxe, Sparkles,
+  Crown, Users, UserPlus, Baby, Rocket, Gift, Pickaxe, Gem,
   CreditCard, Image as ImageIcon, Trophy, Boxes, GraduationCap, HeartHandshake, ShieldCheck,
   CandlestickChart, Building2, Scale, ArrowLeftRight, Repeat, Bot, Copy, KeyRound,
 } from 'lucide-react';
@@ -63,7 +63,7 @@ const TRADE_MENU: { heading: string; items: TradeItem[] }[] = [
     heading: 'Advanced',
     items: [
       { icon: Boxes, title: 'DEX', desc: 'On-chain trading with Basonce Wallet', badge: 'Beta' },
-      { icon: Sparkles, title: 'Alpha', desc: 'Quick access to Web3 via Alpha Trading' },
+      { icon: Gem, title: 'Alpha', desc: 'Quick access to Web3 via Alpha Trading' },
       { icon: Bot, title: 'Trading Bots', desc: 'Trade smarter with our automated strategies', tab: 'aibot' },
       { icon: Copy, title: 'Copy Trading', desc: 'Follow the most popular traders' },
       { icon: KeyRound, title: 'APIs', desc: 'Unlimited opportunities with one key' },
@@ -82,7 +82,7 @@ const MORE_MENU: MoreItem[][] = [
     { icon: Rocket, title: 'Launchpool', desc: 'Discover and gain early access to new token launches', tab: 'launchpool' },
     { icon: Gift, title: 'Megadrop', desc: 'Lock tokens and complete quests for boosted airdrop rewards', tab: 'megadrop' },
     { icon: Pickaxe, title: 'Mining Pool', desc: 'Earn more rewards by connecting to the pool', tab: 'miningpool' },
-    { icon: Sparkles, title: 'Basonce AI Pro', desc: 'Your AI-powered trading copilot', tab: 'aipro' },
+    { icon: Gem, title: 'Basonce AI Pro', desc: 'Your AI-powered trading copilot', tab: 'aipro' },
   ],
   [
     { icon: CreditCard, title: 'Basonce Pay', desc: 'Send, receive and spend crypto', tab: 'pay' },

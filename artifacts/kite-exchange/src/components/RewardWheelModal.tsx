@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sparkles, Clock, Trophy, Zap, Gift } from 'lucide-react';
+import { X, Gem, Clock, Trophy, Zap, Gift } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface Prize {

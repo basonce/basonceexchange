@@ -3,7 +3,7 @@ import {
   Send, Bot, User, Loader2, Trash2, AlertCircle, RefreshCw,
   Shield, Bell, Calendar, FileText, Activity, ChevronRight,
   Zap, TrendingUp, DollarSign, Users, Cpu, ShieldAlert,
-  BarChart3, Settings2, Sparkles, MessageSquare,
+  BarChart3, Settings2, Gem, MessageSquare,
   Image, Upload, X, CheckCircle2, Database, Code2,
   Eye, Copy, Play, Key, Lock
 } from 'lucide-react';
@@ -595,7 +595,7 @@ export default function AIAssistant() {
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 bg-[#F0B90B]/10 rounded-xl flex items-center justify-center relative">
               <Bot className="w-6 h-6 text-[#F0B90B]" />
-              <Sparkles className="w-3.5 h-3.5 text-amber-300 absolute -top-1 -right-1" />
+              <Gem className="w-3.5 h-3.5 text-amber-300 absolute -top-1 -right-1" />
             </div>
             <div>
               <h3 className="text-white font-bold text-lg">Super Yetkili AI Yoneticisi</h3>
@@ -726,7 +726,7 @@ export default function AIAssistant() {
                   onClick={() => saveKeys('supabase')}
                   className="flex-1 bg-[#F0B90B] text-[#181A20] rounded-xl py-3 font-bold text-sm hover:bg-[#d4a20a] transition-colors flex items-center justify-center gap-2"
                 >
-                  <Sparkles className="w-4 h-4" />
+                  <Gem className="w-4 h-4" />
                   Aktifestir
                 </button>
               </div>

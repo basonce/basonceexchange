@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  Crown, Users, UserPlus, Baby, Rocket, Gift, Pickaxe, Sparkles,
+  Crown, Users, UserPlus, Baby, Rocket, Gift, Pickaxe, Gem,
   CreditCard, Image as ImageIcon, Trophy, Wallet, Boxes, GraduationCap, HeartHandshake, ShieldCheck,
   TrendingUp, Shield, Zap, Globe, BookOpen, Lock, Coins, Banknote, Palette,
   LineChart, Percent, Building2, Headphones, CheckCircle2, Layers, Cpu, Smartphone, Brain, Star,
@@ -306,7 +306,7 @@ export const MORE_PAGES: Record<string, MorePageConfig> = {
 
   // ── Binance AI Pro (Beta Mar 2026) → AI trading agent, dedicated sub-account, "Automatic Trades Under Your Rules" ──
   aipro: {
-    icon: Sparkles,
+    icon: Gem,
     eyebrow: 'Basonce AI Pro',
     title: 'Automatic trades,',
     titleAccent: 'under your rules',

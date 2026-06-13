@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { X, ArrowRight, ArrowLeft, Plus, Globe, MessageCircle, Zap, Shield, Rocket, CheckCircle, Image as ImageIcon, Loader2, Coins, Sparkles } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, Plus, Globe, MessageCircle, Zap, Shield, Rocket, CheckCircle, Image as ImageIcon, Loader2, Coins, Gem } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 const NETWORKS = [
@@ -181,7 +181,7 @@ export default function AlphaCreateToken({ isOpen, onClose, onTokenCreated }: Pr
             <h3 className="text-white text-lg font-bold mb-2">Token Launched!</h3>
             <p className="text-gray-400 text-sm text-center">{name} (${symbol}) is now live on {network}</p>
             <div className="mt-4 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-[#F0B90B]" />
+              <Gem className="w-4 h-4 text-[#F0B90B]" />
               <span className="text-[#F0B90B] text-xs font-bold">Opening trading page...</span>
             </div>
           </div>

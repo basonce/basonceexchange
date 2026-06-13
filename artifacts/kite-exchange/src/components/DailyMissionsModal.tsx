@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle, Circle, Trophy, Sparkles } from 'lucide-react';
+import { X, CheckCircle, Circle, Trophy, Gem } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface Mission {
@@ -106,7 +106,7 @@ export default function DailyMissionsModal({ isOpen, onClose }: DailyMissionsMod
         <div className="p-6 space-y-4">
 
           <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-4 flex items-center gap-3">
-            <Sparkles className="w-6 h-6 text-yellow-400 animate-pulse" />
+            <Gem className="w-6 h-6 text-yellow-400 animate-pulse" />
             <p className="text-sm text-gray-300">
               Complete missions to earn <span className="font-bold text-yellow-400">FREE SPINS</span> for the reward wheel!
             </p>
@@ -184,7 +184,7 @@ export default function DailyMissionsModal({ isOpen, onClose }: DailyMissionsMod
 
                       {completed && (
                         <div className="flex items-center gap-1 text-xs text-green-400">
-                          <Sparkles className="w-3 h-3" />
+                          <Gem className="w-3 h-3" />
                           <span>Spins claimed!</span>
                         </div>
                       )}

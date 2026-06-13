@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, memo, useCallback } from 'react';
-import { Heart, MessageCircle, Share2, Radio, Crown, Lock, Sparkles, Users, BookOpen, BarChart2, MessageSquare, Newspaper, Zap, TrendingUp, TrendingDown, ExternalLink, Shield, Globe, Repeat2, BarChart, Gift } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Radio, Crown, Lock, Gem, Users, BookOpen, BarChart2, MessageSquare, Newspaper, Zap, TrendingUp, TrendingDown, ExternalLink, Shield, Globe, Repeat2, BarChart, Gift } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PriceCache } from '../lib/price-cache';
 import LiveRoomModal from './LiveRoomModal';
@@ -2121,7 +2121,7 @@ const LiveRoomsScroller = memo(function LiveRoomsScroller({ rooms, onRoomClick }
                 )}
 
                 <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${palette.icon} flex items-center justify-center shadow-lg ${palette.iconShadow} relative flex-shrink-0`}>
-                  {isVip ? <Sparkles className="w-5 h-5 text-white drop-shadow" /> : <Radio className="w-5 h-5 text-white drop-shadow" />}
+                  {isVip ? <Gem className="w-5 h-5 text-white drop-shadow" /> : <Radio className="w-5 h-5 text-white drop-shadow" />}
                   <span className="ring-ping absolute w-3.5 h-3.5 rounded-full bg-red-500 -top-0.5 -right-0.5" />
                   <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0d0f14]" />
                 </div>
