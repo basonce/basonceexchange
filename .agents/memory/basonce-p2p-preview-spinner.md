@@ -1,25 +1,38 @@
 ---
-name: basonce P2P preview screenshot CANCEL
-description: Why the P2P page screenshot always CANCELs in dev preview, and how P2P loads live data.
+name: basonce P2P spinner — chunk-load loop + preview CANCEL
+description: Two distinct "P2P spinning" causes — a real production infinite-spinner from lazy-chunk + unbounded reload, and a benign dev-preview screenshot CANCEL.
 ---
 
-P2P pages (DesktopP2P + mobile P2PModal) fetch live aggregator ads (Binance/
-Bybit/OKX/KuCoin) cross-origin from `https://basonce.com/api/p2p/aggregate` when
-running in the replit.dev/localhost preview (their `API_BASE` points to production
-because that route exists ONLY in the cf-worker, not the local api-server). The
-production cf-worker has `access-control-allow-origin:*` and responds fast
-(~0.5–1s warm), so the page DOES load — but it also polls every 30s.
+## Real production bug: perpetual spinner on /#p2p (desktop web)
+**Symptom:** basonce.com/#p2p showed the desktop nav + a lone centered spinner
+forever, never the P2P page.
 
-**Why screenshots CANCEL:** the app-preview screenshot tool waits for network
-idle; the 30s P2P polling + cross-origin keepalive means the network never goes
-idle on the P2P route, so the tool aborts with `code: CANCEL`. This is NOT a crash
-and NOT an infinite spinner — the home page (same-origin polling) screenshots fine.
-Do not chase a "P2P crash" from a CANCEL alone.
+**Root cause:** the desktop P2P page was a *separate lazy chunk* (React.lazy +
+Suspense inside DesktopApp). Every chunk returned 200 server-side, but if that one
+chunk fails to resolve client-side (poisoned browser cache / flaky network for
+that specific asset URL), BOTH reload handlers — the global ones in `main.tsx`
+(`unhandledrejection`/`error`) and `PageErrorBoundary` in `App.tsx` — called
+`window.location.reload()` with **no attempt cap**, producing an infinite
+reload→spinner→reload loop.
 
-**Why a user may still perceive "spinning":** if the live fetch is slow/stalled
-and the table is empty, a bare centered spinner reads as broken. Mitigations now in
-place: AbortController + 12s timeout on initial fetch AND the 30s refresh (so it
-can never hang), a mountedRef guard so the background refresh never setState after
-unmount, and skeleton rows (instead of a lone spinner) so the page looks populated
-instantly. Mock seed data (generateMerchantsForCountry) is intentionally NOT used
-as a fallback — fake merchants would deep-link to non-existent trades.
+**Fix (durable rule):**
+1. For critical routes, **eager-import** the page into a chunk that is already
+   proven to load (DesktopApp loads fine — the nav renders), instead of a separate
+   lazy chunk. No separate chunk = nothing to hang on.
+2. **Always cap chunk-error reloads** (max ~2 within a 30s sessionStorage window),
+   then show actionable error UI — never an unbounded `location.reload()`.
+
+**Why:** an unbounded reload-on-chunk-error is indistinguishable from a hang and is
+worse — it loops forever. A 200 from `curl` does NOT prove the user's browser can
+load the chunk; cache/network can poison a single asset.
+
+## Note on the mock fallback
+DesktopP2P DOES render `generateMerchantsForCountry` as a fallback so it always
+shows content once mounted. (Earlier note claimed the fallback was intentionally
+unused — that was wrong; desktop uses it. Mobile `P2PModal` still has none.)
+
+## Benign: dev-preview screenshot always CANCELs on /#p2p
+In replit.dev/localhost preview, P2P `API_BASE` points to production
+(`https://basonce.com/api/...`) and polls every 30s cross-origin, so the network
+never goes idle → the app-preview screenshot tool aborts with `code: CANCEL`. This
+is NOT a crash and NOT the infinite spinner above. Home page screenshots fine.

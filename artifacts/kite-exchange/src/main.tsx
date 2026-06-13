@@ -8,6 +8,29 @@ import { prewarmAllPriceManagers } from './lib/price-init';
 
 prewarmAllPriceManagers();
 
+// Reload at most a few times within a short window when a code chunk fails to
+// load (stale/poisoned cache after a deploy). Without this cap a persistently
+// failing chunk produces an infinite reload loop -> perpetual loading spinner.
+function reloadOnceForChunkError() {
+  const KEY = 'chunk_reload_global';
+  const now = Date.now();
+  let n = 0;
+  let last = 0;
+  try {
+    const raw = sessionStorage.getItem(KEY);
+    if (raw) { const p = JSON.parse(raw); n = p.n || 0; last = p.t || 0; }
+  } catch {}
+  if (now - last > 30000) n = 0;
+  if (n >= 2) return false;
+  try { sessionStorage.setItem(KEY, JSON.stringify({ n: n + 1, t: now })); } catch {}
+  try {
+    if ('caches' in window) caches.keys().then(ks => ks.forEach(k => caches.delete(k))).catch(() => {});
+    if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
+  } catch {}
+  window.location.reload();
+  return true;
+}
+
 window.addEventListener('unhandledrejection', (e) => {
   const msg = e.reason?.message || String(e.reason || '');
   if (
@@ -16,7 +39,7 @@ window.addEventListener('unhandledrejection', (e) => {
     msg.includes('dynamically imported module')
   ) {
     e.preventDefault();
-    window.location.reload();
+    reloadOnceForChunkError();
     return;
   }
   try {
@@ -30,7 +53,7 @@ window.addEventListener('unhandledrejection', (e) => {
 window.addEventListener('error', (e) => {
   const msg = e.message || '';
   if (msg.includes('Loading chunk') || msg.includes('Failed to fetch dynamically')) {
-    window.location.reload();
+    reloadOnceForChunkError();
   }
 });
 

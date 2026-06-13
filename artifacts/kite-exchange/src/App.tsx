@@ -49,37 +49,38 @@ class PageErrorBoundary extends Component<{ children: ReactNode; name: string },
   componentDidCatch(error: Error) {
     const msg = error?.message || '';
     if (isChunkLoadError(msg)) {
-      this.setState({ reloading: true });
       const reloadKey = `chunk_reload_${this.props.name}`;
-      const lastReload = parseInt(localStorage.getItem(reloadKey) || '0');
       const now = Date.now();
-      const cacheBust = () => {
-        // Best-effort: clear caches + unregister SW so the next load fetches fresh assets
-        try {
-          if ('caches' in window) {
-            caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
-          }
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations()
-              .then(regs => regs.forEach(r => r.unregister()))
-              .catch(() => {});
-          }
-        } catch {}
-        const url = new URL(window.location.href);
-        url.searchParams.set('_cb', String(now));
-        window.location.replace(url.toString());
-      };
-      if (now - lastReload > 10000) {
-        localStorage.setItem(reloadKey, String(now));
-        cacheBust();
-      } else {
-        // Throttled: still recover — schedule a reload so the user is never stuck on the spinner.
-        // Reset the counter after recovery so future deploys keep working.
-        setTimeout(() => {
-          try { localStorage.removeItem(reloadKey); } catch {}
-          cacheBust();
-        }, 3000);
+      let count = 0;
+      let last = 0;
+      try {
+        const raw = sessionStorage.getItem(reloadKey);
+        if (raw) { const p = JSON.parse(raw); count = p.n || 0; last = p.t || 0; }
+      } catch {}
+      // Reset the attempt window once the failures stop for a while.
+      if (now - last > 30000) count = 0;
+      // After repeated failures, stop reloading and show an actionable error UI
+      // instead of looping forever on the spinner.
+      if (count >= 2) {
+        this.setState({ hasError: true, reloading: false });
+        return;
       }
+      try { sessionStorage.setItem(reloadKey, JSON.stringify({ n: count + 1, t: now })); } catch {}
+      this.setState({ reloading: true });
+      // Best-effort: clear caches + unregister SW so the next load fetches fresh assets
+      try {
+        if ('caches' in window) {
+          caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
+        }
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations()
+            .then(regs => regs.forEach(r => r.unregister()))
+            .catch(() => {});
+        }
+      } catch {}
+      const url = new URL(window.location.href);
+      url.searchParams.set('_cb', String(now));
+      window.location.replace(url.toString());
       return;
     }
     try {

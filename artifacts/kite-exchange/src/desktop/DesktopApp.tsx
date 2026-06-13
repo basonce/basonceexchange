@@ -10,12 +10,12 @@ import DesktopMorePage from './pages/DesktopMorePage';
 import { MORE_PAGES } from './pages/morePagesData';
 import AuthModal from '../components/AuthModal';
 import { LanguageProvider } from './i18n/LanguageContext';
+import DesktopP2P from './pages/DesktopP2P';
 
 const DesktopAIBot = lazy(() => import('./pages/DesktopAIBot'));
 const DesktopMiningPage = lazy(() => import('./pages/DesktopMiningPage'));
 const DesktopDex = lazy(() => import('./pages/DesktopDex'));
 const DesktopAlpha = lazy(() => import('./pages/DesktopAlpha'));
-const DesktopP2P = lazy(() => import('./pages/DesktopP2P'));
 const DesktopStock = lazy(() => import('./pages/DesktopStock'));
 const DesktopCopyTrading = lazy(() => import('./pages/DesktopCopyTrading'));
 const DesktopConvert = lazy(() => import('./pages/DesktopConvert'));
@@ -128,7 +128,7 @@ export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }:
       case 'alpha':
         return <div className="bg-[#0B0E11] min-h-screen"><Suspense fallback={<Loader />}><DesktopAlpha user={user} onAuth={openAuth} onDeposit={onDeposit} onNavigate={onNavigate} /></Suspense></div>;
       case 'p2p':
-        return <div className="bg-[#0B0E11] min-h-screen"><Suspense fallback={<Loader />}><DesktopP2P user={user} onAuth={openAuth} onDeposit={onDeposit} onNavigate={onNavigate} /></Suspense></div>;
+        return <div className="bg-[#0B0E11] min-h-screen"><DesktopP2P user={user} onAuth={openAuth} onDeposit={onDeposit} onNavigate={onNavigate} /></div>;
       case 'stock':
         return <div className="bg-[#0B0E11] min-h-screen"><Suspense fallback={<Loader />}><DesktopStock user={user} onAuth={openAuth} onDeposit={onDeposit} onNavigate={onNavigate} /></Suspense></div>;
       case 'copytrading':
