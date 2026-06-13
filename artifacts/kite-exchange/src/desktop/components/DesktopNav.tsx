@@ -15,7 +15,8 @@ import type { TKey } from '../i18n/translations';
 export type DeskTab =
   | 'home' | 'markets' | 'trade' | 'futures' | 'aibot' | 'mining' | 'assets' | 'profile' | 'sports'
   | 'vip' | 'affiliate' | 'referral' | 'junior' | 'launchpool' | 'megadrop' | 'miningpool' | 'aipro'
-  | 'pay' | 'nft' | 'fantoken' | 'wallet' | 'chain' | 'academy' | 'charity' | 'travelrule';
+  | 'pay' | 'nft' | 'fantoken' | 'wallet' | 'chain' | 'academy' | 'charity' | 'travelrule'
+  | 'stock' | 'p2p' | 'convert' | 'dex' | 'alpha' | 'copytrading' | 'apikeys';
 
 interface DesktopNavProps {
   tab: string;
@@ -52,21 +53,21 @@ const TRADE_MENU: { heading: string; items: TradeItem[] }[] = [
     heading: 'Basic',
     items: [
       { icon: CandlestickChart, title: 'Spot', desc: 'Trade Spot and Margin with advanced tools', tab: 'trade' },
-      { icon: Building2, title: 'Stock', desc: 'Trade Stocks & ETFs with crypto', badge: 'New' },
+      { icon: Building2, title: 'Stock', desc: 'Trade Stocks & ETFs with crypto', tab: 'stock', badge: 'New' },
       { icon: Scale, title: 'Margin', desc: 'Increase your profits with leverage', tab: 'futures' },
-      { icon: ArrowLeftRight, title: 'P2P', desc: 'Buy & sell crypto with bank transfer and 800+ options' },
-      { icon: Repeat, title: 'Convert & Block Trade', desc: 'The easiest way to trade at all sizes' },
+      { icon: ArrowLeftRight, title: 'P2P', desc: 'Buy & sell crypto with bank transfer and 800+ options', tab: 'p2p' },
+      { icon: Repeat, title: 'Convert & Block Trade', desc: 'The easiest way to trade at all sizes', tab: 'convert' },
       { icon: GraduationCap, title: 'Demo Trading', desc: 'Use virtual funds to experience real trading with zero risk', tab: 'aibot' },
     ],
   },
   {
     heading: 'Advanced',
     items: [
-      { icon: Boxes, title: 'DEX', desc: 'On-chain trading with Basonce Wallet', badge: 'Beta' },
-      { icon: Gem, title: 'Alpha', desc: 'Quick access to Web3 via Alpha Trading' },
+      { icon: Boxes, title: 'DEX', desc: 'On-chain trading with Basonce Wallet', tab: 'dex', badge: 'Beta' },
+      { icon: Gem, title: 'Alpha', desc: 'Quick access to Web3 via Alpha Trading', tab: 'alpha' },
       { icon: Bot, title: 'Trading Bots', desc: 'Trade smarter with our automated strategies', tab: 'aibot' },
-      { icon: Copy, title: 'Copy Trading', desc: 'Follow the most popular traders' },
-      { icon: KeyRound, title: 'APIs', desc: 'Unlimited opportunities with one key' },
+      { icon: Copy, title: 'Copy Trading', desc: 'Follow the most popular traders', tab: 'copytrading' },
+      { icon: KeyRound, title: 'APIs', desc: 'Unlimited opportunities with one key', tab: 'apikeys' },
     ],
   },
 ];

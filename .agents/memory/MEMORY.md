@@ -12,3 +12,4 @@
 - [Desktop layout split](desktop-layout-split.md) — kite-exchange has a separate >=1024px Binance-style desktop tree; mobile path in App.tsx stays untouched.
 - [Desktop futures BDEX parity](desktop-futures-bdex-parity.md) — desktop hardcodes BDEX exclusion (no BDEX UI); exact parity for tradable symbols, don't "fix".
 - [Desktop order book parity](desktop-orderbook-parity.md) — desktop terminal must reuse mobile generateOrderBook/FuturesRecentTrades formulas + formatPrice (not fmt) or low-price ladders collapse.
+- [Desktop tab routing](desktop-tab-routing.md) — new desktop tabs must join VALID_TABS in App.tsx or nav flashes then resets to home.

@@ -13,6 +13,13 @@ import { LanguageProvider } from './i18n/LanguageContext';
 
 const DesktopAIBot = lazy(() => import('./pages/DesktopAIBot'));
 const DesktopMiningPage = lazy(() => import('./pages/DesktopMiningPage'));
+const DesktopDex = lazy(() => import('./pages/DesktopDex'));
+const DesktopAlpha = lazy(() => import('./pages/DesktopAlpha'));
+const DesktopP2P = lazy(() => import('./pages/DesktopP2P'));
+const DesktopStock = lazy(() => import('./pages/DesktopStock'));
+const DesktopCopyTrading = lazy(() => import('./pages/DesktopCopyTrading'));
+const DesktopConvert = lazy(() => import('./pages/DesktopConvert'));
+const DesktopApiKeys = lazy(() => import('./pages/DesktopApiKeys'));
 const AssetsPage = lazy(() => import('../pages/AssetsPage'));
 const ProfilePage = lazy(() => import('../pages/ProfilePage'));
 const GamesSection = lazy(() => import('../components/GamesSection'));
@@ -34,6 +41,13 @@ const PAGE_LABELS: Record<string, string> = {
   assets: 'Assets',
   profile: 'Profile',
   sports: 'Alpha Sports',
+  stock: 'Stocks & ETFs',
+  p2p: 'P2P Trading',
+  convert: 'Convert',
+  dex: 'DEX',
+  alpha: 'Alpha',
+  copytrading: 'Copy Trading',
+  apikeys: 'API Management',
 };
 
 /**
@@ -109,6 +123,20 @@ export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }:
         return <div className="bg-[#0B0E11] min-h-screen"><Suspense fallback={<Loader />}><DesktopAIBot /></Suspense></div>;
       case 'mining':
         return <div className="bg-[#0B0E11] min-h-screen"><Suspense fallback={<Loader />}><DesktopMiningPage /></Suspense></div>;
+      case 'dex':
+        return <div className="bg-[#0B0E11] min-h-screen"><Suspense fallback={<Loader />}><DesktopDex user={user} onAuth={openAuth} onDeposit={onDeposit} onNavigate={onNavigate} /></Suspense></div>;
+      case 'alpha':
+        return <div className="bg-[#0B0E11] min-h-screen"><Suspense fallback={<Loader />}><DesktopAlpha user={user} onAuth={openAuth} onDeposit={onDeposit} onNavigate={onNavigate} /></Suspense></div>;
+      case 'p2p':
+        return <div className="bg-[#0B0E11] min-h-screen"><Suspense fallback={<Loader />}><DesktopP2P user={user} onAuth={openAuth} onDeposit={onDeposit} onNavigate={onNavigate} /></Suspense></div>;
+      case 'stock':
+        return <div className="bg-[#0B0E11] min-h-screen"><Suspense fallback={<Loader />}><DesktopStock user={user} onAuth={openAuth} onDeposit={onDeposit} onNavigate={onNavigate} /></Suspense></div>;
+      case 'copytrading':
+        return <div className="bg-[#0B0E11] min-h-screen"><Suspense fallback={<Loader />}><DesktopCopyTrading user={user} onAuth={openAuth} onDeposit={onDeposit} onNavigate={onNavigate} /></Suspense></div>;
+      case 'convert':
+        return <div className="bg-[#0B0E11] min-h-screen"><Suspense fallback={<Loader />}><DesktopConvert user={user} onAuth={openAuth} onDeposit={onDeposit} onNavigate={onNavigate} /></Suspense></div>;
+      case 'apikeys':
+        return <div className="bg-[#0B0E11] min-h-screen"><Suspense fallback={<Loader />}><DesktopApiKeys user={user} onAuth={openAuth} onDeposit={onDeposit} onNavigate={onNavigate} /></Suspense></div>;
       case 'assets':
         return <FramedPage title={title}><Suspense fallback={<Loader />}><AssetsPage /></Suspense></FramedPage>;
       case 'sports':
