@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ArrowRight, ChevronDown, Timer, Activity, Plus } from 'lucide-react';
+import CoinLogo from '../../../components/CoinLogo';
 import type { MorePageProps } from './types';
 import { openAuthRegister } from './types';
 import { MORE_PAGES } from '../morePagesData';
@@ -116,11 +117,11 @@ export default function LaunchpoolPage({ onNavigate }: MorePageProps) {
         
         <div className="grid lg:grid-cols-2 gap-6">
           {MOCK_POOLS.map((pool) => (
-            <div key={pool.id} className="bg-[#181A20] border border-[#2B3139] rounded-2xl overflow-hidden flex flex-col hover:border-[#F0B90B]/40 transition-colors">
+            <div key={pool.id} onClick={openAuthRegister} className="bg-[#181A20] border border-[#2B3139] rounded-2xl overflow-hidden flex flex-col hover:border-[#F0B90B]/40 transition-colors cursor-pointer">
               <div className="p-6 border-b border-[#2B3139] flex items-center justify-between bg-[#1E2329]/50">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-[#2B3139] flex items-center justify-center font-bold text-white text-xl">
-                    {pool.ticker.charAt(0)}
+                  <div className="w-12 h-12 rounded-full overflow-hidden shrink-0">
+                    <CoinLogo symbol={pool.ticker} />
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-white leading-tight">{pool.name}</h3>
@@ -157,8 +158,8 @@ export default function LaunchpoolPage({ onNavigate }: MorePageProps) {
                   {pool.pools.map((p, i) => (
                     <div key={i} className="bg-[#0B0E11] border border-[#2B3139] rounded-xl p-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-[#181A20] border border-[#2B3139] flex items-center justify-center font-bold text-[#F0B90B] text-xs">
-                          {p.asset.slice(0,3)}
+                        <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
+                          <CoinLogo symbol={p.asset} />
                         </div>
                         <div>
                           <div className="font-bold text-white text-sm">{p.asset} Pool</div>

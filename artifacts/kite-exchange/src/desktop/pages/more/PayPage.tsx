@@ -1,14 +1,36 @@
 import { useState } from 'react';
-import { ArrowRight, QrCode, Send, Store, History, ChevronRight } from 'lucide-react';
+import { ArrowRight, QrCode, Send, Store, History, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { MORE_PAGES } from '../morePagesData';
 import type { MorePageProps } from './types';
 import { openAuthRegister } from './types';
 
+function QRSvg() {
+  return (
+    <svg viewBox="0 0 100 100" className="w-full h-full" shapeRendering="crispEdges">
+      {/* Finder patterns */}
+      <path fill="currentColor" d="M10,10 h20 v20 h-20 z M15,15 h10 v10 h-10 z" />
+      <path fill="currentColor" d="M70,10 h20 v20 h-20 z M75,15 h10 v10 h-10 z" />
+      <path fill="currentColor" d="M10,70 h20 v20 h-20 z M15,75 h10 v10 h-10 z" />
+      
+      {/* Deterministic grid */}
+      <path fill="currentColor" d="M40,10 h10 v10 h-10 z M55,10 h5 v5 h-5 z M60,15 h10 v5 h-10 z" />
+      <path fill="currentColor" d="M10,40 h5 v10 h-5 z M20,45 h15 v5 h-15 z M45,40 h10 v10 h-10 z M60,40 h30 v5 h-30 z M80,45 h10 v10 h-10 z" />
+      <path fill="currentColor" d="M15,55 h10 v5 h-10 z M30,55 h25 v10 h-25 z M65,55 h10 v10 h-10 z" />
+      <path fill="currentColor" d="M40,70 h15 v10 h-15 z M60,75 h5 v5 h-5 z M70,70 h20 v5 h-20 z M75,80 h10 v10 h-10 z M45,85 h10 v5 h-10 z" />
+    </svg>
+  );
+}
+
 export default function PayPage({ onNavigate }: MorePageProps) {
   const cfg = MORE_PAGES['pay'];
-  const [activeTab, setActiveTab] = useState<'send' | 'receive' | 'merchant'>('send');
+  const [activeTab, setActiveTab] = useState<'send' | 'receive' | 'merchant' | 'history'>('send');
+  const [selectedContact, setSelectedContact] = useState<number | null>(null);
 
   const HeroIcon = cfg.icon;
+
+  const handleQRToggle = () => {
+    setActiveTab(prev => prev === 'receive' ? 'send' : 'receive');
+  };
 
   return (
     <div className="bg-[#0B0E11] min-h-screen text-[#EAECEF]">
@@ -66,7 +88,7 @@ export default function PayPage({ onNavigate }: MorePageProps) {
               {/* App Header */}
               <div className="flex justify-between items-center mb-8">
                 <div className="text-lg font-semibold">Basonce Pay</div>
-                <button className="w-10 h-10 rounded-full bg-[#2B3139] flex items-center justify-center text-[#F0B90B]">
+                <button onClick={handleQRToggle} className="w-10 h-10 rounded-full bg-[#2B3139] hover:bg-[#F0B90B]/20 flex items-center justify-center text-[#F0B90B] transition-colors">
                   <QrCode className="w-5 h-5" />
                 </button>
               </div>
@@ -76,20 +98,29 @@ export default function PayPage({ onNavigate }: MorePageProps) {
                 <div className="text-[#848E9C] text-sm mb-1">Total Balance</div>
                 <div className="text-3xl font-bold text-white mb-4">$12,450.00</div>
                 <div className="flex gap-3">
-                  <button onClick={() => setActiveTab('send')} className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'send' ? 'bg-[#F0B90B] text-black' : 'bg-[#2B3139] text-white'}`}>Send</button>
-                  <button onClick={() => setActiveTab('receive')} className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'receive' ? 'bg-[#F0B90B] text-black' : 'bg-[#2B3139] text-white'}`}>Receive</button>
+                  <button onClick={() => setActiveTab('send')} className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'send' ? 'bg-[#F0B90B] text-black' : 'bg-[#2B3139] text-white hover:bg-[#2B3139]/80'}`}>Send</button>
+                  <button onClick={() => setActiveTab('receive')} className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'receive' ? 'bg-[#F0B90B] text-black' : 'bg-[#2B3139] text-white hover:bg-[#2B3139]/80'}`}>Receive</button>
                 </div>
               </div>
 
               {/* Dynamic Content */}
-              <div className="space-y-4">
+              <div className="space-y-4 min-h-[220px]">
                 {activeTab === 'send' && (
                   <>
-                    <div className="text-sm font-medium text-[#848E9C] mb-2">Recent Contacts</div>
+                    <div className="text-sm font-medium text-[#848E9C] mb-2 flex justify-between">
+                      <span>Recent Contacts</span>
+                      {selectedContact !== null && (
+                        <button onClick={() => setSelectedContact(null)} className="text-xs text-[#F0B90B] hover:underline">Clear</button>
+                      )}
+                    </div>
                     {['Alice (Basonce ID)', 'Bob (Email)', 'Coffee Shop'].map((contact, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 rounded-xl hover:bg-[#2B3139] transition-colors cursor-pointer border border-transparent hover:border-[#2B3139]">
+                      <div 
+                        key={i} 
+                        onClick={() => setSelectedContact(i)}
+                        className={`flex items-center justify-between p-3 rounded-xl transition-colors cursor-pointer border ${selectedContact === i ? 'bg-[#F0B90B]/10 border-[#F0B90B]/50' : 'border-transparent hover:bg-[#2B3139] hover:border-[#2B3139]'}`}
+                      >
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#2B3139] to-[#0B0E11] flex items-center justify-center font-semibold border border-[#2B3139]">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#F0B90B]/20 to-[#0B0E11] flex items-center justify-center font-bold text-white border border-[#2B3139]">
                             {contact[0]}
                           </div>
                           <div>
@@ -97,15 +128,18 @@ export default function PayPage({ onNavigate }: MorePageProps) {
                             <div className="text-xs text-[#848E9C] truncate">{contact.split(' ')[1]}</div>
                           </div>
                         </div>
-                        <Send className="w-4 h-4 text-[#848E9C]" />
+                        {selectedContact === i ? <CheckCircle2 className="w-4 h-4 text-[#F0B90B]" /> : <Send className="w-4 h-4 text-[#848E9C]" />}
                       </div>
                     ))}
+                    {selectedContact !== null && (
+                       <button onClick={openAuthRegister} className="w-full mt-2 py-3 bg-[#F0B90B] text-black rounded-xl font-bold text-sm">Send Funds</button>
+                    )}
                   </>
                 )}
                 {activeTab === 'receive' && (
                   <div className="flex flex-col items-center justify-center p-6 bg-[#0B0E11] rounded-2xl border border-[#2B3139]">
-                     <div className="bg-white p-4 rounded-xl mb-4">
-                        <QrCode className="w-32 h-32 text-black" />
+                     <div className="bg-white p-4 rounded-xl mb-4 w-36 h-36">
+                        <QRSvg />
                      </div>
                      <div className="text-sm text-[#848E9C] mb-2">My Pay ID</div>
                      <div className="text-lg font-mono font-medium text-white tracking-widest bg-[#181A20] px-4 py-2 rounded-lg border border-[#2B3139]">100 293 481</div>
@@ -113,7 +147,7 @@ export default function PayPage({ onNavigate }: MorePageProps) {
                 )}
                 {activeTab === 'merchant' && (
                    <div className="space-y-3">
-                     <div className="p-4 rounded-xl bg-gradient-to-r from-[#181A20] to-[#0B0E11] border border-[#F0B90B]/30 flex items-center justify-between">
+                     <div onClick={openAuthRegister} className="p-4 rounded-xl cursor-pointer hover:bg-[#2B3139]/50 transition-colors bg-gradient-to-r from-[#181A20] to-[#0B0E11] border border-[#F0B90B]/30 flex items-center justify-between">
                        <div className="flex items-center gap-3">
                          <Store className="w-8 h-8 text-[#F0B90B]" />
                          <div>
@@ -125,17 +159,42 @@ export default function PayPage({ onNavigate }: MorePageProps) {
                      </div>
                    </div>
                 )}
+                {activeTab === 'history' && (
+                  <>
+                    <div className="text-sm font-medium text-[#848E9C] mb-2">Recent Transactions</div>
+                    {[
+                      { type: 'Sent', to: 'Alice', amount: '-$50.00', date: 'Today, 14:30' },
+                      { type: 'Received', to: 'Bob', amount: '+$120.00', date: 'Yesterday, 09:15', positive: true },
+                      { type: 'Merchant', to: 'Coffee Shop', amount: '-$4.50', date: 'Oct 24, 08:45' }
+                    ].map((tx, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 bg-[#0B0E11] rounded-xl border border-[#2B3139]">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-[#181A20] ${tx.positive ? 'text-[#0ECB81]' : 'text-white'}`}>
+                             {tx.positive ? <ChevronRight className="w-4 h-4 rotate-90" /> : <Send className="w-3 h-3" />}
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-white">{tx.to}</div>
+                            <div className="text-xs text-[#848E9C]">{tx.date}</div>
+                          </div>
+                        </div>
+                        <div className={`font-mono text-sm font-bold ${tx.positive ? 'text-[#0ECB81]' : 'text-white'}`}>
+                          {tx.amount}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
               
               {/* Bottom Nav Mock */}
               <div className="flex justify-around items-center pt-6 mt-6 border-t border-[#1E2329]">
-                 <button onClick={() => setActiveTab('send')} className="flex flex-col items-center gap-1 text-[#F0B90B]">
+                 <button onClick={() => setActiveTab('send')} className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'send' ? 'text-[#F0B90B]' : 'text-[#848E9C] hover:text-white'}`}>
                     <Send className="w-5 h-5" />
                  </button>
-                 <button onClick={() => setActiveTab('merchant')} className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'merchant' ? 'text-[#F0B90B]' : 'text-[#848E9C]'}`}>
+                 <button onClick={() => setActiveTab('merchant')} className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'merchant' ? 'text-[#F0B90B]' : 'text-[#848E9C] hover:text-white'}`}>
                     <Store className="w-5 h-5" />
                  </button>
-                 <button className="flex flex-col items-center gap-1 text-[#848E9C]">
+                 <button onClick={() => setActiveTab('history')} className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'history' ? 'text-[#F0B90B]' : 'text-[#848E9C] hover:text-white'}`}>
                     <History className="w-5 h-5" />
                  </button>
               </div>

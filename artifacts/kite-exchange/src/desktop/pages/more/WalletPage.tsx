@@ -3,6 +3,7 @@ import { ArrowRight, Shield, Globe, ArrowDownUp, ScanLine, Hexagon, Activity, Ch
 import { MORE_PAGES } from '../morePagesData';
 import type { MorePageProps } from './types';
 import { openAuthRegister } from './types';
+import CoinLogo from '../../../components/CoinLogo';
 
 export default function WalletPage({ onNavigate }: MorePageProps) {
   const cfg = MORE_PAGES['wallet'];
@@ -80,7 +81,7 @@ export default function WalletPage({ onNavigate }: MorePageProps) {
                     <span className="text-xs font-semibold">Polygon</span>
                     <ChevronDown className="w-3 h-3 text-[#848E9C]" />
                   </div>
-                  <ScanLine className="w-5 h-5 text-[#848E9C]" />
+                  <ScanLine onClick={openAuthRegister} className="w-5 h-5 text-[#848E9C] cursor-pointer hover:text-white transition-colors" />
                 </div>
 
                 <div className="text-center mb-8">
@@ -96,7 +97,7 @@ export default function WalletPage({ onNavigate }: MorePageProps) {
                     { icon: Globe, label: 'Earn' },
                   ].map((act, i) => (
                     <div key={i} className="flex flex-col items-center gap-2">
-                      <div className="w-12 h-12 bg-[#181A20] hover:bg-[#2B3139] border border-[#2B3139] rounded-2xl flex items-center justify-center text-[#EAECEF] transition-colors cursor-pointer">
+                      <div onClick={openAuthRegister} className="w-12 h-12 bg-[#181A20] hover:bg-[#2B3139] active:bg-[#1e2329] border border-[#2B3139] rounded-2xl flex items-center justify-center text-[#EAECEF] transition-colors cursor-pointer">
                         <act.icon className="w-5 h-5" />
                       </div>
                       <span className="text-[11px] font-medium text-[#848E9C]">{act.label}</span>
@@ -129,8 +130,8 @@ export default function WalletPage({ onNavigate }: MorePageProps) {
                   ].map((asset, i) => (
                     <div key={i} className="flex items-center justify-between p-3 bg-[#181A20] rounded-xl border border-[#1E2329]">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-inner" style={{ backgroundColor: asset.color }}>
-                          {asset.symbol.substring(0,1)}
+                        <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-[#2B3139]">
+                          <CoinLogo symbol={asset.symbol} />
                         </div>
                         <div>
                           <div className="text-sm font-bold">{asset.symbol}</div>

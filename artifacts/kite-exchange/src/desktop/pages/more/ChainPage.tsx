@@ -8,6 +8,7 @@ export default function ChainPage({ onNavigate }: MorePageProps) {
   const cfg = MORE_PAGES['chain'];
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [latestBlock, setLatestBlock] = useState(14589201);
+  const [expandedBlock, setExpandedBlock] = useState<number | null>(null);
 
   // Simulate block progression
   useEffect(() => {
@@ -83,25 +84,46 @@ export default function ChainPage({ onNavigate }: MorePageProps) {
 
                 <div className="space-y-4">
                   <h3 className="text-sm font-semibold text-[#848E9C] uppercase tracking-wider mb-2">Recent Blocks</h3>
-                  {[0, 1, 2].map((offset) => (
-                    <div key={offset} className="flex items-center justify-between text-sm py-2 border-b border-[#2B3139]/50 last:border-0">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded bg-[#2B3139] flex items-center justify-center text-[#848E9C]">
-                          <Database className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="font-semibold text-[#F0B90B] tabular-nums cursor-pointer hover:underline">
-                            #{latestBlock - offset}
+                  {[0, 1, 2].map((offset) => {
+                    const blockHeight = latestBlock - offset;
+                    const isExpanded = expandedBlock === blockHeight;
+                    return (
+                    <div key={offset} className="flex flex-col text-sm py-2 border-b border-[#2B3139]/50 last:border-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded bg-[#2B3139] flex items-center justify-center text-[#848E9C]">
+                            <Database className="w-4 h-4" />
                           </div>
-                          <div className="text-xs text-[#848E9C]">{offset * 3} secs ago</div>
+                          <div>
+                            <div className="font-semibold text-[#F0B90B] tabular-nums cursor-pointer hover:underline" onClick={() => setExpandedBlock(isExpanded ? null : blockHeight)}>
+                              #{blockHeight}
+                            </div>
+                            <div className="text-xs text-[#848E9C]">{offset * 3} secs ago</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[#EAECEF] tabular-nums">{150 + offset * 12} txns</div>
+                          <div className="text-xs text-[#848E9C]">Validator: 0x4a...{(7+offset)}f</div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-[#EAECEF] tabular-nums">{150 + offset * 12} txns</div>
-                        <div className="text-xs text-[#848E9C]">Validator: 0x4a...{(7+offset)}f</div>
-                      </div>
+                      {isExpanded && (
+                        <div className="mt-3 bg-[#0B0E11] p-3 rounded-lg border border-[#2B3139] text-xs">
+                          <div className="flex justify-between mb-1">
+                            <span className="text-[#848E9C]">Block Hash</span>
+                            <span className="text-[#EAECEF] font-mono">0x...abc{blockHeight.toString(16)}</span>
+                          </div>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-[#848E9C]">Size</span>
+                            <span className="text-[#EAECEF]">{45 + offset} KB</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-[#848E9C]">Gas Used</span>
+                            <span className="text-[#EAECEF]">{(12.5 + offset * 1.2).toFixed(2)}M</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  )})}
                 </div>
               </div>
             </div>
@@ -149,8 +171,8 @@ export default function ChainPage({ onNavigate }: MorePageProps) {
             </h2>
             <div className="grid md:grid-cols-3 gap-8">
               {cfg.steps.map((s, i) => (
-                <div key={i} className="bg-[#181A20] border border-[#2B3139] p-8 rounded-2xl relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-[#F0B90B]/5 rounded-full blur-2xl group-hover:bg-[#F0B90B]/10 transition-colors" />
+                <div key={i} className="bg-[#181A20] border border-[#2B3139] p-8 rounded-2xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-[#F0B90B]/5 rounded-full blur-2xl" />
                   <div className="text-5xl font-black text-[#2B3139] mb-4">0{i + 1}</div>
                   <h3 className="text-xl font-bold mb-3 text-[#EAECEF]">{s.title}</h3>
                   <p className="text-[#848E9C] text-sm leading-relaxed">{s.desc}</p>

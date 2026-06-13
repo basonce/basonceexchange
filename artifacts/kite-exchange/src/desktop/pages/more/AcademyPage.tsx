@@ -1,15 +1,28 @@
 import { useState } from 'react';
-import { ArrowRight, ChevronDown, BookOpen, GraduationCap, PlayCircle, Clock, Award, ChevronRight } from 'lucide-react';
+import { ArrowRight, ChevronDown, BookOpen, GraduationCap, PlayCircle, Clock, Award, Play } from 'lucide-react';
 import { MORE_PAGES } from '../morePagesData';
 import type { MorePageProps } from './types';
 import { openAuthRegister } from './types';
 
+const MOCK_COURSES = [
+  { id: 1, title: 'Introduction to Crypto', cat: 'Beginner', duration: '45m', lessons: 5 },
+  { id: 2, title: 'Technical Analysis 101', cat: 'Trading', duration: '1h 20m', lessons: 8 },
+  { id: 3, title: 'Understanding DeFi', cat: 'DeFi', duration: '55m', lessons: 4 },
+  { id: 4, title: 'Advanced Options Trading', cat: 'Advanced', duration: '2h', lessons: 12 },
+  { id: 5, title: 'Wallet Security Fundamentals', cat: 'Security', duration: '30m', lessons: 3 },
+  { id: 6, title: 'Yield Farming Mechanics', cat: 'Intermediate', duration: '1h 10m', lessons: 6 },
+];
+
 export default function AcademyPage({ onNavigate }: MorePageProps) {
   const cfg = MORE_PAGES['academy'];
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [activeCat, setActiveCat] = useState('All');
 
-  // Mock catalog categories
-  const categories = ['Beginner', 'Intermediate', 'Advanced', 'Trading', 'DeFi', 'Security'];
+  const categories = ['All', 'Beginner', 'Intermediate', 'Advanced', 'Trading', 'DeFi', 'Security'];
+
+  const filteredCourses = activeCat === 'All' 
+    ? MOCK_COURSES 
+    : MOCK_COURSES.filter(c => c.cat === activeCat);
 
   return (
     <div className="bg-[#0B0E11] min-h-screen text-[#EAECEF] font-sans pb-24">
@@ -74,36 +87,51 @@ export default function AcademyPage({ onNavigate }: MorePageProps) {
         </div>
       </section>
 
-      {/* Category Nav (Mock) */}
+      {/* Category Nav */}
       <section className="border-b border-[#2B3139] bg-[#0B0E11] sticky top-0 z-10 hidden md:block">
         <div className="max-w-[1280px] mx-auto px-6 flex items-center gap-8 overflow-x-auto no-scrollbar">
-          {categories.map((cat, i) => (
-            <button key={cat} className={`py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${i === 0 ? 'border-[#F0B90B] text-[#F0B90B]' : 'border-transparent text-[#848E9C] hover:text-[#EAECEF]'}`}>
+          {categories.map((cat) => (
+            <button 
+              key={cat} 
+              onClick={() => setActiveCat(cat)}
+              className={`py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${activeCat === cat ? 'border-[#F0B90B] text-[#F0B90B]' : 'border-transparent text-[#848E9C] hover:text-[#EAECEF]'}`}
+            >
               {cat}
             </button>
           ))}
         </div>
       </section>
 
-      {/* Features / Tracks */}
-      <section className="max-w-[1280px] mx-auto px-6 py-20">
-        <h2 className="text-2xl font-bold text-white uppercase tracking-tight mb-10">{cfg.featuresTitle}</h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {cfg.features.map((f, i) => {
-            const Icon = f.icon;
-            return (
-              <div key={i} className="bg-[#181A20] border border-[#2B3139] rounded-2xl p-6 hover:-translate-y-1 transition-transform cursor-pointer group">
-                <div className="w-12 h-12 bg-[#2B3139] rounded-xl flex items-center justify-center mb-6 group-hover:bg-[#F0B90B] transition-colors">
-                  <Icon className="w-6 h-6 text-[#EAECEF] group-hover:text-black transition-colors" />
-                </div>
-                <h3 className="text-lg font-bold text-white mb-2">{f.title}</h3>
-                <p className="text-sm text-[#848E9C] leading-relaxed mb-4">{f.desc}</p>
-                <div className="flex items-center gap-1 text-[#F0B90B] text-sm font-semibold mt-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                  Explore <ChevronRight className="w-4 h-4" />
+      {/* Course Catalog */}
+      <section className="max-w-[1280px] mx-auto px-6 py-20 border-b border-[#2B3139]">
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Course Catalog</h2>
+        </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredCourses.map((course) => (
+            <div 
+              key={course.id} 
+              onClick={openAuthRegister}
+              className="bg-[#181A20] border border-[#2B3139] rounded-xl overflow-hidden hover:border-[#F0B90B]/50 transition-colors cursor-pointer flex flex-col group"
+            >
+              <div className="h-32 bg-gradient-to-br from-[#2B3139] to-[#0B0E11] relative flex items-center justify-center">
+                <Play className="w-12 h-12 text-[#F0B90B] opacity-50 group-hover:opacity-100 transition-opacity" />
+              </div>
+              <div className="p-6 flex-1 flex flex-col">
+                <div className="text-xs text-[#F0B90B] font-bold uppercase tracking-wider mb-2">{course.cat}</div>
+                <h3 className="text-lg font-bold text-white mb-4">{course.title}</h3>
+                <div className="mt-auto flex items-center justify-between text-sm text-[#848E9C]">
+                  <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {course.duration}</span>
+                  <span className="flex items-center gap-1.5"><BookOpen className="w-4 h-4" /> {course.lessons} Lessons</span>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
+          {filteredCourses.length === 0 && (
+            <div className="col-span-full py-12 text-center text-[#848E9C]">
+              No courses found for this category.
+            </div>
+          )}
         </div>
       </section>
 
@@ -125,11 +153,11 @@ export default function AcademyPage({ onNavigate }: MorePageProps) {
             <h2 className="text-2xl lg:text-3xl font-bold text-white uppercase tracking-tight mb-12 text-center">
               {cfg.stepsTitle || 'Your learning journey'}
             </h2>
-            <div className="grid md:grid-cols-3 gap-10">
+            <div className="grid md:grid-cols-3 gap-10 relative">
               {cfg.steps?.map((s, i) => (
-                <div key={i} className="relative">
-                  {i < 2 && <div className="hidden md:block absolute top-6 left-[60%] right-[-40%] h-px border-t border-dashed border-[#2B3139]" />}
-                  <div className="w-12 h-12 bg-[#2B3139] rounded-full flex items-center justify-center text-[#F0B90B] font-bold text-lg mb-6 relative z-10">
+                <div key={i} className="relative z-10">
+                  {i < 2 && <div className="hidden md:block absolute top-6 left-[60%] right-[-40%] h-px border-t border-dashed border-[#2B3139] -z-10" />}
+                  <div className="w-12 h-12 bg-[#181A20] border-2 border-[#F0B90B] rounded-full flex items-center justify-center text-[#F0B90B] font-bold text-lg mb-6 shadow-[0_0_15px_rgba(240,185,11,0.2)]">
                     {i + 1}
                   </div>
                   <h3 className="text-xl font-bold text-white mb-2">{s.title}</h3>

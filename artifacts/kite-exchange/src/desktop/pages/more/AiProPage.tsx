@@ -1,12 +1,49 @@
-import { useState } from 'react';
-import { ArrowRight, Bot, ChevronDown, Activity } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowRight, Bot, ChevronDown, Activity, TerminalSquare } from 'lucide-react';
 import { MORE_PAGES } from '../morePagesData';
 import type { MorePageProps } from './types';
 import { openAuthRegister } from './types';
 
+const LOG_LINES = [
+  "// Initialize Copilot",
+  "const agent = new Agent({",
+  "  mode: 'autonomous',",
+  "  riskLevel: 'moderate',",
+  "  maxDrawdown: 0.05",
+  "});",
+  "",
+  "// Monitor market conditions",
+  "agent.on('signal', (data) => {",
+  "  if (data.confidence > 0.85) {",
+  "    agent.executeTrade(data.pair, data.size);",
+  "  }",
+  "});",
+  "",
+  "> Scanning global markets...",
+  "> Detected high probability setup on BTC/USDT",
+  "> Analyzing order book depth...",
+  "> Confidence: 0.89. Executing limit buy.",
+  "> Order filled. Monitoring position.",
+  "> Trailing stop updated: +2.5%",
+];
+
 export default function AiProPage({ onNavigate }: MorePageProps) {
   const cfg = MORE_PAGES['aipro'];
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [logs, setLogs] = useState<string[]>([]);
+  
+  useEffect(() => {
+    let index = 0;
+    const timer = setInterval(() => {
+      if (index < LOG_LINES.length) {
+        setLogs(prev => [...prev, LOG_LINES[index]]);
+        index++;
+      } else {
+        clearInterval(timer);
+      }
+    }, 800);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <div className="bg-[#0B0E11] min-h-screen text-[#EAECEF] font-sans pb-24">
@@ -53,31 +90,39 @@ export default function AiProPage({ onNavigate }: MorePageProps) {
           </div>
 
           {/* AI Terminal Mockup */}
-          <div className="relative bg-[#181A20] border border-[#2B3139] rounded-2xl overflow-hidden shadow-2xl shadow-[#F0B90B]/5">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-[#2B3139] bg-[#0B0E11]">
-              <div className="w-3 h-3 rounded-full bg-[#F6465D]" />
-              <div className="w-3 h-3 rounded-full bg-[#F0B90B]" />
-              <div className="w-3 h-3 rounded-full bg-[#0ECB81]" />
-              <div className="ml-4 text-xs text-[#848E9C] font-mono">agent-workflow.cfg</div>
+          <div className="relative flex flex-col h-[400px] bg-[#181A20] border border-[#2B3139] rounded-2xl overflow-hidden shadow-2xl shadow-[#F0B90B]/5">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#2B3139] bg-[#0B0E11] shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-[#F6465D]" />
+                <div className="w-3 h-3 rounded-full bg-[#F0B90B]" />
+                <div className="w-3 h-3 rounded-full bg-[#0ECB81]" />
+                <div className="ml-4 flex items-center gap-2 text-xs text-[#848E9C] font-mono">
+                  <TerminalSquare className="w-3 h-3" />
+                  agent-workflow.cfg
+                </div>
+              </div>
+              <button 
+                onClick={openAuthRegister}
+                className="text-xs px-3 py-1 bg-[#F0B90B]/10 hover:bg-[#F0B90B]/20 text-[#F0B90B] rounded transition-colors font-semibold uppercase"
+              >
+                Deploy Agent
+              </button>
             </div>
-            <div className="p-6 font-mono text-sm leading-relaxed text-[#B7BDC6]">
-              <div className="text-[#848E9C]">{'// Initialize Copilot'}</div>
-              <div><span className="text-[#F0B90B]">const</span> agent = <span className="text-[#0ECB81]">new</span> Agent({'{'}</div>
-              <div className="pl-4">mode: <span className="text-[#F6465D]">'autonomous'</span>,</div>
-              <div className="pl-4">riskLevel: <span className="text-[#F6465D]">'moderate'</span>,</div>
-              <div className="pl-4">maxDrawdown: <span className="text-[#F0B90B]">0.05</span></div>
-              <div>{'}'});</div>
-              <br />
-              <div className="text-[#848E9C]">{'// Monitor market conditions'}</div>
-              <div>agent.on(<span className="text-[#F6465D]">'signal'</span>, (data) =&gt; {'{'}</div>
-              <div className="pl-4">if (data.confidence &gt; <span className="text-[#F0B90B]">0.85</span>) {'{'}</div>
-              <div className="pl-8">agent.executeTrade(data.pair, data.size);</div>
-              <div className="pl-4">{'}'}</div>
-              <div>{'}'});</div>
-              <br />
-              <div className="flex items-center gap-2 text-[#0ECB81]">
+            <div className="flex-1 p-6 font-mono text-sm leading-relaxed text-[#B7BDC6] overflow-y-auto">
+              {logs.map((line, i) => {
+                if (line.startsWith('//')) return <div key={i} className="text-[#848E9C]">{line}</div>;
+                if (line.startsWith('>')) return <div key={i} className="text-[#0ECB81] mt-2">{line}</div>;
+                
+                // simple syntax highlighting
+                const highlighted = line
+                  .replace(/const|new|if|let|var/g, '<span class="text-[#F0B90B]">$&</span>')
+                  .replace(/'[^']*'/g, '<span class="text-[#F6465D]">$&</span>')
+                  .replace(/([0-9.]+)/g, '<span class="text-[#F0B90B]">$1</span>');
+                  
+                return <div key={i} dangerouslySetInnerHTML={{ __html: highlighted || '&nbsp;' }} />;
+              })}
+              <div className="flex items-center gap-2 text-[#0ECB81] mt-2">
                 <span className="animate-pulse">_</span>
-                System active and monitoring...
               </div>
             </div>
           </div>

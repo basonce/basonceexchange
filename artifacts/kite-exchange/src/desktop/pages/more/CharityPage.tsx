@@ -8,6 +8,11 @@ export default function CharityPage({ onNavigate }: MorePageProps) {
   const cfg = MORE_PAGES['charity'];
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
+  // Mock campaign
+  const campaignGoal = 500000;
+  const campaignRaised = 342050;
+  const campaignProgress = (campaignRaised / campaignGoal) * 100;
+
   return (
     <div className="bg-[#0B0E11] min-h-screen text-[#EAECEF] font-sans">
       {/* Hero Section with Warm Glow */}
@@ -31,7 +36,7 @@ export default function CharityPage({ onNavigate }: MorePageProps) {
               onClick={openAuthRegister}
               className="px-8 py-4 bg-[#F0B90B] hover:bg-[#FCD535] text-black font-bold rounded-lg transition-colors flex items-center gap-2"
             >
-              <Heart className="w-5 h-5" />
+              <Heart className="w-5 h-5 fill-current" />
               {cfg.primaryCta}
             </button>
             {cfg.secondaryCta && cfg.secondaryTab && (
@@ -46,6 +51,36 @@ export default function CharityPage({ onNavigate }: MorePageProps) {
         </div>
       </section>
 
+      {/* Campaign Progress */}
+      <section className="bg-[#181A20] border-b border-[#2B3139] py-12">
+        <div className="max-w-[800px] mx-auto px-6">
+          <div className="bg-[#0B0E11] border border-[#2B3139] rounded-2xl p-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-white text-lg">Active Campaign: Crypto for Kids</h3>
+              <div className="text-sm font-medium text-[#0ECB81]">{campaignProgress.toFixed(1)}% Funded</div>
+            </div>
+            <div className="h-3 bg-[#2B3139] rounded-full overflow-hidden mb-4">
+              <div 
+                className="h-full bg-gradient-to-r from-[#F0B90B] to-[#FCD535] rounded-full" 
+                style={{ width: `${campaignProgress}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-sm text-[#848E9C]">
+              <span>Raised: <strong className="text-white">${campaignRaised.toLocaleString()}</strong></span>
+              <span>Goal: <strong className="text-white">${campaignGoal.toLocaleString()}</strong></span>
+            </div>
+            <div className="mt-8 text-center">
+               <button
+                  onClick={openAuthRegister}
+                  className="px-6 py-2.5 bg-[#181A20] hover:bg-[#2B3139] border border-[#F0B90B]/30 text-[#F0B90B] font-bold rounded-lg transition-colors"
+                >
+                  Donate to Campaign
+                </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Stats Band */}
       {cfg.stats && (
         <section className="bg-[#181A20] border-b border-[#2B3139]">
@@ -53,7 +88,7 @@ export default function CharityPage({ onNavigate }: MorePageProps) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 divide-y md:divide-y-0 md:divide-x divide-[#2B3139]">
               {cfg.stats.map((s, i) => (
                 <div key={i} className="text-center pt-6 md:pt-0">
-                  <div className="text-3xl font-bold text-white mb-2">{s.value}</div>
+                  <div className="text-3xl font-bold text-white mb-2 tabular-nums">{s.value}</div>
                   <div className="text-sm font-semibold text-[#848E9C] uppercase tracking-wide">{s.label}</div>
                 </div>
               ))}

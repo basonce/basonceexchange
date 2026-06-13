@@ -8,7 +8,10 @@ export default function AffiliatePage({ onNavigate }: MorePageProps) {
   const cfg = MORE_PAGES['affiliate'];
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [calcVolume, setCalcVolume] = useState<number>(500000);
-  const estimatedEarnings = (calcVolume * 0.001 * 0.5).toFixed(0);
+  
+  // Tier detection based on volume
+  const commissionRate = calcVolume >= 1000000 ? 0.5 : calcVolume >= 100000 ? 0.4 : 0.3;
+  const estimatedEarnings = (calcVolume * 0.001 * commissionRate).toFixed(0);
 
   return (
     <div className="bg-[#0B0E11] min-h-screen text-[#EAECEF] font-sans">
@@ -70,7 +73,7 @@ export default function AffiliatePage({ onNavigate }: MorePageProps) {
                 />
               </div>
               <div className="bg-[#0B0E11] rounded-xl p-8 border border-[#2B3139] text-center">
-                <div className="text-[#848E9C] text-sm font-medium mb-2">Estimated Commissions (Up to 50%)</div>
+                <div className="text-[#848E9C] text-sm font-medium mb-2">Estimated Commissions (Up to {(commissionRate * 100).toFixed(0)}%)</div>
                 <div className="text-5xl font-bold text-[#0ECB81] tabular-nums mb-2">
                   ${estimatedEarnings}
                 </div>

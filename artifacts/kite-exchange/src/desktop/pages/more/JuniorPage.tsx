@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ArrowRight, Shield, Settings, ChevronRight, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { MORE_PAGES } from '../morePagesData';
 import type { MorePageProps } from './types';
@@ -6,6 +7,9 @@ import { openAuthRegister } from './types';
 export default function JuniorPage({ onNavigate }: MorePageProps) {
   const cfg = MORE_PAGES['junior'];
   const HeroIcon = cfg.icon;
+
+  const [spendLimits, setSpendLimits] = useState(true);
+  const [allowedAssets, setAllowedAssets] = useState(false);
 
   return (
     <div className="bg-[#0B0E11] min-h-screen text-[#EAECEF]">
@@ -75,14 +79,14 @@ export default function JuniorPage({ onNavigate }: MorePageProps) {
                    <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-blue-500 p-0.5">
-                            <div className="w-full h-full bg-[#181A20] rounded-full flex items-center justify-center font-bold text-sm">L</div>
+                            <div className="w-full h-full bg-[#181A20] rounded-full flex items-center justify-center font-bold text-white text-lg">L</div>
                          </div>
                          <div>
                             <div className="font-semibold text-white">Leo's Account</div>
                             <div className="text-xs text-[#848E9C]">Age 12 • Saver</div>
                          </div>
                       </div>
-                      <button className="text-blue-400 text-sm font-medium hover:underline">Manage</button>
+                      <button onClick={openAuthRegister} className="text-blue-400 text-sm font-medium hover:underline">Manage</button>
                    </div>
                    
                    <div className="grid grid-cols-2 gap-4 mb-4">
@@ -95,7 +99,7 @@ export default function JuniorPage({ onNavigate }: MorePageProps) {
                       </div>
                       <div className="bg-[#181A20] p-3 rounded-xl border border-[#2B3139]">
                          <div className="text-xs text-[#848E9C] mb-1">Weekly Limit</div>
-                         <div className="font-bold text-white">$20 / $50</div>
+                         <div className="font-bold text-white whitespace-nowrap tabular-nums">$20 / $50</div>
                          <div className="w-full bg-[#2B3139] h-1.5 rounded-full mt-2 overflow-hidden">
                             <div className="bg-green-500 h-full w-[40%]" />
                          </div>
@@ -113,18 +117,31 @@ export default function JuniorPage({ onNavigate }: MorePageProps) {
                 
                 {/* Settings list */}
                 <div className="bg-[#0B0E11] rounded-2xl p-2 border border-[#2B3139]">
-                   {[
-                     { label: 'Spend Limits', icon: Settings },
-                     { label: 'Allowed Assets', icon: CheckCircle2 },
-                   ].map((item, i) => (
-                     <div key={i} className="flex items-center justify-between p-3 hover:bg-[#181A20] rounded-xl cursor-pointer">
-                        <div className="flex items-center gap-3">
-                          <item.icon className="w-5 h-5 text-[#848E9C]" />
-                          <span className="text-sm font-medium">{item.label}</span>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-[#848E9C]" />
-                     </div>
-                   ))}
+                   <div className="flex items-center justify-between p-3 hover:bg-[#181A20] rounded-xl cursor-pointer" onClick={() => setSpendLimits(!spendLimits)}>
+                      <div className="flex items-center gap-3">
+                        <Settings className="w-5 h-5 text-[#848E9C]" />
+                        <span className="text-sm font-medium">Spend Limits</span>
+                      </div>
+                      <div className={`w-10 h-5 rounded-full relative transition-colors ${spendLimits ? 'bg-blue-500' : 'bg-[#2B3139]'}`}>
+                        <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${spendLimits ? 'translate-x-5' : 'translate-x-0'}`} />
+                      </div>
+                   </div>
+                   <div className="flex items-center justify-between p-3 hover:bg-[#181A20] rounded-xl cursor-pointer" onClick={() => setAllowedAssets(!allowedAssets)}>
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-[#848E9C]" />
+                        <span className="text-sm font-medium">Allowed Assets</span>
+                      </div>
+                      <div className={`w-10 h-5 rounded-full relative transition-colors ${allowedAssets ? 'bg-blue-500' : 'bg-[#2B3139]'}`}>
+                        <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${allowedAssets ? 'translate-x-5' : 'translate-x-0'}`} />
+                      </div>
+                   </div>
+                   <div className="flex items-center justify-between p-3 hover:bg-[#181A20] rounded-xl cursor-pointer" onClick={openAuthRegister}>
+                      <div className="flex items-center gap-3">
+                        <Shield className="w-5 h-5 text-[#848E9C]" />
+                        <span className="text-sm font-medium">Parental Controls</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-[#848E9C]" />
+                   </div>
                 </div>
              </div>
           </div>

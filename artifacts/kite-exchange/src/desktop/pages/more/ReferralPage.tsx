@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { UserPlus, ChevronDown, ArrowRight, Link as LinkIcon, QrCode, Copy } from 'lucide-react';
 import type { MorePageProps } from './types';
 import { openAuthRegister } from './types';
@@ -8,11 +8,47 @@ export default function ReferralPage({ onNavigate }: MorePageProps) {
   const cfg = MORE_PAGES['referral'];
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [copied, setCopied] = useState(false);
+  const [showQr, setShowQr] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+  }, []);
 
   const handleCopy = () => {
+    navigator.clipboard.writeText("basonce.com/ref/8291X");
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+    copyTimer.current = setTimeout(() => setCopied(false), 1500);
   };
+
+  const renderQR = () => (
+    <div className="bg-white p-4 rounded-xl flex items-center justify-center">
+      <svg width="120" height="120" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="25" height="25" fill="white"/>
+        {/* Finder patterns */}
+        <path fillRule="evenodd" clipRule="evenodd" d="M2 2H9V9H2V2ZM4 4H7V7H4V4Z" fill="black"/>
+        <path fillRule="evenodd" clipRule="evenodd" d="M16 2H23V9H16V2ZM18 4H21V7H18V4Z" fill="black"/>
+        <path fillRule="evenodd" clipRule="evenodd" d="M2 16H9V23H2V16ZM4 18H7V21H4V18Z" fill="black"/>
+        {/* Random dots */}
+        <rect x="11" y="2" width="3" height="3" fill="black"/>
+        <rect x="11" y="7" width="1" height="1" fill="black"/>
+        <rect x="14" y="6" width="1" height="2" fill="black"/>
+        <rect x="2" y="11" width="3" height="1" fill="black"/>
+        <rect x="7" y="11" width="2" height="2" fill="black"/>
+        <rect x="11" y="11" width="4" height="2" fill="black"/>
+        <rect x="17" y="11" width="1" height="4" fill="black"/>
+        <rect x="20" y="11" width="3" height="3" fill="black"/>
+        <rect x="13" y="15" width="2" height="1" fill="black"/>
+        <rect x="11" y="18" width="1" height="3" fill="black"/>
+        <rect x="14" y="18" width="3" height="1" fill="black"/>
+        <rect x="14" y="21" width="1" height="2" fill="black"/>
+        <rect x="18" y="18" width="5" height="1" fill="black"/>
+        <rect x="18" y="21" width="2" height="2" fill="black"/>
+        <rect x="22" y="21" width="1" height="1" fill="black"/>
+      </svg>
+    </div>
+  );
 
   return (
     <div className="bg-[#0B0E11] min-h-screen text-[#EAECEF] font-sans">
@@ -70,17 +106,24 @@ export default function ReferralPage({ onNavigate }: MorePageProps) {
                       {copied ? <span className="text-xs font-bold">Copied!</span> : <Copy className="w-4 h-4" />}
                     </button>
                   </div>
-                  <div className="bg-[#0B0E11] border border-[#2B3139] rounded-xl p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <QrCode className="w-5 h-5 text-[#848E9C]" />
-                      <div>
-                        <div className="text-xs text-[#848E9C]">QR Code</div>
-                        <div className="text-sm font-medium text-white">Scan to register</div>
+                  <div className="bg-[#0B0E11] border border-[#2B3139] rounded-xl p-4 flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <QrCode className="w-5 h-5 text-[#848E9C]" />
+                        <div>
+                          <div className="text-xs text-[#848E9C]">QR Code</div>
+                          <div className="text-sm font-medium text-white">Scan to register</div>
+                        </div>
                       </div>
+                      <button onClick={() => setShowQr(!showQr)} className="px-3 py-1 bg-[#2B3139] rounded-lg text-xs font-medium text-white hover:bg-[#3B4149] transition-colors">
+                        {showQr ? 'Hide' : 'Show'}
+                      </button>
                     </div>
-                    <button className="px-3 py-1 bg-[#2B3139] rounded-lg text-xs font-medium text-white">
-                      Show
-                    </button>
+                    {showQr && (
+                      <div className="flex justify-center mt-2 animate-in fade-in zoom-in duration-200">
+                        {renderQR()}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

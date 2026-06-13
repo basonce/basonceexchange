@@ -7,6 +7,7 @@ import { openAuthRegister } from './types';
 export default function NftPage({ onNavigate }: MorePageProps) {
   const cfg = MORE_PAGES['nft'];
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [showMore, setShowMore] = useState(false);
 
   if (!cfg) return null;
 
@@ -75,18 +76,22 @@ export default function NftPage({ onNavigate }: MorePageProps) {
               <TrendingUp className="w-6 h-6 text-[#F0B90B]" />
               Trending Collections
             </h2>
-            <button className="text-sm font-medium text-[#F0B90B] hover:text-[#FCD535] flex items-center gap-1">
-              View All <ArrowRight className="w-4 h-4" />
+            <button onClick={() => setShowMore(!showMore)} className="text-sm font-medium text-[#F0B90B] hover:text-[#FCD535] flex items-center gap-1 transition-colors">
+              {showMore ? 'Show Less' : 'View All'} <ArrowRight className={`w-4 h-4 transition-transform ${showMore ? '-rotate-90' : ''}`} />
             </button>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {mockCollections.map((col, i) => (
-              <div key={i} className="bg-[#181A20] border border-[#2B3139] rounded-2xl overflow-hidden hover:border-[#F0B90B]/50 transition-colors group cursor-pointer">
+            {(showMore ? [...mockCollections, ...mockCollections] : mockCollections).map((col, i) => (
+              <div key={i} onClick={openAuthRegister} className="bg-[#181A20] border border-[#2B3139] rounded-2xl overflow-hidden hover:border-[#F0B90B]/50 transition-colors group cursor-pointer">
                 <div className="h-40 relative">
                   <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${col.color1} 0%, ${col.color2} 100%)` }} />
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.2)_0%,transparent_70%)]" />
+                  <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPjxyZWN0IHdpZHRoPSI4IiBoZWlnaHQ9IjgiIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSIvPjwvc3ZnPg==')] opacity-20 mix-blend-overlay" />
                   <div className="absolute inset-0 bg-black/20" />
-                  <div className="absolute bottom-[-20px] left-4 w-12 h-12 rounded-xl border-2 border-[#181A20] shadow-lg" style={{ background: `linear-gradient(45deg, ${col.color2} 0%, ${col.color1} 100%)` }} />
+                  <div className="absolute bottom-[-20px] left-4 w-12 h-12 rounded-xl border-2 border-[#181A20] shadow-lg overflow-hidden" style={{ background: `linear-gradient(45deg, ${col.color2} 0%, ${col.color1} 100%)` }}>
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.3)_0%,transparent_70%)]" />
+                  </div>
                 </div>
                 <div className="p-5 pt-8">
                   <div className="flex items-center justify-between mb-3">

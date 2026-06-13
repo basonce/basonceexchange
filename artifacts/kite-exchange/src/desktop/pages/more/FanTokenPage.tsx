@@ -1,11 +1,13 @@
-import { ArrowRight, Trophy, Flame, Star, Vote, Target } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRight, Trophy, Flame, Star, Vote, Target, CheckCircle2 } from 'lucide-react';
 import { MORE_PAGES } from '../morePagesData';
 import type { MorePageProps } from './types';
 import { openAuthRegister } from './types';
+import CoinLogo from '../../../components/CoinLogo';
 
 const MOCK_POLLS = [
-  { team: 'Lazio', question: 'Which kit design for the 25/26 season?', votes: '124,592', ending: '2 days' },
-  { team: 'Santos', question: 'Choose the goal song for next month.', votes: '89,102', ending: '12 hours' },
+  { id: 1, team: 'LAZIO', question: 'Which kit design for the 25/26 season?', votes: 124592, ending: '2 days' },
+  { id: 2, team: 'SANTOS', question: 'Choose the goal song for next month.', votes: 89102, ending: '12 hours' },
 ];
 
 const MOCK_TOKENS = [
@@ -18,6 +20,17 @@ const MOCK_TOKENS = [
 export default function FanTokenPage({ onNavigate }: MorePageProps) {
   const cfg = MORE_PAGES['fantoken'];
   const HeroIcon = cfg.icon;
+  
+  const [votedPolls, setVotedPolls] = useState<Record<number, boolean>>({});
+  const [pollVotes, setPollVotes] = useState<Record<number, number>>(
+    Object.fromEntries(MOCK_POLLS.map(p => [p.id, p.votes]))
+  );
+
+  const handleVote = (id: number) => {
+    if (votedPolls[id]) return;
+    setVotedPolls(prev => ({ ...prev, [id]: true }));
+    setPollVotes(prev => ({ ...prev, [id]: prev[id] + 1 }));
+  };
 
   return (
     <div className="bg-[#0B0E11] min-h-screen text-[#EAECEF]">
@@ -73,10 +86,12 @@ export default function FanTokenPage({ onNavigate }: MorePageProps) {
            <div className="flex gap-6 items-center shrink-0">
              {MOCK_TOKENS.map(t => (
                <div key={t.symbol} className="flex items-center gap-3 bg-[#181A20] px-4 py-2 rounded-lg border border-[#2B3139]">
-                  <div className="w-8 h-8 rounded-full bg-[#2B3139] flex items-center justify-center text-xs font-bold">{t.symbol[0]}</div>
+                  <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-[#2B3139]">
+                    <CoinLogo symbol={t.symbol} />
+                  </div>
                   <div>
                     <div className="text-sm font-semibold">{t.symbol}</div>
-                    <div className="text-xs text-[#848E9C]">{t.price} <span className={t.change.startsWith('+') ? 'text-[#0ECB81]' : 'text-[#F6465D]'}>{t.change}</span></div>
+                    <div className="text-xs text-[#848E9C] whitespace-nowrap">{t.price} <span className={t.change.startsWith('+') ? 'text-[#0ECB81]' : 'text-[#F6465D]'}>{t.change}</span></div>
                   </div>
                </div>
              ))}
@@ -112,7 +127,7 @@ export default function FanTokenPage({ onNavigate }: MorePageProps) {
             
             {/* Fan Arena Mock */}
             <div className="bg-[#181A20] rounded-3xl p-8 border border-[#2B3139] relative overflow-hidden">
-               <div className="absolute top-0 right-0 p-8 opacity-10">
+               <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
                  <Trophy className="w-48 h-48" />
                </div>
                <div className="relative z-10">
@@ -128,21 +143,48 @@ export default function FanTokenPage({ onNavigate }: MorePageProps) {
                  </div>
                  
                  <div className="space-y-4">
-                   {MOCK_POLLS.map((poll, i) => (
-                     <div key={i} className="bg-[#0B0E11] p-5 rounded-2xl border border-[#2B3139] hover:border-[#F0B90B]/50 transition-colors cursor-pointer group">
-                       <div className="flex items-center justify-between mb-3">
-                         <span className="text-xs font-bold px-2 py-1 rounded bg-[#2B3139] text-[#EAECEF]">{poll.team}</span>
-                         <span className="text-xs text-[#F0B90B] flex items-center gap-1"><Target className="w-3 h-3"/> Ends in {poll.ending}</span>
+                   {MOCK_POLLS.map((poll) => {
+                     const isVoted = votedPolls[poll.id];
+                     return (
+                       <div key={poll.id} className="bg-[#0B0E11] p-5 rounded-2xl border border-[#2B3139] hover:border-[#F0B90B]/50 transition-colors">
+                         <div className="flex items-center justify-between mb-3">
+                           <div className="flex items-center gap-2">
+                             <div className="w-5 h-5 rounded-full overflow-hidden shrink-0 bg-[#2B3139]">
+                               <CoinLogo symbol={poll.team} />
+                             </div>
+                             <span className="text-xs font-bold text-[#EAECEF]">{poll.team}</span>
+                           </div>
+                           <span className="text-xs text-[#F0B90B] flex items-center gap-1"><Target className="w-3 h-3"/> Ends in {poll.ending}</span>
+                         </div>
+                         <p className="font-medium text-sm mb-4">{poll.question}</p>
+                         
+                         {isVoted && (
+                           <div className="mb-4 space-y-2">
+                             <div className="w-full bg-[#2B3139] rounded-full h-1.5 overflow-hidden">
+                               <div className="bg-[#F0B90B] h-full" style={{ width: '68%' }} />
+                             </div>
+                             <div className="text-xs text-[#848E9C] flex justify-between">
+                               <span>Option A (68%)</span>
+                               <span>Option B (32%)</span>
+                             </div>
+                           </div>
+                         )}
+
+                         <div className="flex items-center justify-between text-xs text-[#848E9C]">
+                           <span className="flex items-center gap-1.5 tabular-nums whitespace-nowrap"><Vote className="w-4 h-4"/> {pollVotes[poll.id].toLocaleString()} votes</span>
+                           {isVoted ? (
+                             <span className="text-[#0ECB81] font-semibold flex items-center gap-1">
+                               <CheckCircle2 className="w-4 h-4" /> Voted
+                             </span>
+                           ) : (
+                             <button onClick={() => handleVote(poll.id)} className="text-[#EAECEF] font-semibold flex items-center gap-1 hover:text-[#F0B90B] transition-colors cursor-pointer">
+                               Vote Now <ArrowRight className="w-3 h-3" />
+                             </button>
+                           )}
+                         </div>
                        </div>
-                       <p className="font-medium text-sm mb-4 group-hover:text-[#F0B90B] transition-colors">{poll.question}</p>
-                       <div className="flex items-center justify-between text-xs text-[#848E9C]">
-                         <span className="flex items-center gap-1.5"><Vote className="w-4 h-4"/> {poll.votes} votes</span>
-                         <button className="text-[#EAECEF] font-semibold flex items-center gap-1 group-hover:text-[#F0B90B] transition-colors">
-                           Vote Now <ArrowRight className="w-3 h-3" />
-                         </button>
-                       </div>
-                     </div>
-                   ))}
+                     );
+                   })}
                  </div>
                </div>
             </div>

@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { ArrowRight, ChevronDown, Cpu, Activity, Zap } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ArrowRight, ChevronDown, Cpu, Activity, Zap, Loader2 } from 'lucide-react';
+import CoinLogo from '../../../components/CoinLogo';
 import type { MorePageProps } from './types';
 import { openAuthRegister } from './types';
 import { MORE_PAGES } from '../morePagesData';
@@ -14,6 +15,25 @@ const ALGO_DATA = [
 export default function MiningPoolPage({ onNavigate }: MorePageProps) {
   const cfg = MORE_PAGES['miningpool'];
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [txid, setTxid] = useState('');
+  const [accelStatus, setAccelStatus] = useState<'idle' | 'loading' | 'error' | 'success'>('idle');
+  const accelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (accelTimer.current) clearTimeout(accelTimer.current);
+  }, []);
+
+  const checkTxStatus = () => {
+    if (!txid.trim() || txid.length < 10) {
+      setAccelStatus('error');
+      return;
+    }
+    setAccelStatus('loading');
+    if (accelTimer.current) clearTimeout(accelTimer.current);
+    accelTimer.current = setTimeout(() => {
+      setAccelStatus('success');
+    }, 1200);
+  };
 
   if (!cfg) return null;
   const HeroIcon = cfg.icon;
@@ -148,8 +168,8 @@ export default function MiningPoolPage({ onNavigate }: MorePageProps) {
                 <tr key={i} className="hover:bg-[#1E2329]/30 transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#2B3139] flex items-center justify-center font-bold text-white text-xs">
-                        {row.coin}
+                      <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
+                        <CoinLogo symbol={row.coin} />
                       </div>
                       <span className="font-bold text-white">{row.coin}</span>
                     </div>
@@ -212,10 +232,30 @@ export default function MiningPoolPage({ onNavigate }: MorePageProps) {
           <div className="w-full md:w-[400px] bg-[#181A20] rounded-xl border border-[#2B3139] p-6 shadow-xl">
             <div className="mb-4">
               <label className="block text-xs font-bold text-[#848E9C] uppercase mb-2">TXID</label>
-              <input type="text" placeholder="Enter Bitcoin transaction ID..." className="w-full bg-[#0B0E11] border border-[#2B3139] rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-[#F0B90B] transition-colors" disabled />
+              <input 
+                type="text" 
+                value={txid}
+                onChange={(e) => setTxid(e.target.value)}
+                placeholder="Enter Bitcoin transaction ID..." 
+                className="w-full bg-[#0B0E11] border border-[#2B3139] rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-[#F0B90B] transition-colors" 
+              />
             </div>
-            <button disabled className="w-full py-3 bg-[#2B3139] text-[#5E6673] font-bold rounded-lg cursor-not-allowed">
-              Check Status
+            {accelStatus === 'error' && (
+              <div className="text-xs text-[#F6465D] mb-4">Enter a valid transaction ID</div>
+            )}
+            {accelStatus === 'success' && (
+              <div className="bg-[#0ECB81]/10 text-[#0ECB81] text-xs p-3 rounded-lg border border-[#0ECB81]/20 mb-4">
+                Transaction found - current priority: Normal - estimated confirmation ~12 min
+              </div>
+            )}
+            <button 
+              onClick={checkTxStatus}
+              disabled={accelStatus === 'loading'}
+              className="w-full py-3 bg-[#F0B90B] hover:bg-[#FCD535] text-black font-bold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {accelStatus === 'loading' ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Checking...</>
+              ) : 'Check Status'}
             </button>
           </div>
         </div>

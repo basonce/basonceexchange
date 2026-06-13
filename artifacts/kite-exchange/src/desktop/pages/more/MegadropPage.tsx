@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ArrowRight, ChevronDown, CheckCircle2, Timer } from 'lucide-react';
+import CoinLogo from '../../../components/CoinLogo';
 import type { MorePageProps } from './types';
 import { openAuthRegister } from './types';
 import { MORE_PAGES } from '../morePagesData';
@@ -33,6 +34,20 @@ const MOCK_PROJECTS = [
       { name: 'Create Lista Wallet', points: 1000, completed: false },
       { name: 'Deposit 10 USDT on Lista', points: 3000, completed: false },
     ],
+  },
+  {
+    id: 3,
+    name: 'Saga (SAGA)',
+    status: 'Completed',
+    type: 'Megadrop',
+    totalReward: '25,000,000 SAGA',
+    timeRemaining: 'Ended',
+    participants: '3,450,120',
+    lockedBnc: '35,600,000',
+    quests: [
+      { name: 'Connect Web3 Wallet', points: 1000, completed: true },
+      { name: 'Stake 1 SAGA', points: 2000, completed: true },
+    ],
   }
 ];
 
@@ -40,6 +55,37 @@ export default function MegadropPage({ onNavigate }: MorePageProps) {
   const cfg = MORE_PAGES['megadrop'];
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [activeTab, setActiveTab] = useState<'ongoing' | 'upcoming' | 'completed'>('ongoing');
+
+  // Track quest completions: project ID -> array of completed quest indices
+  const [completedQuests, setCompletedQuests] = useState<Record<number, Set<number>>>({
+    1: new Set([0]),
+    2: new Set(),
+    3: new Set([0, 1])
+  });
+
+  const toggleQuest = (projectId: number, questIndex: number) => {
+    setCompletedQuests(prev => {
+      const next = { ...prev };
+      const currentSet = next[projectId] || new Set();
+      const nextSet = new Set(currentSet);
+      if (nextSet.has(questIndex)) {
+        nextSet.delete(questIndex);
+      } else {
+        nextSet.add(questIndex);
+      }
+      next[projectId] = nextSet;
+      return next;
+    });
+  };
+
+  const megadropScore = useMemo(() => {
+    const lockedScore = 4500;
+    const bbQuests = completedQuests[1] || new Set();
+    const multiplier = 1 + (bbQuests.size * 0.25);
+    return Math.floor(lockedScore * multiplier);
+  }, [completedQuests]);
+
+  const completedQuestsCount = (completedQuests[1] || new Set()).size;
 
   if (!cfg) return null;
   const HeroIcon = cfg.icon;
@@ -115,24 +161,27 @@ export default function MegadropPage({ onNavigate }: MorePageProps) {
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-[#848E9C]">Web3 Quest Multiplier</span>
-                    <span className="font-bold text-[#F0B90B] tabular-nums">x 1.5</span>
+                    <span className="font-bold text-[#F0B90B] tabular-nums">x {(1 + completedQuestsCount * 0.25).toFixed(2)}</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="h-10 bg-[#0ECB81]/20 border border-[#0ECB81]/30 rounded-lg flex items-center justify-center">
-                      <CheckCircle2 className="w-4 h-4 text-[#0ECB81]" />
-                    </div>
-                    <div className="h-10 bg-[#0ECB81]/20 border border-[#0ECB81]/30 rounded-lg flex items-center justify-center">
-                      <CheckCircle2 className="w-4 h-4 text-[#0ECB81]" />
-                    </div>
-                    <div className="h-10 bg-[#2B3139] border border-[#2B3139] rounded-lg flex items-center justify-center border-dashed">
-                      <span className="text-[#848E9C] text-xs">Pending</span>
-                    </div>
+                    {MOCK_PROJECTS[0].quests.map((_, idx) => {
+                      const isCompleted = (completedQuests[1] || new Set()).has(idx);
+                      return (
+                        <div key={idx} className={`h-10 border rounded-lg flex items-center justify-center ${isCompleted ? 'bg-[#0ECB81]/20 border-[#0ECB81]/30' : 'bg-[#2B3139] border-[#2B3139] border-dashed'}`}>
+                          {isCompleted ? (
+                            <CheckCircle2 className="w-4 h-4 text-[#0ECB81]" />
+                          ) : (
+                            <span className="text-[#848E9C] text-xs">Pending</span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
                 <div className="bg-[#1E2329] rounded-xl p-4 flex items-center justify-between border border-[#2B3139]">
                   <span className="text-[#848E9C] font-medium">Total Score</span>
-                  <span className="text-3xl font-bold text-white tabular-nums">6,750</span>
+                  <span className="text-3xl font-bold text-white tabular-nums">{megadropScore.toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -165,15 +214,16 @@ export default function MegadropPage({ onNavigate }: MorePageProps) {
         <div className="space-y-6">
           {MOCK_PROJECTS.filter(p => 
             activeTab === 'ongoing' ? p.status === 'Farming' :
-            activeTab === 'upcoming' ? p.status === 'Upcoming' : false
+            activeTab === 'upcoming' ? p.status === 'Upcoming' : 
+            p.status === 'Completed'
           ).map((project) => (
             <div key={project.id} className="bg-[#181A20] border border-[#2B3139] rounded-2xl overflow-hidden hover:border-[#F0B90B]/50 transition-colors">
               <div className="p-6 md:p-8 grid lg:grid-cols-[1fr,320px] gap-8">
                 {/* Project Info */}
                 <div>
                   <div className="flex items-center gap-3 mb-6">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#F0B90B] to-[#FCD535] flex items-center justify-center text-black font-bold text-xl">
-                      {project.name.charAt(0)}
+                    <div className="w-12 h-12 rounded-full overflow-hidden shrink-0">
+                      <CoinLogo symbol={project.name.split('(')[1]?.replace(')', '') || project.name} />
                     </div>
                     <div>
                       <h3 className="text-2xl font-bold text-white">{project.name}</h3>
@@ -209,26 +259,32 @@ export default function MegadropPage({ onNavigate }: MorePageProps) {
                   <div className="border-t border-[#2B3139] pt-6">
                     <h4 className="text-sm font-bold text-white mb-4">Web3 Quests</h4>
                     <div className="space-y-3">
-                      {project.quests.map((q, i) => (
-                        <div key={i} className="flex items-center justify-between bg-[#1E2329] p-3 rounded-lg border border-[#2B3139]">
-                          <div className="flex items-center gap-3">
-                            {q.completed ? (
-                              <CheckCircle2 className="w-5 h-5 text-[#0ECB81]" />
-                            ) : (
-                              <div className="w-5 h-5 rounded-full border-2 border-[#5E6673]" />
-                            )}
-                            <span className={`text-sm ${q.completed ? 'text-[#848E9C] line-through' : 'text-[#EAECEF]'}`}>{q.name}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[#F0B90B] font-bold text-sm">+{q.points} pts</span>
-                            {!q.completed && (
-                              <button onClick={openAuthRegister} className="px-3 py-1 bg-[#2B3139] hover:bg-[#323942] text-xs font-semibold rounded transition-colors text-white">
-                                Start
+                      {project.quests.map((q, i) => {
+                        const isCompleted = (completedQuests[project.id] || new Set()).has(i);
+                        return (
+                          <div key={i} className="flex items-center justify-between bg-[#1E2329] p-3 rounded-lg border border-[#2B3139]">
+                            <div className="flex items-center gap-3">
+                              {isCompleted ? (
+                                <CheckCircle2 className="w-5 h-5 text-[#0ECB81]" />
+                              ) : (
+                                <div className="w-5 h-5 rounded-full border-2 border-[#5E6673]" />
+                              )}
+                              <span className={`text-sm ${isCompleted ? 'text-[#848E9C] line-through' : 'text-[#EAECEF]'}`}>{q.name}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[#F0B90B] font-bold text-sm">+{q.points} pts</span>
+                              <button 
+                                onClick={() => toggleQuest(project.id, i)}
+                                className={`px-3 py-1 text-xs font-semibold rounded transition-colors text-white ${
+                                  isCompleted ? 'bg-[#2B3139]/50 hover:bg-[#2B3139]' : 'bg-[#2B3139] hover:bg-[#323942]'
+                                }`}
+                              >
+                                {isCompleted ? 'Undo' : 'Complete'}
                               </button>
-                            )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
