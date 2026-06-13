@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, Shield, ChevronDown, Star, Clock, CreditCard, ExternalLink, RefreshCw, Check } from 'lucide-react';
 import { COUNTRIES, generateMerchantsForCountry, type Country } from '../../lib/p2p-data';
 import { useMarkets } from '../useMarkets';
+import BuyCryptoModal from '../../components/BuyCryptoModal';
 
 type PageProps = { user?: any; onAuth?: (m: 'login' | 'register') => void; onDeposit?: () => void; onNavigate?: (t: any) => void };
 
@@ -101,6 +102,7 @@ export default function DesktopP2P({ onAuth }: PageProps) {
   const [ads, setAds] = useState<AggregatedAd[]>([]);
   const [loading, setLoading] = useState(false);
   const [isLive, setIsLive] = useState(false);
+  const [buyOpen, setBuyOpen] = useState(false);
   const refreshRef = useRef<number | null>(null);
   const pickerRef = useRef<HTMLDivElement | null>(null);
 
@@ -278,11 +280,12 @@ export default function DesktopP2P({ onAuth }: PageProps) {
               Refresh
             </button>
             <button
-              onClick={() => onAuth?.('register')}
+              onClick={() => setBuyOpen(true)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-black bg-[#F0B90B] hover:bg-[#FCD535] transition-colors"
             >
               <CreditCard className="w-4 h-4" />
               Buy Crypto
+              <ExternalLink className="w-3.5 h-3.5 opacity-60" />
             </button>
           </div>
         </div>
@@ -543,6 +546,14 @@ export default function DesktopP2P({ onAuth }: PageProps) {
           </div>
         </div>
       </div>
+
+      <BuyCryptoModal
+        isOpen={buyOpen}
+        onClose={() => setBuyOpen(false)}
+        onOpenP2P={() => setBuyOpen(false)}
+        initialFiat={country.currency}
+        initialCountry={country.code}
+      />
     </div>
   );
 }
