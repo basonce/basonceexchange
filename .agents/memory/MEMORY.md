@@ -5,6 +5,7 @@
 - [TON upgrade intent binding](ton-upgrade-intent-binding.md) — on-chain box-upgrade payments bound to a single user via server-reserved unique amount to stop hijack.
 - [Slides artifact catalog](slides-artifact-catalog.md) — pnpm catalog gap (missing wouter) that breaks fresh slides-artifact installs.
 - [basonce deposit signal](basonce-deposit-signal.md) — confirmed crypto deposit is only observable client-side via NOWPAY_ sentinel INSERT on user_balances; no transactions row.
+- [basonce P2P preview spinner](basonce-p2p-preview-spinner.md) — P2P screenshot CANCEL in dev is expected (cross-origin poll never idles), NOT a crash; loading hardened w/ timeout+skeleton.
 - [basonce price/kline feed fallback](basonce-price-feed-fallback.md) — Binance Supabase proxy recurrently returns empty; degrade prices+klines to CoinGecko so live UI & AI bot don't freeze.
 - [basonce desktop Sports](basonce-desktop-sports.md) — desktop reuses mobile GamesSection (no variant); goal sound is desktop-only via hidden DesktopSportsFx (mobile has no audio).
 - [More pages mobile-safety](more-pages-mobile-safety.md) — kite-exchange desktop-only "More" landing slugs must stay out of mobile VALID_TABS or mobile shows a blank screen.

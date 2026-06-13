@@ -104,7 +104,16 @@ export default function DesktopP2P({ onAuth }: PageProps) {
   const [isLive, setIsLive] = useState(false);
   const [buyOpen, setBuyOpen] = useState(false);
   const refreshRef = useRef<number | null>(null);
+  const refreshControllerRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
   const pickerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const coinUsd = useMemo(() => {
     const m = markets.find((x) => x.symbol === selectedCoin);
@@ -115,9 +124,13 @@ export default function DesktopP2P({ onAuth }: PageProps) {
   const fetchAds = (showSpinner: boolean) => {
     if (showSpinner) setLoading(true);
     const url = `${API_BASE}/p2p/aggregate?fiat=${country.currency}&asset=${selectedCoin}&type=${tab}&_=${Date.now()}`;
-    return fetch(url)
+    const controller = new AbortController();
+    refreshControllerRef.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 12000);
+    return fetch(url, { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
+        if (!mountedRef.current) return;
         const list: AggregatedAd[] = Array.isArray(data?.ads) ? data.ads : [];
         if (list.length > 0) {
           setAds(list);
@@ -128,19 +141,23 @@ export default function DesktopP2P({ onAuth }: PageProps) {
         }
       })
       .catch(() => {
+        if (!mountedRef.current) return;
         setAds([]);
         setIsLive(false);
       })
       .finally(() => {
-        if (showSpinner) setLoading(false);
+        window.clearTimeout(timer);
+        if (mountedRef.current && showSpinner) setLoading(false);
       });
   };
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 12000);
     setLoading(true);
     const url = `${API_BASE}/p2p/aggregate?fiat=${country.currency}&asset=${selectedCoin}&type=${tab}`;
-    fetch(url)
+    fetch(url, { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
@@ -160,10 +177,13 @@ export default function DesktopP2P({ onAuth }: PageProps) {
         }
       })
       .finally(() => {
+        window.clearTimeout(timer);
         if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
+      controller.abort();
+      window.clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCoin, country, tab]);
@@ -174,6 +194,7 @@ export default function DesktopP2P({ onAuth }: PageProps) {
     }, 30000);
     return () => {
       if (refreshRef.current) window.clearInterval(refreshRef.current);
+      if (refreshControllerRef.current) refreshControllerRef.current.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCoin, country, tab]);
@@ -432,8 +453,31 @@ export default function DesktopP2P({ onAuth }: PageProps) {
           </div>
 
           {loading && filteredListings.length === 0 ? (
-            <div className="py-20 flex justify-center">
-              <div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin" />
+            <div className="animate-pulse">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="grid grid-cols-[2.2fr_1.3fr_1.6fr_1.8fr_140px] gap-4 px-6 py-5 items-center border-b border-[#2B3139]/60 last:border-0"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-[#2B3139] shrink-0" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="h-3 w-28 rounded bg-[#2B3139]" />
+                      <div className="h-2.5 w-40 rounded bg-[#2B3139]/70" />
+                    </div>
+                  </div>
+                  <div className="h-4 w-24 rounded bg-[#2B3139]" />
+                  <div className="space-y-2">
+                    <div className="h-3 w-28 rounded bg-[#2B3139]" />
+                    <div className="h-2.5 w-20 rounded bg-[#2B3139]/70" />
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="h-5 w-20 rounded bg-[#2B3139]" />
+                    <div className="h-5 w-16 rounded bg-[#2B3139]/70" />
+                  </div>
+                  <div className="h-9 w-full rounded bg-[#2B3139]" />
+                </div>
+              ))}
             </div>
           ) : filteredListings.length === 0 ? (
             <div className="py-20 text-center text-[#848E9C] text-sm">

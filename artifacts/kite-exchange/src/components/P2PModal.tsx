@@ -163,10 +163,12 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
     if (!isOpen) return;
     const key = `${selectedCoin}|${selectedCountry.currency}|${tab}`;
     let cancelled = false;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 12000);
     setLoading(true);
 
     const url = `${API_BASE}/p2p/aggregate?fiat=${selectedCountry.currency}&asset=${selectedCoin}&type=${tab}`;
-    fetch(url)
+    fetch(url, { signal: controller.signal })
       .then(r => r.json())
       .then(data => {
         if (cancelled) return;
@@ -175,9 +177,9 @@ export default function P2PModal({ isOpen, onClose }: P2PModalProps) {
         setLastFetchedKey(key);
       })
       .catch(() => { if (!cancelled) setAds([]); })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .finally(() => { window.clearTimeout(timer); if (!cancelled) setLoading(false); });
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; controller.abort(); window.clearTimeout(timer); };
   }, [isOpen, selectedCoin, selectedCountry, tab]);
 
   // Otomatik 30 sn yenileme
