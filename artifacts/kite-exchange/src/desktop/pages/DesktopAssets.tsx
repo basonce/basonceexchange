@@ -19,6 +19,7 @@ import SendMethodModal from '../../components/SendMethodModal';
 import TransferModal from '../../components/TransferModal';
 import AssetsHistoryModal from '../../components/AssetsHistoryModal';
 import WithdrawalProcessingBanner from '../../components/WithdrawalProcessingBanner';
+import { useLang } from '../i18n/LanguageContext';
 
 interface Balance {
   symbol: string;
@@ -61,6 +62,7 @@ interface DesktopAssetsProps {
 }
 
 export default function DesktopAssets({ onNavigate }: DesktopAssetsProps) {
+  const { t } = useLang();
   const [balances, setBalances] = useState<Balance[]>(() => {
     try {
       const raw = localStorage.getItem(ASSETS_CACHE_KEY);
@@ -298,15 +300,15 @@ export default function DesktopAssets({ onNavigate }: DesktopAssetsProps) {
         {/* Page header */}
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold">Assets Overview</h1>
-            <p className="text-sm text-[#848E9C] mt-1">Manage your Spot and Futures balances in one place</p>
+            <h1 className="text-2xl font-semibold">{t('assets.title')}</h1>
+            <p className="text-sm text-[#848E9C] mt-1">{t('assets.subtitle')}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowHistory(true)}
               className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[#2B3139] text-sm text-[#B7BDC6] hover:text-white hover:border-[#474D57] transition-colors"
             >
-              <History className="w-4 h-4" /> Transaction History
+              <History className="w-4 h-4" /> {t('assets.transactionHistory')}
             </button>
           </div>
         </div>
@@ -317,8 +319,8 @@ export default function DesktopAssets({ onNavigate }: DesktopAssetsProps) {
           <div className="xl:col-span-2 bg-[#181A20] border border-[#2B3139] rounded-2xl p-6">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2 text-[#848E9C] text-sm">
-                <span>Est. Total Value</span>
-                <button onClick={() => setHideBalance(v => !v)} className="hover:text-[#EAECEF] transition-colors" aria-label="Toggle balance visibility">
+                <span>{t('assets.estTotalValue')}</span>
+                <button onClick={() => setHideBalance(v => !v)} className="hover:text-[#EAECEF] transition-colors" aria-label={t('assets.toggleVisibility')}>
                   {hideBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
@@ -367,7 +369,7 @@ export default function DesktopAssets({ onNavigate }: DesktopAssetsProps) {
             </div>
 
             <div className="mt-3 flex items-center gap-2 text-sm">
-              <span className="text-[#848E9C]">Today's PnL</span>
+              <span className="text-[#848E9C]">{t('assets.todaysPnl')}</span>
               <span className={`tabular-nums whitespace-nowrap font-medium ${pnlPositive ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
                 {hideBalance ? '******' : `${pnlPositive ? '+' : ''}${num(realtimePnL.dailyPnL)} USDT`}
               </span>
@@ -381,32 +383,32 @@ export default function DesktopAssets({ onNavigate }: DesktopAssetsProps) {
                 onClick={() => setDepositMethodModal(true)}
                 className="flex items-center justify-center gap-2 bg-[#F0B90B] hover:bg-[#FCD535] text-black font-semibold py-2.5 rounded-lg transition-colors text-sm"
               >
-                <ArrowDownToLine className="w-4 h-4" /> Deposit
+                <ArrowDownToLine className="w-4 h-4" /> {t('assets.deposit')}
               </button>
               <button
                 onClick={() => setSendMethodModal(true)}
                 className="flex items-center justify-center gap-2 bg-[#2B3139] hover:bg-[#363D47] text-[#EAECEF] font-semibold py-2.5 rounded-lg transition-colors text-sm"
               >
-                <ArrowUpFromLine className="w-4 h-4" /> Withdraw
+                <ArrowUpFromLine className="w-4 h-4" /> {t('assets.withdraw')}
               </button>
               <button
                 onClick={() => setTransferModal(true)}
                 className="flex items-center justify-center gap-2 bg-[#2B3139] hover:bg-[#363D47] text-[#EAECEF] font-semibold py-2.5 rounded-lg transition-colors text-sm"
               >
-                <ArrowLeftRight className="w-4 h-4" /> Transfer
+                <ArrowLeftRight className="w-4 h-4" /> {t('assets.transfer')}
               </button>
               <button
                 onClick={() => setShowHistory(true)}
                 className="flex items-center justify-center gap-2 bg-[#2B3139] hover:bg-[#363D47] text-[#EAECEF] font-semibold py-2.5 rounded-lg transition-colors text-sm"
               >
-                <History className="w-4 h-4" /> History
+                <History className="w-4 h-4" /> {t('assets.history')}
               </button>
             </div>
           </div>
 
           {/* Accounts allocation */}
           <div className="bg-[#181A20] border border-[#2B3139] rounded-2xl p-6">
-            <h3 className="text-sm font-semibold text-[#EAECEF]">Account Allocation</h3>
+            <h3 className="text-sm font-semibold text-[#EAECEF]">{t('assets.accountAllocation')}</h3>
             <div className="mt-4 h-2 w-full rounded-full bg-[#2B3139] overflow-hidden flex">
               <div className="h-full bg-[#F0B90B]" style={{ width: `${allocSpotPct}%` }} />
               <div className="h-full bg-[#3B7DDE]" style={{ width: `${100 - allocSpotPct}%` }} />
@@ -415,20 +417,20 @@ export default function DesktopAssets({ onNavigate }: DesktopAssetsProps) {
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#F0B90B] flex-shrink-0" />
-                  <span className="text-sm text-[#B7BDC6] truncate">Spot Account</span>
+                  <span className="text-sm text-[#B7BDC6] truncate">{t('assets.spotAccount')}</span>
                 </div>
                 <span className="text-sm font-medium tabular-nums whitespace-nowrap">{mask(num(spotValueUSDT))} USDT</span>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#3B7DDE] flex-shrink-0" />
-                  <span className="text-sm text-[#B7BDC6] truncate">Futures Account</span>
+                  <span className="text-sm text-[#B7BDC6] truncate">{t('assets.futuresAccount')}</span>
                 </div>
                 <span className="text-sm font-medium tabular-nums whitespace-nowrap">{mask(num(futuresValueUSDT))} USDT</span>
               </div>
             </div>
             <div className="mt-5 pt-4 border-t border-[#2B3139] flex items-center justify-between gap-3">
-              <span className="text-sm text-[#848E9C] truncate">Total Estimated</span>
+              <span className="text-sm text-[#848E9C] truncate">{t('assets.totalEstimated')}</span>
               <span className="text-sm font-semibold tabular-nums whitespace-nowrap">{mask(num(totalValueUSDT))} USDT</span>
             </div>
           </div>
@@ -441,18 +443,18 @@ export default function DesktopAssets({ onNavigate }: DesktopAssetsProps) {
         {/* My Assets table */}
         <div className="bg-[#181A20] border border-[#2B3139] rounded-2xl mt-4 overflow-hidden">
           <div className="flex items-center justify-between gap-3 p-5 flex-wrap">
-            <h3 className="text-base font-semibold">My Assets</h3>
+            <h3 className="text-base font-semibold">{t('assets.myAssets')}</h3>
             <div className="flex items-center gap-3 flex-wrap">
               <label className="flex items-center gap-2 text-sm text-[#B7BDC6] cursor-pointer select-none">
                 <input type="checkbox" checked={hideSmall} onChange={e => setHideSmall(e.target.checked)} className="accent-[#F0B90B]" />
-                Hide small balances
+                {t('assets.hideSmall')}
               </label>
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#848E9C]" />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  placeholder="Search coin"
+                  placeholder={t('assets.searchCoin')}
                   className="bg-[#0B0E11] border border-[#2B3139] rounded-lg pl-9 pr-3 py-2 text-sm text-[#EAECEF] placeholder-[#848E9C] focus:outline-none focus:border-[#474D57] w-44"
                 />
               </div>
@@ -463,11 +465,11 @@ export default function DesktopAssets({ onNavigate }: DesktopAssetsProps) {
             <table className="w-full min-w-[760px]">
               <thead>
                 <tr className="text-xs text-[#848E9C] border-y border-[#2B3139]">
-                  <th className="text-left font-medium px-5 py-3">Coin</th>
-                  <th className="text-right font-medium px-5 py-3">Amount</th>
-                  <th className="text-right font-medium px-5 py-3">Coin Price / 24h</th>
-                  <th className="text-right font-medium px-5 py-3">Value (USDT)</th>
-                  <th className="text-right font-medium px-5 py-3">Action</th>
+                  <th className="text-left font-medium px-5 py-3">{t('assets.colCoin')}</th>
+                  <th className="text-right font-medium px-5 py-3">{t('assets.colAmount')}</th>
+                  <th className="text-right font-medium px-5 py-3">{t('assets.colPrice')}</th>
+                  <th className="text-right font-medium px-5 py-3">{t('assets.colValue')}</th>
+                  <th className="text-right font-medium px-5 py-3">{t('assets.colAction')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -483,7 +485,7 @@ export default function DesktopAssets({ onNavigate }: DesktopAssetsProps) {
                   ))
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-5 py-16 text-center text-[#848E9C] text-sm">No assets found</td>
+                    <td colSpan={5} className="px-5 py-16 text-center text-[#848E9C] text-sm">{t('assets.noResults')}</td>
                   </tr>
                 ) : (
                   rows.map((coin) => {
@@ -535,21 +537,21 @@ export default function DesktopAssets({ onNavigate }: DesktopAssetsProps) {
                               onClick={() => setDepositModal({ open: true, coin: coin.symbol, name: coin.name })}
                               className="text-[#F0B90B] hover:text-[#FCD535] transition-colors"
                             >
-                              Deposit
+                              {t('assets.deposit')}
                             </button>
                             {canWithdraw && (
                               <button
                                 onClick={() => setWithdrawalModal({ open: true, coin: coin.symbol, name: coin.name, balance: coin.balance })}
                                 className="text-[#B7BDC6] hover:text-white transition-colors"
                               >
-                                Withdraw
+                                {t('assets.withdraw')}
                               </button>
                             )}
                             <button
                               onClick={() => onNavigate('trade')}
                               className="text-[#B7BDC6] hover:text-white transition-colors"
                             >
-                              Trade
+                              {t('assets.trade')}
                             </button>
                           </div>
                         </td>

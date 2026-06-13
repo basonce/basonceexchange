@@ -1,7 +1,20 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { TRANSLATIONS, EN, LANGUAGES, type TKey } from './translations';
+import { GENERATED, EN_SOURCE } from './locales';
 
 const STORAGE_KEY = 'desk_lang';
+
+// Resolve a key across both layers: curated chrome dictionary first, then the
+// generated surface catalog, falling back to English so nothing is ever blank.
+function resolve(lang: string, key: string): string {
+  const curated = TRANSLATIONS[lang];
+  if (curated && key in curated) return (curated as Record<string, string>)[key];
+  const gen = GENERATED[lang];
+  if (gen && key in gen) return gen[key];
+  if (key in EN) return (EN as Record<string, string>)[key];
+  if (key in EN_SOURCE) return EN_SOURCE[key];
+  return key;
+}
 
 function detectInitial(): string {
   // Always default to English. Only honor a language the user EXPLICITLY chose
@@ -15,7 +28,7 @@ function detectInitial(): string {
 interface LangCtx {
   lang: string;
   setLang: (code: string) => void;
-  t: (key: TKey) => string;
+  t: (key: TKey | string) => string;
   languages: typeof LANGUAGES;
 }
 
@@ -34,10 +47,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     try { document.documentElement.lang = lang; } catch {}
   }, [lang]);
 
-  const t = useCallback((key: TKey): string => {
-    const dict = TRANSLATIONS[lang] || {};
-    return dict[key] ?? EN[key] ?? key;
-  }, [lang]);
+  const t = useCallback((key: TKey | string): string => resolve(lang, key), [lang]);
 
   const value = useMemo(() => ({ lang, setLang, t, languages: LANGUAGES }), [lang, setLang, t]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -50,7 +60,7 @@ export function useLang(): LangCtx {
     return {
       lang: 'en',
       setLang: () => {},
-      t: (k: TKey) => EN[k] ?? k,
+      t: (k: TKey | string) => resolve('en', k),
       languages: LANGUAGES,
     };
   }
