@@ -489,7 +489,7 @@ export default function DesktopAssets({ onNavigate }: DesktopAssetsProps) {
                   rows.map((coin) => {
                     const change = coin.priceChange24h || 0;
                     const up = change >= 0;
-                    const canWithdraw = coin.balance > 0 && coin.symbol !== 'USDT';
+                    const canWithdraw = coin.balance > 0;
                     return (
                       <tr key={coin.symbol} className="border-b border-[#2B3139]/60 hover:bg-[#1E2329] transition-colors group">
                         <td className="px-5 py-4">
