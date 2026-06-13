@@ -8,6 +8,7 @@ import DesktopTrade from './pages/DesktopTrade';
 import DesktopFutures from './pages/DesktopFutures';
 import DesktopMorePage from './pages/DesktopMorePage';
 import { MORE_PAGES } from './pages/morePagesData';
+import { MORE_PAGE_COMPONENTS } from './pages/more';
 import AuthModal from '../components/AuthModal';
 import { LanguageProvider } from './i18n/LanguageContext';
 import DesktopP2P from './pages/DesktopP2P';
@@ -113,6 +114,9 @@ export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }:
     if (tab === 'futures') return <DesktopFutures user={user} onAuth={openAuth} onDeposit={onDeposit} />;
 
     // "More" menu landing pages (VIP, Affiliate, Academy, etc.) — desktop only.
+    // Each slug has its own bespoke page; fall back to the generic template if missing.
+    const BespokeMorePage = MORE_PAGE_COMPONENTS[tab];
+    if (BespokeMorePage) return <BespokeMorePage onNavigate={onNavigate} />;
     if (MORE_PAGES[tab]) return <DesktopMorePage slug={tab} onNavigate={onNavigate} />;
 
     // Functional fallback pages (dedicated desktop layout coming next).
