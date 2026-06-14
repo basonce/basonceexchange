@@ -24,7 +24,10 @@ export type TKey =
   | 'close' | 'comingSoon' | 'statusOk' | 'more'
   | 'systemStatus' | 'footerLegal' | 'currencyLabel'
   | 'secTitle' | 'secSub' | 'porTitle' | 'porSub'
-  | 'safuTitle' | 'safuSub' | 'supTitle' | 'supSub';
+  | 'safuTitle' | 'safuSub' | 'supTitle' | 'supSub'
+  | 'statUsersLabel' | 'statVolumeLabel' | 'statCoinsLabel' | 'statCountriesLabel'
+  | 'appTitle' | 'appDesc' | 'scanToDownload' | 'popularTitle' | 'popularDesc'
+  | 'buyWord' | 'newsletterTitle' | 'newsletterDesc' | 'subscribe' | 'emailPlaceholder';
 
 type Dict = Partial<Record<TKey, string>>;
 
@@ -48,6 +51,12 @@ const en: Record<TKey, string> = {
   porTitle: 'Proof of Reserves', porSub: '1:1 backing, on-chain verifiable',
   safuTitle: 'Asset Protection Fund', safuSub: 'A dedicated reserve safeguarding users',
   supTitle: '24/7 Global Support', supSub: 'Live help in every time zone',
+  statUsersLabel: 'Registered Users', statVolumeLabel: '24h Trading Volume', statCoinsLabel: 'Listed Cryptocurrencies', statCountriesLabel: 'Supported Countries',
+  appTitle: 'Trade Anytime, Anywhere', appDesc: 'Scan the QR code to download the Basonce app for iOS and Android.', scanToDownload: 'Scan to download',
+  popularTitle: 'Popular Cryptocurrencies', popularDesc: 'Buy and sell the most traded digital assets on the markets millions trust.',
+  buyWord: 'Buy',
+  newsletterTitle: 'Stay ahead of the market', newsletterDesc: 'Get product updates, market insights and exclusive offers delivered to your inbox.',
+  subscribe: 'Subscribe', emailPlaceholder: 'Enter your email',
 };
 
 const tr: Dict = {

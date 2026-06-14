@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import {
   X, Send, Twitter, Facebook, Instagram, Youtube, Linkedin, MessageCircle, Github,
-  ShieldCheck, FileCheck, Lock, Headset, Globe, ArrowUpRight,
+  ShieldCheck, FileCheck, Lock, Headset, Globe, ArrowUpRight, ArrowRight,
+  Users, TrendingUp, Coins, QrCode, Smartphone, Mail,
   type LucideIcon,
 } from 'lucide-react';
 import { useLang } from '../i18n/LanguageContext';
@@ -96,36 +97,103 @@ const TRUST: { Icon: LucideIcon; title: TKey; sub: TKey }[] = [
   { Icon: Headset, title: 'supTitle', sub: 'supSub' },
 ];
 
+const STATS: { Icon: LucideIcon; value: string; label: TKey }[] = [
+  { Icon: Users, value: '103M+', label: 'statUsersLabel' },
+  { Icon: TrendingUp, value: '$76B', label: 'statVolumeLabel' },
+  { Icon: Coins, value: '350+', label: 'statCoinsLabel' },
+  { Icon: Globe, value: '100+', label: 'statCountriesLabel' },
+];
+
+const POPULAR: { name: string; symbol: string }[] = [
+  { name: 'Bitcoin', symbol: 'BTC' }, { name: 'Ethereum', symbol: 'ETH' },
+  { name: 'BNB', symbol: 'BNB' }, { name: 'Solana', symbol: 'SOL' },
+  { name: 'XRP', symbol: 'XRP' }, { name: 'Cardano', symbol: 'ADA' },
+  { name: 'Dogecoin', symbol: 'DOGE' }, { name: 'Toncoin', symbol: 'TON' },
+  { name: 'Tron', symbol: 'TRX' }, { name: 'Chainlink', symbol: 'LINK' },
+  { name: 'Avalanche', symbol: 'AVAX' }, { name: 'Polkadot', symbol: 'DOT' },
+  { name: 'Polygon', symbol: 'MATIC' }, { name: 'Litecoin', symbol: 'LTC' },
+  { name: 'Shiba Inu', symbol: 'SHIB' }, { name: 'Bitcoin Cash', symbol: 'BCH' },
+];
+
 interface Props { onNavigate: (tab: DeskTab) => void }
 
 export default function DesktopFooter({ onNavigate }: Props) {
   const { t, lang } = useLang();
   const [modal, setModal] = useState<{ titleKey: TKey; bodyKey: TKey } | null>(null);
+  const [email, setEmail] = useState('');
 
   const native = LANGUAGES.find((l) => l.code === lang)?.native ?? 'English';
+
+  const buyCoin = (symbol: string) => {
+    localStorage.setItem('selectedCoinSymbol', symbol);
+    window.dispatchEvent(new CustomEvent('desk-select-coin', { detail: symbol }));
+    onNavigate('trade');
+    window.scrollTo({ top: 0 });
+  };
 
   const handle = (link: FooterLink) => {
     const a = link.action;
     if (a.type === 'nav') { onNavigate(a.tab); window.scrollTo({ top: 0 }); }
-    else if (a.type === 'coin') {
-      localStorage.setItem('selectedCoinSymbol', a.symbol);
-      window.dispatchEvent(new CustomEvent('desk-select-coin', { detail: a.symbol }));
-      onNavigate('trade');
-      window.scrollTo({ top: 0 });
-    } else {
-      setModal({ titleKey: link.key, bodyKey: a.bodyKey });
-    }
+    else if (a.type === 'coin') buyCoin(a.symbol);
+    else setModal({ titleKey: link.key, bodyKey: a.bodyKey });
   };
 
   return (
     <footer className="relative bg-[#181A20] border-t border-[#2B3139] mt-12 overflow-hidden">
       {/* top accent line */}
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#F0B90B]/50 to-transparent" />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#F0B90B]/60 to-transparent" />
       {/* soft corner glows */}
-      <div className="pointer-events-none absolute -left-32 -top-24 h-72 w-72 rounded-full bg-[#F0B90B]/[0.06] blur-3xl" />
-      <div className="pointer-events-none absolute right-0 bottom-0 h-72 w-72 rounded-full bg-[#F0B90B]/[0.04] blur-3xl" />
+      <div className="pointer-events-none absolute -left-40 -top-32 h-80 w-80 rounded-full bg-[#F0B90B]/[0.07] blur-3xl" />
+      <div className="pointer-events-none absolute right-0 bottom-0 h-80 w-80 rounded-full bg-[#F0B90B]/[0.05] blur-3xl" />
 
       <div className="relative max-w-[1600px] mx-auto px-6 pt-14 pb-24">
+        {/* Newsletter / CTA band */}
+        <div className="relative overflow-hidden rounded-2xl border border-[#2B3139] bg-gradient-to-r from-[#1E2329] via-[#1B1E25] to-[#181A20] px-6 py-7 md:px-10 md:py-8 mb-12">
+          <div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full bg-[#F0B90B]/10 blur-3xl" />
+          <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="flex items-start gap-4 min-w-0">
+              <span className="hidden sm:flex shrink-0 h-12 w-12 items-center justify-center rounded-xl bg-[#0B0E11] text-[#F0B90B] ring-1 ring-[#2B3139]">
+                <Mail className="h-6 w-6" />
+              </span>
+              <div className="min-w-0">
+                <h3 className="text-[#EAECEF] text-xl font-bold leading-tight">{t('newsletterTitle')}</h3>
+                <p className="text-[#848E9C] text-sm mt-1.5 max-w-xl">{t('newsletterDesc')}</p>
+              </div>
+            </div>
+            <div className="flex w-full max-w-md lg:w-auto items-center gap-2.5 shrink-0">
+              <div className="relative flex-1 lg:w-72">
+                <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#5E6673]" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={t('emailPlaceholder')}
+                  className="w-full min-w-0 rounded-lg border border-[#2B3139] bg-[#0B0E11] pl-9 pr-3 py-2.5 text-sm text-[#EAECEF] placeholder:text-[#5E6673] outline-none transition-colors focus:border-[#F0B90B]/60"
+                />
+              </div>
+              <button
+                onClick={() => setModal({ titleKey: 'subscribe', bodyKey: 'comingSoon' })}
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-[#F0B90B] hover:bg-[#FCD535] px-5 py-2.5 text-sm font-semibold text-black transition-colors whitespace-nowrap cursor-pointer"
+              >
+                {t('subscribe')} <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats credibility bar */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl overflow-hidden border border-[#2B3139] bg-[#2B3139] mb-12">
+          {STATS.map((s) => (
+            <div key={s.label} className="group bg-[#181A20] px-5 py-6 transition-colors hover:bg-[#1E2329]">
+              <div className="flex items-center gap-2 text-[#848E9C] mb-2">
+                <s.Icon className="h-4 w-4 text-[#F0B90B]" />
+                <span className="text-xs uppercase tracking-wider truncate">{t(s.label)}</span>
+              </div>
+              <p className="text-2xl md:text-3xl font-bold text-[#EAECEF] whitespace-nowrap tabular-nums">{s.value}</p>
+            </div>
+          ))}
+        </div>
+
         {/* Trust / credibility strip */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
           {TRUST.map((item) => (
@@ -201,6 +269,58 @@ export default function DesktopFooter({ onNavigate }: Props) {
                 </ul>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* App download + Popular coins */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-12">
+          {/* App download card */}
+          <div className="lg:col-span-4 rounded-2xl border border-[#2B3139] bg-[#1E2329] p-6">
+            <div className="flex items-center gap-4">
+              <div className="shrink-0 rounded-xl bg-white p-2.5">
+                <QrCode className="h-20 w-20 text-[#0B0E11]" strokeWidth={1.25} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[#F0B90B] text-xs font-semibold uppercase tracking-wider mb-1">{t('scanToDownload')}</p>
+                <h4 className="text-[#EAECEF] text-base font-bold leading-tight">{t('appTitle')}</h4>
+                <p className="text-[#848E9C] text-xs mt-1.5 leading-snug">{t('appDesc')}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5 mt-5">
+              {['App Store', 'Google Play'].map((store) => (
+                <button
+                  key={store}
+                  onClick={() => setModal({ titleKey: 'appTitle', bodyKey: 'comingSoon' })}
+                  className="group flex items-center justify-center gap-2 rounded-lg border border-[#2B3139] bg-[#0B0E11] px-3 py-2.5 text-[#EAECEF] transition-all duration-200 hover:border-[#F0B90B]/50 hover:bg-[#23262E] cursor-pointer"
+                >
+                  <Smartphone className="h-4 w-4 shrink-0 text-[#848E9C] group-hover:text-[#F0B90B] transition-colors" />
+                  <span className="text-xs font-medium truncate">{store}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Popular cryptocurrencies */}
+          <div className="lg:col-span-8 rounded-2xl border border-[#2B3139] bg-[#1E2329] p-6">
+            <div className="flex items-start gap-2.5 mb-4">
+              <Coins className="h-5 w-5 shrink-0 text-[#F0B90B] mt-0.5" />
+              <div className="min-w-0">
+                <h4 className="text-[#EAECEF] text-base font-bold leading-tight">{t('popularTitle')}</h4>
+                <p className="text-[#848E9C] text-xs mt-1">{t('popularDesc')}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {POPULAR.map((c) => (
+                <button
+                  key={c.symbol}
+                  onClick={() => buyCoin(c.symbol)}
+                  className="group inline-flex items-center gap-1.5 rounded-lg border border-[#2B3139] bg-[#0B0E11] px-3 py-1.5 text-[#B7BDC6] transition-all duration-200 hover:border-[#F0B90B]/50 hover:text-[#EAECEF] hover:bg-[#23262E] cursor-pointer"
+                >
+                  <span className="text-sm whitespace-nowrap">{t('buyWord')} {c.name}</span>
+                  <span className="text-[10px] font-semibold text-[#5E6673] group-hover:text-[#F0B90B] transition-colors tabular-nums">{c.symbol}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
