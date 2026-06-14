@@ -3,6 +3,7 @@ import { TRANSLATIONS, EN, LANGUAGES, type TKey } from './translations';
 import { GENERATED, EN_SOURCE } from './locales';
 
 const STORAGE_KEY = 'desk_lang';
+const VALID_LANGS = new Set(LANGUAGES.map((l) => l.code));
 
 // Resolve a key across both layers: curated chrome dictionary first, then the
 // generated surface catalog, falling back to English so nothing is ever blank.
@@ -17,11 +18,10 @@ function resolve(lang: string, key: string): string {
 }
 
 function detectInitial(): string {
-  // Always default to English. Only honor a language the user EXPLICITLY chose
-  // before (saved in localStorage). We intentionally ignore navigator.language
-  // so the site never auto-opens in the browser's locale (e.g. Turkish).
-  const saved = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
-  if (saved && TRANSLATIONS[saved]) return saved;
+  // The site ALWAYS opens in English on a fresh page load. The browser locale
+  // (navigator.language) is intentionally ignored so it never auto-opens in
+  // Turkish or any other language. A language the user picks applies for the
+  // current session; reloading the page returns to English by design.
   return 'en';
 }
 
@@ -38,7 +38,9 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<string>(detectInitial);
 
   const setLang = useCallback((code: string) => {
-    if (!TRANSLATIONS[code]) return;
+    // Accept any language listed in LANGUAGES (the dropdown). Languages without a
+    // generated dictionary fall back to English gracefully via the resolvers.
+    if (!VALID_LANGS.has(code)) return;
     setLangState(code);
     try { localStorage.setItem(STORAGE_KEY, code); } catch {}
   }, []);

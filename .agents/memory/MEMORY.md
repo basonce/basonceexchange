@@ -6,6 +6,7 @@
 - [TON upgrade intent binding](ton-upgrade-intent-binding.md) — on-chain box-upgrade payments bound to a single user via server-reserved unique amount to stop hijack.
 - [Slides artifact catalog](slides-artifact-catalog.md) — pnpm catalog gap (missing wouter) that breaks fresh slides-artifact installs.
 - [basonce deposit signal](basonce-deposit-signal.md) — confirmed crypto deposit is only observable client-side via NOWPAY_ sentinel INSERT on user_balances; no transactions row.
+- [basonce runtime i18n](basonce-runtime-i18n.md) — AutoTranslate DOM translator: extractor/runtime whitespace normalization must match, cache src+last-written value, translate mutation-targeted not full-body.
 - [basonce P2P spinner](basonce-p2p-preview-spinner.md) — /#p2p infinite spinner = lazy chunk + UNCAPPED reload loop; eager-import critical routes & always cap chunk-error reloads. (dev-preview screenshot CANCEL is benign.)
 - [basonce price/kline feed fallback](basonce-price-feed-fallback.md) — Binance Supabase proxy recurrently returns empty; degrade prices+klines to CoinGecko so live UI & AI bot don't freeze.
 - [basonce desktop Sports](basonce-desktop-sports.md) — desktop reuses mobile GamesSection (no variant); goal sound is desktop-only via hidden DesktopSportsFx (mobile has no audio).

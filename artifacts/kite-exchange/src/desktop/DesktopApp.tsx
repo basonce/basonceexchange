@@ -11,6 +11,7 @@ import { MORE_PAGES } from './pages/morePagesData';
 import { MORE_PAGE_COMPONENTS } from './pages/more';
 import AuthModal from '../components/AuthModal';
 import { LanguageProvider } from './i18n/LanguageContext';
+import AutoTranslate from './i18n/AutoTranslate';
 import DesktopP2P from './pages/DesktopP2P';
 
 const DesktopAIBot = lazy(() => import('./pages/DesktopAIBot'));
@@ -160,6 +161,7 @@ export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }:
 
   return (
     <LanguageProvider>
+      <AutoTranslate />
       <div className="min-h-screen bg-[#0B0E11] flex flex-col">
         <DesktopNav tab={tab} onNavigate={onNavigate} user={user} onAuth={openAuth} onDeposit={onDeposit} />
         <main className="flex-1">{renderPage()}</main>

@@ -1,30 +1,13 @@
 // Desktop-only i18n. Mobile is untouched and keeps its own (English) UI.
 // Missing keys fall back to English, so no string is ever blank.
 
-export interface LangMeta { code: string; native: string; flag: string }
+export interface LangMeta { code: string; native: string; flag: string; name?: string }
 
-export const LANGUAGES: LangMeta[] = [
-  { code: 'en', native: 'English', flag: '🇬🇧' },
-  { code: 'tr', native: 'Türkçe', flag: '🇹🇷' },
-  { code: 'es', native: 'Español', flag: '🇪🇸' },
-  { code: 'pt', native: 'Português', flag: '🇧🇷' },
-  { code: 'fr', native: 'Français', flag: '🇫🇷' },
-  { code: 'de', native: 'Deutsch', flag: '🇩🇪' },
-  { code: 'it', native: 'Italiano', flag: '🇮🇹' },
-  { code: 'ru', native: 'Русский', flag: '🇷🇺' },
-  { code: 'ar', native: 'العربية', flag: '🇸🇦' },
-  { code: 'zh', native: '简体中文', flag: '🇨🇳' },
-  { code: 'zh-TW', native: '繁體中文', flag: '🇹🇼' },
-  { code: 'ja', native: '日本語', flag: '🇯🇵' },
-  { code: 'ko', native: '한국어', flag: '🇰🇷' },
-  { code: 'hi', native: 'हिन्दी', flag: '🇮🇳' },
-  { code: 'id', native: 'Indonesia', flag: '🇮🇩' },
-  { code: 'vi', native: 'Tiếng Việt', flag: '🇻🇳' },
-  { code: 'th', native: 'ไทย', flag: '🇹🇭' },
-  { code: 'nl', native: 'Nederlands', flag: '🇳🇱' },
-  { code: 'pl', native: 'Polski', flag: '🇵🇱' },
-  { code: 'uk', native: 'Українська', flag: '🇺🇦' },
-];
+import LANGUAGES_JSON from './languages.json';
+
+// Single source of truth for the language dropdown (also read by
+// scripts/i18n-generate.mjs so generation and UI never drift).
+export const LANGUAGES: LangMeta[] = LANGUAGES_JSON as LangMeta[];
 
 export type TKey =
   | 'buyCrypto' | 'markets' | 'trade' | 'futures' | 'earn' | 'sports'

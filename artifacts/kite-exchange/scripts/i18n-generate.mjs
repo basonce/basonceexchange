@@ -19,30 +19,18 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const I18N = path.resolve(__dirname, '../src/desktop/i18n');
-const SRC = path.join(I18N, 'source', 'en.json');
-const LOCDIR = path.join(I18N, 'locales');
 
-const ALL_LANGS = [
-  { code: 'tr', name: 'Turkish' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'pt', name: 'Portuguese (Brazil)' },
-  { code: 'fr', name: 'French' },
-  { code: 'de', name: 'German' },
-  { code: 'it', name: 'Italian' },
-  { code: 'ru', name: 'Russian' },
-  { code: 'ar', name: 'Arabic' },
-  { code: 'zh', name: 'Simplified Chinese' },
-  { code: 'zh-TW', name: 'Traditional Chinese' },
-  { code: 'ja', name: 'Japanese' },
-  { code: 'ko', name: 'Korean' },
-  { code: 'hi', name: 'Hindi' },
-  { code: 'id', name: 'Indonesian' },
-  { code: 'vi', name: 'Vietnamese' },
-  { code: 'th', name: 'Thai' },
-  { code: 'nl', name: 'Dutch' },
-  { code: 'pl', name: 'Polish' },
-  { code: 'uk', name: 'Ukrainian' },
-];
+function flagValue(name, fallback) {
+  const i = process.argv.indexOf(name);
+  return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
+}
+const SRC = path.resolve(I18N, flagValue('--source', 'source/en.json'));
+const LOCDIR = path.resolve(I18N, flagValue('--out', 'locales'));
+
+// Languages come from the shared catalog so UI and generation never drift.
+const ALL_LANGS = JSON.parse(fs.readFileSync(path.join(I18N, 'languages.json'), 'utf8'))
+  .filter((l) => l.code !== 'en')
+  .map((l) => ({ code: l.code, name: l.name || l.native }));
 
 const BASE = process.env.AI_INTEGRATIONS_GEMINI_BASE_URL;
 const KEY = process.env.AI_INTEGRATIONS_GEMINI_API_KEY;
@@ -53,12 +41,15 @@ if (!BASE || !KEY) {
 
 const args = process.argv.slice(2);
 const force = args.includes('--force');
-const onlyCodes = args.filter((a) => !a.startsWith('--'));
-const langs = onlyCodes.length
+const FLAGS_WITH_VALUE = new Set(['--source', '--out']);
+const onlyCodes = args.filter((a, i) => !a.startsWith('--') && !FLAGS_WITH_VALUE.has(args[i - 1]));
+const langs = (onlyCodes.length
   ? ALL_LANGS.filter((l) => onlyCodes.includes(l.code))
-  : ALL_LANGS;
+  : ALL_LANGS
+).filter((l) => l.code !== 'en');
 
-const CHUNK = 40;
+const CHUNK = 50;
+const CONCURRENCY = 6;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function readJson(file, fallback) {
@@ -107,6 +98,11 @@ async function main() {
   fs.mkdirSync(LOCDIR, { recursive: true });
   const enKeys = Object.keys(en);
 
+  // Build a flat job list (one job = one chunk for one language). Each language
+  // accumulates into `out` and is written to disk as soon as all its chunks are
+  // done, so progress survives even if the run is interrupted.
+  const state = new Map(); // code -> { lang, file, out, remaining }
+  const jobs = [];
   for (const lang of langs) {
     const file = path.join(LOCDIR, `${lang.code}.json`);
     const existing = readJson(file, {});
@@ -115,30 +111,48 @@ async function main() {
       console.log(`${lang.code}: up to date (${enKeys.length} keys)`);
       continue;
     }
-    const out = { ...existing };
-    for (let i = 0; i < missing.length; i += CHUNK) {
-      const slice = missing.slice(i, i + CHUNK);
-      const entries = Object.fromEntries(slice.map((k) => [k, en[k]]));
+    const chunks = [];
+    for (let i = 0; i < missing.length; i += CHUNK) chunks.push(missing.slice(i, i + CHUNK));
+    state.set(lang.code, { lang, file, out: { ...existing }, remaining: chunks.length });
+    console.log(`${lang.code}: queued ${missing.length} string(s) in ${chunks.length} chunk(s)`);
+    for (const slice of chunks) jobs.push({ code: lang.code, lang, slice });
+  }
+  if (jobs.length === 0) { console.log('Done. Nothing to do.'); return; }
+
+  function writeLang(st) {
+    const ordered = {};
+    for (const k of enKeys) if (k in st.out) ordered[k] = st.out[k];
+    fs.writeFileSync(st.file, JSON.stringify(ordered, null, 2) + '\n', 'utf8');
+    console.log(`${st.lang.code}: wrote -> ${path.relative(process.cwd(), st.file)}`);
+  }
+
+  let idx = 0;
+  async function worker() {
+    while (idx < jobs.length) {
+      const job = jobs[idx++];
+      const entries = Object.fromEntries(job.slice.map((k) => [k, en[k]]));
       let attempt = 0;
       while (true) {
         try {
-          const got = await translateChunk(lang.name, entries);
-          for (const k of slice) if (typeof got[k] === 'string') out[k] = got[k];
+          const got = await translateChunk(job.lang.name, entries);
+          const st = state.get(job.code);
+          for (const k of job.slice) if (typeof got[k] === 'string') st.out[k] = got[k];
           break;
         } catch (e) {
           attempt += 1;
-          if (attempt >= 3) throw e;
-          await sleep(1500 * attempt);
+          if (attempt >= 8) { console.error(`${job.code}: chunk failed: ${String(e.message).slice(0, 80)}`); break; }
+          const is429 = /429|RATELIMIT/i.test(String(e.message));
+          await sleep(is429 ? 4000 + 2000 * attempt : 1500 * attempt);
         }
       }
-      await sleep(300);
+      const st = state.get(job.code);
+      st.remaining -= 1;
+      // Persist after every chunk so partial progress survives interruption.
+      writeLang(st);
     }
-    // Write keys in source order for stable diffs.
-    const ordered = {};
-    for (const k of enKeys) if (k in out) ordered[k] = out[k];
-    fs.writeFileSync(file, JSON.stringify(ordered, null, 2) + '\n', 'utf8');
-    console.log(`${lang.code}: wrote ${missing.length} key(s) -> ${path.relative(process.cwd(), file)}`);
   }
+
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
   console.log('Done.');
 }
 
