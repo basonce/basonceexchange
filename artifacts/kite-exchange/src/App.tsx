@@ -21,6 +21,7 @@ import ResetPasswordModal from './components/ResetPasswordModal';
 import WelcomeChest from './components/WelcomeChest';
 import { useIsDesktop } from './hooks/use-desktop';
 import { MORE_PAGES } from './desktop/pages/morePagesData';
+import { MORE_PAGE_COMPONENTS } from './desktop/pages/more';
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const DesktopApp = lazy(() => import('./desktop/DesktopApp'));
 
@@ -142,12 +143,13 @@ function getTabFromHash(): string {
     !!(window as any).Telegram?.WebApp?.initData;
   if (inTelegram) return 'miner';
   // Path-based route, e.g. https://basonce.com/miner — works in Safari/Chrome
+  const isMore = (slug: string) => !!MORE_PAGES[slug] || !!MORE_PAGE_COMPONENTS[slug];
   const path = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
   if (path && VALID_TABS.has(path)) return path;
-  if (path && MORE_PAGES[path] && isDesktopViewport()) return path;
+  if (path && isMore(path) && isDesktopViewport()) return path;
   const hash = rawHash.replace(/^#\/?/, '').toLowerCase().split('?')[0];
   if (VALID_TABS.has(hash)) return hash;
-  if (hash && MORE_PAGES[hash] && isDesktopViewport()) return hash;
+  if (hash && isMore(hash) && isDesktopViewport()) return hash;
   return 'home';
 }
 

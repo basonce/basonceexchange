@@ -19,7 +19,10 @@ export type DeskTab =
   | 'home' | 'markets' | 'trade' | 'futures' | 'aibot' | 'mining' | 'assets' | 'profile' | 'sports'
   | 'vip' | 'affiliate' | 'referral' | 'junior' | 'launchpool' | 'megadrop' | 'miningpool' | 'aipro'
   | 'pay' | 'nft' | 'fantoken' | 'wallet' | 'chain' | 'academy' | 'charity' | 'travelrule'
-  | 'stock' | 'p2p' | 'convert' | 'dex' | 'alpha' | 'copytrading' | 'apikeys';
+  | 'stock' | 'p2p' | 'convert' | 'dex' | 'alpha' | 'copytrading' | 'apikeys'
+  | 'about' | 'careers' | 'press' | 'community' | 'announcements' | 'news' | 'notices'
+  | 'api' | 'fees' | 'tradingrules' | 'helpcenter' | 'chatsupport' | 'submitrequest'
+  | 'lawenforcement' | 'glossary' | 'guide' | 'terms' | 'privacy' | 'cookies' | 'riskwarning';
 
 interface DesktopNavProps {
   tab: string;

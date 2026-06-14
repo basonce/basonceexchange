@@ -1,6 +1,7 @@
 - [basonce balance surfaces](basonce-balance-surfaces.md) — every "Est. Total Value" surface must match the Assets-page spot-only calc; futures_balance lives only on the USDT row, never summed.
 - [Bonanza hit-rate vs RTP tuning](bonanza-rtp-tuning.md) — tumble+freespin slot couples win-freq & RTP steeply; pin weights for hit%, scale pays for RTP; auto-spin must stop on unmount.
 - [basonce deploy](basonce-deploy.md) — Cloudflare Pages deploy procedure & gotchas for kite-exchange.
+- [Tailwind v4 build hang](tailwind-v4-build-hang.md) — `@tailwindcss/vite` auto content-scan hangs prod build; fix = `source(none)` + scoped `@source`. Run builds foreground under `timeout`.
 - [basonce Supabase admin](basonce-supabase-admin.md) — how to run DB admin / get the real service-role key for the basonce Supabase project.
 - [Supabase money RPC security](supabase-money-rpc-security.md) — every balance-mutating SECURITY DEFINER RPC must be locked to service_role and self-validate.
 - [TON upgrade intent binding](ton-upgrade-intent-binding.md) — on-chain box-upgrade payments bound to a single user via server-reserved unique amount to stop hijack.

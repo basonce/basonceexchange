@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   X, Send, Twitter, Facebook, Instagram, Youtube, Linkedin, MessageCircle, Github,
   ShieldCheck, FileCheck, Lock, Headset, Globe, ArrowUpRight, ArrowRight,
-  Users, TrendingUp, Coins, QrCode, Smartphone, Mail,
+  Users, TrendingUp, Coins, QrCode, Smartphone, Mail, CheckCircle2,
   type LucideIcon,
 } from 'lucide-react';
 import { useLang } from '../i18n/LanguageContext';
@@ -20,12 +20,12 @@ const COLUMNS: { title: TKey; links: FooterLink[] }[] = [
   {
     title: 'colAbout',
     links: [
-      { key: 'about', action: { type: 'info', bodyKey: 'comingSoon' } },
-      { key: 'careers', action: { type: 'info', bodyKey: 'comingSoon' } },
-      { key: 'announcements', action: { type: 'info', bodyKey: 'comingSoon' } },
-      { key: 'news', action: { type: 'info', bodyKey: 'comingSoon' } },
-      { key: 'press', action: { type: 'info', bodyKey: 'comingSoon' } },
-      { key: 'community', action: { type: 'info', bodyKey: 'comingSoon' } },
+      { key: 'about', action: { type: 'nav', tab: 'about' } },
+      { key: 'careers', action: { type: 'nav', tab: 'careers' } },
+      { key: 'announcements', action: { type: 'nav', tab: 'announcements' } },
+      { key: 'news', action: { type: 'nav', tab: 'news' } },
+      { key: 'press', action: { type: 'nav', tab: 'press' } },
+      { key: 'community', action: { type: 'nav', tab: 'community' } },
     ],
   },
   {
@@ -42,22 +42,22 @@ const COLUMNS: { title: TKey; links: FooterLink[] }[] = [
   {
     title: 'colService',
     links: [
-      { key: 'affiliate', action: { type: 'info', bodyKey: 'comingSoon' } },
-      { key: 'referral', action: { type: 'info', bodyKey: 'comingSoon' } },
-      { key: 'api', action: { type: 'info', bodyKey: 'comingSoon' } },
-      { key: 'fees', action: { type: 'info', bodyKey: 'comingSoon' } },
-      { key: 'tradingRules', action: { type: 'info', bodyKey: 'comingSoon' } },
+      { key: 'affiliate', action: { type: 'nav', tab: 'affiliate' } },
+      { key: 'referral', action: { type: 'nav', tab: 'referral' } },
+      { key: 'api', action: { type: 'nav', tab: 'api' } },
+      { key: 'fees', action: { type: 'nav', tab: 'fees' } },
+      { key: 'tradingRules', action: { type: 'nav', tab: 'tradingrules' } },
       { key: 'status', action: { type: 'info', bodyKey: 'statusOk' } },
     ],
   },
   {
     title: 'colSupport',
     links: [
-      { key: 'helpCenter', action: { type: 'info', bodyKey: 'comingSoon' } },
-      { key: 'chatSupport', action: { type: 'info', bodyKey: 'comingSoon' } },
-      { key: 'submitRequest', action: { type: 'info', bodyKey: 'comingSoon' } },
-      { key: 'lawEnforcement', action: { type: 'info', bodyKey: 'comingSoon' } },
-      { key: 'notices', action: { type: 'info', bodyKey: 'comingSoon' } },
+      { key: 'helpCenter', action: { type: 'nav', tab: 'helpcenter' } },
+      { key: 'chatSupport', action: { type: 'nav', tab: 'chatsupport' } },
+      { key: 'submitRequest', action: { type: 'nav', tab: 'submitrequest' } },
+      { key: 'lawEnforcement', action: { type: 'nav', tab: 'lawenforcement' } },
+      { key: 'notices', action: { type: 'nav', tab: 'notices' } },
     ],
   },
   {
@@ -65,18 +65,18 @@ const COLUMNS: { title: TKey; links: FooterLink[] }[] = [
     links: [
       { key: 'buyBitcoin', action: { type: 'coin', symbol: 'BTC' } },
       { key: 'buyEthereum', action: { type: 'coin', symbol: 'ETH' } },
-      { key: 'cryptoGlossary', action: { type: 'info', bodyKey: 'comingSoon' } },
-      { key: 'tradingGuide', action: { type: 'info', bodyKey: 'comingSoon' } },
+      { key: 'cryptoGlossary', action: { type: 'nav', tab: 'glossary' } },
+      { key: 'tradingGuide', action: { type: 'nav', tab: 'guide' } },
       { key: 'marketsOverview', action: { type: 'nav', tab: 'markets' } },
     ],
   },
 ];
 
 const BOTTOM: FooterLink[] = [
-  { key: 'terms', action: { type: 'info', bodyKey: 'comingSoon' } },
-  { key: 'privacy', action: { type: 'info', bodyKey: 'comingSoon' } },
-  { key: 'cookies', action: { type: 'info', bodyKey: 'comingSoon' } },
-  { key: 'riskWarning', action: { type: 'info', bodyKey: 'comingSoon' } },
+  { key: 'terms', action: { type: 'nav', tab: 'terms' } },
+  { key: 'privacy', action: { type: 'nav', tab: 'privacy' } },
+  { key: 'cookies', action: { type: 'nav', tab: 'cookies' } },
+  { key: 'riskWarning', action: { type: 'nav', tab: 'riskwarning' } },
 ];
 
 const SOCIALS: { Icon: LucideIcon; label: string }[] = [
@@ -121,6 +121,10 @@ export default function DesktopFooter({ onNavigate }: Props) {
   const { t, lang } = useLang();
   const [modal, setModal] = useState<{ titleKey: TKey; bodyKey: TKey } | null>(null);
   const [email, setEmail] = useState('');
+  const [subscribed, setSubscribed] = useState(false);
+  const [appHint, setAppHint] = useState(false);
+
+  const goTo = (tab: DeskTab) => { onNavigate(tab); window.scrollTo({ top: 0 }); };
 
   const native = LANGUAGES.find((l) => l.code === lang)?.native ?? 'English';
 
@@ -172,13 +176,19 @@ export default function DesktopFooter({ onNavigate }: Props) {
                 />
               </div>
               <button
-                onClick={() => setModal({ titleKey: 'subscribe', bodyKey: 'comingSoon' })}
+                onClick={() => { if (email.trim()) { setSubscribed(true); setEmail(''); } }}
                 className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-[#F0B90B] hover:bg-[#FCD535] px-5 py-2.5 text-sm font-semibold text-black transition-colors whitespace-nowrap cursor-pointer"
               >
                 {t('subscribe')} <ArrowRight className="h-4 w-4" />
               </button>
             </div>
           </div>
+          {subscribed && (
+            <div className="relative mt-4 inline-flex items-center gap-2 rounded-lg border border-[#0ECB81]/40 bg-[#0ECB81]/10 px-3.5 py-2 text-[#0ECB81] text-sm">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              <span>You're subscribed. Market insights and product updates are on their way.</span>
+            </div>
+          )}
         </div>
 
         {/* Stats credibility bar */}
@@ -231,7 +241,7 @@ export default function DesktopFooter({ onNavigate }: Props) {
                   key={s.label}
                   aria-label={s.label}
                   title={s.label}
-                  onClick={() => setModal({ titleKey: 'community', bodyKey: 'comingSoon' })}
+                  onClick={() => goTo('community')}
                   className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#2B3139] bg-[#0B0E11] text-[#848E9C] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#F0B90B]/50 hover:text-[#F0B90B] hover:bg-[#1E2329] cursor-pointer"
                 >
                   <s.Icon className="h-4 w-4" />
@@ -290,7 +300,7 @@ export default function DesktopFooter({ onNavigate }: Props) {
               {['App Store', 'Google Play'].map((store) => (
                 <button
                   key={store}
-                  onClick={() => setModal({ titleKey: 'appTitle', bodyKey: 'comingSoon' })}
+                  onClick={() => setAppHint(true)}
                   className="group flex items-center justify-center gap-2 rounded-lg border border-[#2B3139] bg-[#0B0E11] px-3 py-2.5 text-[#EAECEF] transition-all duration-200 hover:border-[#F0B90B]/50 hover:bg-[#23262E] cursor-pointer"
                 >
                   <Smartphone className="h-4 w-4 shrink-0 text-[#848E9C] group-hover:text-[#F0B90B] transition-colors" />
@@ -298,6 +308,9 @@ export default function DesktopFooter({ onNavigate }: Props) {
                 </button>
               ))}
             </div>
+            {appHint && (
+              <p className="mt-3 text-xs text-[#0ECB81] leading-snug">Scan the QR code above to install Basonce on iOS and Android.</p>
+            )}
           </div>
 
           {/* Popular cryptocurrencies */}
