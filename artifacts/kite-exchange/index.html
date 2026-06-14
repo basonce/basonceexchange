@@ -6,6 +6,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <style>html,body,#root{background:#0a0a14;color:#fff;margin:0;min-height:100vh}</style>
+    <script>
+      // Force the desktop ("web") layout on tablets — never the mobile layout.
+      // Tablets in portrait are narrower than the 1024px desktop breakpoint, so
+      // we lock their viewport to 1024 and let the browser scale the full web
+      // layout down to fit (no mobile UI, no horizontal overflow). Phones are
+      // left untouched. Decision is based on the hardware screen size (stable,
+      // unaffected by the viewport meta) to avoid resize feedback loops.
+      (function () {
+        try {
+          var ua = navigator.userAgent || '';
+          var iPad = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+          var androidTablet = /Android/.test(ua) && !/Mobile/.test(ua);
+          var otherTablet = /(Tablet|PlayBook|Silk|Kindle)/.test(ua) && !/Mobile/.test(ua);
+          var isTablet = iPad || androidTablet || otherTablet;
+          if (!isTablet) return;
+          var vp = document.querySelector('meta[name="viewport"]');
+          if (!vp) return;
+          function deviceWidth() {
+            var sw = (window.screen && window.screen.width) || window.innerWidth;
+            var sh = (window.screen && window.screen.height) || window.innerHeight;
+            var portrait = window.matchMedia('(orientation: portrait)').matches;
+            return portrait ? Math.min(sw, sh) : Math.max(sw, sh);
+          }
+          function apply() {
+            if (deviceWidth() < 1024) {
+              vp.setAttribute('content', 'width=1024, viewport-fit=cover');
+            } else {
+              vp.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
+            }
+          }
+          apply();
+          window.addEventListener('orientationchange', function () { setTimeout(apply, 150); });
+        } catch (e) {}
+      })();
+    </script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
       (function(){
