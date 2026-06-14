@@ -21,7 +21,10 @@ export type TKey =
   | 'helpCenter' | 'chatSupport' | 'submitRequest' | 'lawEnforcement' | 'notices'
   | 'buyBitcoin' | 'buyEthereum' | 'cryptoGlossary' | 'tradingGuide' | 'marketsOverview'
   | 'terms' | 'privacy' | 'cookies' | 'riskWarning'
-  | 'close' | 'comingSoon' | 'statusOk' | 'more';
+  | 'close' | 'comingSoon' | 'statusOk' | 'more'
+  | 'systemStatus' | 'footerLegal' | 'currencyLabel'
+  | 'secTitle' | 'secSub' | 'porTitle' | 'porSub'
+  | 'safuTitle' | 'safuSub' | 'supTitle' | 'supSub';
 
 type Dict = Partial<Record<TKey, string>>;
 
@@ -39,6 +42,12 @@ const en: Record<TKey, string> = {
   buyBitcoin: 'Buy Bitcoin', buyEthereum: 'Buy Ethereum', cryptoGlossary: 'Crypto Glossary', tradingGuide: 'Trading Guide', marketsOverview: 'Markets Overview',
   terms: 'Terms', privacy: 'Privacy', cookies: 'Cookies', riskWarning: 'Risk Warning',
   close: 'Close', comingSoon: 'Detailed information will be available soon.', statusOk: 'All systems operational.', more: 'More',
+  systemStatus: 'All systems operational', currencyLabel: 'USD',
+  footerLegal: 'Crypto products and trading carry significant risk and may not be suitable for every investor. Past performance is not indicative of future results. Trade responsibly and only with funds you can afford to risk.',
+  secTitle: 'Institutional Security', secSub: 'Cold storage & MPC custody',
+  porTitle: 'Proof of Reserves', porSub: '1:1 backing, on-chain verifiable',
+  safuTitle: 'Asset Protection Fund', safuSub: 'A dedicated reserve safeguarding users',
+  supTitle: '24/7 Global Support', supSub: 'Live help in every time zone',
 };
 
 const tr: Dict = {
