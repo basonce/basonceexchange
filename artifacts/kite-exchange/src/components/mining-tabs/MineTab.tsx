@@ -5,7 +5,7 @@ import { getUserRestrictions } from '../../lib/user-restrictions';
 import { EarnQuestPriceManager } from '../../lib/earnquest-price';
 import AnimatedCounter from '../AnimatedCounter';
 import MiningMachineCard from '../MiningMachineCard';
-import { chestForLevel } from '../../lib/shopChests';
+import { chestForName } from '../../lib/shopChests';
 import FlyingCoin from '../FlyingCoin';
 import MiningUpgradeModal from '../MiningUpgradeModal';
 import ForcedUpgradeModal from '../ForcedUpgradeModal';
@@ -1006,8 +1006,8 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
                   minerId={miner.id}
                   name={miner.name}
                   icon={miner.icon}
-                  image={chestForLevel(miner.level).img}
-                  imageGlow={chestForLevel(miner.level).glow}
+                  image={chestForName(miner.name, miner.level).img}
+                  imageGlow={chestForName(miner.name, miner.level).glow}
                   hashRate={miner.hash_rate}
                   hourlyRate={hourlyUSDT}
                   sessionEarned={miner.session_earned_usdt}

@@ -12,7 +12,8 @@ import ToastContainer, { useToast } from '../components/mining/ToastContainer';
 import PayoutTicker from '../components/mining/PayoutTicker';
 import { Pickaxe, Zap, Activity, Clock, ShoppingCart, HelpCircle, AlertCircle, ArrowRight, ShieldCheck, Flame, Star, Target, Server, ChevronRight, Play, Square, Users } from 'lucide-react';
 import { supabase, getCurrentUser } from '../../lib/supabase';
-import { chestForLevel } from '../../lib/shopChests';
+import { chestForName } from '../../lib/shopChests';
+import DeviceImage from '../../components/DeviceImage';
 
 // Helper to format remaining time
 const formatTime = (seconds: number) => {
@@ -252,7 +253,7 @@ export default function DesktopMiningPage() {
                   <DesktopShopCard 
                     key={item.id} 
                     item={item} 
-                    chest={chestForLevel(item.level)}
+                    chest={chestForName(item.name, item.level)}
                     userBalance={mining.dbUsdtBalance}
                     onBuy={() => setPurchaseModalItem(item)}
                   />
@@ -278,7 +279,7 @@ export default function DesktopMiningPage() {
         onClose={() => setPurchaseModalItem(null)}
         onConfirm={handlePurchase}
         item={purchaseModalItem}
-        chest={purchaseModalItem ? chestForLevel(purchaseModalItem.level) : undefined}
+        chest={purchaseModalItem ? chestForName(purchaseModalItem.name, purchaseModalItem.level) : undefined}
         purchasing={mining.purchasing}
         currentBalance={mining.dbUsdtBalance}
         currentLevel={currentLevel}
@@ -334,7 +335,7 @@ export default function DesktopMiningPage() {
 function DesktopMinerCard({ miner, onToggle }: { miner: MinerDevice; onToggle: (s: string) => void }) {
   const isActive = miner.status === 'active';
   const isExpired = miner.has_time_limit && (miner.remaining_mining_seconds || 0) <= 0;
-  const chest = chestForLevel(miner.level);
+  const chest = chestForName(miner.name, miner.level);
   
   return (
     <div className={`bg-[#181A20] border rounded-xl overflow-hidden transition-all duration-300 ${
@@ -350,13 +351,7 @@ function DesktopMinerCard({ miner, onToggle }: { miner: MinerDevice; onToggle: (
               className="w-14 h-14 rounded-xl flex items-center justify-center shadow-inner overflow-hidden border border-[#2B3139]"
               style={{ background: `radial-gradient(circle at 50% 35%, ${chest.glow}26, #0B0E11 72%)` }}
             >
-              <img
-                src={chest.img}
-                alt={miner.name}
-                className={`w-[88%] h-[88%] object-contain ${isActive ? 'animate-bounce-subtle' : ''}`}
-                style={{ filter: `drop-shadow(0 0 8px ${chest.glow}66)` }}
-                draggable={false}
-              />
+              <DeviceImage img={chest.img} glow={chest.glow} alt={miner.name} active={isActive} />
             </div>
             <div>
               <h3 className="text-white font-bold text-lg leading-tight flex items-center gap-2">
@@ -456,12 +451,11 @@ function DesktopShopCard({ item, chest, userBalance, onBuy }: { item: ShopEquipm
         style={{ background: `radial-gradient(circle at 50% 35%, ${glow}26, #0B0E11 70%)` }}
       >
         {chest ? (
-          <img
-            src={chest.img}
+          <DeviceImage
+            img={chest.img}
+            glow={chest.glow}
             alt={item.name}
-            className="w-[90%] h-[90%] object-contain group-hover:scale-110 transition-transform duration-300"
-            style={{ filter: `drop-shadow(0 0 10px ${glow}55)` }}
-            draggable={false}
+            imgClassName="group-hover:scale-110 transition-transform duration-300"
           />
         ) : (
           <span className="text-4xl">{item.icon}</span>

@@ -1,5 +1,6 @@
 import { X, ShoppingCart, ArrowRight } from 'lucide-react';
 import type { ShopEquipment } from '../../hooks/useDesktopMining';
+import DeviceImage from '../../../components/DeviceImage';
 
 interface ConfirmPurchaseModalProps {
   isOpen: boolean;
@@ -44,13 +45,7 @@ export default function ConfirmPurchaseModal({ isOpen, onClose, onConfirm, item,
               style={{ background: chest ? `radial-gradient(circle at 50% 35%, ${chest.glow}26, #0B0E11 70%)` : '#1E2329' }}
             >
               {chest ? (
-                <img
-                  src={chest.img}
-                  alt={item.name}
-                  className="w-[88%] h-[88%] object-contain"
-                  style={{ filter: `drop-shadow(0 0 10px ${chest.glow}55)` }}
-                  draggable={false}
-                />
+                <DeviceImage img={chest.img} glow={chest.glow} alt={item.name} />
               ) : (
                 item.icon
               )}

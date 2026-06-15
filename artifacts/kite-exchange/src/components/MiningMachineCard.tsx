@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Play, Pause, Cpu } from 'lucide-react';
+import DeviceImage from './DeviceImage';
 
 interface MiningMachineCardProps {
   minerId: string;
@@ -221,13 +222,7 @@ export default function MiningMachineCard({
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 to-transparent" />
                 )}
                 {image ? (
-                  <img
-                    src={image}
-                    alt={name}
-                    className="relative z-10 w-[88%] h-[88%] object-contain"
-                    style={{ filter: `drop-shadow(0 0 8px ${imageGlow}66)` }}
-                    draggable={false}
-                  />
+                  <DeviceImage img={image} glow={imageGlow} alt={name} active={isActive} />
                 ) : (
                   <div className="relative z-10">{icon}</div>
                 )}

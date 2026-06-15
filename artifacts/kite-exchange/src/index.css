@@ -404,6 +404,47 @@ input[type="range"].slider-blue::-moz-range-thumb {
   transform-origin: bottom center;
 }
 
+/* Mining device "working" / idle animations */
+@keyframes deviceSpin {
+  to { transform: rotate(360deg); }
+}
+.animate-device-spin {
+  animation: deviceSpin 2.6s linear infinite;
+}
+
+@keyframes devicePulse {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.06); }
+}
+.animate-device-pulse {
+  animation: devicePulse 2s ease-in-out infinite;
+}
+
+@keyframes deviceBob {
+  0%, 100% { transform: translateY(2%); }
+  50% { transform: translateY(-4%); }
+}
+.animate-device-bob {
+  animation: deviceBob 2.6s ease-in-out infinite;
+}
+
+@keyframes deviceFloat {
+  0%, 100% { transform: translateY(1.5%); }
+  50% { transform: translateY(-1.5%); }
+}
+.animate-device-float {
+  animation: deviceFloat 4.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-device-spin,
+  .animate-device-pulse,
+  .animate-device-bob,
+  .animate-device-float {
+    animation: none !important;
+  }
+}
+
 @layer utilities {
   .text-muted {
     color: #9CA3AF !important;

@@ -1266,6 +1266,48 @@ uri = "file://attached_assets/generated_images/device_prime.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "wEsxxHUQOMCwdZGlGupi-"
+uri = "file://attached_assets/generated_images/dev2_cpu.png"
+type = "image"
+title = "device cpu"
+
+[[generated]]
+id = "nqs8qtkwYxVMGXC0pt96i"
+uri = "file://attached_assets/generated_images/dev2_gpu.png"
+type = "image"
+title = "device gpu"
+
+[[generated]]
+id = "piT-gYbmwWTikjBsh3pgf"
+uri = "file://attached_assets/generated_images/dev2_gpu_max.png"
+type = "image"
+title = "device gpu_max"
+
+[[generated]]
+id = "0kl576C6JP4W0VNY6gBNE"
+uri = "file://attached_assets/generated_images/dev2_asic.png"
+type = "image"
+title = "device asic"
+
+[[generated]]
+id = "3BIvr0wgX5ZmyVs42JSzA"
+uri = "file://attached_assets/generated_images/dev2_farm.png"
+type = "image"
+title = "device farm"
+
+[[generated]]
+id = "tUVmSwsl8cf0nZ6T-7bpe"
+uri = "file://attached_assets/generated_images/dev2_industrial.png"
+type = "image"
+title = "device industrial"
+
+[[generated]]
+id = "MJY7pQHkJVggfl5b15zlk"
+uri = "file://attached_assets/generated_images/dev2_quantum.png"
+type = "image"
+title = "device quantum"
+
 [[outputs]]
 id = "aFS2ugqH_E7RWoACMQsWq"
 uri = "file://attached_assets/exports/basonce_logo_for_coinzilla.png"

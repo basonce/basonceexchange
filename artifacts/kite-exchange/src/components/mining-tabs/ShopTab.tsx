@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Star, TrendingUp, Zap, Clock, Users, ShoppingCart, AlertCircle, Check, X, Timer, Gem, Trophy, Target, Crown, Flame, ArrowRight, Shield } from 'lucide-react';
 import { supabase, getCurrentUser } from '../../lib/supabase';
 import { globalMiningStats } from '../../lib/global-mining-stats';
-import { chestForLevel, type ShopChest } from '../../lib/shopChests';
+import { chestForName, type ShopChest } from '../../lib/shopChests';
+import DeviceImage from '../DeviceImage';
 
 interface MiningEquipment {
   id: string;
@@ -574,12 +575,11 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
                     boxShadow: `0 10px 30px ${chest.glow}40`
                   }}
                 >
-                  <img
-                    src={chest.img}
+                  <DeviceImage
+                    img={chest.img}
+                    glow={chest.glow}
                     alt={item.name}
-                    className="w-[88%] h-[88%] object-contain transform group-hover:scale-110 transition-transform duration-500"
-                    style={{ filter: `drop-shadow(0 0 8px ${chest.glow}66)` }}
-                    draggable={false}
+                    imgClassName="transform group-hover:scale-110 transition-transform duration-500"
                   />
                 </div>
               ) : (
@@ -960,7 +960,7 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
 
             <div className="space-y-4">
               {starterEquipment.map(item => (
-                <EquipmentCard key={item.id} item={item} chest={chestForLevel(item.level)} />
+                <EquipmentCard key={item.id} item={item} chest={chestForName(item.name, item.level)} />
               ))}
             </div>
           </div>
@@ -979,7 +979,7 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
 
             <div className="space-y-4">
               {advancedEquipment.map(item => (
-                <EquipmentCard key={item.id} item={item} chest={chestForLevel(item.level)} />
+                <EquipmentCard key={item.id} item={item} chest={chestForName(item.name, item.level)} />
               ))}
             </div>
           </div>
@@ -998,7 +998,7 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
 
             <div className="space-y-4">
               {legendaryEquipment.map(item => (
-                <EquipmentCard key={item.id} item={item} chest={chestForLevel(item.level)} />
+                <EquipmentCard key={item.id} item={item} chest={chestForName(item.name, item.level)} />
               ))}
             </div>
           </div>
