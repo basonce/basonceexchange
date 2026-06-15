@@ -1,7 +1,7 @@
-import { useState, type RefObject } from 'react';
+import { useState, useEffect, type RefObject } from 'react';
 import {
-  X, Send, Check, CheckCheck, ChevronRight, Shield, Clock, Star, Copy,
-  MessageCircle, Phone, HelpCircle, Lock, Globe, Headset,
+  X, Send, Check, CheckCheck, ChevronRight, ChevronUp, ChevronDown, Shield, Clock, Star, Copy,
+  MessageCircle, Phone, HelpCircle, Lock, Globe, Headset, Activity,
   Wallet, ArrowDownToLine, ShieldCheck, TrendingUp, Cpu,
 } from 'lucide-react';
 import type { Agent } from '../lib/agent-assignment';
@@ -37,19 +37,122 @@ const DESKTOP_FAQ = [
 ];
 
 const DESKTOP_COUNTRIES = [
-  { name: 'United States', count: 112 },
-  { name: 'China', count: 76 },
-  { name: 'United Kingdom', count: 67 },
-  { name: 'Germany', count: 58 },
-  { name: 'Japan', count: 51 },
-  { name: 'Turkey', count: 45 },
-  { name: 'France', count: 44 },
-  { name: 'South Korea', count: 41 },
-  { name: 'Italy', count: 38 },
-  { name: 'UAE', count: 33 },
-  { name: 'Saudi Arabia', count: 29 },
-  { name: 'Netherlands', count: 22 },
+  { code: 'US', name: 'United States', count: 112 },
+  { code: 'CN', name: 'China', count: 76 },
+  { code: 'GB', name: 'United Kingdom', count: 67 },
+  { code: 'DE', name: 'Germany', count: 58 },
+  { code: 'JP', name: 'Japan', count: 51 },
+  { code: 'TR', name: 'Turkey', count: 45 },
+  { code: 'FR', name: 'France', count: 44 },
+  { code: 'KR', name: 'South Korea', count: 41 },
+  { code: 'IT', name: 'Italy', count: 38 },
+  { code: 'AE', name: 'UAE', count: 33 },
+  { code: 'SA', name: 'Saudi Arabia', count: 29 },
+  { code: 'NL', name: 'Netherlands', count: 22 },
 ];
+
+type LiveRow = { count: number; dir: 1 | -1 | 0; flash: number };
+
+function LiveSupportNetwork() {
+  const [rows, setRows] = useState<LiveRow[]>(
+    () => DESKTOP_COUNTRIES.map(c => ({ count: c.count, dir: 0, flash: 0 }))
+  );
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setRows(prev => {
+        const next = prev.map(r => ({ ...r }));
+        const updates = 2 + Math.floor(Math.random() * 3); // 2-4 countries per tick
+        for (let k = 0; k < updates; k++) {
+          const i = Math.floor(Math.random() * next.length);
+          const base = DESKTOP_COUNTRIES[i].count;
+          const lo = Math.max(6, base - 7);
+          const hi = base + 13;
+          const step = 1 + Math.floor(Math.random() * 3);
+          const delta = Math.random() < 0.5 ? -step : step;
+          let v = next[i].count + delta;
+          if (v < lo) v = lo;
+          if (v > hi) v = hi;
+          next[i].dir = v > next[i].count ? 1 : v < next[i].count ? -1 : 0;
+          if (next[i].dir !== 0) {
+            next[i].count = v;
+            next[i].flash = next[i].flash + 1;
+          }
+        }
+        return next;
+      });
+    }, 1300);
+    return () => clearInterval(id);
+  }, []);
+
+  const total = rows.reduce((s, r) => s + r.count, 0);
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-[#F0B90B]/20 bg-gradient-to-br from-[#181A20] to-[#111418] p-5">
+      <style>{`
+        @keyframes supNetSweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+        @keyframes supRowFlash { 0% { opacity: 0; } 18% { opacity: 0.22; } 100% { opacity: 0; } }
+      `}</style>
+      <div
+        className="pointer-events-none absolute top-0 left-0 h-px w-1/2 bg-gradient-to-r from-transparent via-[#F0B90B]/70 to-transparent"
+        style={{ animation: 'supNetSweep 3.4s linear infinite' }}
+      />
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
+          <div className="absolute inset-0 rounded-full bg-[#F0B90B]/20 animate-ping" style={{ animationDuration: '2s' }} />
+          <div className="relative w-10 h-10 bg-[#F0B90B]/15 rounded-full border border-[#F0B90B]/40 flex items-center justify-center">
+            <Globe className="w-5 h-5 text-[#F0B90B]" />
+          </div>
+        </div>
+        <div className="min-w-0">
+          <p className="text-white font-bold text-sm">Global support network</p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#0ECB81] animate-pulse" />
+            <span className="text-[#0ECB81] text-xs font-bold tabular-nums">{total.toLocaleString('en-US')}</span>
+            <span className="text-[#0ECB81] text-xs font-semibold">agents online</span>
+          </div>
+        </div>
+        <div className="ml-auto flex items-center gap-1.5 rounded-full border border-[#0ECB81]/30 bg-[#0ECB81]/10 px-2.5 py-1 shrink-0">
+          <Activity className="w-3 h-3 text-[#0ECB81]" />
+          <span className="text-[#0ECB81] text-[10px] font-bold tracking-[0.18em]">LIVE</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {DESKTOP_COUNTRIES.map((c, i) => {
+          const r = rows[i];
+          return (
+            <div
+              key={c.name}
+              className="relative overflow-hidden flex items-center justify-between bg-[#0B0E11] rounded-lg border border-[#1E2329] px-2.5 py-2 transition-colors hover:border-[#2B3139]"
+            >
+              <span
+                key={r.flash}
+                className="pointer-events-none absolute inset-0"
+                style={{ animation: 'supRowFlash 0.85s ease-out', backgroundColor: r.dir > 0 ? '#0ECB81' : r.dir < 0 ? '#F6465D' : 'transparent' }}
+              />
+              <div className="relative flex items-center gap-2 min-w-0">
+                <span className="text-[9px] font-bold text-[#F0B90B] bg-[#F0B90B]/10 border border-[#F0B90B]/20 rounded px-1 py-px tracking-wide shrink-0">{c.code}</span>
+                <span className="text-[#B7BDC6] text-xs truncate">{c.name}</span>
+              </div>
+              <div className="relative flex items-center gap-0.5 shrink-0 ml-2">
+                {r.dir > 0 ? (
+                  <ChevronUp className="w-3 h-3 text-[#0ECB81]" />
+                ) : r.dir < 0 ? (
+                  <ChevronDown className="w-3 h-3 text-[#F6465D]" />
+                ) : (
+                  <span className="w-3" />
+                )}
+                <span className={`text-xs font-bold tabular-nums w-7 text-right ${r.dir > 0 ? 'text-[#0ECB81]' : r.dir < 0 ? 'text-[#F6465D]' : 'text-white'}`}>
+                  {r.count}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 const DESKTOP_QUICK_REPLIES = [
   'Deposit issue',
@@ -237,31 +340,7 @@ export function DesktopFormScreen({ customerId, setCustomerId, email, setEmail, 
           <div className="space-y-4">
             {!verifiedUser && (
               <>
-                <div className="rounded-2xl border border-[#1E2329] bg-[#111418] p-5">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="relative w-10 h-10 flex items-center justify-center">
-                      <div className="absolute inset-0 rounded-full bg-[#F0B90B]/20 animate-ping" style={{ animationDuration: '2s' }} />
-                      <div className="relative w-10 h-10 bg-[#F0B90B]/15 rounded-full border border-[#F0B90B]/40 flex items-center justify-center">
-                        <Globe className="w-5 h-5 text-[#F0B90B]" />
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-white font-bold text-sm">Global support network</p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#0ECB81] animate-pulse" />
-                        <span className="text-[#0ECB81] text-xs font-semibold">420+ agents online</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {DESKTOP_COUNTRIES.map(c => (
-                      <div key={c.name} className="flex items-center justify-between bg-[#0B0E11] rounded-lg border border-[#1E2329] px-3 py-2">
-                        <span className="text-[#B7BDC6] text-xs truncate">{c.name}</span>
-                        <span className="text-white text-xs font-bold tabular-nums ml-2">{c.count}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <LiveSupportNetwork />
                 <div className="rounded-2xl border border-[#1E2329] bg-[#111418] p-5">
                   <div className="flex items-center gap-2 mb-1.5">
                     <Lock className="w-3.5 h-3.5 text-[#F0B90B]" />
