@@ -17,7 +17,8 @@ import FuturesCampaignModal from '../components/FuturesCampaignModal';
 import LaunchpoolModal from '../components/LaunchpoolModal';
 import CampaignDetailModal, { type CampaignDetailData } from '../components/CampaignDetailModal';
 import { supabase, getCurrentUser } from '../lib/supabase';
-import BncMarketBanner from '../components/BncMarketBanner';
+// BncMarketBanner ("Mine on Telegram" ticker) temporarily reverted — re-import to bring it back.
+// import BncMarketBanner from '../components/BncMarketBanner';
 
 const SocialFeed = lazy(() => import('../components/SocialFeed'));
 const BasonceAlpha = lazy(() => import('../components/BasonceAlpha'));
@@ -430,7 +431,9 @@ export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) 
         </div>
       </div>
 
-      <BncMarketBanner />
+      {/* BNC "Mine on Telegram" ticker banner — temporarily reverted to old state.
+          To bring it back later, uncomment the line below. */}
+      {/* <BncMarketBanner /> */}
 
       {mainTab === 'wallet' ? (
         <Suspense fallback={<div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin" /></div>}>

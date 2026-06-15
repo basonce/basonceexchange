@@ -799,31 +799,24 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
       )}
 
       <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-blue-900/20 via-purple-900/10 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-[#F0B90B]/[0.06] to-transparent"></div>
         <div className="absolute inset-0" style={{
-          backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0)',
+          backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.035) 1px, transparent 0)',
           backgroundSize: '40px 40px'
         }}></div>
-        <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-0 right-1/4 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
 
-        <div className="relative max-w-md mx-auto px-4 py-12 text-center">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <Gem className="w-8 h-8 text-yellow-400 animate-pulse" />
-            <h1 className="text-4xl font-black">
-              <span className="bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-600 text-transparent bg-clip-text">
-                PREMIUM
-              </span>
-            </h1>
-            <Gem className="w-8 h-8 text-yellow-400 animate-pulse" />
+        <div className="relative max-w-md mx-auto px-4 py-10 text-center">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-[#F0B90B]/30 bg-[#F0B90B]/10 px-3 py-1 mb-4">
+            <Crown className="w-3.5 h-3.5 text-[#F0B90B]" />
+            <span className="text-[#F0B90B] text-[11px] font-bold tracking-[0.22em]">PREMIUM HARDWARE</span>
           </div>
-          <h2 className="text-3xl font-black mb-3">
-            <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 text-transparent bg-clip-text">
-              MINING EQUIPMENT
-            </span>
-          </h2>
-          <p className="text-gray-400 text-sm max-w-sm mx-auto">
-            Upgrade Your Mining Power And Unlock Higher Withdrawal Limits With Our Premium Equipment
+          <h1 className="text-[34px] leading-none font-black tracking-tight">
+            <span className="text-white">MINING </span>
+            <span className="text-[#F0B90B]">EQUIPMENT</span>
+          </h1>
+          <div className="mx-auto mt-3 h-px w-16 bg-gradient-to-r from-transparent via-[#F0B90B] to-transparent"></div>
+          <p className="text-[#848E9C] text-sm max-w-sm mx-auto mt-3 leading-relaxed">
+            Upgrade your mining power and unlock higher withdrawal limits with institutional-grade equipment.
           </p>
         </div>
       </div>
@@ -917,45 +910,51 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
       </div>
 
       <div className="max-w-md mx-auto px-4 mb-6">
-        <div className="relative bg-gradient-to-br from-[#1A1B23] via-[#151820] to-[#0D0E12] border border-[#2B3139]/50 rounded-2xl p-5 backdrop-blur-sm shadow-2xl overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl"></div>
+        <div className="bg-[#111418] border border-[#1E2329] rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-[#0ECB81] rounded-full animate-pulse"></span>
+              <h3 className="text-sm font-bold text-white tracking-wide">LIVE STATISTICS</h3>
+            </div>
+            <span className="flex items-center gap-1 text-[#0ECB81] text-[10px] font-bold tracking-[0.16em]">
+              <TrendingUp className="w-3.5 h-3.5" /> REAL-TIME
+            </span>
+          </div>
 
-          <div className="relative">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                <h3 className="text-sm font-black text-white tracking-wide">LIVE STATISTICS</h3>
+          <div className="grid grid-cols-3 gap-2.5 mb-3">
+            <div className="bg-[#0B0E11] border border-[#1E2329] rounded-xl p-3">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Users className="w-3.5 h-3.5 text-[#F0B90B]" />
+                <span className="text-[10px] text-[#848E9C] font-semibold uppercase tracking-wide">Active</span>
               </div>
-              <Gem className="w-4 h-4 text-yellow-400 animate-pulse" />
+              <div className="text-lg font-black text-white tabular-nums leading-none">{liveMiners.toLocaleString()}</div>
+              <div className="text-[10px] text-[#848E9C] font-semibold mt-1">Miners</div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-3 hover:border-blue-500/40 transition-all">
-                <div className="text-xs text-gray-400 font-medium mb-1">Active</div>
-                <div className="text-xl font-black text-white">{liveMiners.toLocaleString()}</div>
-                <div className="text-[10px] text-blue-400 font-bold">Miners</div>
+            <div className="bg-[#0B0E11] border border-[#1E2329] rounded-xl p-3">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-[#0ECB81]" />
+                <span className="text-[10px] text-[#848E9C] font-semibold uppercase tracking-wide">Hourly</span>
               </div>
-
-              <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-3 hover:border-green-500/40 transition-all">
-                <div className="text-xs text-gray-400 font-medium mb-1">Hourly</div>
-                <div className="text-xl font-black text-emerald-400">${Math.floor(hourlyEarnings / 1000)}K</div>
-                <div className="text-[10px] text-emerald-400 font-bold">Earned</div>
-              </div>
-
-              <div className="bg-gradient-to-br from-orange-500/10 to-red-500/10 border border-orange-500/20 rounded-xl p-3 hover:border-orange-500/40 transition-all">
-                <div className="text-xs text-gray-400 font-medium mb-1">Recent</div>
-                <div className="text-xl font-black text-white">{recentUpgrades.toLocaleString()}</div>
-                <div className="text-[10px] text-orange-400 font-bold">Upgrades</div>
-              </div>
+              <div className="text-lg font-black text-[#0ECB81] tabular-nums leading-none">${Math.floor(hourlyEarnings / 1000)}K</div>
+              <div className="text-[10px] text-[#848E9C] font-semibold mt-1">Earned</div>
             </div>
 
-            <div className="bg-gradient-to-r from-yellow-500/10 via-orange-500/10 to-yellow-500/10 border border-yellow-500/20 rounded-xl px-3 py-2.5 flex items-center gap-2">
-              <Rocket className="w-4 h-4 text-yellow-400 animate-pulse" />
-              <span className="text-xs text-yellow-400 font-bold">
-                {upgradesLast10Min} users upgraded in last 10 min
-              </span>
+            <div className="bg-[#0B0E11] border border-[#1E2329] rounded-xl p-3">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Trophy className="w-3.5 h-3.5 text-[#F0B90B]" />
+                <span className="text-[10px] text-[#848E9C] font-semibold uppercase tracking-wide">Recent</span>
+              </div>
+              <div className="text-lg font-black text-white tabular-nums leading-none">{recentUpgrades.toLocaleString()}</div>
+              <div className="text-[10px] text-[#848E9C] font-semibold mt-1">Upgrades</div>
             </div>
+          </div>
+
+          <div className="flex items-center gap-2 rounded-xl border border-[#F0B90B]/20 bg-[#F0B90B]/[0.06] px-3 py-2.5">
+            <Rocket className="w-4 h-4 text-[#F0B90B] shrink-0" />
+            <span className="text-xs text-[#F0B90B] font-semibold tabular-nums">
+              {upgradesLast10Min} users upgraded in the last 10 minutes
+            </span>
           </div>
         </div>
       </div>
