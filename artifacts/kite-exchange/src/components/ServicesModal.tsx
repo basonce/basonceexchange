@@ -4,7 +4,7 @@ import {
   FileText, Rocket, Download, UserPlus, CreditCard, ClipboardList,
   Shield, RefreshCw, TrendingUp, Bot, BarChart2, Copy,
   Users, Repeat, BarChart, Coins, Cpu, Percent,
-  PiggyBank, Trophy, Gift, BookOpen, Package, Headphones,
+  PiggyBank, Trophy, Gift, BookOpen, Package, Headset,
   AlertTriangle, CheckCircle, HelpCircle, HandMetal,
   Layers, Star, Grid, Gem, Activity, DollarSign,
   MessageSquare, Heart, Globe, Tag, Award, Target
@@ -131,7 +131,7 @@ const SECTIONS: ServiceSection[] = [
       { icon: AlertTriangle, label: 'Action Required', key: 'action' },
       { icon: CheckCircle, label: 'Basonce Verify', key: 'verify' },
       { icon: HelpCircle, label: 'FAQ', key: 'faq' },
-      { icon: Headphones, label: 'Customer Service', key: 'support' },
+      { icon: Headset, label: 'Customer Service', key: 'support' },
       { icon: HandMetal, label: 'Self Service', key: 'self-service' },
     ],
   },

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, ShieldCheck, Gauge, Globe2, Headphones } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Gauge, Globe2, Headset } from 'lucide-react';
 import { useMarkets } from '../useMarkets';
 import type { DeskTab } from '../components/DesktopNav';
 import CoinLogo from '../../components/CoinLogo';
@@ -181,7 +181,7 @@ export default function DesktopHome({ user, onNavigate, onAuth, onDeposit }: Des
             { icon: ShieldCheck, title: 'Secure Asset Fund', desc: 'Your funds are protected by industry-leading security.' },
             { icon: Gauge, title: 'Lightning Fast', desc: 'Execute trades in milliseconds across all markets.' },
             { icon: Globe2, title: '350+ Cryptocurrencies', desc: 'Trade the widest selection of digital assets.' },
-            { icon: Headphones, title: '24/7 Support', desc: 'Expert help whenever you need it, day or night.' },
+            { icon: Headset, title: '24/7 Support', desc: 'Expert help whenever you need it, day or night.' },
           ].map((f) => (
             <div key={f.title} className="bg-[#181A20] border border-[#2B3139] rounded-xl p-6 hover:border-[#F0B90B]/40 transition-colors">
               <f.icon className="w-8 h-8 text-[#F0B90B] mb-4" />

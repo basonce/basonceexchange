@@ -3,7 +3,7 @@ import {
   Crown, Users, UserPlus, Baby, Rocket, Gift, Pickaxe, Gem,
   CreditCard, Image as ImageIcon, Trophy, Wallet, Boxes, GraduationCap, HeartHandshake, ShieldCheck,
   TrendingUp, Shield, Gauge, Globe, BookOpen, Lock, Coins, Banknote, Palette,
-  LineChart, Percent, Building2, Headphones, CheckCircle2, Layers, Cpu, Smartphone, Brain, Star,
+  LineChart, Percent, Building2, Headset, CheckCircle2, Layers, Cpu, Smartphone, Brain, Star,
   BarChart3, Heart, Landmark, PiggyBank, ScrollText, FileCheck2, BadgeCheck, Globe2,
   ArrowLeftRight, KeyRound, Send, Store, Workflow, Bot, Timer, Library, GraduationCap as Grad,
 } from 'lucide-react';
@@ -56,7 +56,7 @@ export const MORE_PAGES: Record<string, MorePageConfig> = {
     featuresSubtitle: 'Everything serious traders, funds and corporates need \u2014 in one platform.',
     features: [
       { icon: Percent, title: 'Lowest trading fees', desc: 'Tiered VIP maker/taker discounts across spot, margin, USD\u24c8-M, COIN-M, TradFi futures and options.' },
-      { icon: Headphones, title: 'Dedicated manager', desc: 'A personal account manager with priority 24/7 support for onboarding and execution.' },
+      { icon: Headset, title: 'Dedicated manager', desc: 'A personal account manager with priority 24/7 support for onboarding and execution.' },
       { icon: LineChart, title: 'Deep liquidity', desc: 'Institutional order books, OTC desk and block trading with minimal slippage.' },
       { icon: Cpu, title: 'Powerful APIs', desc: 'Low-latency REST & WebSocket APIs with higher rate limits for automated strategies.' },
       { icon: Shield, title: 'Verified reserves', desc: 'Fully transparent, independently audited proof-of-reserves safeguarding customer assets.' },
@@ -102,7 +102,7 @@ export const MORE_PAGES: Record<string, MorePageConfig> = {
       { icon: BarChart3, title: 'Real-time analytics', desc: 'Track clicks, sign-ups, conversions and earnings from a single dashboard.' },
       { icon: Globe, title: 'Global reach', desc: 'Promote across 180+ countries and 40+ languages to a worldwide audience.' },
       { icon: Layers, title: 'Marketing toolkit', desc: 'Ready-made banners, links and creatives to boost your conversion rates.' },
-      { icon: Headphones, title: 'Partner support', desc: 'A dedicated affiliate manager helps you scale your campaigns and income.' },
+      { icon: Headset, title: 'Partner support', desc: 'A dedicated affiliate manager helps you scale your campaigns and income.' },
     ],
     steps: [
       { title: 'Apply', desc: 'Join the affiliate program for free and get your unique referral link.' },

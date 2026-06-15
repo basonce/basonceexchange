@@ -1,5 +1,5 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
-import { Headphones } from 'lucide-react';
+import { Headset } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import DesktopNav, { DeskTab } from './components/DesktopNav';
 import DesktopFooter from './components/DesktopFooter';
@@ -200,7 +200,7 @@ export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }:
           aria-label="Customer support"
           className="fixed bottom-6 right-6 z-[55] w-14 h-14 rounded-full bg-[#F0B90B] hover:bg-[#FCD535] text-black shadow-2xl shadow-black/50 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
         >
-          <Headphones className="w-6 h-6" />
+          <Headset className="w-6 h-6" />
           <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#0ECB81] border-2 border-[#0B0E11]" />
         </button>
 

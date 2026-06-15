@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Copy, CheckCircle, AlertCircle, MessageCircle, Shield, Clock, Headphones, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Copy, CheckCircle, AlertCircle, MessageCircle, Shield, Clock, Headset, ExternalLink } from 'lucide-react';
 import SupportModal from './SupportModal';
 import { supabase, getCurrentUser } from '../lib/supabase';
 
@@ -204,7 +204,7 @@ export default function WithdrawalProcessingDetail({ withdrawal, onClose, onView
           {isRejected && (
             <div className="mt-4 bg-[#1A1D22] border border-[#2B3139]/60 rounded-2xl p-4 space-y-3">
               <div className="flex items-center gap-2">
-                <Headphones className="w-4 h-4 text-[#F0B90B]" />
+                <Headset className="w-4 h-4 text-[#F0B90B]" />
                 <span className="text-white text-sm font-bold">Need Help?</span>
               </div>
               <p className="text-[#848E9C] text-xs leading-relaxed">

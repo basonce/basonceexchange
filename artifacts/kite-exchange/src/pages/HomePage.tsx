@@ -1,6 +1,6 @@
 import React, { useState, lazy, Suspense, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, Headphones, X, Gift, Pickaxe, TrendingUp, Star, Users, Plus, PenLine, FileText, Video, Bell, LayoutDashboard, Pencil, Search, MessageSquare, ScanLine } from 'lucide-react';
+import { Menu, Headset, X, Gift, Pickaxe, TrendingUp, Star, Users, Plus, PenLine, FileText, Video, Bell, LayoutDashboard, Pencil, Search, MessageSquare, ScanLine } from 'lucide-react';
 import MegaphoneAnim from '../components/MegaphoneAnim';
 import HotSearchOverlay from '../components/HotSearchOverlay';
 import MessagesPage from './MessagesPage';
@@ -379,18 +379,7 @@ export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) 
               onClick={() => setShowSupportModal(true)}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 6px', display: 'flex', alignItems: 'center' }}
             >
-              {/* Headset: yay + iki kulak kasası + aşağı kıvrılan mikrofon kolu */}
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F0B90B" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                {/* Headband arc */}
-                <path d="M5 11a7 7 0 0 1 14 0" />
-                {/* Left ear cup */}
-                <rect x="3" y="11" width="4" height="6" rx="2" />
-                {/* Right ear cup */}
-                <rect x="17" y="11" width="4" height="6" rx="2" />
-                {/* Mic arm: right ear cup bottom → curves down-left → small circle */}
-                <path d="M21 17v1a3 3 0 0 1-3 3h-3" />
-                <circle cx="14" cy="21" r="1" fill="#F0B90B" stroke="none" />
-              </svg>
+              <Headset size={20} color="#F0B90B" strokeWidth={1.8} />
             </button>
             <button
               onClick={() => { if (onNavigate) onNavigate('assets'); }}

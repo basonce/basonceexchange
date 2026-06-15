@@ -1,7 +1,7 @@
 import { useState, type RefObject } from 'react';
 import {
   X, Send, Check, CheckCheck, ChevronRight, Shield, Clock, Star, Copy,
-  MessageCircle, Phone, HelpCircle, Lock, Globe, Headphones,
+  MessageCircle, Phone, HelpCircle, Lock, Globe, Headset,
   Wallet, ArrowDownToLine, ShieldCheck, TrendingUp, Cpu,
 } from 'lucide-react';
 import type { Agent } from '../lib/agent-assignment';
@@ -128,7 +128,7 @@ export function DesktopHomeScreen({ liveAgentCount, onStartChat, onClose, expand
         <div className="flex items-center justify-between px-7 pt-6 pb-1">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-[#F0B90B]/10 border border-[#F0B90B]/20 flex items-center justify-center">
-              <Headphones className="w-4 h-4 text-[#F0B90B]" />
+              <Headset className="w-4 h-4 text-[#F0B90B]" />
             </div>
             <h3 className="text-white font-bold text-[15px]">Support Center</h3>
           </div>
@@ -388,7 +388,7 @@ export function DesktopFormScreen({ customerId, setCustomerId, email, setEmail, 
                   </>
                 ) : (
                   <>
-                    <Headphones className="w-4 h-4" />
+                    <Headset className="w-4 h-4" />
                     Start live chat
                   </>
                 )}

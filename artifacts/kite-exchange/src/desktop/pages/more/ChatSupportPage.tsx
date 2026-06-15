@@ -6,7 +6,7 @@ import {
   Clock,
   Globe,
   ShieldCheck,
-  Headphones,
+  Headset,
   ArrowRight,
   Send,
   CheckCheck,
@@ -51,7 +51,7 @@ const CHANNELS = [
 
 const STATS = [
   { icon: Clock, value: '< 30s', label: 'Avg. chat response' },
-  { icon: Headphones, value: '24/7/365', label: 'Always online' },
+  { icon: Headset, value: '24/7/365', label: 'Always online' },
   { icon: Globe, value: '17', label: 'Languages supported' },
   { icon: ShieldCheck, value: '98.6%', label: 'Satisfaction rate' },
 ];
@@ -97,7 +97,7 @@ export default function ChatSupportPage({ onNavigate }: MorePageProps) {
             <div className="flex items-center justify-between px-5 py-3.5 bg-[#1E2329] border-b border-[#2B3139]">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-[#F0B90B]/15 flex items-center justify-center">
-                  <Headphones className="w-4 h-4 text-[#F0B90B]" />
+                  <Headset className="w-4 h-4 text-[#F0B90B]" />
                 </div>
                 <div>
                   <div className="text-sm font-bold text-white leading-tight">Basonce Support</div>
