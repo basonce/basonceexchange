@@ -184,7 +184,7 @@ export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }:
 
         {showSupport && (
           <Suspense fallback={null}>
-            <SupportModal isOpen={showSupport} onClose={() => setShowSupport(false)} />
+            <SupportModal isOpen={showSupport} onClose={() => setShowSupport(false)} variant="desktop" />
           </Suspense>
         )}
       </div>

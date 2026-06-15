@@ -3,6 +3,7 @@ import { X, Send, Check, CheckCheck, ChevronRight, Shield, Clock, Star, Zap, Mes
 import { supabase } from '../lib/supabase';
 import { detectUserCountry } from '../lib/geolocation';
 import { assignBestAgent, getAgentStats, type Agent } from '../lib/agent-assignment';
+import { DesktopHomeScreen, DesktopFormScreen, DesktopChatScreen } from './SupportModalDesktop';
 import {
   verifyUserAndGetContext,
   enrichUserContextWithBonus,
@@ -44,7 +45,7 @@ function detectMessageLanguage(text: string): string {
   return 'en';
 }
 
-interface SupportMessage {
+export interface SupportMessage {
   id: string;
   sender_type: 'customer' | 'admin' | 'bot';
   sender_name: string;
@@ -66,6 +67,7 @@ interface SupportModalProps {
   isOpen: boolean;
   onClose: () => void;
   prefillData?: PrefillData;
+  variant?: 'mobile' | 'desktop';
 }
 
 const FAQ_ITEMS = [
@@ -99,7 +101,8 @@ const COUNTRIES_GRID = [
   { flag: '🇰🇷', name: 'South Korea', count: 41 },
 ];
 
-export default function SupportModal({ isOpen, onClose, prefillData }: SupportModalProps) {
+export default function SupportModal({ isOpen, onClose, prefillData, variant = 'mobile' }: SupportModalProps) {
+  const isDesktop = variant === 'desktop';
   const [step, setStep] = useState<'home' | 'form' | 'chat'>('home');
   const [customerId, setCustomerId] = useState(prefillData?.customerId || '');
   const [email, setEmail] = useState(prefillData?.email || '');
@@ -563,39 +566,106 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-[200] sm:p-4" style={{ top: 0 }}>
+    <div
+      className={
+        isDesktop
+          ? 'fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[200] p-6'
+          : 'fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-[200] sm:p-4'
+      }
+      style={isDesktop ? undefined : { top: 0 }}
+    >
       <div
-        className="bg-[#0B0E11] sm:rounded-2xl w-full flex flex-col overflow-hidden sm:max-h-[90vh] sm:max-w-md border border-[#1E2329] shadow-2xl"
-        style={{ height: 'calc(100svh - 65px)', maxHeight: 'calc(100svh - 65px)' }}
+        className={
+          isDesktop
+            ? 'bg-[#0B0E11] rounded-2xl w-full max-w-[940px] flex flex-col overflow-hidden border border-[#1E2329] shadow-2xl'
+            : 'bg-[#0B0E11] sm:rounded-2xl w-full flex flex-col overflow-hidden sm:max-h-[90vh] sm:max-w-md border border-[#1E2329] shadow-2xl'
+        }
+        style={isDesktop ? { height: 'min(88vh, 680px)' } : { height: 'calc(100svh - 65px)', maxHeight: 'calc(100svh - 65px)' }}
       >
         {step === 'home' && (
-          <HomeScreen
-            liveAgentCount={liveAgentCount}
-            onStartChat={() => setStep('form')}
-            onClose={onClose}
-            expandedFaq={expandedFaq}
-            setExpandedFaq={setExpandedFaq}
-          />
+          isDesktop ? (
+            <DesktopHomeScreen
+              liveAgentCount={liveAgentCount}
+              onStartChat={() => setStep('form')}
+              onClose={onClose}
+              expandedFaq={expandedFaq}
+              setExpandedFaq={setExpandedFaq}
+            />
+          ) : (
+            <HomeScreen
+              liveAgentCount={liveAgentCount}
+              onStartChat={() => setStep('form')}
+              onClose={onClose}
+              expandedFaq={expandedFaq}
+              setExpandedFaq={setExpandedFaq}
+            />
+          )
         )}
 
         {step === 'form' && (
-          <FormScreen
-            customerId={customerId}
-            setCustomerId={setCustomerId}
-            email={email}
-            setEmail={setEmail}
-            isLoading={isLoading}
-            agentConnecting={agentConnecting}
-            formError={formError}
-            idVerifying={idVerifying}
-            verifiedUser={verifiedUser}
-            onBack={() => setStep('home')}
-            onClose={onClose}
-            onSubmit={handleStartChat}
-          />
+          isDesktop ? (
+            <DesktopFormScreen
+              customerId={customerId}
+              setCustomerId={setCustomerId}
+              email={email}
+              setEmail={setEmail}
+              isLoading={isLoading}
+              agentConnecting={agentConnecting}
+              formError={formError}
+              idVerifying={idVerifying}
+              verifiedUser={verifiedUser}
+              onBack={() => setStep('home')}
+              onClose={onClose}
+              onSubmit={handleStartChat}
+            />
+          ) : (
+            <FormScreen
+              customerId={customerId}
+              setCustomerId={setCustomerId}
+              email={email}
+              setEmail={setEmail}
+              isLoading={isLoading}
+              agentConnecting={agentConnecting}
+              formError={formError}
+              idVerifying={idVerifying}
+              verifiedUser={verifiedUser}
+              onBack={() => setStep('home')}
+              onClose={onClose}
+              onSubmit={handleStartChat}
+            />
+          )
         )}
 
         {step === 'chat' && ticketId && (
+          isDesktop ? (
+            <DesktopChatScreen
+              agent={assignedAgent || {
+                id: 'default',
+                name: 'Support Agent',
+                country_code: 'US',
+                country_name: 'Global',
+                avatar_url: 'https://ui-avatars.com/api/?name=Support+Agent&background=F0B90B&color=181A20&size=128&bold=true',
+                status: 'online',
+                languages: ['English', 'Turkish'],
+                specialty: 'account',
+                flag: '',
+                flag_emoji: '',
+                timezone: 'UTC',
+                region: 'Global',
+                active_tickets: 0,
+              }}
+              messages={messages}
+              newMessage={newMessage}
+              setNewMessage={setNewMessage}
+              isAgentTyping={isAgentTyping}
+              ticketId={ticketId}
+              customerId={customerId}
+              inputRef={inputRef}
+              messagesEndRef={messagesEndRef}
+              onSend={handleSendMessage}
+              onClose={onClose}
+            />
+          ) : (
           <ChatScreen
             agent={assignedAgent || {
               id: 'default',
@@ -623,6 +693,7 @@ export default function SupportModal({ isOpen, onClose, prefillData }: SupportMo
             onSend={handleSendMessage}
             onClose={onClose}
           />
+          )
         )}
       </div>
     </div>
