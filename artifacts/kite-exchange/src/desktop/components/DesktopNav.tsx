@@ -32,7 +32,7 @@ interface DesktopNavProps {
   onDeposit: () => void;
 }
 
-const NAV_ITEMS: { key: TKey; tab: DeskTab; dropdown?: { key: TKey; tab: DeskTab; desc: string }[] }[] = [
+const NAV_ITEMS: { key: TKey; tab: DeskTab; dropdown?: { key: TKey; tab: DeskTab; desc: string; icon?: LucideIcon }[] }[] = [
   { key: 'buyCrypto', tab: 'markets' },
   { key: 'markets', tab: 'markets' },
   {
@@ -45,8 +45,8 @@ const NAV_ITEMS: { key: TKey; tab: DeskTab; dropdown?: { key: TKey; tab: DeskTab
   { key: 'futures', tab: 'futures' },
   {
     key: 'earn', tab: 'mining', dropdown: [
-      { key: 'mining', tab: 'mining', desc: 'Earn daily rewards from cloud mining' },
-      { key: 'aiBot', tab: 'aibot', desc: 'Grow your assets automatically' },
+      { key: 'mining', tab: 'mining', desc: 'Earn daily rewards from cloud mining', icon: Pickaxe },
+      { key: 'aiBot', tab: 'aibot', desc: 'Grow your assets automatically', icon: Bot },
     ],
   },
   { key: 'sports', tab: 'sports' },
@@ -299,19 +299,27 @@ export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }:
               {item.dropdown && openMenu === item.key && item.key !== 'trade' && (
                 <div className="absolute top-full left-0 pt-2">
                   <div className="w-72 bg-[#1E2329] border border-[#2B3139] rounded-xl shadow-2xl shadow-black/50 p-2">
-                    {item.dropdown.map((d) => (
-                      <button
-                        key={d.key}
-                        onClick={() => { onNavigate(d.tab); setOpenMenu(null); }}
-                        className="group w-full flex items-center gap-2 text-left px-3 py-2.5 rounded-lg border-l-2 border-transparent hover:border-[#F0B90B] hover:bg-[#2B3139] transition-colors"
-                      >
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-semibold text-[#EAECEF] group-hover:text-[#F0B90B] transition-colors">{t(d.key)}</span>
-                          <span className="block text-xs text-[#848E9C] mt-0.5">{d.desc}</span>
-                        </span>
-                        <ChevronRight className="shrink-0 w-4 h-4 text-[#F0B90B] opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
-                      </button>
-                    ))}
+                    {item.dropdown.map((d) => {
+                      const DropIcon = d.icon;
+                      return (
+                        <button
+                          key={d.key}
+                          onClick={() => { onNavigate(d.tab); setOpenMenu(null); }}
+                          className="group w-full flex items-center gap-3 text-left px-3 py-2.5 rounded-lg border-l-2 border-transparent hover:border-[#F0B90B] hover:bg-[#2B3139] transition-colors"
+                        >
+                          {DropIcon && (
+                            <span className="shrink-0 w-9 h-9 rounded-lg bg-[#2B3139] group-hover:bg-[#181A20] flex items-center justify-center text-[#F0B90B] transition-colors">
+                              <DropIcon className="w-[18px] h-[18px]" />
+                            </span>
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-semibold text-[#EAECEF] group-hover:text-[#F0B90B] transition-colors">{t(d.key)}</span>
+                            <span className="block text-xs text-[#848E9C] mt-0.5">{d.desc}</span>
+                          </span>
+                          <ChevronRight className="shrink-0 w-4 h-4 text-[#F0B90B] opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
