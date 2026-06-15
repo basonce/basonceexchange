@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDesktopMining } from '../hooks/useDesktopMining';
 import type { MinerDevice, ShopEquipment } from '../hooks/useDesktopMining';
 import AuthModal from '../../components/AuthModal';
@@ -12,7 +12,7 @@ import ToastContainer, { useToast } from '../components/mining/ToastContainer';
 import PayoutTicker from '../components/mining/PayoutTicker';
 import { Pickaxe, Zap, Activity, Clock, ShoppingCart, HelpCircle, AlertCircle, ArrowRight, ShieldCheck, Flame, Star, Target, Server, ChevronRight, Play, Square, Users } from 'lucide-react';
 import { supabase, getCurrentUser } from '../../lib/supabase';
-import { buildChestMap } from '../../lib/shopChests';
+import { chestForLevel } from '../../lib/shopChests';
 
 // Helper to format remaining time
 const formatTime = (seconds: number) => {
@@ -28,7 +28,6 @@ export default function DesktopMiningPage() {
 
   const [collectModalOpen, setCollectModalOpen] = useState(false);
   const [purchaseModalItem, setPurchaseModalItem] = useState<ShopEquipment | null>(null);
-  const chestMap = useMemo(() => buildChestMap(mining.shopItems), [mining.shopItems]);
   const [faqOpen, setFaqOpen] = useState(false);
   const [currentLevel, setCurrentLevel] = useState(0);
 
@@ -253,7 +252,7 @@ export default function DesktopMiningPage() {
                   <DesktopShopCard 
                     key={item.id} 
                     item={item} 
-                    chest={chestMap.get(item.id)}
+                    chest={chestForLevel(item.level)}
                     userBalance={mining.dbUsdtBalance}
                     onBuy={() => setPurchaseModalItem(item)}
                   />
@@ -279,7 +278,7 @@ export default function DesktopMiningPage() {
         onClose={() => setPurchaseModalItem(null)}
         onConfirm={handlePurchase}
         item={purchaseModalItem}
-        chest={purchaseModalItem ? chestMap.get(purchaseModalItem.id) : undefined}
+        chest={purchaseModalItem ? chestForLevel(purchaseModalItem.level) : undefined}
         purchasing={mining.purchasing}
         currentBalance={mining.dbUsdtBalance}
         currentLevel={currentLevel}
@@ -335,6 +334,7 @@ export default function DesktopMiningPage() {
 function DesktopMinerCard({ miner, onToggle }: { miner: MinerDevice; onToggle: (s: string) => void }) {
   const isActive = miner.status === 'active';
   const isExpired = miner.has_time_limit && (miner.remaining_mining_seconds || 0) <= 0;
+  const chest = chestForLevel(miner.level);
   
   return (
     <div className={`bg-[#181A20] border rounded-xl overflow-hidden transition-all duration-300 ${
@@ -346,10 +346,17 @@ function DesktopMinerCard({ miner, onToggle }: { miner: MinerDevice; onToggle: (
       <div className="p-5">
         <div className="flex justify-between items-start mb-4">
           <div className="flex items-center gap-4">
-            <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-3xl shadow-inner ${
-              isActive ? 'bg-[#0ECB81]/10 border border-[#0ECB81]/20' : 'bg-[#1E2329] border border-[#2B3139]'
-            }`}>
-              <span className={isActive ? 'animate-bounce-subtle' : ''}>{miner.icon}</span>
+            <div
+              className="w-14 h-14 rounded-xl flex items-center justify-center shadow-inner overflow-hidden border border-[#2B3139]"
+              style={{ background: `radial-gradient(circle at 50% 35%, ${chest.glow}26, #0B0E11 72%)` }}
+            >
+              <img
+                src={chest.img}
+                alt={miner.name}
+                className={`w-[88%] h-[88%] object-contain ${isActive ? 'animate-bounce-subtle' : ''}`}
+                style={{ filter: `drop-shadow(0 0 8px ${chest.glow}66)` }}
+                draggable={false}
+              />
             </div>
             <div>
               <h3 className="text-white font-bold text-lg leading-tight flex items-center gap-2">

@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Star, TrendingUp, Zap, Clock, Users, ShoppingCart, AlertCircle, Check, X, Timer, Gem, Trophy, Target, Crown, Flame, ArrowRight, Shield } from 'lucide-react';
 import { supabase, getCurrentUser } from '../../lib/supabase';
 import { globalMiningStats } from '../../lib/global-mining-stats';
-import { buildChestMap, type ShopChest } from '../../lib/shopChests';
+import { chestForLevel, type ShopChest } from '../../lib/shopChests';
 
 interface MiningEquipment {
   id: string;
@@ -490,8 +490,6 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
     }
   };
 
-  const chestMap = useMemo(() => buildChestMap(equipment), [equipment]);
-
   const EquipmentCard = ({ item, chest }: { item: MiningEquipment; chest?: ShopChest }) => {
     const canAfford = userBalance >= item.price;
     const hourlyEarning = item.daily_earning / 24;
@@ -962,7 +960,7 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
 
             <div className="space-y-4">
               {starterEquipment.map(item => (
-                <EquipmentCard key={item.id} item={item} chest={chestMap.get(item.id)} />
+                <EquipmentCard key={item.id} item={item} chest={chestForLevel(item.level)} />
               ))}
             </div>
           </div>
@@ -981,7 +979,7 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
 
             <div className="space-y-4">
               {advancedEquipment.map(item => (
-                <EquipmentCard key={item.id} item={item} chest={chestMap.get(item.id)} />
+                <EquipmentCard key={item.id} item={item} chest={chestForLevel(item.level)} />
               ))}
             </div>
           </div>
@@ -1000,7 +998,7 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
 
             <div className="space-y-4">
               {legendaryEquipment.map(item => (
-                <EquipmentCard key={item.id} item={item} chest={chestMap.get(item.id)} />
+                <EquipmentCard key={item.id} item={item} chest={chestForLevel(item.level)} />
               ))}
             </div>
           </div>

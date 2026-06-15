@@ -1230,6 +1230,42 @@ uri = "file://attached_assets/sweet_bonanza/sym_plum.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "xfUMsv50zLuSmSMcMJ_AF"
+uri = "file://attached_assets/generated_images/device_blue.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "eew7iSY7Ys0lW-AzYbimq"
+uri = "file://attached_assets/generated_images/device_cyan.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Du3mtYh0MQ9OtnyDY5tvO"
+uri = "file://attached_assets/generated_images/device_gold.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "xLwubNB9nCBhqZpwk5Qk3"
+uri = "file://attached_assets/generated_images/device_fire.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Fn7egk591MNfncpjlAibC"
+uri = "file://attached_assets/generated_images/device_purple.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "nqEN0eqry4IYzdj-f2n-M"
+uri = "file://attached_assets/generated_images/device_prime.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "aFS2ugqH_E7RWoACMQsWq"
 uri = "file://attached_assets/exports/basonce_logo_for_coinzilla.png"

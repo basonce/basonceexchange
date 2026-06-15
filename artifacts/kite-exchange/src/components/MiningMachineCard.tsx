@@ -5,6 +5,8 @@ interface MiningMachineCardProps {
   minerId: string;
   name: string;
   icon?: string;
+  image?: string;
+  imageGlow?: string;
   hashRate: number;
   hourlyRate: number;
   sessionEarned: number;
@@ -89,6 +91,8 @@ export default function MiningMachineCard({
   minerId,
   name,
   icon = '💻',
+  image,
+  imageGlow = '#F0B90B',
   hashRate,
   hourlyRate,
   sessionEarned,
@@ -213,10 +217,20 @@ export default function MiningMachineCard({
                   ? `bg-gradient-to-br ${theme.iconBg} shadow-lg shadow-${theme.glowColor}`
                   : 'bg-[#2B3139]'
               }`}>
-                {level >= 4 && isActive && (
+                {level >= 4 && isActive && !image && (
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 to-transparent" />
                 )}
-                <div className="relative z-10">{icon}</div>
+                {image ? (
+                  <img
+                    src={image}
+                    alt={name}
+                    className="relative z-10 w-[88%] h-[88%] object-contain"
+                    style={{ filter: `drop-shadow(0 0 8px ${imageGlow}66)` }}
+                    draggable={false}
+                  />
+                ) : (
+                  <div className="relative z-10">{icon}</div>
+                )}
               </div>
             </div>
             <div className="min-w-0 flex-1">
