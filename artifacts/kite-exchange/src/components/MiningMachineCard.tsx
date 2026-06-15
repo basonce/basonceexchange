@@ -213,11 +213,19 @@ export default function MiningMachineCard({
         <div className="flex items-center justify-between gap-2 mb-6">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <div className="relative flex items-center justify-center flex-shrink-0">
-              <div className={`${level >= 3 ? 'w-16 h-16 sm:w-20 sm:h-20 text-3xl sm:text-4xl' : 'w-14 h-14 sm:w-16 sm:h-16 text-2xl sm:text-3xl'} rounded-2xl flex items-center justify-center transition-all relative overflow-hidden ${
-                isActive
-                  ? `bg-gradient-to-br ${theme.iconBg} shadow-lg shadow-${theme.glowColor}`
-                  : 'bg-[#2B3139]'
-              }`}>
+              <div
+                className={`${level >= 3 ? 'w-16 h-16 sm:w-20 sm:h-20 text-3xl sm:text-4xl' : 'w-14 h-14 sm:w-16 sm:h-16 text-2xl sm:text-3xl'} rounded-2xl flex items-center justify-center transition-all relative overflow-hidden border ${
+                  image
+                    ? (isActive ? 'border-white/10' : 'border-[#2B3139]')
+                    : isActive
+                      ? `bg-gradient-to-br ${theme.iconBg} shadow-lg shadow-${theme.glowColor} border-transparent`
+                      : 'bg-[#2B3139] border-transparent'
+                }`}
+                style={image ? {
+                  background: `radial-gradient(circle at 50% 35%, ${imageGlow}26, #0B0E11 72%)`,
+                  boxShadow: isActive ? `0 0 18px ${imageGlow}55` : undefined,
+                } : undefined}
+              >
                 {level >= 4 && isActive && !image && (
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 to-transparent" />
                 )}
