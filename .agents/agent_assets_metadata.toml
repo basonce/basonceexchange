@@ -1415,3 +1415,15 @@ id = "B7jTOP-jOXembmRttc_CS"
 uri = "file://attached_assets/generated_audio/sfx_whistle.mp3"
 type = "audio"
 title = "referee whistle"
+
+[[outputs]]
+id = "nefzJ-he5IJhRXFnOYB3u"
+uri = "file://screenshots/mobile-home-no-banner.jpg"
+type = "image"
+title = "1 - Ana sayfa: Telegram mining ticker kaldirildi"
+
+[[outputs]]
+id = "GGOXWxbnGGKzvPRiL9FKr"
+uri = "file://screenshots/mobile-shop-redesign.jpg"
+type = "image"
+title = "2+3 - Mining Shop: yeni kurumsal baslik + LIVE STATISTICS"
