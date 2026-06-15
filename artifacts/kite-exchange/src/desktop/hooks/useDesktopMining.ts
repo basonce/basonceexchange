@@ -526,7 +526,26 @@ export function useDesktopMining() {
   // ── Shop: load equipment ─────────────────────────────────────────────────────
   const loadShop = useCallback(async () => {
     const user = await getCurrentUser();
-    if (!user) return;
+    if (!user) {
+      setShopLoading(true);
+      const { data: demoData } = await supabase
+        .from('mining_equipment_types')
+        .select('*')
+        .eq('is_free', false)
+        .order('level', { ascending: true });
+      if (demoData) {
+        setShopItems(
+          demoData.map((eq: any) => ({
+            ...eq,
+            hash_rate: Math.round(eq.daily_earning / 24),
+            earning_rate: eq.daily_earning,
+            badge: eq.level === 1 ? 'POPULAR' : null,
+          }))
+        );
+      }
+      setShopLoading(false);
+      return;
+    }
     setShopLoading(true);
 
     const { data: balanceData } = await supabase

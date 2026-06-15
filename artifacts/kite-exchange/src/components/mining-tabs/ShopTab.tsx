@@ -298,7 +298,22 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
 
   const loadData = async () => {
     const user = await getCurrentUser();
-    if (!user) return;
+    if (!user) {
+      const { data: demoData } = await supabase
+        .from('mining_equipment_types')
+        .select('*')
+        .eq('is_free', false)
+        .order('level', { ascending: true });
+      if (demoData) {
+        setEquipment(demoData.map((eq: any) => ({
+          ...eq,
+          hash_rate: Math.round(eq.daily_earning / 24),
+          earning_rate: eq.daily_earning,
+          badge: eq.level === 1 ? 'POPULAR' : null,
+        })));
+      }
+      return;
+    }
 
     const { data: balanceData } = await supabase
       .from('user_balances')
