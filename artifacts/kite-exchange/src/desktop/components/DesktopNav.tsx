@@ -137,17 +137,30 @@ export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }:
   }, [markets, query]);
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [profileUserId, setProfileUserId] = useState<string>('');
+  const [copiedField, setCopiedField] = useState<null | 'id' | 'email'>(null);
   useEffect(() => {
     let active = true;
-    if (!user?.id) { setAvatarUrl(null); return; }
+    if (!user?.id) { setAvatarUrl(null); setProfileUserId(''); return; }
     supabase
       .from('user_profiles')
-      .select('avatar_url')
+      .select('avatar_url, user_id')
       .eq('id', user.id)
       .maybeSingle()
-      .then(({ data }) => { if (active) setAvatarUrl((data as any)?.avatar_url ?? null); });
+      .then(({ data }) => {
+        if (!active) return;
+        setAvatarUrl((data as any)?.avatar_url ?? null);
+        setProfileUserId(String((data as any)?.user_id ?? ''));
+      });
     return () => { active = false; };
   }, [user?.id]);
+
+  const copyValue = (value: string, field: 'id' | 'email') => {
+    if (!value) return;
+    navigator.clipboard?.writeText(value);
+    setCopiedField(field);
+    window.setTimeout(() => setCopiedField(null), 1500);
+  };
 
   const fetchWallet = async () => {
     if (!user?.id) { setWallet(null); return; }
@@ -518,8 +531,33 @@ export default function DesktopNav({ tab, onNavigate, user, onAuth, onDeposit }:
                         )}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold text-[#EAECEF] truncate">{user.email || 'Account'}</div>
-                        <div className="flex items-center gap-1.5 mt-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-semibold text-[#EAECEF] truncate">{user.email || 'Account'}</span>
+                          {user.email && (
+                            <button
+                              onClick={() => copyValue(user.email, 'email')}
+                              aria-label="Copy email"
+                              title="Copy email"
+                              className="shrink-0 w-6 h-6 rounded-md bg-[#2B3139] hover:bg-[#363C45] flex items-center justify-center transition-colors"
+                            >
+                              {copiedField === 'email' ? <Check className="w-3 h-3 text-[#0ECB81]" /> : <Copy className="w-3 h-3 text-[#848E9C]" />}
+                            </button>
+                          )}
+                        </div>
+                        {profileUserId && (
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="text-xs text-[#848E9C]">ID: <span className="text-[#B7BDC6] font-semibold tabular-nums">{profileUserId}</span></span>
+                            <button
+                              onClick={() => copyValue(profileUserId, 'id')}
+                              aria-label="Copy ID"
+                              title="Copy ID"
+                              className="shrink-0 w-6 h-6 rounded-md bg-[#2B3139] hover:bg-[#363C45] flex items-center justify-center transition-colors"
+                            >
+                              {copiedField === 'id' ? <Check className="w-3 h-3 text-[#0ECB81]" /> : <Copy className="w-3 h-3 text-[#848E9C]" />}
+                            </button>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5 mt-1.5">
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#0ECB81] bg-[#0ECB811A] px-1.5 py-0.5 rounded">
                             <ShieldCheck className="w-3 h-3" /> Verified
                           </span>

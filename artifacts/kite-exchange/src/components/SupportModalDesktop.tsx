@@ -1,12 +1,32 @@
-import { type RefObject } from 'react';
+import { useState, type RefObject } from 'react';
 import {
-  X, Send, Check, CheckCheck, ChevronRight, Shield, Clock, Star, Zap,
+  X, Send, Check, CheckCheck, ChevronRight, Shield, Clock, Star, Copy,
   MessageCircle, Phone, HelpCircle, Lock, Globe, Headphones,
   Wallet, ArrowDownToLine, ShieldCheck, TrendingUp, Cpu,
 } from 'lucide-react';
 import type { Agent } from '../lib/agent-assignment';
 import type { UserContextData } from '../lib/ai-support-engine';
 import type { SupportMessage } from './SupportModal';
+
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (!value) return;
+        navigator.clipboard?.writeText(value);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1500);
+      }}
+      aria-label={`Copy ${label}`}
+      title={`Copy ${label}`}
+      className="w-7 h-7 rounded-lg bg-[#1E2329] hover:bg-[#2B3139] border border-[#2B3139] flex items-center justify-center transition-colors shrink-0"
+    >
+      {copied ? <Check className="w-3.5 h-3.5 text-[#0ECB81]" /> : <Copy className="w-3.5 h-3.5 text-[#848E9C]" />}
+    </button>
+  );
+}
 
 const DESKTOP_FAQ = [
   { icon: Wallet, q: 'How Do I Deposit Funds?', a: 'Go to Wallet > Deposit, select your preferred network and copy the wallet address. Transactions confirm within 5-30 minutes.' },
@@ -304,20 +324,21 @@ export function DesktopFormScreen({ customerId, setCustomerId, email, setEmail, 
                     value={customerId}
                     onChange={e => setCustomerId(e.target.value)}
                     placeholder="e.g. 255612"
-                    className={`w-full bg-[#111418] border text-white rounded-xl px-4 py-3.5 text-sm outline-none transition-colors placeholder-gray-600 pr-10 ${
+                    className={`w-full bg-[#111418] border text-white rounded-xl px-4 py-3.5 text-sm outline-none transition-colors placeholder-gray-600 pr-20 ${
                       verifiedUser ? 'border-[#0ECB81]/50 focus:border-[#0ECB81]' : 'border-[#1E2329] focus:border-[#F0B90B]'
                     }`}
                     onKeyPress={e => e.key === 'Enter' && onSubmit()}
                   />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
                     {idVerifying && (
                       <div className="w-4 h-4 border-2 border-[#F0B90B]/30 border-t-[#F0B90B] rounded-full animate-spin" />
                     )}
                     {!idVerifying && verifiedUser && (
-                      <div className="w-5 h-5 bg-[#0ECB81]/20 rounded-full flex items-center justify-center">
+                      <div className="w-5 h-5 bg-[#0ECB81]/20 rounded-full flex items-center justify-center shrink-0">
                         <Check className="w-3 h-3 text-[#0ECB81]" />
                       </div>
                     )}
+                    {customerId.trim() && <CopyButton value={customerId} label="Customer ID" />}
                   </div>
                 </div>
                 {!idVerifying && customerId.trim().length >= 3 && !verifiedUser && (
@@ -326,14 +347,21 @@ export function DesktopFormScreen({ customerId, setCustomerId, email, setEmail, 
               </div>
               <div>
                 <label className="block text-[#848E9C] text-[10px] font-bold mb-2 uppercase tracking-[0.15em]">Email Address</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  className="w-full bg-[#111418] border border-[#1E2329] focus:border-[#F0B90B] text-white rounded-xl px-4 py-3.5 text-sm outline-none transition-colors placeholder-gray-600"
-                  onKeyPress={e => e.key === 'Enter' && onSubmit()}
-                />
+                <div className="relative">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    className="w-full bg-[#111418] border border-[#1E2329] focus:border-[#F0B90B] text-white rounded-xl px-4 py-3.5 text-sm outline-none transition-colors placeholder-gray-600 pr-12"
+                    onKeyPress={e => e.key === 'Enter' && onSubmit()}
+                  />
+                  {email.trim() && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                      <CopyButton value={email} label="email" />
+                    </div>
+                  )}
+                </div>
               </div>
 
               {formError && (
@@ -360,7 +388,7 @@ export function DesktopFormScreen({ customerId, setCustomerId, email, setEmail, 
                   </>
                 ) : (
                   <>
-                    <Zap className="w-4 h-4" />
+                    <Headphones className="w-4 h-4" />
                     Start live chat
                   </>
                 )}

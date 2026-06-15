@@ -1,5 +1,6 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
 import { Headphones } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import DesktopNav, { DeskTab } from './components/DesktopNav';
 import DesktopFooter from './components/DesktopFooter';
 import DesktopHome from './pages/DesktopHome';
@@ -97,12 +98,33 @@ function DesktopSports(_props: { title: string; onNavigate: (tab: DeskTab) => vo
 export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }: DesktopAppProps) {
   const [authMode, setAuthMode] = useState<'login' | 'register' | null>(null);
   const [showSupport, setShowSupport] = useState(false);
+  const [supportUserInfo, setSupportUserInfo] = useState<{ userId: string; email: string } | null>(null);
 
   useEffect(() => {
     const onOpenAuth = (e: any) => setAuthMode(e?.detail?.mode === 'login' ? 'login' : 'register');
     window.addEventListener('open-auth', onOpenAuth);
     return () => window.removeEventListener('open-auth', onOpenAuth);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (!user?.id) { setSupportUserInfo(null); return; }
+    supabase
+      .from('user_profiles')
+      .select('user_id, email')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data: profile }) => {
+        if (!active) return;
+        if (profile) {
+          setSupportUserInfo({ userId: String((profile as any).user_id || ''), email: (profile as any).email || user.email || '' });
+        } else {
+          setSupportUserInfo({ userId: '', email: user.email || '' });
+        }
+      })
+      .catch(() => { if (active) setSupportUserInfo({ userId: '', email: user.email || '' }); });
+    return () => { active = false; };
+  }, [user?.id]);
 
   const openAuth = (mode: 'login' | 'register') => setAuthMode(mode);
   const onDeposit = () => {
@@ -184,7 +206,12 @@ export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }:
 
         {showSupport && (
           <Suspense fallback={null}>
-            <SupportModal isOpen={showSupport} onClose={() => setShowSupport(false)} variant="desktop" />
+            <SupportModal
+              isOpen={showSupport}
+              onClose={() => setShowSupport(false)}
+              variant="desktop"
+              prefillData={supportUserInfo ? { customerId: supportUserInfo.userId, email: supportUserInfo.email, skipToForm: true } : undefined}
+            />
           </Suspense>
         )}
       </div>
