@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, ShieldCheck, Zap, Globe2, Headphones } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Zap, Globe2, Headphones, Landmark, BadgeCheck, Snowflake, FileCheck, Activity } from 'lucide-react';
 import { useMarkets } from '../useMarkets';
 import type { DeskTab } from '../components/DesktopNav';
 import CoinLogo from '../../components/CoinLogo';
@@ -35,6 +35,14 @@ const NEWS = [
   'Cloud Mining adds higher daily yields for VIP members this season',
   'Basonce Alpha season hunt: discover early-stage tokens before they trend',
 ];
+
+const TRUST = [
+  { icon: BadgeCheck, value: '1:1', label: 'Proof Of Reserves' },
+  { icon: Landmark, value: '$500M', label: 'Insurance Fund' },
+  { icon: Snowflake, value: '95%', label: 'Assets In Cold Storage' },
+  { icon: FileCheck, value: 'SOC 2', label: 'Independently Audited' },
+  { icon: Activity, value: '99.99%', label: 'Platform Uptime' },
+] as const;
 
 const TABS = ['Popular', 'New Listing', 'Top Gainers'] as const;
 
@@ -170,6 +178,26 @@ export default function DesktopHome({ user, onNavigate, onAuth, onDeposit }: Des
                 <li key={i} className="text-[#B7BDC6] text-xs leading-relaxed hover:text-white cursor-pointer transition-colors line-clamp-2">{n}</li>
               ))}
             </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* Institutional trust ribbon */}
+      <section className="border-y border-[#1E2329] bg-gradient-to-b from-[#0B0E11] to-[#0E1216]">
+        <div className="max-w-[1600px] mx-auto px-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5">
+            {TRUST.map((it, i) => (
+              <div
+                key={it.label}
+                className={`flex items-center gap-3 py-5 px-5 ${i !== 0 ? 'lg:border-l border-[#1E2329]' : ''}`}
+              >
+                <it.icon className="w-5 h-5 text-[#F0B90B] shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-white font-semibold text-sm leading-tight tabular-nums">{it.value}</div>
+                  <div className="text-[#848E9C] text-[11px] uppercase tracking-wider truncate">{it.label}</div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
