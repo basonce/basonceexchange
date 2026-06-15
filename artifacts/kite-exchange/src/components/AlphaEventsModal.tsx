@@ -1,4 +1,4 @@
-import { X, Gift, Trophy, Zap, TrendingUp, Clock } from 'lucide-react';
+import { X, Gift, Trophy, Rocket, TrendingUp, Clock } from 'lucide-react';
 
 interface AlphaEventsModalProps {
   isOpen: boolean;
@@ -27,7 +27,7 @@ export default function AlphaEventsModal({ isOpen, onClose }: AlphaEventsModalPr
       prize: '100M EQ',
       endDate: '2026-02-20',
       participants: '8,542',
-      icon: Zap,
+      icon: Rocket,
       gradient: 'from-yellow-400 to-orange-500',
       status: 'new'
     },

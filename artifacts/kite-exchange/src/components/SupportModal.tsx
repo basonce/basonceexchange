@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Send, Check, CheckCheck, ChevronRight, Shield, Clock, Star, Zap, MessageCircle, Phone, HelpCircle, Lock, Globe } from 'lucide-react';
+import { X, Send, Check, CheckCheck, ChevronRight, Shield, Clock, Star, Activity, MessageCircle, Phone, HelpCircle, Lock, Globe } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { detectUserCountry } from '../lib/geolocation';
 import { assignBestAgent, getAgentStats, type Agent } from '../lib/agent-assignment';
@@ -75,7 +75,7 @@ const FAQ_ITEMS = [
   { icon: '📤', q: 'How Long Do Withdrawals Take?', a: 'Withdrawals are processed within 1-24 hours after identity verification. Network fees apply.' },
   { icon: '🔐', q: 'How Do I Secure My Account?', a: 'Enable 2FA in Security Settings, use a strong unique password, and never share your credentials.' },
   { icon: '📈', q: 'What Is Futures Trading?', a: 'Futures trading lets you trade with leverage up to 125x. Always use stop-loss to manage risk.' },
-  { icon: '⚡', q: 'How Does Mining Work?', a: 'Purchase mining equipment to earn EQ tokens passively. Higher tier machines yield more rewards.' },
+  { icon: '•', q: 'How Does Mining Work?', a: 'Purchase mining equipment to earn EQ tokens passively. Higher tier machines yield more rewards.' },
 ];
 
 const QUICK_REPLIES = [
@@ -1015,7 +1015,7 @@ function FormScreen({ customerId, setCustomerId, email, setEmail, isLoading, age
               </>
             ) : (
               <>
-                <Zap className="w-4 h-4" />
+                <Activity className="w-4 h-4" />
                 Start Live Chat
               </>
             )}

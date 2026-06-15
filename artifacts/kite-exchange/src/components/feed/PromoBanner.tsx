@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Trophy, Zap, Gift, TrendingUp, Star, Shield, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trophy, Gauge, Gift, TrendingUp, Star, Shield, Users } from 'lucide-react';
 import CampaignDetailModal, { type CampaignDetailData } from '../CampaignDetailModal';
 
 interface PromoItem {
@@ -58,7 +58,7 @@ const PROMO_ITEMS: PromoItem[] = [
   {
     id: 'p2',
     type: 'fee',
-    icon: <Zap className="w-6 h-6" />,
+    icon: <Gauge className="w-6 h-6" />,
     title: 'Zero Maker Fee This Week',
     subtitle: 'Trade futures with 0% maker fee',
     highlight: '0% FEE',

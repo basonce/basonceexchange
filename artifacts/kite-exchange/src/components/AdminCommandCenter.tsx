@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, Users, DollarSign, AlertTriangle, Shield, Zap, RefreshCw, Eye, Award, Wallet, Activity } from 'lucide-react';
+import { TrendingUp, Users, DollarSign, AlertTriangle, Shield, Gauge, RefreshCw, Eye, Award, Wallet, Activity } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import ExchangeModeControl from './ExchangeModeControl';
 
@@ -340,7 +340,7 @@ export default function AdminCommandCenter() {
       {/* Quick Actions */}
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl p-4 text-white">
         <div className="flex items-center space-x-2 mb-4">
-          <Zap className="w-5 h-5" />
+          <Gauge className="w-5 h-5" />
           <h3 className="font-bold">Hızlı İşlemler</h3>
         </div>
 

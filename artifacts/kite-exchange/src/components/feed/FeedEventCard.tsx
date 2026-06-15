@@ -1,10 +1,10 @@
-import { Calendar, Trophy, Gift, Zap } from 'lucide-react';
+import { Calendar, Trophy, Gift, Gauge } from 'lucide-react';
 
 interface FeedEventCardProps {
   content: string;
 }
 
-const EVENT_ICONS = [Calendar, Trophy, Gift, Zap];
+const EVENT_ICONS = [Calendar, Trophy, Gift, Gauge];
 const EVENT_GRADIENTS = [
   'from-[#F0B90B]/20 to-[#F0B90B]/5',
   'from-[#0ECB81]/20 to-[#0ECB81]/5',

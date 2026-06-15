@@ -2,7 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Crown, Users, UserPlus, Baby, Rocket, Gift, Pickaxe, Gem,
   CreditCard, Image as ImageIcon, Trophy, Wallet, Boxes, GraduationCap, HeartHandshake, ShieldCheck,
-  TrendingUp, Shield, Zap, Globe, BookOpen, Lock, Coins, Banknote, Palette,
+  TrendingUp, Shield, Gauge, Globe, BookOpen, Lock, Coins, Banknote, Palette,
   LineChart, Percent, Building2, Headphones, CheckCircle2, Layers, Cpu, Smartphone, Brain, Star,
   BarChart3, Heart, Landmark, PiggyBank, ScrollText, FileCheck2, BadgeCheck, Globe2,
   ArrowLeftRight, KeyRound, Send, Store, Workflow, Bot, Timer, Library, GraduationCap as Grad,
@@ -289,7 +289,7 @@ export const MORE_PAGES: Record<string, MorePageConfig> = {
       { icon: TrendingUp, title: 'Higher income', desc: 'Optimized FPPS reward distribution helps you earn more from every share.' },
       { icon: Percent, title: 'Low fees', desc: 'Competitive pool fees keep more of the rewards in your pocket.' },
       { icon: BarChart3, title: 'Mining dashboard', desc: 'Monitor coins, algorithms, active workers, hashrate and earnings in real time.' },
-      { icon: Zap, title: 'Transaction accelerator', desc: 'Speed up stuck BTC transactions with the built-in accelerator.' },
+      { icon: Gauge, title: 'Transaction accelerator', desc: 'Speed up stuck BTC transactions with the built-in accelerator.' },
     ],
     steps: [
       { title: 'Create a worker', desc: 'Set up a mining account and add your worker.' },
@@ -511,7 +511,7 @@ export const MORE_PAGES: Record<string, MorePageConfig> = {
     featuresTitle: 'Build the next big trend on Chain',
     featuresSubtitle: 'Everything builders need, with the performance users expect.',
     features: [
-      { icon: Zap, title: 'Low latency', desc: 'Sub-second finality and high throughput for the most demanding apps.' },
+      { icon: Gauge, title: 'Low latency', desc: 'Sub-second finality and high throughput for the most demanding apps.' },
       { icon: Percent, title: 'Low gas fees', desc: 'Transactions cost a fraction of a cent, even at scale.' },
       { icon: Shield, title: 'MEV-protected', desc: 'Built-in protection shields users from front-running and sandwich attacks.' },
       { icon: Cpu, title: 'EVM compatible', desc: 'Deploy Solidity contracts with the tools you already use.' },

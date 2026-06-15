@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight, Clock, Gift, Trophy, TrendingUp, Users, Star, CheckCircle, Info, Zap, Coins, Check, Loader2, AlertCircle, Lock, CheckCircle2 } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Clock, Gift, Trophy, TrendingUp, Users, Star, CheckCircle, Info, Coins, Check, Loader2, AlertCircle, Lock, CheckCircle2 } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { getUserRestrictions } from '../lib/user-restrictions';
 import type { CampaignDetailData } from './CampaignDetailModal';

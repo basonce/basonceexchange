@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, ArrowDownCircle, CreditCard, Users, Zap, Loader2 } from 'lucide-react';
+import { X, ArrowDownCircle, CreditCard, Users, Gauge, Loader2 } from 'lucide-react';
 import { RealDepositModal } from './RealDepositModal';
 import P2PModal from './P2PModal';
 import BuyCryptoModal from './BuyCryptoModal';
@@ -108,7 +108,7 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
       action: () => setShowP2P(true)
     },
     {
-      icon: Zap,
+      icon: Gauge,
       title: 'Instant Crypto Deposit',
       description: 'Pay with BTC, ETH, USDT, BNB, SOL & 200+ coins. Auto credit on confirmation.',
       action: () => { setShowInstant(true); setError(null); }

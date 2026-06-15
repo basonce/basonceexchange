@@ -100,7 +100,7 @@ Basonce Exchange is distributing 110,000,000 PUMP tokens and 920,000 KITE tokens
 Rewards distributed within 14 days of campaign end. Check your wallet section.`,
       },
       {
-        id: 2, title: '⚡ Zero-Fee Trading Week — All Spot Pairs',
+        id: 2, title: 'Zero-Fee Trading Week — All Spot Pairs',
         date: 'Apr 1–7, 2026',
         body: `To celebrate our growing community, Basonce Exchange is offering zero trading fees on all spot pairs for one full week.
 

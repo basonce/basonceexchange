@@ -3,7 +3,7 @@ import {
   ArrowLeft, Search, ArrowLeftRight, ShoppingCart, Wallet,
   FileText, Rocket, Download, UserPlus, CreditCard, ClipboardList,
   Shield, RefreshCw, TrendingUp, Bot, BarChart2, Copy,
-  Users, Repeat, BarChart, Coins, Cpu, Zap, Percent,
+  Users, Repeat, BarChart, Coins, Cpu, Percent,
   PiggyBank, Trophy, Gift, BookOpen, Package, Headphones,
   AlertTriangle, CheckCircle, HelpCircle, HandMetal,
   Layers, Star, Grid, Gem, Activity, DollarSign,
@@ -92,7 +92,7 @@ const SECTIONS: ServiceSection[] = [
     items: [
       { icon: Coins, label: 'ETH Staking', key: 'eth-staking', accent: true },
       { icon: PiggyBank, label: 'Earn', key: 'earn' },
-      { icon: Zap, label: 'SOL Staking', key: 'sol-staking', accent: true },
+      { icon: Coins, label: 'SOL Staking', key: 'sol-staking', accent: true },
       { icon: Cpu, label: 'Smart Arbitrage', key: 'arbitrage', accent: true },
       { icon: DollarSign, label: 'On-chain Yields', key: 'onchain' },
       { icon: Trophy, label: 'Yield Arena', key: 'yield-arena', accent: true },

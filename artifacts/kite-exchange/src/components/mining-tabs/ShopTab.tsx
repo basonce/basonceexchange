@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Star, TrendingUp, Zap, Clock, Users, ShoppingCart, AlertCircle, Check, X, Timer, Gem, Trophy, Target, Crown, Flame, ArrowRight, Shield } from 'lucide-react';
+import { Star, TrendingUp, Pickaxe, Rocket, Clock, Users, ShoppingCart, AlertCircle, Check, X, Timer, Gem, Trophy, Target, Crown, Flame, ArrowRight, Shield } from 'lucide-react';
 import { supabase, getCurrentUser } from '../../lib/supabase';
 import { globalMiningStats } from '../../lib/global-mining-stats';
 import { chestForName, type ShopChest } from '../../lib/shopChests';
@@ -658,7 +658,7 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-cyan-500/0 group-hover/stat:from-blue-500/20 group-hover/stat:to-cyan-500/20 transition-all duration-500"></div>
                 <div className="relative">
                   <div className="flex items-center gap-1.5 mb-0.5">
-                    <Zap className="w-3 h-3 text-blue-400 group-hover/stat:animate-pulse" />
+                    <Pickaxe className="w-3 h-3 text-blue-400 group-hover/stat:animate-pulse" />
                     <span className="text-[10px] font-bold text-blue-400">Hash Power</span>
                   </div>
                   <div className="text-lg font-black text-white">{item.hash_rate}</div>
@@ -936,7 +936,7 @@ export default function ShopTab({ onPurchaseComplete }: { onPurchaseComplete?: (
             </div>
 
             <div className="bg-gradient-to-r from-yellow-500/10 via-orange-500/10 to-yellow-500/10 border border-yellow-500/20 rounded-xl px-3 py-2.5 flex items-center gap-2">
-              <Zap className="w-4 h-4 text-yellow-400 animate-pulse" />
+              <Rocket className="w-4 h-4 text-yellow-400 animate-pulse" />
               <span className="text-xs text-yellow-400 font-bold">
                 {upgradesLast10Min} users upgraded in last 10 min
               </span>

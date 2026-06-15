@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Gift, Users, Clock, Zap, TrendingUp, Star, Award, Shield, Flame, Trophy, Coins, BarChart3, ChevronRight } from 'lucide-react';
+import { Gift, Users, Clock, Pickaxe, TrendingUp, Star, Award, Shield, Flame, Trophy, Coins, BarChart3, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import CampaignDetailModal, { type CampaignDetailData } from './CampaignDetailModal';
 
@@ -88,7 +88,7 @@ function getCampaignIcon(type: string, className = 'w-5 h-5') {
   switch (type) {
     case 'deposit':  return <Shield className={className} />;
     case 'referral': return <Users className={className} />;
-    case 'mining':   return <Zap className={className} />;
+    case 'mining':   return <Pickaxe className={className} />;
     case 'social':   return <Star className={className} />;
     case 'trading':  return <BarChart3 className={className} />;
     default:         return <TrendingUp className={className} />;
@@ -247,7 +247,7 @@ const TYPE_FILTERS = [
   { id: 'trading',  label: 'Trading',  icon: <BarChart3 className="w-3 h-3" /> },
   { id: 'deposit',  label: 'Deposit',  icon: <Shield className="w-3 h-3" /> },
   { id: 'referral', label: 'Referral', icon: <Users className="w-3 h-3" /> },
-  { id: 'mining',   label: 'Mining',   icon: <Zap className="w-3 h-3" /> },
+  { id: 'mining',   label: 'Mining',   icon: <Pickaxe className="w-3 h-3" /> },
   { id: 'social',   label: 'Social',   icon: <Star className="w-3 h-3" /> },
 ];
 

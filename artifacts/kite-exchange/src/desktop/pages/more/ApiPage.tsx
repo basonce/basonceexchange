@@ -3,7 +3,7 @@ import {
   Code2,
   Webhook,
   Network,
-  Zap,
+  Gauge,
   Lock,
   Activity,
   Terminal,
@@ -136,7 +136,7 @@ export default function ApiPage({ onNavigate }: MorePageProps) {
               </button>
             </div>
             <div className="mt-8 flex flex-wrap gap-6 text-sm text-[#848E9C]">
-              <span className="flex items-center gap-2"><Zap className="w-4 h-4 text-[#0ECB81]" /> 99.99% uptime</span>
+              <span className="flex items-center gap-2"><Gauge className="w-4 h-4 text-[#0ECB81]" /> 99.99% uptime</span>
               <span className="flex items-center gap-2"><Lock className="w-4 h-4 text-[#0ECB81]" /> HMAC + Ed25519 keys</span>
               <span className="flex items-center gap-2"><Activity className="w-4 h-4 text-[#0ECB81]" /> Real-time streams</span>
             </div>

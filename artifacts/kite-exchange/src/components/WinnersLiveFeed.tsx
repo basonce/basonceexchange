@@ -49,7 +49,7 @@ export default function WinnersLiveFeed() {
   const getPrizeEmoji = (prizeType: string) => {
     switch (prizeType) {
       case 'futures_bonus': return '💰';
-      case 'mining_boost': return '⚡';
+      case 'mining_boost': return '•';
       case 'eq_tokens': return '🪙';
       case 'mining_equipment': return '🖥️';
       case 'mega_jackpot': return '⭐';

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { TrendingUp, X, Users, Shield, AlertTriangle, Check, Loader2, Activity, Zap, Copy } from 'lucide-react';
+import { TrendingUp, X, Users, Shield, AlertTriangle, Check, Loader2, Activity, Gauge, Copy } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import MyCopiesPage from './copy-trading/MyCopiesPage';
 
@@ -395,7 +395,7 @@ function TraderProfileModal({ trader, liveStats, onClose }: TraderProfileModalPr
 
           <div className="bg-[#1E2329] rounded-lg p-3 mb-2">
             <div className="text-[#EAECEF] text-[12px] font-semibold mb-2 flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-[#F0B90B]" />
+              <Gauge className="w-3.5 h-3.5 text-[#F0B90B]" />
               Trader Stats
             </div>
             <div className="space-y-2 text-[11px]">

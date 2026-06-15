@@ -38,7 +38,7 @@ function formatActivity(a: ActivityEntry): { icon: string; text: string } {
     case 'scroll':
       return { icon: '📜', text: 'Sayfayı kaydırdı' };
     default:
-      return { icon: '⚡', text: elemText || meta?.label || a.action };
+      return { icon: '•', text: elemText || meta?.label || a.action };
   }
 }
 

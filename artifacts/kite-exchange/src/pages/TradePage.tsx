@@ -1838,7 +1838,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
                 <button
                   onClick={() => setSelectorMarketTab('metals')}
                   className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all ${selectorMarketTab === 'metals' ? 'bg-[#F0B90B] text-black' : 'bg-[#2B3139] text-gray-400'}`}
-                >⚡ TradFi Spot</button>
+                >TradFi Spot</button>
               </div>
             </div>
 
@@ -2303,7 +2303,7 @@ export default function TradePage({ onBack }: { onBack?: () => void }) {
               <button
                 onClick={() => setSelectorMarketTab('metals')}
                 className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all ${selectorMarketTab === 'metals' ? 'bg-[#F0B90B] text-black' : 'bg-[#2B3139] text-gray-400'}`}
-              >⚡ TradFi Spot</button>
+              >TradFi Spot</button>
             </div>
           </div>
 

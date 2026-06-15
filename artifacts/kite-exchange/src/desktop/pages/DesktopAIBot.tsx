@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import {
   Bot, Play, Pause, RefreshCw, Settings, AlertCircle, Wifi, ChevronLeft,
-  Wallet, Target, TrendingUp, TrendingDown, Award, Zap, Activity, ShieldCheck,
+  Wallet, Target, TrendingUp, TrendingDown, Award, Activity, ShieldCheck,
   Cpu, LineChart, Gauge, BarChart3, Radar, Boxes, ArrowUpRight,
 } from 'lucide-react';
 import BotSetupScreen from '../../components/ai-bot/BotSetupScreen';
@@ -55,9 +55,7 @@ function BotStyles() {
       @keyframes liveDot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
       @keyframes iconOrbit { to { transform: rotate(360deg); } }
       @keyframes iconCore { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .7; transform: scale(.78); } }
-      @keyframes boltGlow { 0%,100% { opacity: .35; transform: scale(.85); } 50% { opacity: .9; transform: scale(1.18); } }
-      @keyframes boltSheen { 0% { transform: translateX(-10px); } 100% { transform: translateX(34px); } }
-      @keyframes boltKick { 0%,88%,100% { transform: scale(1) rotate(0deg); } 92% { transform: scale(1.18) rotate(-6deg); } 96% { transform: scale(1.18) rotate(6deg); } }
+      @keyframes glowPulse { 0%,100% { opacity: .35; transform: scale(.85); } 50% { opacity: .9; transform: scale(1.18); } }
       @keyframes iconOrbitRev { to { transform: rotate(-360deg); } }
       @keyframes barPulse { 0%,100% { transform: scaleY(.32); } 50% { transform: scaleY(1); } }
       @keyframes flameFlicker { 0%,100% { transform: scale(1) translateY(0); opacity: .9; } 45% { transform: scale(1.14) translateY(-1px); opacity: 1; } 72% { transform: scale(.95) translateY(.5px); opacity: .95; } }
@@ -101,35 +99,6 @@ function AICoreIcon({ size = 16 }: { size?: number }) {
         className="rounded-full bg-gradient-to-br from-[#FFF0BD] via-[#FFD75E] to-[#F0B90B] shadow-[0_0_8px_2px_rgba(240,185,11,0.75)]"
         style={{ width: size * 0.5, height: size * 0.5, animation: 'iconCore 1.6s ease-in-out infinite' }}
       />
-    </span>
-  );
-}
-
-/* Energized launch bolt for the primary CTA — soft glow pulse, light sheen sweep, periodic kick */
-function LaunchBoltIcon({ size = 20 }: { size?: number }) {
-  const uid = useId().replace(/:/g, '');
-  const fillId = `boltFill-${uid}`;
-  const clipId = `boltClip-${uid}`;
-  const path = 'M13 2 L4 13.5 H10 L9 22 L20 9.5 H14 Z';
-  return (
-    <span className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
-      <span
-        className="absolute inset-[-3px] rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(0,0,0,0.28), transparent 70%)', animation: 'boltGlow 1.5s ease-in-out infinite' }}
-      />
-      <svg viewBox="0 0 24 24" width={size} height={size} className="relative" style={{ animation: 'boltKick 3.2s ease-in-out infinite', overflow: 'visible' }}>
-        <defs>
-          <linearGradient id={fillId} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#2A1E04" />
-            <stop offset="100%" stopColor="#000000" />
-          </linearGradient>
-          <clipPath id={clipId}><path d={path} /></clipPath>
-        </defs>
-        <path d={path} fill={`url(#${fillId})`} stroke="rgba(0,0,0,0.55)" strokeWidth="0.6" strokeLinejoin="round" />
-        <g clipPath={`url(#${clipId})`}>
-          <rect x="-8" y="-2" width="6" height="28" fill="rgba(255,255,255,0.6)" style={{ animation: 'boltSheen 1.7s ease-in-out infinite' }} />
-        </g>
-      </svg>
     </span>
   );
 }
@@ -221,7 +190,7 @@ function StrategiesEmblem({ size = 24 }: { size?: number }) {
 function AutoProtectIcon({ size = 15 }: { size?: number }) {
   return (
     <span className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
-      <span className="absolute inset-[-2px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(240,185,11,0.4), transparent 70%)', animation: 'boltGlow 1.9s ease-in-out infinite' }} />
+      <span className="absolute inset-[-2px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(240,185,11,0.4), transparent 70%)', animation: 'glowPulse 1.9s ease-in-out infinite' }} />
       <svg viewBox="0 0 24 24" width={size} height={size} className="relative">
         <path d="M12 2 L20 5.2 V11 C20 16 16.4 19.6 12 21.5 C7.6 19.6 4 16 4 11 V5.2 Z" fill="rgba(240,185,11,0.18)" stroke="#F0B90B" strokeWidth={1.6} strokeLinejoin="round" />
         <path d="M8.4 12 l2.5 2.5 L15.8 8.8" fill="none" stroke="#F0B90B" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
@@ -834,7 +803,7 @@ const TRUST_STATS = [
   { icon: Gauge, label: 'Indicators', value: '12+' },
   { icon: Radar, label: 'Scanning', value: '24/7' },
   { icon: Boxes, label: 'Strategies', value: '4' },
-  { icon: Zap, label: 'Signal Latency', value: '<50ms' },
+  { icon: Gauge, label: 'Signal Latency', value: '<50ms' },
 ];
 
 function GetStarted({ onSetup, locked }: { onSetup: () => void; locked?: boolean }) {
@@ -880,7 +849,7 @@ function GetStarted({ onSetup, locked }: { onSetup: () => void; locked?: boolean
 
             <div className="flex flex-wrap items-center gap-3">
               <button onClick={onSetup} className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl bg-gradient-to-br from-[#F0B90B] to-[#D9A400] text-black font-bold text-base hover:brightness-105 transition-all shadow-[0_14px_40px_-12px_rgba(240,185,11,0.8)]">
-                <LaunchBoltIcon size={20} /> {locked ? 'Get Started' : 'Configure Bot'}
+                <Bot className="w-5 h-5" /> {locked ? 'Get Started' : 'Configure Bot'}
               </button>
               {locked && <span className="text-xs text-gray-500">Sign in to launch your bot</span>}
             </div>

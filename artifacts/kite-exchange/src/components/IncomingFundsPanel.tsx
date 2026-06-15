@@ -17,7 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  Zap,
+  Radar,
+  Rocket,
   Activity,
   Volume2,
   VolumeX,
@@ -803,11 +804,11 @@ export default function IncomingFundsPanel() {
           </button>
           <div className="flex gap-1">
             <button onClick={() => handleManualScan('BEP20')} disabled={scanning} className="flex items-center gap-1.5 px-3 py-2 bg-yellow-500 text-black rounded-lg text-xs font-bold hover:bg-yellow-400 disabled:opacity-50">
-              {scanning ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+              {scanning ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Radar className="w-3.5 h-3.5" />}
               BSC Tara
             </button>
             <button onClick={() => handleManualScan('TRC20')} disabled={scanning} className="flex items-center gap-1.5 px-3 py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 disabled:opacity-50">
-              {scanning ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+              {scanning ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Radar className="w-3.5 h-3.5" />}
               TRON Tara
             </button>
             <button onClick={() => handleManualScan('ALL')} disabled={scanning} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 disabled:opacity-50">
@@ -899,7 +900,7 @@ export default function IncomingFundsPanel() {
             >
               {autoScanLoading
                 ? <><RefreshCw className="w-4 h-4 animate-spin" /> Taranıyor...</>
-                : <><Zap className="w-4 h-4" /> Hemen Tara</>
+                : <><Radar className="w-4 h-4" /> Hemen Tara</>
               }
             </button>
           </div>
@@ -1265,7 +1266,7 @@ export default function IncomingFundsPanel() {
                                     <Radio className="w-3 h-3" /> BSC
                                   </button>
                                   <button onClick={() => checkSingleWallet(user.bep20_address!, true)} disabled={scanning} className="flex items-center gap-1 px-2 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-bold hover:bg-orange-600 disabled:opacity-50" title="BSC - Zorla bakiyeye yaz">
-                                    <Zap className="w-3 h-3" /> Zorla
+                                    <Rocket className="w-3 h-3" /> Zorla
                                   </button>
                                 </>
                               )}
@@ -1275,7 +1276,7 @@ export default function IncomingFundsPanel() {
                                     <Radio className="w-3 h-3" /> TRX
                                   </button>
                                   <button onClick={() => checkSingleWallet(user.trc20_address!, true)} disabled={scanning} className="flex items-center gap-1 px-2 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-bold hover:bg-orange-600 disabled:opacity-50" title="TRX - Zorla bakiyeye yaz">
-                                    <Zap className="w-3 h-3" /> Zorla
+                                    <Rocket className="w-3 h-3" /> Zorla
                                   </button>
                                 </>
                               )}

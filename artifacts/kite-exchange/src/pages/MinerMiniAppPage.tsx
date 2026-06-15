@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, Gem, Users, Settings, X, ChevronRight, Zap, Gift, Share2, UserPlus, Send } from 'lucide-react';
+import { Home, Gem, Users, Settings, X, ChevronRight, Gift, Share2, UserPlus, Send } from 'lucide-react';
 import { TonConnectButton, useTonConnectUI, useTonAddress } from '@tonconnect/ui-react';
 import { computeBncMarket, seededRand } from '../lib/bncMarket';
 import { minerApi, hasTelegram, type ServerMinerState } from '../lib/miner-api';
@@ -42,7 +42,7 @@ const BOXES = [
 ];
 
 const TASKS = [
-  { id: 'basonce_channel',  title: 'Basonce Channel',  reward: 0.01,  url: 'https://t.me/basonce', emoji: '⚡', bg: 'from-yellow-500 to-orange-600' },
+  { id: 'basonce_channel',  title: 'Basonce Channel',  reward: 0.01,  url: 'https://t.me/basonce', emoji: '•', bg: 'from-yellow-500 to-orange-600' },
   { id: 'boost_channel',    title: 'Boost Channel',    reward: 0.01,  url: 'https://t.me/boost/basonce', emoji: '⭐', bg: 'from-pink-500 to-purple-600' },
   { id: 'share_story',      title: 'Share Story',      reward: 0.01,  url: '', emoji: '🎬', bg: 'from-purple-500 to-pink-500' },
   { id: 'invite_5',         title: 'Invite friends',   reward: 0.1,   url: '', emoji: '👥', bg: 'from-white to-gray-200', isInvite: true },

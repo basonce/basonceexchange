@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, Zap, Settings, Gift, Link, Smartphone, Shield, Building2, Users, Crown, ChevronDown, ChevronUp, Pin } from 'lucide-react';
+import { Bell, Gauge, Settings, Gift, Link, Smartphone, Shield, Building2, Users, Crown, ChevronDown, ChevronUp, Pin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface Announcement {
@@ -17,9 +17,9 @@ interface Announcement {
 function getIcon(iconType: string, color: string) {
   const cls = `w-5 h-5`;
   const map: Record<string, JSX.Element> = {
-    zap: <Zap className={cls} />,
+    zap: <Gauge className={cls} />,
     settings: <Settings className={cls} />,
-    trending: <Zap className={cls} />,
+    trending: <Gauge className={cls} />,
     gift: <Gift className={cls} />,
     link: <Link className={cls} />,
     smartphone: <Smartphone className={cls} />,

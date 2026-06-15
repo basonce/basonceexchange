@@ -172,7 +172,7 @@ export const STATIC_MOCK_TOKENS: AlphaToken[] = [
   mockToken('MINDMELD',   'MindMeld',    'MELD',      'AI',     'Base',    45,  4_100_000,   76_000,  1_890,  18.3,  410, L.MINDMELD),
   mockToken('DEEPSEEK',   'DeepSeekAI',  'DSK',       'AI',     'BNC',     67, 12_300_000,  234_000,  5_600,  42.7, 1120, L.DEEPSEEK),
   mockToken('JARVIS',     'JarvisAI',    'JRVIS',     'AI',     'Ethereum',78,  6_800_000,  143_000,  3_200,  63.9, 1440, L.JARVIS),
-  mockToken('AIZAP',      'AI Zap',      'AIZAP',     'AI',     'BNC',     58,  5_800_000,  108_000,  2_600,  25.3,  620, L.AIZAP),
+  mockToken('AIZAP',      'AI Pulse',    'AIZAP',     'AI',     'BNC',     58,  5_800_000,  108_000,  2_600,  25.3,  620, L.AIZAP),
   mockToken('AGENTX',     'AgentX',      'AGNTX',     'AI',     'BNC',     77, 13_200_000,  248_000,  5_900,  56.8, 1490, L.AGENTX),
 
   // ── Gaming ────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { X, RefreshCw, AlertTriangle, Copy, Check, Zap, Clock, Eye } from 'lucide-react';
+import { X, RefreshCw, AlertTriangle, Copy, Check, Activity, Clock, Eye } from 'lucide-react';
 
 interface AnonSession {
   id: string;
@@ -387,7 +387,7 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
                 copied ? 'bg-green-500 text-white' : 'bg-[#F0B90B] hover:bg-yellow-400 text-black'
               }`}
             >
-              {copied ? <><Check className="w-4 h-4" /> Kopyalandı! Ctrl+V → Ctrl+Enter</> : <>⚡ Activity Log SQL Kopyala + Aç</>}
+              {copied ? <><Check className="w-4 h-4" /> Kopyalandı! Ctrl+V → Ctrl+Enter</> : <>Activity Log SQL Kopyala + Aç</>}
             </button>
           </div>
 
@@ -675,7 +675,7 @@ export default function LiveActivityPanel({ onBadgeChange }: { onBadgeChange?: (
 
                   <div className="px-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <Zap className="w-3.5 h-3.5 text-[#F0B90B]" />
+                      <Activity className="w-3.5 h-3.5 text-[#F0B90B]" />
                       <p className="text-[10px] font-black text-gray-600 uppercase tracking-wider">Tüm Hareketler — En Yeni Önce</p>
                     </div>
                     <div className="space-y-1">

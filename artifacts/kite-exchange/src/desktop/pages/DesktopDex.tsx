@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Gem, Zap, ShieldCheck, Activity, Wallet, ArrowUpRight } from 'lucide-react';
+import { Gem, Gauge, ShieldCheck, Activity, Wallet, ArrowUpRight } from 'lucide-react';
 import HomeBDexList from '../../components/HomeBDexList';
 import BDexTradePage, { type BDexToken } from '../../pages/BDexTradePage';
 
@@ -17,7 +17,7 @@ const FEATURES: { icon: typeof Gem; title: string; desc: string }[] = [
     desc: 'Real-time pool data sourced directly from GeckoTerminal on the BNB Smart Chain.',
   },
   {
-    icon: Zap,
+    icon: Gauge,
     title: 'High-Volume Pairs',
     desc: 'Trade the most liquid BSC tokens with professional candlestick charts and depth.',
   },

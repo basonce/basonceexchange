@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Copy, Users, DollarSign, TrendingUp, TrendingDown, Search, Pause, Edit2,
-  Trash2, Plus, X, Save, RefreshCw, Zap,
+  Trash2, Plus, X, Save, RefreshCw, Rocket,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -415,7 +415,7 @@ export default function CopyTradingAdminPanel() {
                               className="p-1.5 hover:bg-yellow-50 rounded text-yellow-600"
                               title="Müdahale Et"
                             >
-                              <Zap className="w-4 h-4" />
+                              <Rocket className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => stopCopy(c.id)}
@@ -495,7 +495,7 @@ function InterventionModal({
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <h3 className="font-bold text-gray-900 flex items-center gap-2">
-            <Zap className="w-5 h-5 text-yellow-500" /> Müdahale: {userName}
+            <Rocket className="w-5 h-5 text-yellow-500" /> Müdahale: {userName}
           </h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
         </div>

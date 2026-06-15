@@ -304,7 +304,7 @@ export const STRATEGY_CONFIGS = {
   scalper: {
     label: 'Scalper',
     description: '1-5 min trades, high frequency, small profits',
-    icon: 'Zap',
+    icon: 'Gauge',
     color: '#F59E0B',
     timeframe: '5m',
     leverage: 10,

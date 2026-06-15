@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Zap, Clock, Download, Lock, Gem, Lightbulb } from 'lucide-react';
+import { Pickaxe, Clock, Download, Lock, Gem, Lightbulb } from 'lucide-react';
 import { supabase, getCurrentUser } from '../../lib/supabase';
 import { getUserRestrictions } from '../../lib/user-restrictions';
 import { EarnQuestPriceManager } from '../../lib/earnquest-price';
@@ -664,14 +664,14 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
       const usedHours = miner.used_mining_seconds / 3600;
 
       const message = isCPUMiner && miner.used_mining_seconds > 0
-        ? `⚡ Resume Mining?\n\n` +
+        ? `Resume Mining?\n\n` +
           `${miner.icon} ${miner.name}\n` +
           `Already Used: ${usedHours.toFixed(1)}h / ${miner.mining_duration_hours}h\n` +
           `Remaining: ${remainingHours.toFixed(1)}h\n` +
           `Est. Earnings: $${remainingEarnings.toFixed(2)} USDT\n` +
           `\n⚠️ Time-limited equipment: Use your remaining time wisely!\n` +
           `Collect earnings when timer ends.`
-        : `⚡ Start Mining?\n\n` +
+        : `Start Mining?\n\n` +
           `${miner.icon} ${miner.name}\n` +
           `Duration: ${miner.mining_duration_hours} hour${miner.mining_duration_hours > 1 ? 's' : ''}\n` +
           `Earnings: $${(miner.daily_earning_usdt * (miner.mining_duration_hours / 24)).toFixed(2)} USDT\n` +
@@ -871,7 +871,7 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
         <div className="max-w-2xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Zap className="w-6 h-6 text-[#F0B90B]" />
+              <Pickaxe className="w-6 h-6 text-[#F0B90B]" />
               <h1 className="text-xl font-bold text-white">Mining</h1>
               <button
                 onClick={() => {

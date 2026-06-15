@@ -1,7 +1,7 @@
-import { Zap, Clock, TrendingUp, Shield, Globe } from 'lucide-react';
+import { Radio, Clock, TrendingUp, Shield, Globe } from 'lucide-react';
 
 const CATEGORIES = [
-  { label: 'BREAKING', color: '#F6465D', icon: Zap },
+  { label: 'BREAKING', color: '#F6465D', icon: Radio },
   { label: 'MARKET', color: '#F0B90B', icon: TrendingUp },
   { label: 'REGULATION', color: '#3B82F6', icon: Shield },
   { label: 'TECHNOLOGY', color: '#0ECB81', icon: Globe },

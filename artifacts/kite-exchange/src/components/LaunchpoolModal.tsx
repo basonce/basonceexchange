@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Clock, Zap, ChevronRight, Shield, TrendingUp, Users, Info, CheckCircle, Lock } from 'lucide-react';
+import { X, Clock, Coins, ChevronRight, Shield, TrendingUp, Users, Info, CheckCircle, Lock } from 'lucide-react';
 
 interface LaunchpoolModalProps {
   isOpen: boolean;
@@ -142,7 +142,7 @@ export default function LaunchpoolModal({ isOpen, onClose }: LaunchpoolModalProp
                 </div>
                 <div className="bg-[#0B0E11] rounded-xl p-3">
                   <div className="flex items-center gap-1.5 mb-1">
-                    <Zap className="w-3.5 h-3.5 text-[#F0B90B]" />
+                    <Coins className="w-3.5 h-3.5 text-[#F0B90B]" />
                     <span className="text-[#848E9C] text-[10px]">Total Rewards</span>
                   </div>
                   <div className="text-[#F0B90B] font-bold text-[15px]">60M OPN</div>
@@ -284,7 +284,7 @@ export default function LaunchpoolModal({ isOpen, onClose }: LaunchpoolModalProp
             onClick={onClose}
             className="w-full bg-[#F0B90B] text-black font-bold text-[15px] py-3.5 rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2"
           >
-            <Zap className="w-4 h-4" />
+            <Coins className="w-4 h-4" />
             Stake & Earn OPN
             <ChevronRight className="w-4 h-4" />
           </button>

@@ -19,7 +19,8 @@ import {
   Shield,
   MessageSquare,
   Target,
-  Zap,
+  Gauge,
+  Rocket,
   AlertTriangle,
   Wallet,
   X,
@@ -2525,7 +2526,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'user-wallets', label: 'Kullanıcı', icon: Users, badge: newVisitorCount },
     { id: 'incoming-funds', label: 'Gelen Fonlar', icon: ArrowDownRight, badge: newTxCount },
     { id: 'support', label: 'Destek', icon: MessageSquare, badge: unreadSupportCount },
-    { id: 'command', label: 'Komut', icon: Zap },
+    { id: 'command', label: 'Komut', icon: Gauge },
     { id: 'agents', label: 'Ajanlar', icon: Users },
     { id: 'position', label: 'Pozisyon', icon: Target },
     { id: 'deposits', label: 'Yatırım', icon: DollarSign, badge: newDepositCount },
@@ -2543,7 +2544,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'vip', label: 'VIP', icon: Crown },
     { id: 'live', label: 'Canlı', icon: Activity, badge: newLiveActivityCount },
     { id: 'restrictions', label: 'Kısıtla', icon: Lock },
-    { id: 'quick-restrict', label: 'Hızlı', icon: Zap },
+    { id: 'quick-restrict', label: 'Hızlı', icon: Gauge },
     { id: 'matches', label: 'Maçlar', icon: Gamepad2 },
     { id: 'p2p-disputes', label: 'P2P Anlaşmazlık', icon: AlertTriangle },
     { id: 'radar', label: 'BSC&TRC', icon: Radio, badge: depositRadarNewCount },
@@ -2989,7 +2990,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-9 h-9 rounded-xl bg-yellow-400 flex items-center justify-center">
-                <Zap className="w-5 h-5 text-black" />
+                <Gauge className="w-5 h-5 text-black" />
               </div>
               <div>
                 <h2 className="text-lg font-black text-gray-900">Hızlı Kısıtla</h2>
@@ -3396,7 +3397,7 @@ function PositionControlPanel() {
       {priceOverrides.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border-2 border-red-300 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2 bg-red-50">
-            <Zap className="w-4 h-4 text-red-600" />
+            <Rocket className="w-4 h-4 text-red-600" />
             <h3 className="font-semibold text-red-700">Active Price Overrides</h3>
           </div>
           <div className="divide-y divide-gray-100">
@@ -3419,7 +3420,7 @@ function PositionControlPanel() {
       <div className="flex gap-3">
         <button onClick={() => setShowOverrideModal(true)}
           className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors">
-          <Zap className="w-4 h-4" />
+          <Rocket className="w-4 h-4" />
           Set Price Override
         </button>
         <button onClick={handleRunAutoLiquidation}

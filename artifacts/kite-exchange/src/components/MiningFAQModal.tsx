@@ -1,4 +1,4 @@
-import { X, ChevronRight, ChevronLeft, Search, Zap, DollarSign, Lock, ShoppingBag, Shield, Gem, ThumbsUp, ThumbsDown, MessageCircle, Ticket, HelpCircle, AlertTriangle, CheckCircle, ArrowRight, Lightbulb } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Search, Pickaxe, Gauge, DollarSign, Lock, ShoppingBag, Shield, Gem, ThumbsUp, ThumbsDown, MessageCircle, Ticket, HelpCircle, AlertTriangle, CheckCircle, ArrowRight, Lightbulb } from 'lucide-react';
 import { useState, useMemo } from 'react';
 
 interface FAQModalProps {
@@ -50,7 +50,7 @@ const categories: Category[] = [
     id: 'how-it-works',
     title: 'How Mining Works',
     subtitle: 'System & mechanics',
-    icon: Zap,
+    icon: Pickaxe,
     color: 'text-yellow-400',
     bg: 'bg-yellow-500/10',
     border: 'border-yellow-500/20',
@@ -122,7 +122,7 @@ const faqData: FAQItem[] = [
         type: 'table',
         rows: [
           { label: '🅰️  Option A — Trading Volume', value: '$50,000 USDT', note: 'Reach $50,000 in cumulative trading volume across spot, futures, and quick trade. Every trade counts toward this number, regardless of profit or loss.' },
-          { label: '🅱️  Option B — Deposit (Faster ⚡)', value: '$250 USDT', note: 'Make at least $250 USDT in confirmed external deposits via BEP20, TRC20, or ERC20. A single $250 deposit instantly unlocks your entire balance — RECOMMENDED for fastest unlock.' }
+          { label: '🅱️  Option B — Deposit (Faster)', value: '$250 USDT', note: 'Make at least $250 USDT in confirmed external deposits via BEP20, TRC20, or ERC20. A single $250 deposit instantly unlocks your entire balance — RECOMMENDED for fastest unlock.' }
         ]
       },
       {
@@ -148,7 +148,7 @@ const faqData: FAQItem[] = [
       },
       {
         type: 'success',
-        title: '⚡ Option B — Recommended for most users',
+        title: 'Option B — Recommended for most users',
         content: 'A $250 deposit is the fastest, simplest path. If you have $54,000+ in mining earnings sitting locked, depositing $250 to unlock all of it is a 216x return on the deposit. Most users complete this in minutes via BEP20 USDT (lowest network fees).'
       },
       {
@@ -766,7 +766,7 @@ function AnswerContent({ blocks }: { blocks: AnswerBlock[] }) {
             <div key={i} className="bg-[#F0B90B]/10 border border-[#F0B90B]/20 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-5 h-5 rounded-full bg-[#F0B90B]/20 flex items-center justify-center flex-shrink-0">
-                  <Zap className="w-3 h-3 text-[#F0B90B]" />
+                  <Gauge className="w-3 h-3 text-[#F0B90B]" />
                 </div>
                 <span className="text-[#F0B90B] text-xs font-semibold uppercase tracking-wide">{block.title}</span>
               </div>
@@ -1004,7 +1004,7 @@ export default function MiningFAQModal({ isOpen, onClose, isDemoMode }: FAQModal
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center">
-                      <Zap className="w-4 h-4 text-yellow-400" />
+                      <Pickaxe className="w-4 h-4 text-yellow-400" />
                     </div>
                     <div className="text-left">
                       <div className="text-white text-sm font-medium">How does mining work?</div>

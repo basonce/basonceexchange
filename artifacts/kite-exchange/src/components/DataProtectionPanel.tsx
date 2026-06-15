@@ -84,7 +84,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   SOFT_DELETE: '🔒',
   AUDIT: '📋',
   SECURITY: '🛡️',
-  TRANSACTION: '⚡',
+  TRANSACTION: '•',
 };
 
 export default function DataProtectionPanel() {

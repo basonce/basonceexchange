@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUpRight, ArrowDownRight, Zap, AlertTriangle, Wallet } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Gauge, AlertTriangle, Wallet } from 'lucide-react';
 import type { AlphaToken } from '../../types/alpha';
 
 interface Props {
@@ -257,7 +257,7 @@ export default function AlphaTradingPanel({ token, onTrade, userBalance = 0, bal
                 : 'bg-[#2B3139] text-gray-600 cursor-not-allowed'
           }`}
         >
-          <Zap className="w-4 h-4" />
+          <Gauge className="w-4 h-4" />
           {insufficientBalance
             ? `Insufficient ${raisedTok}`
             : noBalance && numAmount <= 0

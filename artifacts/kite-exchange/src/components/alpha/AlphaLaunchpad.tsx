@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Plus, TrendingUp, Gem, ThumbsUp, Award, Search, X, Crown, Flame, Zap, Bot, Gamepad2, Layers, Coins, Globe, Activity } from 'lucide-react';
+import { Plus, TrendingUp, Gem, ThumbsUp, Award, Search, X, Crown, Flame, Gauge, Bot, Gamepad2, Layers, Coins, Globe, Activity } from 'lucide-react';
 import type { AlphaToken } from '../../types/alpha';
 import { fetchAlphaTokens } from '../../lib/alpha-service';
 import { STATIC_MOCK_TOKENS, getNextNewListing } from '../../lib/alpha-mock-tokens';
@@ -25,7 +25,7 @@ const CATEGORY_FILTERS = [
   { id: 'DeFi', label: 'DeFi', icon: Coins },
   { id: 'Gaming', label: 'Gaming', icon: Gamepad2 },
   { id: 'Layer2', label: 'L2', icon: Layers },
-  { id: 'RWA', label: 'RWA', icon: Zap },
+  { id: 'RWA', label: 'RWA', icon: Gauge },
 ];
 
 const NETWORKS = ['All', 'BNC', 'Ethereum', 'Solana', 'Base'];

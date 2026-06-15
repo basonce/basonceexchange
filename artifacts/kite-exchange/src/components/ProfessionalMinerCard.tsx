@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Play, Square, TrendingUp, Info } from 'lucide-react';
+import { Play, Square, TrendingUp, Info } from 'lucide-react';
 
 interface MinerCardProps {
   id: string;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, Zap, Star, Award, Target, Flame } from 'lucide-react';
+import { Trophy, Gauge, Star, Award, Target, Flame } from 'lucide-react';
 
 interface Achievement {
   id: string;
@@ -42,7 +42,7 @@ export default function AchievementBadges({
       id: 'speed_demon',
       title: 'Speed Demon',
       description: 'Own 3+ mining devices',
-      icon: <Zap className="w-6 h-6" />,
+      icon: <Gauge className="w-6 h-6" />,
       progress: equipmentCount,
       target: 3,
       reward: '+2 Spins',

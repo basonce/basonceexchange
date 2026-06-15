@@ -1,6 +1,6 @@
 import React, { useState, lazy, Suspense, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, Headphones, X, Gift, Zap, TrendingUp, Star, Users, Plus, PenLine, FileText, Video, Bell, LayoutDashboard, Pencil, Search, MessageSquare, ScanLine } from 'lucide-react';
+import { Menu, Headphones, X, Gift, Pickaxe, TrendingUp, Star, Users, Plus, PenLine, FileText, Video, Bell, LayoutDashboard, Pencil, Search, MessageSquare, ScanLine } from 'lucide-react';
 import MegaphoneAnim from '../components/MegaphoneAnim';
 import HotSearchOverlay from '../components/HotSearchOverlay';
 import MessagesPage from './MessagesPage';
@@ -454,7 +454,7 @@ export default function HomePage({ onNavigate, autoOpenSports }: HomePageProps) 
               trading: <div className="w-10 h-10 rounded-xl bg-[#F0B90B]/20 flex items-center justify-center"><TrendingUp className="w-5 h-5 text-[#F0B90B]" /></div>,
               deposit: <div className="w-10 h-10 rounded-xl bg-[#0ECB81]/20 flex items-center justify-center"><Gift className="w-5 h-5 text-[#0ECB81]" /></div>,
               referral: <div className="w-10 h-10 rounded-xl bg-[#F97316]/20 flex items-center justify-center"><Users className="w-5 h-5 text-[#F97316]" /></div>,
-              mining: <div className="w-10 h-10 rounded-xl bg-[#06B6D4]/20 flex items-center justify-center"><Zap className="w-5 h-5 text-[#06B6D4]" /></div>,
+              mining: <div className="w-10 h-10 rounded-xl bg-[#06B6D4]/20 flex items-center justify-center"><Pickaxe className="w-5 h-5 text-[#06B6D4]" /></div>,
               social: <div className="w-10 h-10 rounded-xl bg-[#EC4899]/20 flex items-center justify-center"><Star className="w-5 h-5 text-[#EC4899]" /></div>,
             };
             const allSlides = [

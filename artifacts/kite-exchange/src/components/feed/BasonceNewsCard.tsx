@@ -1,4 +1,4 @@
-import { Zap, TrendingUp, TrendingDown, Shield, Globe, BarChart2, Cpu, AlertTriangle, Clock, ExternalLink } from 'lucide-react';
+import { Radio, TrendingUp, TrendingDown, Shield, Globe, BarChart2, Cpu, AlertTriangle, Clock, ExternalLink } from 'lucide-react';
 
 export type BasonceCategory = 'BREAKING' | 'ANALYSIS' | 'MARKET' | 'REGULATION' | 'ALERT' | 'ONCHAIN' | 'TECHNOLOGY' | 'DeFi' | 'WHALE';
 
@@ -19,7 +19,7 @@ export interface BasonceNewsItem {
 }
 
 const CATEGORY_META: Record<string, { color: string; icon: any; label: string }> = {
-  BREAKING:   { color: '#F6465D', icon: Zap,           label: 'BREAKING'   },
+  BREAKING:   { color: '#F6465D', icon: Radio,         label: 'BREAKING'   },
   ANALYSIS:   { color: '#F0B90B', icon: BarChart2,     label: 'ANALYSIS'   },
   MARKET:     { color: '#F0B90B', icon: TrendingUp,    label: 'MARKET'     },
   REGULATION: { color: '#3B82F6', icon: Shield,        label: 'REGULATION' },

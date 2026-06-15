@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Eye, EyeOff, ChevronRight, Shield, Lock, ArrowDownLeft,
   ArrowUpRight, RefreshCw, History, Wallet as WalletIcon,
-  TrendingUp, Copy, Check, ExternalLink, Bell, Zap,
+  TrendingUp, Copy, Check, ExternalLink, Bell, Gauge,
   QrCode, AlertTriangle, Info, ArrowRight, Clock
 } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
@@ -490,7 +490,7 @@ export default function Wallet() {
       <div className="px-4 mt-3">
         <div className="rounded-2xl p-4" style={{ background: 'linear-gradient(135deg, #0D1117 0%, #0F1923 100%)', border: '1px solid rgba(240,185,11,0.1)' }}>
           <div className="flex items-center gap-2 mb-3">
-            <Zap className="w-4 h-4 text-[#F0B90B]" />
+            <Gauge className="w-4 h-4 text-[#F0B90B]" />
             <span className="text-white text-sm font-bold">Quick Actions</span>
           </div>
           <div className="grid grid-cols-2 gap-2">

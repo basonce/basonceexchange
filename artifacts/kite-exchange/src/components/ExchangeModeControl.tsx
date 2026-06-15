@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Snowflake, Zap, Power, RefreshCw, ChevronDown, ChevronUp, Activity } from 'lucide-react';
+import { Snowflake, Power, RefreshCw, ChevronDown, ChevronUp, Activity } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { PriceCache } from '../lib/price-cache';
 
@@ -140,7 +140,7 @@ export default function ExchangeModeControl({ compact = false }: ExchangeModeCon
           <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${isFrozen ? 'bg-blue-500/20' : 'bg-emerald-500/20'}`}>
             {isFrozen
               ? <Snowflake size={18} className="text-blue-400 animate-spin" style={{ animationDuration: '3s' }} />
-              : <Zap size={18} className="text-emerald-400" />
+              : <Activity size={18} className="text-emerald-400" />
             }
           </div>
           <div className="text-left">
@@ -251,7 +251,7 @@ export default function ExchangeModeControl({ compact = false }: ExchangeModeCon
                 {saving ? (
                   <RefreshCw size={15} className="animate-spin" />
                 ) : (
-                  <Zap size={15} />
+                  <Activity size={15} />
                 )}
                 {saving ? 'Serbest birakiliyor...' : 'Canli Fiyatlara Don'}
               </button>

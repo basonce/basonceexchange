@@ -1,4 +1,4 @@
-import { TrendingUp, Target, Zap, Award } from 'lucide-react';
+import { TrendingUp, Target, BadgeCheck, Award } from 'lucide-react';
 import { BotStats } from '../../lib/ai-bot-engine';
 
 interface BotStatsPanelProps {
@@ -47,7 +47,7 @@ export default function BotStatsPanel({ stats, simBalance, initialBalance }: Bot
           color="#F0B90B"
         />
         <StatCard
-          icon={Zap}
+          icon={BadgeCheck}
           label="Win Streak"
           value={`${stats.currentStreak}`}
           sub="Consecutive wins"

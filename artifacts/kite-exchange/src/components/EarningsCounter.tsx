@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Zap } from 'lucide-react';
+import { TrendingUp, Coins } from 'lucide-react';
 
 interface EarningsCounterProps {
   balance: number;
@@ -35,7 +35,7 @@ export default function EarningsCounter({ balance, usdBalance, hourlyRate, isAct
       <div className="relative z-10">
         <div className="flex items-center gap-2 mb-2">
           <div className="p-2 bg-green-500/20 rounded-lg">
-            <Zap className="w-5 h-5 text-green-400" />
+            <Coins className="w-5 h-5 text-green-400" />
           </div>
           <div>
             <p className="text-xs text-gray-400 font-medium">Total Balance</p>

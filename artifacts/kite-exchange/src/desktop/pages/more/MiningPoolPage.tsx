@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowRight, ChevronDown, Cpu, Activity, Zap, Loader2 } from 'lucide-react';
+import { ArrowRight, ChevronDown, Cpu, Activity, Gauge, Loader2 } from 'lucide-react';
 import CoinLogo from '../../../components/CoinLogo';
 import type { MorePageProps } from './types';
 import { openAuthRegister } from './types';
@@ -219,7 +219,7 @@ export default function MiningPoolPage({ onNavigate }: MorePageProps) {
         <div className="bg-gradient-to-br from-[#1E2329] to-[#0B0E11] border border-[#2B3139] rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center gap-12">
           <div className="flex-1">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-[#F0B90B]/10 text-[#F0B90B] text-xs font-bold uppercase tracking-wider mb-4">
-              <Zap className="w-4 h-4" /> Tool
+              <Gauge className="w-4 h-4" /> Tool
             </div>
             <h2 className="text-3xl font-bold text-white mb-4">BTC Transaction Accelerator</h2>
             <p className="text-[#848E9C] mb-8 max-w-md">

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ArrowLeft, StopCircle, Loader2,
   Users, History, Activity, ChevronDown, ChevronUp,
-  Zap, RefreshCw, Shield, Target,
+  RefreshCw, Shield, Target,
   AlertTriangle, CheckCircle, ArrowDownToLine, Wallet,
   TrendingDown as TrendDown, Flame
 } from 'lucide-react';
@@ -748,7 +748,7 @@ function ActiveCopyCard({
             <div className="px-4 py-3">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-[#FCD535]" />
+                  <Activity className="w-3.5 h-3.5 text-[#FCD535]" />
                   <span className="text-[#EAECEF] text-[12px] font-bold">Open Positions</span>
                 </div>
                 <div className="flex items-center gap-1">

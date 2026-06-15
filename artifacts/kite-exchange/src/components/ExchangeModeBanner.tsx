@@ -1,5 +1,5 @@
 import { useExchangeMode } from '../lib/exchange-mode';
-import { Snowflake, Zap } from 'lucide-react';
+import { Snowflake, Activity } from 'lucide-react';
 
 export default function ExchangeModeBanner() {
   const { isFrozen, frozenAt, isTransitioning } = useExchangeMode();
@@ -14,7 +14,7 @@ export default function ExchangeModeBanner() {
     return (
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[428px] z-50 pointer-events-none">
         <div className="mx-3 mt-2 bg-emerald-500/90 backdrop-blur-sm rounded-xl px-4 py-2 flex items-center gap-2 shadow-lg border border-emerald-400/30 animate-pulse">
-          <Zap size={14} className="text-white flex-shrink-0" />
+          <Activity size={14} className="text-white flex-shrink-0" />
           <span className="text-white text-xs font-medium">Canli fiyatlara donuluyor...</span>
         </div>
       </div>

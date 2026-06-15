@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { X, Clock, Users, Trophy, CheckCircle2, Flame, Coins, TrendingUp, Shield, Zap, Star, BarChart3, Loader2, Check, AlertCircle, Lock } from 'lucide-react';
+import { X, Clock, Users, Trophy, CheckCircle2, Flame, Coins, TrendingUp, Shield, Pickaxe, Gauge, Star, BarChart3, Loader2, Check, AlertCircle, Lock } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { getUserRestrictions } from '../lib/user-restrictions';
 
@@ -46,7 +46,7 @@ function getCampaignIcon(type: string) {
   switch (type) {
     case 'deposit':  return <Shield className="w-6 h-6" />;
     case 'referral': return <Users className="w-6 h-6" />;
-    case 'mining':   return <Zap className="w-6 h-6" />;
+    case 'mining':   return <Pickaxe className="w-6 h-6" />;
     case 'social':   return <Star className="w-6 h-6" />;
     case 'trading':  return <BarChart3 className="w-6 h-6" />;
     default:         return <TrendingUp className="w-6 h-6" />;
@@ -364,7 +364,7 @@ export default function CampaignDetailModal({ campaign, onClose }: Props) {
                   </span>
                   {campaign.claim_type === 'instant' && (
                     <div className="flex items-center gap-1 mt-1">
-                      <Zap className="w-3 h-3 text-white" />
+                      <Gauge className="w-3 h-3 text-white" />
                       <span className="text-[10px] text-white/90 font-bold">INSTANT REWARD</span>
                     </div>
                   )}

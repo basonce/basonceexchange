@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { ArrowDownUp, ChevronDown, Search, Check, Shield, Zap, Clock, Gem } from 'lucide-react';
+import { ArrowDownUp, ChevronDown, Search, Check, Shield, Gauge, Clock, Gem } from 'lucide-react';
 import { useMarkets, DeskMarket } from '../useMarkets';
 import CoinLogo from '../../components/CoinLogo';
 import { formatPriceWithSymbol, formatAmount } from '../../lib/format-utils';
@@ -170,7 +170,7 @@ export default function DesktopConvert({ user, onAuth }: PageProps) {
             <div className="bg-[#181A20] border border-[#2B3139] rounded-xl p-6">
               <h2 className="text-white font-semibold text-lg mb-5">Why Convert</h2>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Benefit icon={<Zap className="w-5 h-5 text-[#F0B90B]" />} title="Zero Fees" sub="No commission on converts" />
+                <Benefit icon={<Gauge className="w-5 h-5 text-[#F0B90B]" />} title="Zero Fees" sub="No commission on converts" />
                 <Benefit icon={<Gem className="w-5 h-5 text-[#F0B90B]" />} title="Best Price Routing" sub="Aggregated from all markets" />
                 <Benefit icon={<Clock className="w-5 h-5 text-[#F0B90B]" />} title="Instant Settlement" sub="Funds available immediately" />
               </div>

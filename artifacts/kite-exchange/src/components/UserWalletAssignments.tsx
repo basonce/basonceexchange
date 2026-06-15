@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, RefreshCw, Copy, CheckCircle, Users, Wallet, AlertCircle, ArrowUpDown, ChevronLeft, ChevronRight, Bell, X, UserPlus, Zap, CheckCircle2, Shield, Wand2 } from 'lucide-react';
+import { Search, RefreshCw, Copy, CheckCircle, Users, Wallet, AlertCircle, ArrowUpDown, ChevronLeft, ChevronRight, Bell, X, UserPlus, Gauge, CheckCircle2, Shield, Wand2 } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface UserWalletRow {
@@ -385,7 +385,7 @@ export default function UserWalletAssignments() {
                 ) : (
                   <Wand2 className="w-3.5 h-3.5" />
                 )}
-                {bulkAssigning ? 'Üretiliyor...' : `⚡ Otomatik Üret (${stats.totalUsersWithout})`}
+                {bulkAssigning ? 'Üretiliyor...' : `Otomatik Üret (${stats.totalUsersWithout})`}
               </button>
               <button
                 onClick={handleBulkAssign}
@@ -637,7 +637,7 @@ export default function UserWalletAssignments() {
                                 {assigningUserId === row.user_id ? (
                                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                                 ) : (
-                                  <Zap className="w-3.5 h-3.5" />
+                                  <Gauge className="w-3.5 h-3.5" />
                                 )}
                                 {assigningUserId === row.user_id ? 'Ataniyor...' : 'Cüzdan Ata'}
                               </button>

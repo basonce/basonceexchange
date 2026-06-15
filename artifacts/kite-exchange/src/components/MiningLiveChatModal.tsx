@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { GENERATED_CHAT_POOL } from './generatedChatPool';
 import {
   X, Send, Radio, TrendingUp, MessageCircle, DollarSign, ArrowUpCircle,
-  Award, Flame, Crown, Zap, CheckCircle2, Clock, Trophy, Users,
+  Award, Flame, Crown, Gauge, CheckCircle2, Clock, Trophy, Users,
   ChevronRight, Gem, Wifi
 } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
@@ -264,7 +264,7 @@ function WithdrawalCard({ msg, isRequest, onConfirmed }: { msg: Message; isReque
         <div className="ml-auto flex items-center gap-1.5">
           {isInstant && !isConfirmed && (
             <span className="flex items-center gap-0.5 bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.5 rounded-full">
-              <Zap className="w-2.5 h-2.5 text-emerald-400" />
+              <Gauge className="w-2.5 h-2.5 text-emerald-400" />
               <span className="text-emerald-400 text-[9px] font-black">INSTANT</span>
             </span>
           )}
@@ -363,7 +363,7 @@ function MessageCard({ msg }: { msg: Message }) {
     milestone: { icon: <Award className="w-3.5 h-3.5" />, color: 'text-[#F0B90B]', label: 'Milestone' },
     upgrade: { icon: <ArrowUpCircle className="w-3.5 h-3.5" />, color: 'text-blue-400', label: 'Upgrade' },
     celebration: { icon: <Gem className="w-3.5 h-3.5" />, color: 'text-purple-400', label: 'Win' },
-    tip: { icon: <Zap className="w-3.5 h-3.5" />, color: 'text-cyan-400', label: 'Tip' },
+    tip: { icon: <Gauge className="w-3.5 h-3.5" />, color: 'text-cyan-400', label: 'Tip' },
     general: { icon: <MessageCircle className="w-3.5 h-3.5" />, color: 'text-gray-400', label: '' },
   };
   const tc = typeConfig[msg.message_type] || typeConfig.general;

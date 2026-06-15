@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, memo, useCallback } from 'react';
-import { Heart, MessageCircle, Share2, Radio, Crown, Lock, Gem, Users, BookOpen, BarChart2, MessageSquare, Newspaper, Zap, TrendingUp, TrendingDown, ExternalLink, Shield, Globe, Repeat2, BarChart, Gift } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Radio, Crown, Lock, Gem, Users, BookOpen, BarChart2, MessageSquare, Newspaper, TrendingUp, TrendingDown, ExternalLink, Shield, Globe, Repeat2, BarChart, Gift } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PriceCache } from '../lib/price-cache';
 import LiveRoomModal from './LiveRoomModal';
@@ -131,7 +131,7 @@ const CRYPTO_NEWS_POOL: Omit<LiveNewsItem, 'id' | 'age'>[] = [
 
 
 const CATEGORY_STYLES: Record<string, { color: string; icon: any }> = {
-  BREAKING: { color: '#F6465D', icon: Zap },
+  BREAKING: { color: '#F6465D', icon: Radio },
   MARKET: { color: '#F0B90B', icon: TrendingUp },
   REGULATION: { color: '#3B82F6', icon: Shield },
   TECHNOLOGY: { color: '#0ECB81', icon: Globe },
@@ -1548,7 +1548,7 @@ export default function SocialFeed() {
                   className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded"
                   style={{ backgroundColor: `${catColor}20`, color: catColor }}
                 >
-                  {n.category === 'BREAKING' && <Zap className="w-3 h-3" />}
+                  {n.category === 'BREAKING' && <Radio className="w-3 h-3" />}
                   {n.category}
                 </span>
                 {n.coin && (

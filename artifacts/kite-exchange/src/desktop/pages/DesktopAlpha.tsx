@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Plus, Search, X, Activity, Crown, Flame, TrendingUp, Gem, ThumbsUp, ThumbsDown, Award,
-  Globe, Bot, Coins, Gamepad2, Layers, Zap, Users, ArrowUpRight, ArrowDownRight, Copy, CheckCircle,
+  Globe, Bot, Coins, Gamepad2, Layers, Gauge, Users, ArrowUpRight, ArrowDownRight, Copy, CheckCircle,
 } from 'lucide-react';
 import type { AlphaToken, AlphaTransaction, AlphaPricePoint } from '../../types/alpha';
 import {
@@ -33,7 +33,7 @@ const CATEGORY_FILTERS = [
   { id: 'DeFi', label: 'DeFi', icon: Coins },
   { id: 'Gaming', label: 'Gaming', icon: Gamepad2 },
   { id: 'Layer2', label: 'L2', icon: Layers },
-  { id: 'RWA', label: 'RWA', icon: Zap },
+  { id: 'RWA', label: 'RWA', icon: Gauge },
 ];
 
 const NETWORKS = ['All', 'BNC', 'Ethereum', 'Solana', 'Base'];

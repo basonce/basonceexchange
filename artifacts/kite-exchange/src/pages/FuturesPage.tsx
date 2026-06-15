@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { bdexPriceService } from '../lib/bdex-price-service';
-import { ChevronDown, Menu, Gift, BarChart3, Calculator, MoreVertical, Plus, Minus, ChevronUp, Settings, Zap } from 'lucide-react';
+import { ChevronDown, Menu, Gift, BarChart3, Calculator, MoreVertical, Plus, Minus, ChevronUp, Settings, Gauge } from 'lucide-react';
 import FuturesPositionCard from '../components/FuturesPositionCard';
 import CoinLogo from '../components/CoinLogo';
 import MetalIcon, { isMetalSymbol } from '../components/MetalIcon';
@@ -1483,7 +1483,7 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
                     { label: 'Order Confirmation', icon: '✅' },
                     { label: 'Trading Rules', icon: '📋' },
                     { label: 'Fee Structure', icon: '💰' },
-                    { label: 'API Trading', icon: '⚡' },
+                    { label: 'API Trading', icon: '•' },
                   ].map((item) => (
                     <button
                       key={item.label}
@@ -1858,7 +1858,7 @@ export default function FuturesPage({ initialSymbol }: { initialSymbol?: string 
             onClick={() => setShowAdvancedOrders(true)}
             className="w-full py-1.5 mt-1.5 rounded text-[10px] font-medium bg-[#2B3139] hover:bg-[#363D47] text-[#F0B90B] transition-colors flex items-center justify-center gap-1"
           >
-            <Zap className="w-3 h-3" />
+            <Gauge className="w-3 h-3" />
             Advanced Orders
           </button>
         </div>

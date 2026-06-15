@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Database, GitBranch, Activity, Server, FileCode, AlertCircle, CheckCircle, RefreshCw, Clock, HardDrive, Zap, Archive, Download, Shield, Terminal, Play, Eye, X } from 'lucide-react';
+import { Database, GitBranch, Activity, Server, FileCode, AlertCircle, CheckCircle, RefreshCw, Clock, HardDrive, Gauge, Archive, Download, Shield, Terminal, Play, Eye, X } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface Migration {
@@ -588,7 +588,7 @@ export function DeploymentCenter() {
               </div>
               <div className="bg-green-600 rounded-xl p-4 border border-green-500">
                 <div className="flex items-center gap-2 mb-2">
-                  <Zap className="w-5 h-5 text-white" />
+                  <Gauge className="w-5 h-5 text-white" />
                   <span className="text-sm text-green-100">Yanit Suresi</span>
                 </div>
                 <p className="text-2xl font-bold text-white">{healthMetrics.avgResponseTime}ms</p>

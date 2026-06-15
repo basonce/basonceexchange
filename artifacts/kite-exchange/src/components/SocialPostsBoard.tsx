@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Share2, Zap, Award, TrendingUp, Newspaper, Calendar, Users } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Activity, Award, TrendingUp, Newspaper, Calendar, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface SocialPost {
@@ -147,7 +147,7 @@ export default function SocialPostsBoard() {
       <div className="bg-[#0f1320] border-b border-gray-800/60 px-4 pt-5 pb-3">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2.5 bg-[#F0B90B]/10 rounded-xl border border-[#F0B90B]/20">
-            <Zap className="w-6 h-6 text-[#F0B90B]" />
+            <Activity className="w-6 h-6 text-[#F0B90B]" />
           </div>
           <div>
             <h1 className="text-xl font-black text-white">Crypto Feed</h1>
@@ -180,7 +180,7 @@ export default function SocialPostsBoard() {
           </div>
         ) : posts.length === 0 ? (
           <div className="text-center py-20">
-            <Zap className="w-14 h-14 text-gray-700 mx-auto mb-3" />
+            <Activity className="w-14 h-14 text-gray-700 mx-auto mb-3" />
             <div className="text-gray-400 font-semibold">No posts found</div>
             <div className="text-gray-600 text-sm mt-1">Try a different filter</div>
           </div>

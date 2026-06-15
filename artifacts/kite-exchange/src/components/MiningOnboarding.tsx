@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ChevronRight, Zap, DollarSign, TrendingUp, Gift, CheckCircle } from 'lucide-react';
+import { X, ChevronRight, Pickaxe, DollarSign, TrendingUp, Gift, CheckCircle } from 'lucide-react';
 
 interface MiningOnboardingProps {
   isOpen: boolean;
@@ -27,8 +27,8 @@ export default function MiningOnboarding({ isOpen, onClose, onComplete }: Mining
     {
       title: "How It Works",
       description: "3 Simple Steps to Start Earning",
-      icon: <Zap className="w-16 h-16 text-blue-400" />,
-      image: "⚡",
+      icon: <Pickaxe className="w-16 h-16 text-blue-400" />,
+      image: "•",
       highlights: [
         "1. Get FREE mining device",
         "2. Watch earnings grow live",
@@ -153,7 +153,7 @@ export default function MiningOnboarding({ isOpen, onClose, onComplete }: Mining
             ) : (
               <>
                 Start Mining!
-                <Zap className="w-5 h-5" />
+                <Pickaxe className="w-5 h-5" />
               </>
             )}
           </button>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, TrendingUp, Lock, Unlock, Zap, Info, ChevronRight, Coins } from 'lucide-react';
+import { X, TrendingUp, Lock, Unlock, Info, ChevronRight, Coins } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import StakingModal from './StakingModal';
 
@@ -29,7 +29,7 @@ const earnPrograms = [
     apy: '15.0',
     minAmount: '100',
     description: 'Exclusive high APY for EarnQuest token',
-    icon: Zap,
+    icon: Coins,
     logo: '/EARNQUEST-LOGO-ICON-2.png',
     colorClass: 'text-yellow-400',
     totalStaked: '50M EQ',

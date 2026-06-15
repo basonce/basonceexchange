@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Shield, ChevronRight, Trophy, Vote, Zap, Gift, TrendingUp, Bell } from 'lucide-react';
+import { Shield, ChevronRight, Trophy, Vote, Gauge, Gift, TrendingUp, Bell } from 'lucide-react';
 
 interface OfficialPost {
   id: string;
@@ -76,7 +76,7 @@ const OFFICIAL_POSTS: OfficialPost[] = [
 const typeConfig = {
   bonus: { icon: Trophy, color: '#F0B90B', bg: 'from-[#F0B90B]/15 to-[#F0B90B]/5', border: 'border-[#F0B90B]/40' },
   vote: { icon: Vote, color: '#3B82F6', bg: 'from-blue-500/15 to-blue-500/5', border: 'border-blue-500/40' },
-  event: { icon: Zap, color: '#0ECB81', bg: 'from-[#0ECB81]/15 to-[#0ECB81]/5', border: 'border-[#0ECB81]/40' },
+  event: { icon: Gauge, color: '#0ECB81', bg: 'from-[#0ECB81]/15 to-[#0ECB81]/5', border: 'border-[#0ECB81]/40' },
   reward: { icon: Gift, color: '#F0B90B', bg: 'from-[#F0B90B]/15 to-[#F0B90B]/5', border: 'border-[#F0B90B]/40' },
   listing: { icon: TrendingUp, color: '#0ECB81', bg: 'from-[#0ECB81]/15 to-[#0ECB81]/5', border: 'border-[#0ECB81]/40' },
   announcement: { icon: Bell, color: '#F0B90B', bg: 'from-[#F0B90B]/15 to-[#F0B90B]/5', border: 'border-[#F0B90B]/40' }

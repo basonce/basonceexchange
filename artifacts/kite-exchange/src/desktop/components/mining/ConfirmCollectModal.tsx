@@ -1,4 +1,4 @@
-import { X, Pickaxe, Zap } from 'lucide-react';
+import { X, Pickaxe, Coins } from 'lucide-react';
 import AnimatedCounter from '../../../components/AnimatedCounter';
 
 interface ConfirmCollectModalProps {
@@ -38,7 +38,7 @@ export default function ConfirmCollectModal({ isOpen, onClose, onConfirm, sessio
           <div className="bg-[#1E2329] border border-[#2B3139] rounded-xl p-4 mb-6">
             <div className="flex items-start gap-3">
               <div className="bg-[#0ECB81]/10 rounded-lg p-2 shrink-0">
-                <Zap className="w-4 h-4 text-[#0ECB81]" />
+                <Coins className="w-4 h-4 text-[#0ECB81]" />
               </div>
               <p className="text-[#848E9C] text-xs leading-relaxed">
                 Collecting will stop your currently active session for time-limited devices. You can start them again afterwards if they have remaining time.

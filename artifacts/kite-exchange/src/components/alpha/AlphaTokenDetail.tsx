@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, ThumbsUp, ThumbsDown, Users, Activity, TrendingUp, BarChart3, Clock, ExternalLink, Award, MessageCircle, ArrowUpRight, ArrowDownRight, Globe, Send, Droplets, Crown, Share2, Star, Copy, CheckCircle, Zap, AlertTriangle, Brain, Rocket, TrendingDown, Flame } from 'lucide-react';
+import { X, ThumbsUp, ThumbsDown, Users, Activity, TrendingUp, BarChart3, Clock, ExternalLink, Award, MessageCircle, ArrowUpRight, ArrowDownRight, Globe, Send, Droplets, Crown, Share2, Star, Copy, CheckCircle, AlertTriangle, Brain, Rocket, TrendingDown, Flame } from 'lucide-react';
 import type { AlphaToken, AlphaTransaction, AlphaComment, AlphaHolder } from '../../types/alpha';
 import { fetchTokenTransactions, fetchTokenComments, fetchTokenHolders, generateBotTrade, updateTokenAfterTrade, calculatePriceAfterTrade } from '../../lib/alpha-service';
 import { supabase } from '../../lib/supabase';
@@ -371,7 +371,7 @@ export default function AlphaTokenDetail({ token: initialToken, isOpen, onClose 
                 {whaleAlert.username} {whaleAlert.type === 'buy' ? 'bought' : 'sold'} {whaleAlert.amount.toFixed(1)} {whaleAlert.raisedToken}
               </div>
             </div>
-            <Zap className="w-4 h-4 text-[#F0B90B] animate-pulse" />
+            <Activity className="w-4 h-4 text-[#F0B90B] animate-pulse" />
           </div>
         </div>
       )}

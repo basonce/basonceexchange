@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronRight, CheckCircle, Zap, TrendingUp, BarChart2, Users, Shield, Gift, Star, Globe, BookOpen, AlertTriangle, HelpCircle, ArrowLeftRight, CreditCard, FileText, Wallet, Coins, Percent, Activity, MessageSquare, Layers, Tag, Award, Target, RefreshCw, Gem, Cpu, Trophy, Heart, Package, PiggyBank, Download } from 'lucide-react';
+import { ArrowLeft, ChevronRight, CheckCircle, TrendingUp, BarChart2, Users, Shield, Gift, Star, Globe, BookOpen, AlertTriangle, HelpCircle, ArrowLeftRight, CreditCard, FileText, Wallet, Coins, Percent, Activity, MessageSquare, Layers, Tag, Award, Target, RefreshCw, Gem, Cpu, Trophy, Heart, Package, PiggyBank, Download } from 'lucide-react';
 
 interface ServiceSubPageProps {
   serviceKey: string;
@@ -393,7 +393,7 @@ const PAGES: Record<string, {
   },
   'sol-staking': {
     title: 'SOL Staking',
-    icon: Zap,
+    icon: Coins,
     accent: true,
     hero: { bg: 'from-violet-900/30 to-[#0B0E11]', text: 'SOL Staking', sub: 'Stake Solana and earn up to 6.8% APY' },
     sections: [

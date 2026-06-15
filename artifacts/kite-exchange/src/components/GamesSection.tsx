@@ -1264,7 +1264,7 @@ const PITCH_EVENTS: Record<
   { label: string; color: string; icon: string }
 > = {
   attack:           { label: 'Attack',           color: '#f97316', icon: '→' },
-  dangerous_attack: { label: 'Dangerous Attack', color: '#ef4444', icon: '⚡' },
+  dangerous_attack: { label: 'Dangerous Attack', color: '#ef4444', icon: '•' },
   ball_play:        { label: 'Ball Play',         color: '#22c55e', icon: '⚽' },
   throw_in:         { label: 'Throw-in',          color: '#6b7280', icon: '↑' },
   corner:           { label: 'Corner',            color: '#eab308', icon: '↗' },

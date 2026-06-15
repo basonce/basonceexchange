@@ -10,7 +10,7 @@ import ConfirmCollectModal from '../components/mining/ConfirmCollectModal';
 import ConfirmPurchaseModal from '../components/mining/ConfirmPurchaseModal';
 import ToastContainer, { useToast } from '../components/mining/ToastContainer';
 import PayoutTicker from '../components/mining/PayoutTicker';
-import { Pickaxe, Zap, Activity, Clock, ShoppingCart, HelpCircle, AlertCircle, ArrowRight, ShieldCheck, Flame, Star, Target, Server, ChevronRight, Play, Square, Users } from 'lucide-react';
+import { Pickaxe, Coins, Activity, Clock, ShoppingCart, HelpCircle, AlertCircle, ArrowRight, ShieldCheck, Flame, Star, Target, Server, ChevronRight, Play, Square, Users } from 'lucide-react';
 import { supabase, getCurrentUser } from '../../lib/supabase';
 import { chestForName } from '../../lib/shopChests';
 import DeviceImage from '../../components/DeviceImage';
@@ -99,7 +99,7 @@ export default function DesktopMiningPage() {
             <div key={dup} className="flex items-center gap-12 pr-12" aria-hidden={dup === 1}>
               <span className="text-[#848E9C] tracking-wider">LIVE NETWORK STATUS</span>
               <span className="flex items-center gap-2 text-[#848E9C]"><span className="w-1.5 h-1.5 rounded-full bg-[#0ECB81] animate-pulse"></span> ACTIVE MINERS: <span className="text-white">{mining.liveStats.activeMiners.toLocaleString()}</span></span>
-              <span className="flex items-center gap-2 text-[#848E9C]"><Zap className="w-3.5 h-3.5 text-[#F0B90B]" /> HOURLY NETWORK YIELD: <span className="text-white">${mining.liveStats.hourlyEarnings.toLocaleString()}</span></span>
+              <span className="flex items-center gap-2 text-[#848E9C]"><Coins className="w-3.5 h-3.5 text-[#F0B90B]" /> HOURLY NETWORK YIELD: <span className="text-white">${mining.liveStats.hourlyEarnings.toLocaleString()}</span></span>
               <span className="flex items-center gap-2 text-[#848E9C]"><Activity className="w-3.5 h-3.5 text-[#3B82F6]" /> UPGRADES LAST 10M: <span className="text-white">{mining.liveStats.upgradesLast10Min}</span></span>
               <span className="flex items-center gap-2 text-[#848E9C]"><Users className="w-3.5 h-3.5 text-[#8B5CF6]" /> ONLINE NOW: <span className="text-white">{mining.liveStats.onlineCount.toLocaleString()}</span></span>
             </div>
@@ -477,7 +477,7 @@ function DesktopShopCard({ item, chest, userBalance, onBuy }: { item: ShopEquipm
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium mb-3">
-          <span className="text-[#0ECB81] flex items-center gap-1 bg-[#0ECB81]/10 px-2 py-1 rounded-md"><Zap className="w-3.5 h-3.5" /> +${(item.daily_earning/24).toFixed(2)}/hr</span>
+          <span className="text-[#0ECB81] flex items-center gap-1 bg-[#0ECB81]/10 px-2 py-1 rounded-md"><Coins className="w-3.5 h-3.5" /> +${(item.daily_earning/24).toFixed(2)}/hr</span>
           <span className="text-[#EAECEF] bg-[#1E2329] px-2 py-1 rounded-md">LV {item.level}</span>
           <span className="text-[#848E9C] bg-[#1E2329] px-2 py-1 rounded-md">Limit ${item.withdrawal_limit.toLocaleString()}</span>
         </div>

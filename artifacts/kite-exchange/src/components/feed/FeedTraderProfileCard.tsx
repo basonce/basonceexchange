@@ -1,4 +1,4 @@
-import { Users, TrendingUp, Copy, Star, Zap } from 'lucide-react';
+import { Users, TrendingUp, Copy, Star, BadgeCheck } from 'lucide-react';
 
 interface TraderProfile {
   username: string;
@@ -35,7 +35,7 @@ export default function FeedTraderProfileCard({ traderProfile }: FeedTraderProfi
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="font-bold text-[13px] text-white">{traderProfile.username}</span>
-            <Zap className="w-3 h-3 text-[#F0B90B]" />
+            <BadgeCheck className="w-3 h-3 text-[#F0B90B]" />
           </div>
           <p className="text-[10px] text-gray-400 truncate">{traderProfile.tagline}</p>
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Gem, Clock, Trophy, Zap, Gift } from 'lucide-react';
+import { X, Gem, Clock, Trophy, Rocket, Gift } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 
 interface Prize {
@@ -177,7 +177,7 @@ export default function RewardWheelModal({ isOpen, onClose }: RewardWheelModalPr
 
           {isLuckyHour && (
             <div className="bg-gradient-to-r from-yellow-500/30 to-orange-500/30 border-2 border-yellow-500 rounded-xl p-4 flex items-center gap-3 animate-pulse">
-              <Zap className="w-8 h-8 text-yellow-400" />
+              <Rocket className="w-8 h-8 text-yellow-400" />
               <div>
                 <p className="font-black text-yellow-400 text-lg">LUCKY HOUR ACTIVE!</p>
                 <p className="text-sm text-yellow-300 font-semibold">5x chance for MEGA prizes!</p>
@@ -339,7 +339,7 @@ export default function RewardWheelModal({ isOpen, onClose }: RewardWheelModalPr
                   </p>
                   <p className="text-white font-bold text-lg">
                     {wonPrize.type === 'futures_bonus' && '💰 Added to Futures Balance!'}
-                    {wonPrize.type === 'eq_tokens' && '⚡ Added to Mining Balance!'}
+                    {wonPrize.type === 'eq_tokens' && 'Added to Mining Balance!'}
                     {wonPrize.type === 'multiplier' && '🚀 Multiplier Applied!'}
                   </p>
                 </div>

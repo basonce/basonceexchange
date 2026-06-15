@@ -1,4 +1,4 @@
-import { X, TrendingUp, Zap, ShoppingBag } from 'lucide-react';
+import { X, TrendingUp, Rocket, ShoppingBag } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 
@@ -116,7 +116,7 @@ export default function MiningUpgradeModal({ isOpen, onClose, onShopClick, total
 
         <div className="bg-gradient-to-br from-[#F0B90B]/10 to-transparent border border-[#F0B90B]/30 rounded-xl p-4 mb-6">
           <div className="flex items-center gap-2 mb-3">
-            <Zap className="w-5 h-5 text-[#F0B90B]" />
+            <Rocket className="w-5 h-5 text-[#F0B90B]" />
             <span className="text-sm font-bold text-white">✅ Recommended: Level 1 Upgrade</span>
           </div>
 

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Send, Bot, User, Loader2, Trash2, AlertCircle, RefreshCw,
   Shield, Bell, Calendar, FileText, Activity, ChevronRight,
-  Zap, TrendingUp, DollarSign, Users, Cpu, ShieldAlert,
+  Gauge, TrendingUp, DollarSign, Users, Cpu, ShieldAlert,
   BarChart3, Settings2, Gem, MessageSquare,
   Image, Upload, X, CheckCircle2, Database, Code2,
   Eye, Copy, Play, Key, Lock
@@ -68,7 +68,7 @@ const QUICK_COMMANDS = [
   { icon: Users, label: 'Acik biletler', prompt: 'Acik destek biletlerini listele.', color: 'text-blue-400' },
   { icon: Cpu, label: 'Mining raporu', prompt: 'Mining sisteminin durumunu raporla. Aktif miner sayisi, ekipman dagilimi ve EQ kazanim istatistiklerini ver.', color: 'text-violet-400' },
   { icon: Bell, label: 'Destek durumu', prompt: 'Destek sistemi durumunu raporla. Acik biletler, 4+ saat cevapsizlar, kritik konular ve SLA ihlallerini listele.', color: 'text-cyan-400' },
-  { icon: Zap, label: 'Hizli saglik', prompt: 'Platforma bak, her sey yolunda mi? Sorun varsa listeyle ve onerilen aksiyonlari soy.', color: 'text-[#F0B90B]' },
+  { icon: Gauge, label: 'Hizli saglik', prompt: 'Platforma bak, her sey yolunda mi? Sorun varsa listeyle ve onerilen aksiyonlari soy.', color: 'text-[#F0B90B]' },
   { icon: BarChart3, label: 'Gunluk rapor', prompt: 'Bugunun tam platformu ozeti: kullanici aktivitesi, islem hacimleri, mining, destek ve guvenlik durumu dahil kapsamli rapor ver.', color: 'text-pink-400' },
   { icon: Settings2, label: 'Otomasyon durumu', prompt: 'Kural motoru ve zamanli gorevlerin durumunu raporla. Kac kural aktif, hangi gorevler calisiyor, son calistirma zamanlari.', color: 'text-gray-400' },
 ];

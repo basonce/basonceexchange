@@ -288,7 +288,7 @@ export default function SocialProfilePage({ onBack }: SocialProfilePageProps) {
         )}
 
         {mainTab === 'Live Futures' && (
-          <EmptyTabState icon="⚡" title="No live futures" sub="Live futures positions will appear here" />
+          <EmptyTabState icon="•" title="No live futures" sub="Live futures positions will appear here" />
         )}
       </div>
     </div>

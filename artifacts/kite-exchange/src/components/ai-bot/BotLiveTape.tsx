@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { TrendingUp, TrendingDown, Cpu, Zap, CircleDot } from 'lucide-react';
+import { TrendingUp, TrendingDown, Cpu, Bot, CircleDot } from 'lucide-react';
 import { BotSignal } from '../../lib/ai-bot-engine';
 import { LivePriceMap, fmtLivePrice } from '../../lib/useLivePrices';
 
@@ -160,7 +160,7 @@ export default function BotLiveTape({ coins, live, signals, leverage, closedCoun
                 </span>
               </div>
               <div className="text-[11px] text-gray-500 flex items-center gap-1.5 mt-0.5">
-                <Zap className="w-3 h-3" style={{ color: accent }} />
+                <Bot className="w-3 h-3" style={{ color: accent }} />
                 <span className="truncate">AI strategy preview · {spotlight.leverage}x</span>
               </div>
             </div>

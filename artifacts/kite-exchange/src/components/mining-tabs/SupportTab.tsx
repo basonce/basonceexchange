@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronRight, MessageCircle, Cpu, Zap, DollarSign, HelpCircle, Shield, Clock, ArrowLeft, Send, Check, Lock } from 'lucide-react';
+import { ChevronRight, MessageCircle, Cpu, Pickaxe, Gauge, DollarSign, HelpCircle, Shield, Clock, ArrowLeft, Send, Check, Lock } from 'lucide-react';
 import { supabase, getCurrentUser } from '../../lib/supabase';
 import { detectUserCountry } from '../../lib/geolocation';
 import { assignBestAgent, type Agent } from '../../lib/agent-assignment';
@@ -50,7 +50,7 @@ const MINING_FAQ = [
     a: 'Go to the Shop tab and purchase your first mining equipment. Once bought, it starts earning EQ tokens automatically 24/7. No setup needed — just buy and earn.',
   },
   {
-    icon: Zap,
+    icon: Pickaxe,
     color: 'text-blue-400',
     bg: 'bg-blue-400/10',
     q: 'How are EQ tokens calculated?',
@@ -85,7 +85,7 @@ const MINING_FAQ = [
     a: 'Check if your equipment has expired. If the timer shows 0, you need to renew. Also make sure you are connected to the internet. If the issue persists, contact our support team below.',
   },
   {
-    icon: Zap,
+    icon: Pickaxe,
     color: 'text-[#F0B90B]',
     bg: 'bg-[#F0B90B]/10',
     q: 'Can I have multiple machines running?',
@@ -874,7 +874,7 @@ export default function SupportTab() {
           {[
             { icon: Shield, label: 'Secure', desc: 'Encrypted Chat' },
             { icon: Clock, label: '24/7', desc: 'Always Online' },
-            { icon: Zap, label: '~45s', desc: 'Avg Response' },
+            { icon: Gauge, label: '~45s', desc: 'Avg Response' },
           ].map(({ icon: Icon, label, desc }) => (
             <div key={label} className="bg-[#111418] rounded-xl p-3 text-center border border-[#1E2329]">
               <Icon className="w-4 h-4 text-[#F0B90B] mx-auto mb-1.5" />

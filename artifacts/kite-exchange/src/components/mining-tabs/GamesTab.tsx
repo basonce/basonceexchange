@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, Clock, Trophy, Zap, Coins, AlertCircle } from 'lucide-react';
+import { TrendingUp, Clock, Trophy, Coins, AlertCircle } from 'lucide-react';
 import { supabase, getCurrentUser } from '../../lib/supabase';
 
 const formatNumber = (num: number): string => {

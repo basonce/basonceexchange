@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, TrendingDown, Zap, Droplets, Scale, Server, Ban, ArrowRight, ChevronRight } from 'lucide-react';
+import { AlertTriangle, TrendingDown, Gauge, Droplets, Scale, Server, Ban, ArrowRight, ChevronRight } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { MorePageProps } from './types';
 import { openAuthRegister } from './types';
@@ -31,7 +31,7 @@ const RISKS: RiskItem[] = [
     id: 'leverage',
     num: '2',
     title: 'Leverage & Derivatives Risk',
-    icon: Zap,
+    icon: Gauge,
     severity: 'Severe',
     body: [
       'Margin, futures, and other leveraged products magnify both gains and losses. A small adverse move in the underlying market can result in the total loss of your collateral and, in some cases, losses exceeding your initial deposit.',
