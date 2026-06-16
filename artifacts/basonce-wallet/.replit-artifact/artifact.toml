@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/basonce-wallet/"
+title = "Basonce Wallet"
+version = "1.0.0"
+id = "artifacts/basonce-wallet"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/basonce-wallet/" ]
+localPort = 21026
+
+[services.development]
+run = "pnpm --filter @workspace/basonce-wallet run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/basonce-wallet", "run", "build" ]
+publicDir = "artifacts/basonce-wallet/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21026"
+BASE_PATH = "/basonce-wallet/"

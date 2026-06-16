@@ -1,0 +1,137 @@
+import { useState, useEffect } from "react";
+import { useProfile, useAuth } from "@/lib/hooks";
+import { getDepositAddress } from "@/lib/wallet";
+import { CRYPTO_NETWORKS } from "@/lib/networks";
+import { QRCodeSVG } from "qrcode.react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Copy, ArrowDownLeft } from "lucide-react";
+import { toast } from "sonner";
+
+export function Receive() {
+  const { user } = useAuth();
+  const { data: profile } = useProfile();
+  
+  const [coin, setCoin] = useState("USDT");
+  const [network, setNetwork] = useState("TRC20");
+  const [address, setAddress] = useState("");
+  const [loadingAddr, setLoadingAddr] = useState(false);
+
+  const networksForCoin = CRYPTO_NETWORKS[coin] || [];
+
+  // Reset network if it's not available for the new coin
+  useEffect(() => {
+    if (!networksForCoin.find(n => n.id === network)) {
+      setNetwork(networksForCoin[0]?.id || "");
+    }
+  }, [coin]);
+
+  useEffect(() => {
+    if (!user || !coin || !network) return;
+    let mounted = true;
+    setLoadingAddr(true);
+    getDepositAddress(coin, network, user.id).then(addr => {
+      if (mounted) {
+        setAddress(addr);
+        setLoadingAddr(false);
+      }
+    });
+    return () => { mounted = false; };
+  }, [coin, network, user]);
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard");
+  };
+
+  const payId = profile?.email || profile?.userIdDisplay || user?.id || "";
+
+  return (
+    <div className="px-6 pt-12 pb-20 flex flex-col h-full">
+      <div className="mb-8">
+        <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center mb-4">
+          <ArrowDownLeft className="w-6 h-6" />
+        </div>
+        <h1 className="text-3xl font-bold tracking-tight">Receive</h1>
+      </div>
+
+      <Tabs defaultValue="basonce" className="w-full">
+        <TabsList className="w-full h-12 bg-card p-1 rounded-xl mb-8">
+          <TabsTrigger value="basonce" className="w-1/2 rounded-lg text-sm font-medium data-[state=active]:bg-background">Internal (Free)</TabsTrigger>
+          <TabsTrigger value="crypto" className="w-1/2 rounded-lg text-sm font-medium data-[state=active]:bg-background">External Crypto</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="basonce" className="space-y-8 mt-0 focus:outline-none">
+          <div className="bg-card rounded-[32px] p-8 border border-border flex flex-col items-center">
+            <div className="bg-white p-4 rounded-2xl mb-6 shadow-xl">
+              <QRCodeSVG value={payId} size={200} />
+            </div>
+            <p className="text-muted-foreground mb-2 text-sm uppercase tracking-wider">Your Basonce Pay ID</p>
+            <p className="font-bold text-xl mb-6">{payId}</p>
+            <Button variant="outline" className="w-full h-12" onClick={() => copyToClipboard(payId)}>
+              <Copy className="w-4 h-4 mr-2" /> Copy Pay ID
+            </Button>
+          </div>
+          <p className="text-center text-sm text-muted-foreground px-4">
+            Show this QR code to another Basonce user to receive funds instantly with zero fees.
+          </p>
+        </TabsContent>
+
+        <TabsContent value="crypto" className="space-y-6 mt-0 focus:outline-none">
+          <div className="space-y-4">
+            <Select value={coin} onValueChange={setCoin}>
+              <SelectTrigger className="h-14 bg-card border-border text-lg px-4">
+                <SelectValue placeholder="Select coin" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.keys(CRYPTO_NETWORKS).map(c => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {networksForCoin.length > 0 && (
+              <Select value={network} onValueChange={setNetwork}>
+                <SelectTrigger className="h-14 bg-card border-border text-lg px-4">
+                  <SelectValue placeholder="Select network" />
+                </SelectTrigger>
+                <SelectContent>
+                  {networksForCoin.map(n => (
+                    <SelectItem key={n.id} value={n.id}>{n.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          <div className="bg-card rounded-[32px] p-8 border border-border flex flex-col items-center mt-6">
+            {loadingAddr ? (
+              <div className="w-[200px] h-[200px] bg-secondary animate-pulse rounded-2xl mb-6" />
+            ) : (
+              <div className="bg-white p-4 rounded-2xl mb-6 shadow-xl">
+                <QRCodeSVG value={address} size={200} />
+              </div>
+            )}
+            
+            <p className="text-muted-foreground mb-2 text-sm uppercase tracking-wider">Deposit Address</p>
+            <div className="w-full bg-secondary rounded-xl p-4 mb-4 break-all text-sm text-center font-mono">
+              {loadingAddr ? "Loading..." : address}
+            </div>
+            <Button variant="outline" className="w-full h-12" onClick={() => copyToClipboard(address)} disabled={loadingAddr || !address}>
+              <Copy className="w-4 h-4 mr-2" /> Copy Address
+            </Button>
+          </div>
+          
+          {networksForCoin.find(n => n.id === network) && (
+            <div className="text-xs text-muted-foreground bg-secondary/50 p-4 rounded-xl space-y-2">
+              <p>• Minimum deposit: {networksForCoin.find(n => n.id === network)?.minDeposit} {coin}</p>
+              <p>• Expected time: {networksForCoin.find(n => n.id === network)?.estimatedTime}</p>
+              <p className="text-destructive font-medium">Send only {coin} on the {network} network to this address. Sending other assets will result in permanent loss.</p>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
