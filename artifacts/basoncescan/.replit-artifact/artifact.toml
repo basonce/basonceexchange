@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/basoncescan/"
+title = "BasonceScan"
+version = "1.0.0"
+id = "artifacts/basoncescan"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/basoncescan/" ]
+localPort = 19323
+
+[services.development]
+run = "pnpm --filter @workspace/basoncescan run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/basoncescan", "run", "build" ]
+publicDir = "artifacts/basoncescan/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19323"
+BASE_PATH = "/basoncescan/"
