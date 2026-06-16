@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link } from 'wouter';
 import { useAddress, useAddressTransactions } from '@/hooks/use-chain';
-import { formatAddress, formatBSO, formatHash, formatAge } from '@/lib/format';
+import { formatAddress, formatBNC, formatHash, formatAge, BNC_PRICE, formatUSD } from '@/lib/format';
 import { FileText, QrCode, ArrowRight, ArrowDownLeft, ArrowUpRight, CheckCircle2, XCircle } from 'lucide-react';
 
 export default function AddressDetail() {
@@ -47,15 +47,15 @@ export default function AddressDetail() {
           </div>
           <div className="p-6 space-y-4">
             <div>
-              <div className="text-sm text-muted-foreground mb-1 uppercase tracking-wider font-semibold">BSO Balance</div>
+              <div className="text-sm text-muted-foreground mb-1 uppercase tracking-wider font-semibold">BNC Balance</div>
               <div className="text-2xl font-bold font-mono">
-                {formatBSO(address.balance)}
+                {formatBNC(address.balance)}
               </div>
             </div>
             <div>
-              <div className="text-sm text-muted-foreground mb-1 uppercase tracking-wider font-semibold">BSO Value</div>
+              <div className="text-sm text-muted-foreground mb-1 uppercase tracking-wider font-semibold">BNC Value</div>
               <div className="text-foreground">
-                ${(address.balance * 42.50).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-muted-foreground text-sm">(@ $42.50/BSO)</span>
+                {formatUSD(address.balance * BNC_PRICE, 2)} <span className="text-muted-foreground text-sm">(@ {formatUSD(BNC_PRICE, 2)}/BNC)</span>
               </div>
             </div>
             <div className="pt-4 border-t border-border">
@@ -186,7 +186,7 @@ export default function AddressDetail() {
                       )}
                     </td>
                     <td className="px-4 py-3 font-mono text-xs">
-                      {formatBSO(tx.value)}
+                      {formatBNC(tx.value)}
                     </td>
                   </tr>
                 );

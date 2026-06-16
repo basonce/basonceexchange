@@ -1,6 +1,6 @@
 import { useParams, Link } from 'wouter';
 import { useBlock } from '@/hooks/use-chain';
-import { formatAddress, formatBSO, formatNumber } from '@/lib/format';
+import { formatAddress, formatNumber } from '@/lib/format';
 import { format } from 'date-fns';
 import { Box, Clock, Hash, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -98,17 +98,20 @@ export default function BlockDetail() {
           />
           
           <InfoRow 
-            label="Validated By:" 
+            label="Produced By:" 
             value={
-              <Link href={`/address/${block.validator}`} className="text-primary hover:text-primary/80 font-mono">
-                {block.validator}
-              </Link>
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="font-medium text-foreground">{block.producerName}</span>
+                <Link href={`/address/${block.validator}`} className="text-primary hover:text-primary/80 font-mono break-all">
+                  {block.validator}
+                </Link>
+              </span>
             } 
           />
           
           <InfoRow 
             label="Block Reward:" 
-            value={<span className="font-mono">{block.reward.toFixed(6)} BSO</span>} 
+            value={<span className="font-mono">{block.reward.toFixed(6)} BNC</span>} 
           />
           
           <InfoRow 

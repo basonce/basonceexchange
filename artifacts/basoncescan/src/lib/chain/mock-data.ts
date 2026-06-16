@@ -1,4 +1,4 @@
-import { Block, Transaction, Address, Token, TokenHolder, NetworkStats, PaginatedResult, SearchResult, ChainDataSource } from './types';
+import { Block, Transaction, Address, Token, TokenHolder, NetworkStats, PaginatedResult, SearchResult, ChainDataSource, HomeAnalytics, PricePoint, TrendPoint, TvlProject, TopToken } from './types';
 
 // Helper functions for mock data generation
 const generateHash = (prefix: string, length: number) => {
@@ -19,19 +19,27 @@ const METHODS = ['Transfer', 'Swap', 'Approve', 'Multicall', 'Execute', 'Mint', 
 // Initial state
 const INITIAL_BLOCK_NUMBER = 18456200;
 let currentBlockNumber = INITIAL_BLOCK_NUMBER;
-const START_TIME = Date.now() - 24 * 60 * 60 * 1000; // 24 hours ago
+const START_TIME = Date.now() - 50 * 3000; // newest seed block lands ~now (3s blocks)
 
 // In-memory mock database
 const blocks: Block[] = [];
 const transactions: Transaction[] = [];
 const addresses: Map<string, Address> = new Map();
 
-// Seed initial data
+// Seed initial data — 21 super-representatives produce blocks under named pools.
+const VALIDATOR_NAMES = [
+  'Basonce Foundation', 'Aurora Capital', 'Helios Nodes', 'Meridian Labs',
+  'Polaris Staking', 'Vanguard Network', 'Summit Validators', 'Atlas Compute',
+  'Quantum Pool', 'Sentinel Group', 'Beacon Digital', 'Citadel Nodes',
+  'Horizon Capital', 'Nexus Validators', 'Orion Systems', 'Pinnacle Staking',
+  'Equinox Labs', 'Vertex Network', 'Lumen Nodes', 'Apex Digital', 'Zenith Pool',
+];
 const VALIDATORS = Array.from({ length: 21 }, () => generateAddress());
 const ACTIVE_ADDRESSES = Array.from({ length: 100 }, () => generateAddress());
 ACTIVE_ADDRESSES.push('0x0000000000000000000000000000000000000000'); // Null address
 
 const getRandomAddress = () => ACTIVE_ADDRESSES[Math.floor(Math.random() * ACTIVE_ADDRESSES.length)];
+const pickValidator = () => Math.floor(Math.random() * VALIDATORS.length);
 
 // Generate historical blocks and txs
 let currentTime = START_TIME;
@@ -74,12 +82,14 @@ for (let i = 0; i < 50; i++) {
     }
   }
   
+  const vIdx = pickValidator();
   blocks.unshift({ // Newest first
     number: INITIAL_BLOCK_NUMBER - 50 + i,
     hash: generateBlockHash(),
     timestamp: currentTime,
     txCount,
-    validator: VALIDATORS[Math.floor(Math.random() * VALIDATORS.length)],
+    validator: VALIDATORS[vIdx],
+    producerName: VALIDATOR_NAMES[vIdx],
     gasUsed: blockTxs.reduce((sum, tx) => sum + tx.gasUsed, 0),
     gasLimit: 30000000,
     reward: 2 + Math.random(),
@@ -93,7 +103,10 @@ currentBlockNumber = INITIAL_BLOCK_NUMBER;
 
 // --- Token registry -------------------------------------------------------
 // A single source of truth for each token's metadata. The native asset of the
-// Basonce Chain is BASONCE (BSO); other addresses resolve to a generic token.
+// Basonce Chain is BNC; other addresses resolve to a generic token.
+export const BNC_PRICE = 2.43;
+export const BNC_SUPPLY = 9_500_000_000;
+
 interface TokenMeta {
   name: string;
   symbol: string;
@@ -106,7 +119,7 @@ interface TokenMeta {
 
 function tokenMeta(address: string): TokenMeta {
   if (address.toLowerCase() === '0xbasonce') {
-    return { name: 'Basonce Token', symbol: 'BSO', decimals: 18, totalSupply: 100000000, price: 42.5, holderCount: 2437, native: true };
+    return { name: 'Basonce Coin', symbol: 'BNC', decimals: 18, totalSupply: BNC_SUPPLY, price: BNC_PRICE, holderCount: 2437, native: true };
   }
   return { name: 'Mock Token', symbol: 'MCK', decimals: 18, totalSupply: 1000000, price: 1.2, holderCount: 120, native: false };
 }
@@ -160,6 +173,98 @@ function getTokenTransferList(address: string): Transaction[] {
   return tokenMeta(address).native ? valueTransfers : valueTransfers.filter((_, i) => i % 9 === 0);
 }
 
+// --- Analytics fixtures ---------------------------------------------------
+// Generated once at module load so charts stay stable across refetches while
+// still looking organic. Designed to be replaced by real chain telemetry.
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function dayLabel(offsetFromToday: number): string {
+  const d = new Date(Date.now() - offsetFromToday * DAY_MS);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${mm}-${dd}`;
+}
+
+function wobble(base: number, spread: number, i: number, drift = 0): number {
+  const wave = Math.sin(i * 0.7) * 0.4 + Math.sin(i * 1.9) * 0.25 + (Math.random() - 0.5) * 0.7;
+  return Math.max(0, base * (1 + wave * spread) + base * drift * i);
+}
+
+const ANALYTICS: HomeAnalytics = (() => {
+  const days = 14;
+
+  const priceSeries: PricePoint[] = Array.from({ length: 30 }, (_, i) => {
+    const idx = 29 - i;
+    return {
+      t: Date.now() - idx * DAY_MS,
+      price: Number(wobble(BNC_PRICE, 0.06, i, 0.001).toFixed(4)),
+    };
+  });
+
+  const txTrend: TrendPoint[] = Array.from({ length: days }, (_, i) => {
+    const total = Math.round(wobble(13_400_000, 0.18, i));
+    return {
+      date: dayLabel(days - 1 - i),
+      total,
+      bncTransfers: Math.round(total * (0.32 + Math.random() * 0.06)),
+      stableTransfers: Math.round(total * (0.41 + Math.random() * 0.06)),
+    };
+  });
+
+  const tvlSeries: TrendPoint[] = Array.from({ length: days }, (_, i) => ({
+    date: dayLabel(days - 1 - i),
+    tvl: Math.round(wobble(25_400_000_000, 0.05, i)),
+    staked: Math.round(wobble(14_500_000_000, 0.04, i)),
+  }));
+
+  const tvlProjects: TvlProject[] = [
+    { name: 'Basonce Staking', category: 'Governance', tvl: 14_539_845_655, change24h: -0.99 },
+    { name: 'LendHub DAO', category: 'Lending | Staking', tvl: 6_292_427_037, change24h: -0.67 },
+    { name: 'Basonce Cryptos', category: 'Cross Chain', tvl: 2_030_013_205, change24h: -1.54 },
+    { name: 'USDB', category: 'Stablecoin | Lending', tvl: 2_029_242_877, change24h: -0.21 },
+    { name: 'SunSwap', category: 'Swap | Farm | Perp', tvl: 613_172_061, change24h: -0.59 },
+    { name: 'stBNC', category: 'RWA | Staking | Yield', tvl: 58_559_146, change24h: 0.08 },
+  ];
+
+  const transferVolumeSeries: TrendPoint[] = Array.from({ length: days }, (_, i) => ({
+    date: dayLabel(days - 1 - i),
+    USDB: Math.round(wobble(30_000_000_000, 0.16, i)),
+    BNC: Math.round(wobble(2_300_000_000, 0.2, i)),
+    USDD: Math.round(wobble(640_000_000, 0.22, i)),
+    JST: Math.round(wobble(120_000_000, 0.25, i)),
+  }));
+
+  const topTokens: TopToken[] = [
+    { rank: 1, name: 'Tether USD', symbol: 'USDB', transferVolume: 30_030_947_409, transfers: 2_894_991, marketCap: 89_230_552_917 },
+    { rank: 2, name: 'Basonce Coin', symbol: 'BNC', transferVolume: 2_346_843_941, transfers: 5_323_618, marketCap: 23_085_000_000 },
+    { rank: 3, name: 'Basonce USD', symbol: 'USDD', transferVolume: 207_321_109, transfers: 1_774, marketCap: 1_082_128_117 },
+    { rank: 4, name: 'JustStake', symbol: 'JST', transferVolume: 40_385_970, transfers: 2_924, marketCap: 807_005_981 },
+    { rank: 5, name: 'Apex Agent', symbol: 'A2A', transferVolume: 4_564_818, transfers: 801, marketCap: 519_290_894 },
+  ];
+
+  const activeAccounts: TrendPoint[] = Array.from({ length: days }, (_, i) => ({
+    date: dayLabel(days - 1 - i),
+    active: Math.round(wobble(5_150_000, 0.12, i)),
+    created: Math.round(wobble(185_000, 0.2, i)),
+  }));
+
+  const revenue: TrendPoint[] = Array.from({ length: days }, (_, i) => ({
+    date: dayLabel(days - 1 - i),
+    revenue: Math.round(wobble(8_900_000, 0.14, i)),
+  }));
+
+  const supplySeries: TrendPoint[] = Array.from({ length: days }, (_, i) => ({
+    date: dayLabel(days - 1 - i),
+    supply: Math.round(BNC_SUPPLY + i * 778_000 + (Math.random() - 0.5) * 200_000),
+    staked: Math.round(wobble(4_550_000_000, 0.02, i)),
+  }));
+
+  return {
+    priceSeries, txTrend, tvlSeries, tvlProjects,
+    transferVolumeSeries, topTokens, activeAccounts, revenue, supplySeries,
+  };
+})();
+
 const listeners: Set<(event: { type: 'new_block' | 'new_transaction'; data: any }) => void> = new Set();
 
 // Simulate live updates
@@ -191,12 +296,14 @@ setInterval(() => {
     listeners.forEach(l => l({ type: 'new_transaction', data: tx }));
   }
   
+  const vIdx = pickValidator();
   const newBlock: Block = {
     number: currentBlockNumber,
     hash: generateBlockHash(),
     timestamp: now,
     txCount,
-    validator: VALIDATORS[Math.floor(Math.random() * VALIDATORS.length)],
+    validator: VALIDATORS[vIdx],
+    producerName: VALIDATOR_NAMES[vIdx],
     gasUsed: newTxs.reduce((sum, tx) => sum + tx.gasUsed, 0),
     gasLimit: 30000000,
     reward: 2 + Math.random(),
@@ -214,15 +321,36 @@ setInterval(() => {
 
 export class MockChainDataSource implements ChainDataSource {
   async getNetworkStats(): Promise<NetworkStats> {
+    const bncPrice = Number((BNC_PRICE + (Math.random() - 0.5) * 0.04).toFixed(4));
     return {
       latestBlock: currentBlockNumber,
-      totalTransactions: 154203948 + transactions.length,
-      bsoPrice: 42.50 + (Math.random() - 0.5),
-      marketCap: 4250000000 + (Math.random() * 10000000 - 5000000),
-      gasPriceGwei: 5.2 + Math.random() * 2,
-      tps: 15 + Math.floor(Math.random() * 20),
-      activeValidators: 21
+      totalAccounts: 12_408_153 + Math.floor(transactions.length / 4),
+      accounts24h: 38_512 + Math.floor(Math.random() * 4000),
+      totalValueLocked: 25_586_191_100 + Math.floor((Math.random() - 0.5) * 20_000_000),
+      tvlChange24h: Number((-0.91 + (Math.random() - 0.5) * 0.4).toFixed(2)),
+      totalTransactions: 4_417_260_240 + transactions.length,
+      transactions24h: 12_969_477 + transactions.length,
+      totalTransferVolume: 7_626_760_608_687 + transactions.length * 1000,
+      transferVolume24h: 30_642_469_210 + Math.floor(Math.random() * 5_000_000),
+      bncPrice,
+      priceChange24h: Number((-1.12 + (Math.random() - 0.5) * 0.6).toFixed(2)),
+      marketCap: Math.round(bncPrice * BNC_SUPPLY),
+      volume24h: 465_780_000 + Math.floor((Math.random() - 0.5) * 8_000_000),
+      totalSupply: BNC_SUPPLY,
+      totalStaked: 4_550_648_861,
+      stakingRate: 47.9,
+      tps: 87 + Math.floor(Math.random() * 40),
+      maxTps: 1035,
+      totalNodes: 8279,
+      totalContracts: 3_597_188,
+      totalTokens: 190_638,
+      activeValidators: 21,
+      gasPriceGwei: Number((5.2 + Math.random() * 2).toFixed(2)),
     };
+  }
+
+  async getHomeAnalytics(): Promise<HomeAnalytics> {
+    return ANALYTICS;
   }
 
   async getLatestBlocks(count: number = 10): Promise<Block[]> {

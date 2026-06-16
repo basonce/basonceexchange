@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTransactionsPage, useLiveChainUpdates } from '@/hooks/use-chain';
-import { formatAddress, formatAge, formatBSO, formatHash } from '@/lib/format';
+import { formatAddress, formatAge, formatBNC, formatHash } from '@/lib/format';
 import { Link } from 'wouter';
 import { ArrowRight, CheckCircle2, XCircle, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -136,7 +136,7 @@ export default function Transactions() {
                         )}
                       </td>
                       <td className="px-4 py-3 font-mono">
-                        {formatBSO(tx.value)}
+                        {formatBNC(tx.value)}
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-muted-foreground">
                         {tx.fee.toFixed(6)}

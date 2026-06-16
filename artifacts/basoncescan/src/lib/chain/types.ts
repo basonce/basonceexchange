@@ -1,11 +1,27 @@
 export interface NetworkStats {
   latestBlock: number;
+  totalAccounts: number;
+  accounts24h: number;
+  totalValueLocked: number;
+  tvlChange24h: number;
   totalTransactions: number;
-  bsoPrice: number;
+  transactions24h: number;
+  totalTransferVolume: number;
+  transferVolume24h: number;
+  bncPrice: number;
+  priceChange24h: number;
   marketCap: number;
-  gasPriceGwei: number;
+  volume24h: number;
+  totalSupply: number;
+  totalStaked: number;
+  stakingRate: number;
   tps: number;
+  maxTps: number;
+  totalNodes: number;
+  totalContracts: number;
+  totalTokens: number;
   activeValidators: number;
+  gasPriceGwei: number;
 }
 
 export interface Block {
@@ -14,9 +30,10 @@ export interface Block {
   timestamp: number;
   txCount: number;
   validator: string;
+  producerName: string;
   gasUsed: number;
   gasLimit: number;
-  reward: number; // in BSO
+  reward: number; // in BNC
   size: number;
 }
 
@@ -27,8 +44,8 @@ export interface Transaction {
   status: 'success' | 'failed' | 'pending';
   from: string;
   to: string | null;
-  value: number; // in BSO
-  fee: number; // in BSO
+  value: number; // in BNC
+  fee: number; // in BNC
   gasPrice: number; // in Gwei
   gasUsed: number;
   gasLimit: number;
@@ -39,7 +56,7 @@ export interface Transaction {
 
 export interface Address {
   hash: string;
-  balance: number; // in BSO
+  balance: number; // in BNC
   txCount: number;
   firstSeen: number;
   lastSeen: number;
@@ -76,8 +93,48 @@ export interface SearchResult {
   id: string;
 }
 
+// --- Analytics types (home dashboard) -------------------------------------
+export interface PricePoint {
+  t: number;
+  price: number;
+}
+
+export interface TrendPoint {
+  date: string;
+  [series: string]: number | string;
+}
+
+export interface TvlProject {
+  name: string;
+  category: string;
+  tvl: number;
+  change24h: number;
+}
+
+export interface TopToken {
+  rank: number;
+  name: string;
+  symbol: string;
+  transferVolume: number;
+  transfers: number;
+  marketCap: number;
+}
+
+export interface HomeAnalytics {
+  priceSeries: PricePoint[];
+  txTrend: TrendPoint[];              // { date, total, bncTransfers, stableTransfers }
+  tvlSeries: TrendPoint[];           // { date, tvl, staked }
+  tvlProjects: TvlProject[];
+  transferVolumeSeries: TrendPoint[]; // { date, BNC, USDB, USDD, JST }
+  topTokens: TopToken[];
+  activeAccounts: TrendPoint[];      // { date, active, created }
+  revenue: TrendPoint[];             // { date, revenue }
+  supplySeries: TrendPoint[];        // { date, supply, staked }
+}
+
 export interface ChainDataSource {
   getNetworkStats(): Promise<NetworkStats>;
+  getHomeAnalytics(): Promise<HomeAnalytics>;
   getLatestBlocks(count?: number): Promise<Block[]>;
   getLatestTransactions(count?: number): Promise<Transaction[]>;
   getTransactionsPage(page: number, pageSize: number): Promise<PaginatedResult<Transaction>>;
@@ -90,7 +147,7 @@ export interface ChainDataSource {
   getTokenTransfers(address: string, page: number, pageSize: number): Promise<PaginatedResult<Transaction>>;
   getTokenHolders(address: string, page: number, pageSize: number): Promise<PaginatedResult<TokenHolder>>;
   search(query: string): Promise<SearchResult>;
-  
+
   // Subscription for live updates
   subscribe(callback: (event: { type: 'new_block' | 'new_transaction'; data: any }) => void): () => void;
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link } from 'wouter';
 import { useToken, useTokenHolders, useTokenTransfers } from '@/hooks/use-chain';
-import { formatNumber, formatCurrency, formatAddress, formatHash, formatBSO, formatAge } from '@/lib/format';
+import { formatNumber, formatCurrency, formatAddress, formatHash, formatBNC, formatAge } from '@/lib/format';
 import { Coins, Globe, Copy, Info } from 'lucide-react';
 
 type TokenTab = 'transfers' | 'holders' | 'info';
@@ -162,7 +162,7 @@ export default function TokenDetail() {
                         <span className="text-muted-foreground">Contract Creation</span>
                       )}
                     </td>
-                    <td className="px-6 py-3 text-right font-mono whitespace-nowrap">{formatBSO(tx.value)}</td>
+                    <td className="px-6 py-3 text-right font-mono whitespace-nowrap">{formatBNC(tx.value)}</td>
                   </tr>
                 ))}
               </tbody>

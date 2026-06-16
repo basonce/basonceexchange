@@ -1,6 +1,6 @@
 import { useParams, Link } from 'wouter';
 import { useTransaction } from '@/hooks/use-chain';
-import { formatAddress, formatBSO, formatNumber } from '@/lib/format';
+import { formatAddress, formatBNC, formatNumber } from '@/lib/format';
 import { format } from 'date-fns';
 import { ArrowRightLeft, Clock, CheckCircle2, XCircle, FileText } from 'lucide-react';
 
@@ -125,14 +125,14 @@ export default function TransactionDetail() {
             label="Value:" 
             value={
               <span className="font-mono bg-secondary px-2 py-1 rounded border border-border">
-                {formatBSO(tx.value)}
+                {formatBNC(tx.value)}
               </span>
             } 
           />
           
           <InfoRow 
             label="Transaction Fee:" 
-            value={<span className="font-mono text-muted-foreground">{tx.fee.toFixed(8)} BSO</span>} 
+            value={<span className="font-mono text-muted-foreground">{tx.fee.toFixed(8)} BNC</span>} 
           />
           
           <InfoRow 

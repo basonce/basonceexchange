@@ -10,10 +10,19 @@ export function useNetworkStats() {
   });
 }
 
+export function useHomeAnalytics() {
+  return useQuery({
+    queryKey: ['homeAnalytics'],
+    queryFn: () => chainData.getHomeAnalytics(),
+    refetchInterval: 30000,
+  });
+}
+
 export function useLatestBlocks(count = 10) {
   return useQuery({
     queryKey: ['latestBlocks', count],
     queryFn: () => chainData.getLatestBlocks(count),
+    refetchInterval: 3000,
   });
 }
 
@@ -21,6 +30,7 @@ export function useLatestTransactions(count = 10) {
   return useQuery({
     queryKey: ['latestTransactions', count],
     queryFn: () => chainData.getLatestTransactions(count),
+    refetchInterval: 3000,
   });
 }
 
@@ -107,19 +117,19 @@ export function useLiveChainUpdates() {
   useEffect(() => {
     const unsubscribe = chainData.subscribe((event) => {
       if (event.type === 'new_block') {
-        // Optimistically update latest blocks
-        queryClient.setQueryData(['latestBlocks', 10], (old: any) => {
-          if (!old) return old;
-          return [event.data, ...old.slice(0, 9)];
+        // Optimistically update every latest-blocks query regardless of its count
+        queryClient.setQueriesData({ queryKey: ['latestBlocks'] }, (old: any) => {
+          if (!Array.isArray(old)) return old;
+          return [event.data, ...old].slice(0, old.length);
         });
         // Invalidate full lists slightly delayed to avoid jumping if not on page
         setTimeout(() => queryClient.invalidateQueries({ queryKey: ['blocks', 1] }), 1000);
         queryClient.invalidateQueries({ queryKey: ['networkStats'] });
       } else if (event.type === 'new_transaction') {
-        // Optimistically update latest transactions
-        queryClient.setQueryData(['latestTransactions', 10], (old: any) => {
-          if (!old) return old;
-          return [event.data, ...old.slice(0, 9)];
+        // Optimistically update every latest-transactions query regardless of its count
+        queryClient.setQueriesData({ queryKey: ['latestTransactions'] }, (old: any) => {
+          if (!Array.isArray(old)) return old;
+          return [event.data, ...old].slice(0, old.length);
         });
         setTimeout(() => queryClient.invalidateQueries({ queryKey: ['transactions', 1] }), 1000);
       }

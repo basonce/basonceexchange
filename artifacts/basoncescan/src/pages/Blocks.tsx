@@ -109,7 +109,7 @@ export default function Blocks() {
                         {formatNumber(block.gasLimit)}
                       </td>
                       <td className="px-4 py-3 text-right font-mono">
-                        {block.reward.toFixed(5)} BSO
+                        {block.reward.toFixed(5)} BNC
                       </td>
                     </motion.tr>
                   ))}
