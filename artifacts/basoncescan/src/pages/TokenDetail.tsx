@@ -48,7 +48,7 @@ export default function TokenDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Overview Card */}
-        <div className="bg-card border border-border rounded-xl shadow-sm">
+        <div className="bg-card border border-border rounded-lg shadow-sm">
           <div className="px-6 py-4 border-b border-border font-medium flex items-center justify-between">
             Overview
             <span className="text-xs font-normal text-muted-foreground bg-secondary px-2 py-1 rounded">ERC-20</span>
@@ -56,7 +56,7 @@ export default function TokenDetail() {
           <div className="p-6 space-y-6">
             <div>
               <div className="text-sm text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Max Total Supply</div>
-              <div className="text-xl font-bold font-mono">
+              <div className="text-xl font-bold tabular-nums">
                 {formatNumber(token.totalSupply)} <span className="text-base text-muted-foreground font-sans">{token.symbol}</span>
               </div>
             </div>
@@ -79,7 +79,7 @@ export default function TokenDetail() {
         </div>
 
         {/* Profile Card */}
-        <div className="bg-card border border-border rounded-xl shadow-sm">
+        <div className="bg-card border border-border rounded-lg shadow-sm">
           <div className="px-6 py-4 border-b border-border font-medium">
             Profile Summary
           </div>
@@ -88,7 +88,7 @@ export default function TokenDetail() {
               <div className="text-muted-foreground font-medium flex items-center gap-1">
                 Contract <Info className="w-3 h-3" />
               </div>
-              <div className="font-mono text-link flex items-start gap-2 min-w-0">
+              <div className="tabular-nums text-link flex items-start gap-2 min-w-0">
                 <span className="break-all">{token.address}</span>
                 <button className="text-muted-foreground hover:text-foreground shrink-0 mt-0.5"><Copy className="w-3 h-3" /></button>
               </div>
@@ -96,7 +96,7 @@ export default function TokenDetail() {
             
             <div className="grid grid-cols-[120px_1fr] gap-4 text-sm">
               <div className="text-muted-foreground font-medium">Decimals</div>
-              <div className="font-mono">{token.decimals}</div>
+              <div className="tabular-nums">{token.decimals}</div>
             </div>
             
             <div className="grid grid-cols-[120px_1fr] gap-4 text-sm">
@@ -112,7 +112,7 @@ export default function TokenDetail() {
       </div>
 
       {/* Tabs */}
-      <div className="bg-card border border-border rounded-xl shadow-sm min-h-[400px]">
+      <div className="bg-card border border-border rounded-lg shadow-sm min-h-[400px]">
         <div className="px-6 py-0 border-b border-border flex gap-6 overflow-x-auto">
           {([
             { id: 'transfers', label: 'Transfers' },
@@ -149,20 +149,20 @@ export default function TokenDetail() {
                 {(transfers ?? []).map((tx) => (
                   <tr key={tx.hash} className="border-b border-border/60 hover:bg-muted/40 transition-colors">
                     <td className="px-6 py-3">
-                      <Link href={`/tx/${tx.hash}`} className="font-mono text-link hover:underline">{formatHash(tx.hash)}</Link>
+                      <Link href={`/tx/${tx.hash}`} className="tabular-nums text-link hover:underline">{formatHash(tx.hash)}</Link>
                     </td>
                     <td className="px-6 py-3 text-muted-foreground whitespace-nowrap">{formatAge(tx.timestamp)}</td>
                     <td className="px-6 py-3">
-                      <Link href={`/address/${tx.from}`} className="font-mono text-link hover:underline">{formatAddress(tx.from)}</Link>
+                      <Link href={`/address/${tx.from}`} className="tabular-nums text-link hover:underline">{formatAddress(tx.from)}</Link>
                     </td>
                     <td className="px-6 py-3">
                       {tx.to ? (
-                        <Link href={`/address/${tx.to}`} className="font-mono text-link hover:underline">{formatAddress(tx.to)}</Link>
+                        <Link href={`/address/${tx.to}`} className="tabular-nums text-link hover:underline">{formatAddress(tx.to)}</Link>
                       ) : (
                         <span className="text-muted-foreground">Contract Creation</span>
                       )}
                     </td>
-                    <td className="px-6 py-3 text-right font-mono whitespace-nowrap">{formatBNC(tx.value)}</td>
+                    <td className="px-6 py-3 text-right tabular-nums whitespace-nowrap">{formatBNC(tx.value)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -186,15 +186,15 @@ export default function TokenDetail() {
                   <tr key={h.address} className="border-b border-border/60 hover:bg-muted/40 transition-colors">
                     <td className="px-6 py-3 text-muted-foreground">{i + 1}</td>
                     <td className="px-6 py-3">
-                      <Link href={`/address/${h.address}`} className="font-mono text-link hover:underline">{formatAddress(h.address)}</Link>
+                      <Link href={`/address/${h.address}`} className="tabular-nums text-link hover:underline">{formatAddress(h.address)}</Link>
                     </td>
-                    <td className="px-6 py-3 text-right font-mono whitespace-nowrap">{formatNumber(h.balance)}</td>
+                    <td className="px-6 py-3 text-right tabular-nums whitespace-nowrap">{formatNumber(h.balance)}</td>
                     <td className="px-6 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <div className="h-1.5 w-20 rounded-full bg-secondary overflow-hidden hidden sm:block">
                           <div className="h-full bg-primary" style={{ width: `${Math.min(h.percentage, 100)}%` }} />
                         </div>
-                        <span className="font-mono tabular-nums w-16 text-right">{h.percentage.toFixed(4)}%</span>
+                        <span className="tabular-nums w-16 text-right">{h.percentage.toFixed(4)}%</span>
                       </div>
                     </td>
                   </tr>
@@ -212,7 +212,7 @@ export default function TokenDetail() {
             </div>
             <div className="grid grid-cols-[140px_1fr] gap-4">
               <div className="text-muted-foreground font-medium">Symbol</div>
-              <div className="font-mono">{token.symbol}</div>
+              <div className="tabular-nums">{token.symbol}</div>
             </div>
             <div className="grid grid-cols-[140px_1fr] gap-4">
               <div className="text-muted-foreground font-medium">Standard</div>
@@ -220,23 +220,23 @@ export default function TokenDetail() {
             </div>
             <div className="grid grid-cols-[140px_1fr] gap-4">
               <div className="text-muted-foreground font-medium">Decimals</div>
-              <div className="font-mono">{token.decimals}</div>
+              <div className="tabular-nums">{token.decimals}</div>
             </div>
             <div className="grid grid-cols-[140px_1fr] gap-4">
               <div className="text-muted-foreground font-medium">Max Total Supply</div>
-              <div className="font-mono">{formatNumber(token.totalSupply)} {token.symbol}</div>
+              <div className="tabular-nums">{formatNumber(token.totalSupply)} {token.symbol}</div>
             </div>
             <div className="grid grid-cols-[140px_1fr] gap-4">
               <div className="text-muted-foreground font-medium">Holders</div>
-              <div className="font-mono">{formatNumber(token.holders)}</div>
+              <div className="tabular-nums">{formatNumber(token.holders)}</div>
             </div>
             <div className="grid grid-cols-[140px_1fr] gap-4">
               <div className="text-muted-foreground font-medium">Total Transfers</div>
-              <div className="font-mono">{formatNumber(token.transfers)}</div>
+              <div className="tabular-nums">{formatNumber(token.transfers)}</div>
             </div>
             <div className="grid grid-cols-[140px_1fr] gap-4">
               <div className="text-muted-foreground font-medium">Price</div>
-              <div className="font-mono">{formatCurrency(token.price)}</div>
+              <div className="tabular-nums">{formatCurrency(token.price)}</div>
             </div>
           </div>
         )}

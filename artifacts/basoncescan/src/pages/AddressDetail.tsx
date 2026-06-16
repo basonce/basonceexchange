@@ -34,21 +34,21 @@ export default function AddressDetail() {
             <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
               Address
             </h1>
-            <p className="text-muted-foreground font-mono text-sm mt-1 break-all">{address.hash}</p>
+            <p className="text-muted-foreground tabular-nums text-sm mt-1 break-all">{address.hash}</p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Overview Card */}
-        <div className="bg-card border border-border rounded-xl shadow-sm">
+        <div className="bg-card border border-border rounded-lg shadow-sm">
           <div className="px-6 py-4 border-b border-border font-medium">
             Overview
           </div>
           <div className="p-6 space-y-4">
             <div>
               <div className="text-sm text-muted-foreground mb-1 uppercase tracking-wider font-semibold">BNC Balance</div>
-              <div className="text-2xl font-bold font-mono">
+              <div className="text-2xl font-bold tabular-nums">
                 {formatBNC(address.balance)}
               </div>
             </div>
@@ -68,7 +68,7 @@ export default function AddressDetail() {
         </div>
 
         {/* More Info Card */}
-        <div className="bg-card border border-border rounded-xl shadow-sm">
+        <div className="bg-card border border-border rounded-lg shadow-sm">
           <div className="px-6 py-4 border-b border-border font-medium">
             More Info
           </div>
@@ -86,7 +86,7 @@ export default function AddressDetail() {
       </div>
 
       {/* Transactions Tab */}
-      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
         <div className="px-6 py-0 border-b border-border flex gap-6">
           <button className="py-4 border-b-2 border-primary text-foreground font-medium text-sm">
             Transactions
@@ -136,7 +136,7 @@ export default function AddressDetail() {
                         ) : (
                           <div className="w-3.5 h-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                         )}
-                        <Link href={`/tx/${tx.hash}`} className="text-link hover:text-link/80 font-mono">
+                        <Link href={`/tx/${tx.hash}`} className="text-link hover:text-link/80 tabular-nums">
                           {formatHash(tx.hash)}
                         </Link>
                       </div>
@@ -147,7 +147,7 @@ export default function AddressDetail() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <Link href={`/block/${tx.blockNumber}`} className="text-link hover:text-link/80 font-mono">
+                      <Link href={`/block/${tx.blockNumber}`} className="text-link hover:text-link/80 tabular-nums">
                         {tx.blockNumber}
                       </Link>
                     </td>
@@ -156,36 +156,36 @@ export default function AddressDetail() {
                     </td>
                     <td className="px-4 py-3">
                       {isOut ? (
-                        <span className="font-mono text-muted-foreground">{formatAddress(tx.from)}</span>
+                        <span className="tabular-nums text-muted-foreground">{formatAddress(tx.from)}</span>
                       ) : (
-                        <Link href={`/address/${tx.from}`} className="text-link hover:text-link/80 font-mono">
+                        <Link href={`/address/${tx.from}`} className="text-link hover:text-link/80 tabular-nums">
                           {formatAddress(tx.from)}
                         </Link>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
                       {isOut ? (
-                        <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-warning/10 text-warning text-xs font-bold font-mono border border-warning/20">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-warning/10 text-warning text-xs font-bold tabular-nums border border-warning/20">
                           OUT
                         </span>
                       ) : (
-                        <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-success/10 text-success text-xs font-bold font-mono border border-success/20">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-success/10 text-success text-xs font-bold tabular-nums border border-success/20">
                           IN
                         </span>
                       )}
                     </td>
                     <td className="px-4 py-3">
                       {!isOut ? (
-                        <span className="font-mono text-muted-foreground">{tx.to ? formatAddress(tx.to) : 'Contract'}</span>
+                        <span className="tabular-nums text-muted-foreground">{tx.to ? formatAddress(tx.to) : 'Contract'}</span>
                       ) : tx.to ? (
-                        <Link href={`/address/${tx.to}`} className="text-link hover:text-link/80 font-mono">
+                        <Link href={`/address/${tx.to}`} className="text-link hover:text-link/80 tabular-nums">
                           {formatAddress(tx.to)}
                         </Link>
                       ) : (
                         <span className="text-muted-foreground">Contract Creation</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs">
+                    <td className="px-4 py-3 tabular-nums text-xs">
                       {formatBNC(tx.value)}
                     </td>
                   </tr>

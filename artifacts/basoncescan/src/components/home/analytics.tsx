@@ -64,8 +64,8 @@ export function Analytics({ data }: { data: HomeAnalytics }) {
                   <tr key={p.name} className="border-b border-border last:border-b-0 hover:bg-secondary/40">
                     <td className="px-4 py-3 font-medium text-foreground">{p.name}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{p.category}</td>
-                    <td className="px-4 py-3 text-right font-mono text-foreground">{formatCompactUSD(p.tvl)}</td>
-                    <td className={`px-4 py-3 text-right font-mono ${p.change24h >= 0 ? 'text-success' : 'text-destructive'}`}>
+                    <td className="px-4 py-3 text-right tabular-nums text-foreground">{formatCompactUSD(p.tvl)}</td>
+                    <td className={`px-4 py-3 text-right tabular-nums ${p.change24h >= 0 ? 'text-success' : 'text-destructive'}`}>
                       {formatPercent(p.change24h)}
                     </td>
                   </tr>
@@ -97,14 +97,14 @@ export function Analytics({ data }: { data: HomeAnalytics }) {
               <tbody>
                 {data.topTokens.map((t) => (
                   <tr key={t.symbol} className="border-b border-border last:border-b-0 hover:bg-secondary/40">
-                    <td className="px-4 py-3 font-mono text-muted-foreground">{t.rank}</td>
+                    <td className="px-4 py-3 tabular-nums text-muted-foreground">{t.rank}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-foreground">{t.symbol}</div>
                       <div className="text-xs text-muted-foreground">{t.name}</div>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-foreground">{formatCompactUSD(t.transferVolume)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-muted-foreground">{formatNumber(t.transfers)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-foreground">{formatCompactUSD(t.marketCap)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-foreground">{formatCompactUSD(t.transferVolume)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{formatNumber(t.transfers)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-foreground">{formatCompactUSD(t.marketCap)}</td>
                   </tr>
                 ))}
               </tbody>

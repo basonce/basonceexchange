@@ -19,7 +19,7 @@ export default function Transactions() {
         </p>
       </div>
 
-      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
         {/* Pagination Top */}
         <div className="p-4 border-b border-border flex justify-between items-center bg-secondary/30">
           <div className="text-sm text-muted-foreground">
@@ -93,7 +93,7 @@ export default function Transactions() {
                           ) : (
                             <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                           )}
-                          <Link href={`/tx/${tx.hash}`} className="text-link hover:text-link/80 font-mono">
+                          <Link href={`/tx/${tx.hash}`} className="text-link hover:text-link/80 tabular-nums">
                             {formatHash(tx.hash)}
                           </Link>
                         </div>
@@ -104,7 +104,7 @@ export default function Transactions() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <Link href={`/block/${tx.blockNumber}`} className="text-link hover:text-link/80 font-mono">
+                        <Link href={`/block/${tx.blockNumber}`} className="text-link hover:text-link/80 tabular-nums">
                           {tx.blockNumber}
                         </Link>
                       </td>
@@ -112,7 +112,7 @@ export default function Transactions() {
                         {formatAge(tx.timestamp)}
                       </td>
                       <td className="px-4 py-3">
-                        <Link href={`/address/${tx.from}`} className="text-link hover:text-link/80 font-mono flex items-center gap-1">
+                        <Link href={`/address/${tx.from}`} className="text-link hover:text-link/80 tabular-nums flex items-center gap-1">
                           <FileText className="w-3 h-3 text-muted-foreground" />
                           {formatAddress(tx.from)}
                         </Link>
@@ -124,7 +124,7 @@ export default function Transactions() {
                       </td>
                       <td className="px-4 py-3">
                         {tx.to ? (
-                          <Link href={`/address/${tx.to}`} className="text-link hover:text-link/80 font-mono flex items-center gap-1">
+                          <Link href={`/address/${tx.to}`} className="text-link hover:text-link/80 tabular-nums flex items-center gap-1">
                             <FileText className="w-3 h-3 text-muted-foreground" />
                             {formatAddress(tx.to)}
                           </Link>
@@ -135,10 +135,10 @@ export default function Transactions() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 font-mono">
+                      <td className="px-4 py-3 tabular-nums">
                         {formatBNC(tx.value)}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-muted-foreground">
+                      <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
                         {tx.fee.toFixed(6)}
                       </td>
                     </motion.tr>

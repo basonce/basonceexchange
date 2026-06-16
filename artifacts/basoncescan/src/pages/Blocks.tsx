@@ -19,7 +19,7 @@ export default function Blocks() {
         </p>
       </div>
 
-      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
         {/* Pagination Top */}
         <div className="p-4 border-b border-border flex justify-between items-center bg-secondary/30">
           <div className="text-sm text-muted-foreground">
@@ -83,7 +83,7 @@ export default function Blocks() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <Box className="w-4 h-4 text-muted-foreground" />
-                          <Link href={`/block/${block.number}`} className="text-link hover:text-link/80 font-mono">
+                          <Link href={`/block/${block.number}`} className="text-link hover:text-link/80 tabular-nums">
                             {block.number}
                           </Link>
                         </div>
@@ -92,23 +92,23 @@ export default function Blocks() {
                         {formatAge(block.timestamp)}
                       </td>
                       <td className="px-4 py-3">
-                        <Link href={`/txs?block=${block.number}`} className="text-link hover:text-link/80 font-mono">
+                        <Link href={`/txs?block=${block.number}`} className="text-link hover:text-link/80 tabular-nums">
                           {block.txCount}
                         </Link>
                       </td>
                       <td className="px-4 py-3">
-                        <Link href={`/address/${block.validator}`} className="text-link hover:text-link/80 font-mono">
+                        <Link href={`/address/${block.validator}`} className="text-link hover:text-link/80 tabular-nums">
                           {formatAddress(block.validator, 8)}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 font-mono text-muted-foreground">
+                      <td className="px-4 py-3 tabular-nums text-muted-foreground">
                         {formatNumber(block.gasUsed)}
                         <span className="text-xs ml-1 opacity-50">({Math.round((block.gasUsed / block.gasLimit) * 100)}%)</span>
                       </td>
-                      <td className="px-4 py-3 font-mono text-muted-foreground">
+                      <td className="px-4 py-3 tabular-nums text-muted-foreground">
                         {formatNumber(block.gasLimit)}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono">
+                      <td className="px-4 py-3 text-right tabular-nums">
                         {block.reward.toFixed(5)} BNC
                       </td>
                     </motion.tr>

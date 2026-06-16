@@ -23,7 +23,7 @@ function FeedShell({
         </h2>
       </div>
       <div className="flex min-w-0 flex-1 flex-col">{children}</div>
-      <div className="rounded-b-xl border-t border-border bg-secondary/30 p-3 text-center">
+      <div className="rounded-b-lg border-t border-border bg-secondary/30 p-3 text-center">
         <Link href={footerHref} className="text-xs font-medium uppercase tracking-wider text-link hover:text-link/80">
           {footerLabel}
         </Link>
@@ -48,7 +48,7 @@ export function LatestBlocks({ blocks }: { blocks: Block[] }) {
               <Box className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <Link href={`/block/${block.number}`} className="font-mono text-sm font-medium text-link hover:text-link/80">
+              <Link href={`/block/${block.number}`} className="tabular-nums text-sm font-medium text-link hover:text-link/80">
                 {block.number}
               </Link>
               <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
@@ -67,7 +67,7 @@ export function LatestBlocks({ blocks }: { blocks: Block[] }) {
               </div>
             </div>
             <div className="shrink-0 text-right">
-              <div className="inline-block rounded-md bg-secondary px-2 py-1 font-mono text-xs text-foreground">
+              <div className="inline-block rounded-md bg-secondary px-2 py-1 tabular-nums text-xs text-foreground">
                 {block.reward.toFixed(4)} BNC
               </div>
             </div>
@@ -94,7 +94,7 @@ export function LatestTransactions({ txs }: { txs: Transaction[] }) {
               <ArrowRightLeft className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <Link href={`/tx/${tx.hash}`} className="block truncate font-mono text-sm font-medium text-link hover:text-link/80">
+              <Link href={`/tx/${tx.hash}`} className="block truncate tabular-nums text-sm font-medium text-link hover:text-link/80">
                 {formatHash(tx.hash)}
               </Link>
               <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
@@ -104,23 +104,23 @@ export function LatestTransactions({ txs }: { txs: Transaction[] }) {
             <div className="hidden min-w-0 flex-1 sm:block">
               <div className="flex items-center gap-2 truncate text-sm">
                 <span className="text-muted-foreground">From</span>
-                <Link href={`/address/${tx.from}`} className="truncate font-mono text-link hover:text-link/80">
+                <Link href={`/address/${tx.from}`} className="truncate tabular-nums text-link hover:text-link/80">
                   {formatAddress(tx.from)}
                 </Link>
               </div>
               <div className="flex items-center gap-2 truncate text-sm">
                 <span className="text-muted-foreground">To</span>
                 {tx.to && tx.to !== ZERO_ADDRESS ? (
-                  <Link href={`/address/${tx.to}`} className="truncate font-mono text-link hover:text-link/80">
+                  <Link href={`/address/${tx.to}`} className="truncate tabular-nums text-link hover:text-link/80">
                     {formatAddress(tx.to)}
                   </Link>
                 ) : (
-                  <span className="truncate font-mono text-muted-foreground">Contract Creation</span>
+                  <span className="truncate tabular-nums text-muted-foreground">Contract Creation</span>
                 )}
               </div>
             </div>
             <div className="shrink-0 text-right">
-              <div className="inline-block rounded-md bg-secondary px-2 py-1 font-mono text-xs text-foreground">
+              <div className="inline-block rounded-md bg-secondary px-2 py-1 tabular-nums text-xs text-foreground">
                 {formatBNC(tx.value)}
               </div>
             </div>

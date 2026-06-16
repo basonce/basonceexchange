@@ -44,14 +44,14 @@ export default function TransactionDetail() {
         </h1>
       </div>
 
-      <div className="bg-card border border-border rounded-xl shadow-sm">
+      <div className="bg-card border border-border rounded-lg shadow-sm">
         <div className="px-6 py-2 border-b border-border bg-secondary/30 font-medium text-sm">
           Overview
         </div>
         <div className="p-6">
           <InfoRow 
             label="Transaction Hash:" 
-            value={<span className="font-mono font-medium">{tx.hash}</span>} 
+            value={<span className="tabular-nums font-medium">{tx.hash}</span>} 
           />
           
           <InfoRow 
@@ -79,7 +79,7 @@ export default function TransactionDetail() {
           <InfoRow 
             label="Block:" 
             value={
-              <Link href={`/block/${tx.blockNumber}`} className="text-link hover:text-link/80 font-mono">
+              <Link href={`/block/${tx.blockNumber}`} className="text-link hover:text-link/80 tabular-nums">
                 {tx.blockNumber}
               </Link>
             } 
@@ -100,7 +100,7 @@ export default function TransactionDetail() {
           <InfoRow 
             label="From:" 
             value={
-              <Link href={`/address/${tx.from}`} className="text-link hover:text-link/80 font-mono">
+              <Link href={`/address/${tx.from}`} className="text-link hover:text-link/80 tabular-nums">
                 {tx.from}
               </Link>
             } 
@@ -110,7 +110,7 @@ export default function TransactionDetail() {
             label="To:" 
             value={
               tx.to ? (
-                <Link href={`/address/${tx.to}`} className="text-link hover:text-link/80 font-mono">
+                <Link href={`/address/${tx.to}`} className="text-link hover:text-link/80 tabular-nums">
                   {tx.to}
                 </Link>
               ) : (
@@ -124,7 +124,7 @@ export default function TransactionDetail() {
           <InfoRow 
             label="Value:" 
             value={
-              <span className="font-mono bg-secondary px-2 py-1 rounded border border-border">
+              <span className="tabular-nums bg-secondary px-2 py-1 rounded border border-border">
                 {formatBNC(tx.value)}
               </span>
             } 
@@ -132,17 +132,17 @@ export default function TransactionDetail() {
           
           <InfoRow 
             label="Transaction Fee:" 
-            value={<span className="font-mono text-muted-foreground">{tx.fee.toFixed(8)} BNC</span>} 
+            value={<span className="tabular-nums text-muted-foreground">{tx.fee.toFixed(8)} BNC</span>} 
           />
           
           <InfoRow 
             label="Gas Price:" 
-            value={<span className="font-mono">{tx.gasPrice.toFixed(2)} Gwei</span>} 
+            value={<span className="tabular-nums">{tx.gasPrice.toFixed(2)} Gwei</span>} 
           />
         </div>
       </div>
 
-      <div className="mt-6 bg-card border border-border rounded-xl shadow-sm">
+      <div className="mt-6 bg-card border border-border rounded-lg shadow-sm">
         <div className="px-6 py-3 border-b border-border bg-secondary/30 font-medium text-sm">
           More Details
         </div>
@@ -150,20 +150,20 @@ export default function TransactionDetail() {
           <InfoRow 
             label="Gas Limit & Usage:" 
             value={
-              <span className="font-mono">
+              <span className="tabular-nums">
                 {formatNumber(tx.gasLimit)} &nbsp;|&nbsp; {formatNumber(tx.gasUsed)} ({(tx.gasUsed / tx.gasLimit * 100).toFixed(2)}%)
               </span>
             } 
           />
           <InfoRow 
             label="Nonce:" 
-            value={<span className="font-mono">{tx.nonce}</span>} 
+            value={<span className="tabular-nums">{tx.nonce}</span>} 
           />
           <InfoRow 
             label="Input Data:" 
             value={
               <div className="bg-secondary/50 rounded-md p-4 border border-border">
-                <div className="font-mono text-xs text-muted-foreground break-all whitespace-pre-wrap max-h-48 overflow-y-auto">
+                <div className="tabular-nums text-xs text-muted-foreground break-all whitespace-pre-wrap max-h-48 overflow-y-auto">
                   {tx.input}
                 </div>
               </div>

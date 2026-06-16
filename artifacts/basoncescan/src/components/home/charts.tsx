@@ -38,7 +38,7 @@ function makeTooltip(fmt: (v: number) => string) {
           <div key={r.name} className="flex items-center gap-2 text-xs">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: r.color }} />
             <span className="text-muted-foreground">{r.name}</span>
-            <span className="ml-auto font-mono text-foreground">{fmt(r.value)}</span>
+            <span className="ml-auto tabular-nums text-foreground">{fmt(r.value)}</span>
           </div>
         ))}
       </div>

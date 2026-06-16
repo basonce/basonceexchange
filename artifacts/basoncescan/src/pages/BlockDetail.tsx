@@ -42,11 +42,11 @@ export default function BlockDetail() {
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <Box className="w-6 h-6 text-muted-foreground" />
           Block
-          <span className="text-muted-foreground ml-2 font-mono">#{block.number}</span>
+          <span className="text-muted-foreground ml-2 tabular-nums">#{block.number}</span>
         </h1>
       </div>
 
-      <div className="bg-card border border-border rounded-xl shadow-sm">
+      <div className="bg-card border border-border rounded-lg shadow-sm">
         <div className="px-6 py-2 border-b border-border bg-secondary/30 font-medium text-sm">
           Overview
         </div>
@@ -55,7 +55,7 @@ export default function BlockDetail() {
             label="Block Height:" 
             value={
               <div className="flex items-center gap-3">
-                <span className="font-mono font-medium">{block.number}</span>
+                <span className="tabular-nums font-medium">{block.number}</span>
                 <div className="flex gap-1">
                   <Link href={`/block/${block.number - 1}`} className="p-1 rounded bg-secondary hover:bg-secondary/80 text-muted-foreground transition-colors">
                     <ChevronLeft className="w-4 h-4" />
@@ -102,7 +102,7 @@ export default function BlockDetail() {
             value={
               <span className="flex flex-wrap items-center gap-2">
                 <span className="font-medium text-foreground">{block.producerName}</span>
-                <Link href={`/address/${block.validator}`} className="text-link hover:text-link/80 font-mono break-all">
+                <Link href={`/address/${block.validator}`} className="text-link hover:text-link/80 tabular-nums break-all">
                   {block.validator}
                 </Link>
               </span>
@@ -111,7 +111,7 @@ export default function BlockDetail() {
           
           <InfoRow 
             label="Block Reward:" 
-            value={<span className="font-mono">{block.reward.toFixed(6)} BNC</span>} 
+            value={<span className="tabular-nums">{block.reward.toFixed(6)} BNC</span>} 
           />
           
           <InfoRow 
@@ -123,7 +123,7 @@ export default function BlockDetail() {
             label="Gas Used:" 
             value={
               <div>
-                <span className="font-mono">{formatNumber(block.gasUsed)}</span>
+                <span className="tabular-nums">{formatNumber(block.gasUsed)}</span>
                 <span className="text-muted-foreground ml-2">
                   ({((block.gasUsed / block.gasLimit) * 100).toFixed(2)}%)
                 </span>
@@ -133,12 +133,12 @@ export default function BlockDetail() {
           
           <InfoRow 
             label="Gas Limit:" 
-            value={<span className="font-mono">{formatNumber(block.gasLimit)}</span>} 
+            value={<span className="tabular-nums">{formatNumber(block.gasLimit)}</span>} 
           />
           
           <InfoRow 
             label="Hash:" 
-            value={<span className="font-mono text-muted-foreground">{block.hash}</span>} 
+            value={<span className="tabular-nums text-muted-foreground">{block.hash}</span>} 
           />
         </div>
       </div>

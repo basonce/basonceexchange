@@ -27,7 +27,7 @@ function StatCard({
       </div>
       <div className="min-w-0">
         <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</div>
-        <div className="mt-1 truncate font-mono text-xl font-bold text-foreground">{value}</div>
+        <div className="mt-1 truncate tabular-nums text-xl font-bold text-foreground">{value}</div>
         <div className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</div>
       </div>
     </div>
@@ -40,7 +40,7 @@ function MiniStat({ label, value, icon: Icon }: { label: string; value: string; 
       <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
       <div className="min-w-0">
         <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
-        <div className="truncate font-mono text-sm font-semibold text-foreground">{value}</div>
+        <div className="truncate tabular-nums text-sm font-semibold text-foreground">{value}</div>
       </div>
     </div>
   );
@@ -89,13 +89,13 @@ export function Overview({ stats, priceSeries }: { stats?: NetworkStats; priceSe
                 </span>
               )}
             </div>
-            <div className="mt-1 font-mono text-2xl font-bold text-foreground">
+            <div className="mt-1 tabular-nums text-2xl font-bold text-foreground">
               {stats ? formatUSD(stats.bncPrice, 4) : '—'}
             </div>
           </div>
           <div className="shrink-0 text-right">
             <div className="text-xs text-muted-foreground">Market Cap</div>
-            <div className="font-mono text-sm font-semibold text-foreground">
+            <div className="tabular-nums text-sm font-semibold text-foreground">
               {stats ? formatCompactUSD(stats.marketCap) : '—'}
             </div>
           </div>
@@ -108,19 +108,19 @@ export function Overview({ stats, priceSeries }: { stats?: NetworkStats; priceSe
         <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border pt-3 text-xs">
           <div className="flex justify-between gap-2">
             <span className="text-muted-foreground">Volume (24h)</span>
-            <span className="font-mono text-foreground">{stats ? formatCompactUSD(stats.volume24h) : '—'}</span>
+            <span className="tabular-nums text-foreground">{stats ? formatCompactUSD(stats.volume24h) : '—'}</span>
           </div>
           <div className="flex justify-between gap-2">
             <span className="text-muted-foreground">Staking</span>
-            <span className="font-mono text-foreground">{stats ? `${stats.stakingRate}%` : '—'}</span>
+            <span className="tabular-nums text-foreground">{stats ? `${stats.stakingRate}%` : '—'}</span>
           </div>
           <div className="flex justify-between gap-2">
             <span className="text-muted-foreground">Total Supply</span>
-            <span className="font-mono text-foreground">{stats ? `${formatCompact(stats.totalSupply)}` : '—'}</span>
+            <span className="tabular-nums text-foreground">{stats ? `${formatCompact(stats.totalSupply)}` : '—'}</span>
           </div>
           <div className="flex justify-between gap-2">
             <span className="text-muted-foreground">Staked</span>
-            <span className="font-mono text-foreground">{stats ? formatCompact(stats.totalStaked) : '—'}</span>
+            <span className="tabular-nums text-foreground">{stats ? formatCompact(stats.totalStaked) : '—'}</span>
           </div>
         </div>
       </div>
