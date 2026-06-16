@@ -3,6 +3,7 @@ import { GlobalSearch } from '@/components/ui/global-search';
 import { Overview } from '@/components/home/overview';
 import { LatestBlocks, LatestTransactions } from '@/components/home/feeds';
 import { Analytics } from '@/components/home/analytics';
+import { AdBanner } from '@/components/home/ad-banner';
 
 export default function Home() {
   useLiveChainUpdates();
@@ -22,8 +23,11 @@ export default function Home() {
           <p className="mb-6 max-w-2xl text-sm text-muted-foreground">
             The official analytics and block explorer for the Basonce Chain — track blocks, transactions, accounts, tokens and DeFi activity in real time.
           </p>
-          <div className="max-w-3xl">
-            <GlobalSearch />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-stretch">
+            <div className="flex flex-col justify-center">
+              <GlobalSearch />
+            </div>
+            <AdBanner />
           </div>
         </div>
       </section>

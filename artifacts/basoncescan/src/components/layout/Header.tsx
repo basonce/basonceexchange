@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'wouter';
 import { Hexagon, Menu, X, ChevronDown, ArrowRightLeft, Boxes, Coins, Fuel, Users, FileCode2, ShieldCheck, BarChart3, TrendingUp } from 'lucide-react';
 import { GlobalSearch } from '../ui/global-search';
+import { AuthButtons, MobileAuthButtons } from './auth-buttons';
 import { useState } from 'react';
 import { useNetworkStats } from '@/hooks/use-chain';
 import { formatPercent, formatUSD } from '@/lib/format';
@@ -160,15 +161,7 @@ export function Header() {
                 <GlobalSearch />
               </div>
 
-              <div className="hidden items-center gap-2 xl:flex">
-                <div className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-sm">
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
-                  </span>
-                  <span className="whitespace-nowrap text-foreground">Basonce Chain</span>
-                </div>
-              </div>
+              <AuthButtons />
 
               <button
                 className="p-2 text-foreground md:hidden"
@@ -185,6 +178,7 @@ export function Header() {
         {mobileMenuOpen && (
           <div className="space-y-4 border-t border-border bg-card p-4 md:hidden">
             <GlobalSearch />
+            <MobileAuthButtons onAction={() => setMobileMenuOpen(false)} />
             <nav className="flex flex-col">
               <Link href="/" onClick={() => setMobileMenuOpen(false)} className="py-2 text-base font-medium text-foreground">Home</Link>
 
