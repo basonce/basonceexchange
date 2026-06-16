@@ -18,6 +18,45 @@ export function useHomeAnalytics() {
   });
 }
 
+export function useTopAccounts(page: number, pageSize = 25) {
+  return useQuery({
+    queryKey: ['topAccounts', page, pageSize],
+    queryFn: () => chainData.getTopAccounts(page, pageSize),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useValidators() {
+  return useQuery({
+    queryKey: ['validators'],
+    queryFn: () => chainData.getValidators(),
+    refetchInterval: 10000,
+  });
+}
+
+export function useVerifiedContracts(page: number, pageSize = 25) {
+  return useQuery({
+    queryKey: ['verifiedContracts', page, pageSize],
+    queryFn: () => chainData.getVerifiedContracts(page, pageSize),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useTopTokens() {
+  return useQuery({
+    queryKey: ['topTokens'],
+    queryFn: () => chainData.getTopTokens(),
+  });
+}
+
+export function useGasOracle() {
+  return useQuery({
+    queryKey: ['gasOracle'],
+    queryFn: () => chainData.getGasOracle(),
+    refetchInterval: 8000,
+  });
+}
+
 export function useLatestBlocks(count = 10) {
   return useQuery({
     queryKey: ['latestBlocks', count],

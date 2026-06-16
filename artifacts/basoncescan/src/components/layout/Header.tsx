@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { Hexagon, Menu, X, ChevronDown, ArrowRightLeft, Boxes, Coins, Fuel } from 'lucide-react';
+import { Hexagon, Menu, X, ChevronDown, ArrowRightLeft, Boxes, Coins, Fuel, Users, FileCode2, ShieldCheck, BarChart3, TrendingUp } from 'lucide-react';
 import { GlobalSearch } from '../ui/global-search';
 import { useState } from 'react';
 import { useNetworkStats } from '@/hooks/use-chain';
@@ -57,15 +57,27 @@ export function Header() {
     location.startsWith('/txs') ||
     location.startsWith('/blocks') ||
     location.startsWith('/tx') ||
-    location.startsWith('/block');
-  const isTokens = location.startsWith('/token');
+    location.startsWith('/block') ||
+    location.startsWith('/accounts') ||
+    location.startsWith('/contracts') ||
+    location.startsWith('/address');
+  const isValidators = location.startsWith('/validators');
+  const isTokens = location.startsWith('/token') || location.startsWith('/tokens');
+  const isResources = location.startsWith('/charts') || location.startsWith('/gastracker');
 
   const blockchainItems: DropItem[] = [
     { href: '/txs', label: 'Transactions', description: 'All on-chain transactions', icon: ArrowRightLeft },
     { href: '/blocks', label: 'Blocks', description: 'Validated blocks & producers', icon: Boxes },
+    { href: '/accounts', label: 'Top Accounts', description: 'Richest addresses by balance', icon: Users },
+    { href: '/contracts', label: 'Verified Contracts', description: 'Source-verified smart contracts', icon: FileCode2 },
   ];
   const tokenItems: DropItem[] = [
+    { href: '/tokens', label: 'Top Tokens', description: 'Ranked by transfer volume', icon: TrendingUp },
     { href: '/token/0xbasonce', label: 'Basonce Coin (BNC)', description: 'Native coin overview & holders', icon: Coins },
+  ];
+  const resourceItems: DropItem[] = [
+    { href: '/charts', label: 'Charts & Stats', description: 'On-chain analytics dashboards', icon: BarChart3 },
+    { href: '/gastracker', label: 'Gas Tracker', description: 'Live gas prices & costs', icon: Fuel },
   ];
 
   const priceUp = stats ? stats.priceChange24h >= 0 : true;
@@ -127,16 +139,28 @@ export function Header() {
                   )}
                 </Link>
                 <NavDropdown label="Blockchain" active={isBlockchain} items={blockchainItems} />
+                <Link
+                  href="/validators"
+                  className={`relative py-5 text-sm font-medium transition-colors hover:text-link ${
+                    isValidators ? 'text-foreground' : 'text-muted-foreground'
+                  }`}
+                >
+                  Validators
+                  {isValidators && (
+                    <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-primary" />
+                  )}
+                </Link>
                 <NavDropdown label="Tokens" active={isTokens} items={tokenItems} />
+                <NavDropdown label="Resources" active={isResources} items={resourceItems} />
               </nav>
             </div>
 
             <div className="flex min-w-0 items-center gap-3">
-              <div className="hidden w-72 lg:block xl:w-80">
+              <div className="hidden w-64 xl:block xl:w-80">
                 <GlobalSearch />
               </div>
 
-              <div className="hidden items-center gap-2 md:flex">
+              <div className="hidden items-center gap-2 xl:flex">
                 <div className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-sm">
                   <span className="relative flex h-2 w-2">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
@@ -161,11 +185,25 @@ export function Header() {
         {mobileMenuOpen && (
           <div className="space-y-4 border-t border-border bg-card p-4 md:hidden">
             <GlobalSearch />
-            <nav className="flex flex-col space-y-3">
-              <Link href="/" onClick={() => setMobileMenuOpen(false)} className="text-base font-medium text-foreground">Home</Link>
-              <Link href="/txs" onClick={() => setMobileMenuOpen(false)} className="text-base font-medium text-foreground">Transactions</Link>
-              <Link href="/blocks" onClick={() => setMobileMenuOpen(false)} className="text-base font-medium text-foreground">Blocks</Link>
-              <Link href="/token/0xbasonce" onClick={() => setMobileMenuOpen(false)} className="text-base font-medium text-foreground">Basonce Coin (BNC)</Link>
+            <nav className="flex flex-col">
+              <Link href="/" onClick={() => setMobileMenuOpen(false)} className="py-2 text-base font-medium text-foreground">Home</Link>
+
+              <span className="mt-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Blockchain</span>
+              {blockchainItems.map((it) => (
+                <Link key={it.href} href={it.href} onClick={() => setMobileMenuOpen(false)} className="py-2 pl-3 text-sm text-foreground">{it.label}</Link>
+              ))}
+
+              <Link href="/validators" onClick={() => setMobileMenuOpen(false)} className="mt-3 py-2 text-base font-medium text-foreground">Validators</Link>
+
+              <span className="mt-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tokens</span>
+              {tokenItems.map((it) => (
+                <Link key={it.href} href={it.href} onClick={() => setMobileMenuOpen(false)} className="py-2 pl-3 text-sm text-foreground">{it.label}</Link>
+              ))}
+
+              <span className="mt-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resources</span>
+              {resourceItems.map((it) => (
+                <Link key={it.href} href={it.href} onClick={() => setMobileMenuOpen(false)} className="py-2 pl-3 text-sm text-foreground">{it.label}</Link>
+              ))}
             </nav>
           </div>
         )}

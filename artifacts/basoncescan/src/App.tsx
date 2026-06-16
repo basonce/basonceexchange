@@ -13,6 +13,12 @@ import BlockDetail from "@/pages/BlockDetail";
 import TransactionDetail from "@/pages/TransactionDetail";
 import AddressDetail from "@/pages/AddressDetail";
 import TokenDetail from "@/pages/TokenDetail";
+import TopAccounts from "@/pages/TopAccounts";
+import Validators from "@/pages/Validators";
+import VerifiedContracts from "@/pages/VerifiedContracts";
+import TopTokens from "@/pages/TopTokens";
+import Charts from "@/pages/Charts";
+import GasTracker from "@/pages/GasTracker";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +28,12 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/txs" component={Transactions} />
       <Route path="/blocks" component={Blocks} />
+      <Route path="/accounts" component={TopAccounts} />
+      <Route path="/validators" component={Validators} />
+      <Route path="/contracts" component={VerifiedContracts} />
+      <Route path="/tokens" component={TopTokens} />
+      <Route path="/charts" component={Charts} />
+      <Route path="/gastracker" component={GasTracker} />
       <Route path="/block/:number" component={BlockDetail} />
       <Route path="/tx/:hash" component={TransactionDetail} />
       <Route path="/address/:hash" component={AddressDetail} />

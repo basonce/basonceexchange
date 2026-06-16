@@ -1,4 +1,4 @@
-import { Block, Transaction, Address, Token, TokenHolder, NetworkStats, PaginatedResult, SearchResult, ChainDataSource, HomeAnalytics, PricePoint, TrendPoint, TvlProject, TopToken } from './types';
+import { Block, Transaction, Address, Token, TokenHolder, NetworkStats, PaginatedResult, SearchResult, ChainDataSource, HomeAnalytics, PricePoint, TrendPoint, TvlProject, TopToken, TopAccount, ValidatorInfo, VerifiedContract, TokenListing, GasOracle, GasTier } from './types';
 
 // Helper functions for mock data generation
 const generateHash = (prefix: string, length: number) => {
@@ -265,6 +265,119 @@ const ANALYTICS: HomeAnalytics = (() => {
   };
 })();
 
+// --- Top accounts (rich list) --------------------------------------------
+const ACCOUNT_LABELS: Array<{ tag: string; type: 'eoa' | 'contract' }> = [
+  { tag: 'Basonce: Foundation', type: 'eoa' },
+  { tag: 'Binance: Hot Wallet', type: 'eoa' },
+  { tag: 'Basonce: Staking', type: 'contract' },
+  { tag: 'OKX', type: 'eoa' },
+  { tag: 'Basonce: Team Vault', type: 'contract' },
+  { tag: 'Bybit: Cold Wallet', type: 'eoa' },
+  { tag: 'SunSwap: Router', type: 'contract' },
+  { tag: 'Basonce: Ecosystem Fund', type: 'contract' },
+  { tag: 'Kraken', type: 'eoa' },
+  { tag: 'LendHub: Treasury', type: 'contract' },
+  { tag: 'Basonce: Burn Address', type: 'eoa' },
+  { tag: 'Gate.io', type: 'eoa' },
+];
+
+const TOP_ACCOUNTS: TopAccount[] = (() => {
+  const count = 100;
+  const list: TopAccount[] = [];
+  let weight = 6.2;
+  for (let i = 0; i < count; i++) {
+    const pct = weight;
+    weight *= 0.9 - Math.random() * 0.02;
+    const label = ACCOUNT_LABELS[i];
+    list.push({
+      rank: i + 1,
+      address: generateAddress(),
+      nameTag: label ? label.tag : null,
+      balance: Math.round((BNC_SUPPLY * pct) / 100),
+      percentage: Number(pct.toFixed(4)),
+      txCount: Math.floor(50 + Math.random() * 50000),
+      type: label ? label.type : (Math.random() > 0.7 ? 'contract' : 'eoa'),
+    });
+  }
+  return list;
+})();
+
+// --- Validator leaderboard -----------------------------------------------
+const VALIDATOR_INFO: ValidatorInfo[] = (() => {
+  const raw = VALIDATOR_NAMES.map((name, i) => ({
+    name,
+    address: VALIDATORS[i],
+    weight: Math.pow(0.86, i) * (0.9 + Math.random() * 0.2),
+  }));
+  raw.sort((a, b) => b.weight - a.weight);
+  const totalWeight = raw.reduce((s, r) => s + r.weight, 0);
+  const totalStaked = 4_550_648_861;
+  return raw.map((r, i) => ({
+    rank: i + 1,
+    name: r.name,
+    address: r.address,
+    votingPower: Number(((r.weight / totalWeight) * 100).toFixed(2)),
+    stake: Math.round((r.weight / totalWeight) * totalStaked),
+    blocksProduced: Math.floor((r.weight / totalWeight) * 4_417_260),
+    uptime: Number((99.2 + Math.random() * 0.79).toFixed(2)),
+    status: 'active' as const,
+  }));
+})();
+
+// --- Verified contracts --------------------------------------------------
+const CONTRACT_DEFS: Array<{ name: string; compiler: string; version: string; license: string }> = [
+  { name: 'BasonceStaking', compiler: 'Solidity', version: 'v0.8.24+commit', license: 'MIT' },
+  { name: 'SunSwapV3Router', compiler: 'Solidity', version: 'v0.8.23+commit', license: 'GPL-3.0' },
+  { name: 'USDB Token', compiler: 'Solidity', version: 'v0.8.20+commit', license: 'MIT' },
+  { name: 'LendHubComptroller', compiler: 'Solidity', version: 'v0.8.19+commit', license: 'BUSL-1.1' },
+  { name: 'BasonceMultisig', compiler: 'Solidity', version: 'v0.8.24+commit', license: 'MIT' },
+  { name: 'stBNC Vault', compiler: 'Solidity', version: 'v0.8.21+commit', license: 'MIT' },
+  { name: 'JustStakeFarm', compiler: 'Solidity', version: 'v0.8.18+commit', license: 'GPL-3.0' },
+  { name: 'BasonceBridge', compiler: 'Solidity', version: 'v0.8.24+commit', license: 'MIT' },
+  { name: 'A2A Token', compiler: 'Solidity', version: 'v0.8.22+commit', license: 'MIT' },
+  { name: 'GovernanceTimelock', compiler: 'Solidity', version: 'v0.8.20+commit', license: 'MIT' },
+  { name: 'NFTMarketplace', compiler: 'Solidity', version: 'v0.8.19+commit', license: 'MIT' },
+  { name: 'BasonceVesting', compiler: 'Solidity', version: 'v0.8.24+commit', license: 'Apache-2.0' },
+  { name: 'OracleAggregator', compiler: 'Solidity', version: 'v0.8.21+commit', license: 'MIT' },
+  { name: 'USDD Stablecoin', compiler: 'Solidity', version: 'v0.8.20+commit', license: 'MIT' },
+  { name: 'PerpetualExchange', compiler: 'Solidity', version: 'v0.8.23+commit', license: 'BUSL-1.1' },
+];
+
+const VERIFIED_CONTRACTS: VerifiedContract[] = (() => {
+  const list: VerifiedContract[] = [];
+  for (let i = 0; i < 80; i++) {
+    const def = CONTRACT_DEFS[i % CONTRACT_DEFS.length];
+    const suffix = i < CONTRACT_DEFS.length ? '' : ` v${Math.floor(i / CONTRACT_DEFS.length) + 1}`;
+    list.push({
+      address: generateAddress(),
+      name: def.name + suffix,
+      compiler: def.compiler,
+      version: def.version,
+      balance: Math.round(Math.random() * 500000),
+      txCount: Math.floor(100 + Math.random() * 2_000_000),
+      verifiedAt: Date.now() - Math.floor(Math.random() * 180) * DAY_MS,
+      license: def.license,
+    });
+  }
+  return list;
+})();
+
+// --- Top tokens ----------------------------------------------------------
+const TOKEN_LISTINGS: TokenListing[] = [
+  { rank: 1, address: '0xbasonce', name: 'Tether USD', symbol: 'USDB', price: 1.0, change24h: 0.01, volume24h: 30_030_947_409, holders: 6_412_338, marketCap: 89_230_552_917 },
+  { rank: 2, address: '0xbasonce', name: 'Basonce Coin', symbol: 'BNC', price: BNC_PRICE, change24h: -0.99, volume24h: 2_346_843_941, holders: 2_437_991, marketCap: 23_085_000_000 },
+  { rank: 3, address: generateAddress(), name: 'Basonce USD', symbol: 'USDD', price: 0.999, change24h: -0.21, volume24h: 207_321_109, holders: 184_771, marketCap: 1_082_128_117 },
+  { rank: 4, address: generateAddress(), name: 'JustStake', symbol: 'JST', price: 0.0276, change24h: 1.84, volume24h: 40_385_970, holders: 92_924, marketCap: 807_005_981 },
+  { rank: 5, address: generateAddress(), name: 'Apex Agent', symbol: 'A2A', price: 0.519, change24h: 4.12, volume24h: 4_564_818, holders: 38_801, marketCap: 519_290_894 },
+  { rank: 6, address: generateAddress(), name: 'SunSwap', symbol: 'SUN', price: 0.0184, change24h: -2.31, volume24h: 3_812_440, holders: 27_412, marketCap: 412_882_010 },
+  { rank: 7, address: generateAddress(), name: 'LendHub', symbol: 'LHB', price: 1.42, change24h: 0.77, volume24h: 2_104_882, holders: 19_338, marketCap: 284_990_220 },
+  { rank: 8, address: generateAddress(), name: 'Staked BNC', symbol: 'stBNC', price: 2.61, change24h: -0.88, volume24h: 1_982_330, holders: 14_209, marketCap: 213_440_119 },
+  { rank: 9, address: generateAddress(), name: 'Helios', symbol: 'HLS', price: 0.342, change24h: 6.05, volume24h: 1_402_118, holders: 11_882, marketCap: 142_009_551 },
+  { rank: 10, address: generateAddress(), name: 'Meridian', symbol: 'MRD', price: 0.087, change24h: -1.14, volume24h: 980_221, holders: 9_120, marketCap: 98_220_440 },
+  { rank: 11, address: generateAddress(), name: 'Polaris', symbol: 'PLR', price: 0.213, change24h: 2.44, volume24h: 742_119, holders: 7_338, marketCap: 74_900_222 },
+  { rank: 12, address: generateAddress(), name: 'Vanguard', symbol: 'VGD', price: 0.561, change24h: -3.02, volume24h: 612_004, holders: 5_991, marketCap: 61_200_010 },
+];
+
 const listeners: Set<(event: { type: 'new_block' | 'new_transaction'; data: any }) => void> = new Set();
 
 // Simulate live updates
@@ -351,6 +464,53 @@ export class MockChainDataSource implements ChainDataSource {
 
   async getHomeAnalytics(): Promise<HomeAnalytics> {
     return ANALYTICS;
+  }
+
+  async getTopAccounts(page: number, pageSize: number): Promise<PaginatedResult<TopAccount>> {
+    const start = (page - 1) * pageSize;
+    return {
+      data: TOP_ACCOUNTS.slice(start, start + pageSize),
+      total: TOP_ACCOUNTS.length,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(TOP_ACCOUNTS.length / pageSize)),
+    };
+  }
+
+  async getValidators(): Promise<ValidatorInfo[]> {
+    return VALIDATOR_INFO;
+  }
+
+  async getVerifiedContracts(page: number, pageSize: number): Promise<PaginatedResult<VerifiedContract>> {
+    const start = (page - 1) * pageSize;
+    return {
+      data: VERIFIED_CONTRACTS.slice(start, start + pageSize),
+      total: VERIFIED_CONTRACTS.length,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(VERIFIED_CONTRACTS.length / pageSize)),
+    };
+  }
+
+  async getTopTokens(): Promise<TokenListing[]> {
+    return TOKEN_LISTINGS;
+  }
+
+  async getGasOracle(): Promise<GasOracle> {
+    const base = 5.2 + Math.random() * 1.5;
+    const transferGas = 21000;
+    const tier = (gwei: number, timeSec: number): GasTier => ({
+      gwei: Number(gwei.toFixed(2)),
+      usd: Number(((gwei * 1e-9 * transferGas) * BNC_PRICE).toFixed(4)),
+      timeSec,
+    });
+    return {
+      low: tier(base * 0.9, 30),
+      average: tier(base * 1.15, 12),
+      high: tier(base * 1.45, 6),
+      baseFee: Number(base.toFixed(2)),
+      bncPrice: BNC_PRICE,
+    };
   }
 
   async getLatestBlocks(count: number = 10): Promise<Block[]> {

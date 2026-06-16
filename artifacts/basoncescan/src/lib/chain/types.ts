@@ -132,9 +132,72 @@ export interface HomeAnalytics {
   supplySeries: TrendPoint[];        // { date, supply, staked }
 }
 
+export interface TopAccount {
+  rank: number;
+  address: string;
+  nameTag: string | null;
+  balance: number;       // in BNC
+  percentage: number;    // share of total supply
+  txCount: number;
+  type: 'eoa' | 'contract';
+}
+
+export interface ValidatorInfo {
+  rank: number;
+  name: string;
+  address: string;
+  votingPower: number;   // percentage
+  stake: number;         // in BNC
+  blocksProduced: number;
+  uptime: number;        // percentage
+  status: 'active' | 'standby';
+}
+
+export interface VerifiedContract {
+  address: string;
+  name: string;
+  compiler: string;
+  version: string;
+  balance: number;       // in BNC
+  txCount: number;
+  verifiedAt: number;    // timestamp
+  license: string;
+}
+
+export interface TokenListing {
+  rank: number;
+  address: string;
+  name: string;
+  symbol: string;
+  price: number;
+  change24h: number;
+  volume24h: number;
+  holders: number;
+  marketCap: number;
+}
+
+export interface GasTier {
+  gwei: number;
+  usd: number;          // cost of a standard transfer in USD
+  timeSec: number;      // expected confirmation time
+}
+
+export interface GasOracle {
+  low: GasTier;
+  average: GasTier;
+  high: GasTier;
+  baseFee: number;      // gwei
+  bncPrice: number;
+}
+
 export interface ChainDataSource {
   getNetworkStats(): Promise<NetworkStats>;
   getHomeAnalytics(): Promise<HomeAnalytics>;
+  getTopAccounts(page: number, pageSize: number): Promise<PaginatedResult<TopAccount>>;
+  getValidators(): Promise<ValidatorInfo[]>;
+  getVerifiedContracts(page: number, pageSize: number): Promise<PaginatedResult<VerifiedContract>>;
+  getTopTokens(): Promise<TokenListing[]>;
+  getGasOracle(): Promise<GasOracle>;
   getLatestBlocks(count?: number): Promise<Block[]>;
   getLatestTransactions(count?: number): Promise<Transaction[]>;
   getTransactionsPage(page: number, pageSize: number): Promise<PaginatedResult<Transaction>>;
