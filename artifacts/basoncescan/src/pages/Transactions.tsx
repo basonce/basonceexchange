@@ -79,7 +79,7 @@ export default function Transactions() {
                   {data?.data.map((tx, index) => (
                     <motion.tr 
                       key={tx.hash}
-                      initial={page === 1 && index < 5 ? { backgroundColor: 'rgba(240, 185, 11, 0.1)' } : false}
+                      initial={page === 1 && index < 5 ? { backgroundColor: 'rgba(240, 185, 11, 0.22)' } : false}
                       animate={{ backgroundColor: 'rgba(0, 0, 0, 0)' }}
                       transition={{ duration: 1.5 }}
                       className="hover:bg-secondary/30 transition-colors"
@@ -93,7 +93,7 @@ export default function Transactions() {
                           ) : (
                             <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                           )}
-                          <Link href={`/tx/${tx.hash}`} className="text-primary hover:text-primary/80 font-mono">
+                          <Link href={`/tx/${tx.hash}`} className="text-link hover:text-link/80 font-mono">
                             {formatHash(tx.hash)}
                           </Link>
                         </div>
@@ -104,7 +104,7 @@ export default function Transactions() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <Link href={`/block/${tx.blockNumber}`} className="text-primary hover:text-primary/80 font-mono">
+                        <Link href={`/block/${tx.blockNumber}`} className="text-link hover:text-link/80 font-mono">
                           {tx.blockNumber}
                         </Link>
                       </td>
@@ -112,7 +112,7 @@ export default function Transactions() {
                         {formatAge(tx.timestamp)}
                       </td>
                       <td className="px-4 py-3">
-                        <Link href={`/address/${tx.from}`} className="text-primary hover:text-primary/80 font-mono flex items-center gap-1">
+                        <Link href={`/address/${tx.from}`} className="text-link hover:text-link/80 font-mono flex items-center gap-1">
                           <FileText className="w-3 h-3 text-muted-foreground" />
                           {formatAddress(tx.from)}
                         </Link>
@@ -124,7 +124,7 @@ export default function Transactions() {
                       </td>
                       <td className="px-4 py-3">
                         {tx.to ? (
-                          <Link href={`/address/${tx.to}`} className="text-primary hover:text-primary/80 font-mono flex items-center gap-1">
+                          <Link href={`/address/${tx.to}`} className="text-link hover:text-link/80 font-mono flex items-center gap-1">
                             <FileText className="w-3 h-3 text-muted-foreground" />
                             {formatAddress(tx.to)}
                           </Link>

@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/basoncescan/"
-title = "BasonceScan"
+title = "BasonScan"
 version = "1.0.0"
 id = "artifacts/basoncescan"
 router = "path"

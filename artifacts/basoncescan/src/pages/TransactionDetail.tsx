@@ -31,7 +31,7 @@ export default function TransactionDetail() {
       <div className="container mx-auto px-4 py-12 text-center">
         <h1 className="text-2xl font-bold mb-4">Transaction Not Found</h1>
         <p className="text-muted-foreground">This transaction hash does not exist on our records.</p>
-        <Link href="/" className="mt-6 inline-block text-primary hover:underline">Back to Home</Link>
+        <Link href="/" className="mt-6 inline-block text-link hover:underline">Back to Home</Link>
       </div>
     );
   }
@@ -79,7 +79,7 @@ export default function TransactionDetail() {
           <InfoRow 
             label="Block:" 
             value={
-              <Link href={`/block/${tx.blockNumber}`} className="text-primary hover:text-primary/80 font-mono">
+              <Link href={`/block/${tx.blockNumber}`} className="text-link hover:text-link/80 font-mono">
                 {tx.blockNumber}
               </Link>
             } 
@@ -100,7 +100,7 @@ export default function TransactionDetail() {
           <InfoRow 
             label="From:" 
             value={
-              <Link href={`/address/${tx.from}`} className="text-primary hover:text-primary/80 font-mono">
+              <Link href={`/address/${tx.from}`} className="text-link hover:text-link/80 font-mono">
                 {tx.from}
               </Link>
             } 
@@ -110,7 +110,7 @@ export default function TransactionDetail() {
             label="To:" 
             value={
               tx.to ? (
-                <Link href={`/address/${tx.to}`} className="text-primary hover:text-primary/80 font-mono">
+                <Link href={`/address/${tx.to}`} className="text-link hover:text-link/80 font-mono">
                   {tx.to}
                 </Link>
               ) : (

@@ -16,7 +16,7 @@ function FeedShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 flex-col rounded-xl border border-border bg-card">
+    <div className="flex min-w-0 flex-col rounded-lg border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border p-4">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <Icon className="h-4 w-4 text-primary" /> {title}
@@ -24,7 +24,7 @@ function FeedShell({
       </div>
       <div className="flex min-w-0 flex-1 flex-col">{children}</div>
       <div className="rounded-b-xl border-t border-border bg-secondary/30 p-3 text-center">
-        <Link href={footerHref} className="text-xs font-medium uppercase tracking-wider text-primary hover:text-primary/80">
+        <Link href={footerHref} className="text-xs font-medium uppercase tracking-wider text-link hover:text-link/80">
           {footerLabel}
         </Link>
       </div>
@@ -39,7 +39,7 @@ export function LatestBlocks({ blocks }: { blocks: Block[] }) {
         {blocks.map((block) => (
           <motion.div
             key={block.number}
-            initial={{ opacity: 0, y: -16, backgroundColor: 'rgba(240, 185, 11, 0.1)' }}
+            initial={{ opacity: 0, y: -16, backgroundColor: 'rgba(240, 185, 11, 0.22)' }}
             animate={{ opacity: 1, y: 0, backgroundColor: 'rgba(240, 185, 11, 0)' }}
             transition={{ duration: 0.5 }}
             className="flex min-w-0 items-center gap-4 border-b border-border p-4 last:border-b-0 hover:bg-secondary/50"
@@ -48,7 +48,7 @@ export function LatestBlocks({ blocks }: { blocks: Block[] }) {
               <Box className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <Link href={`/block/${block.number}`} className="font-mono text-sm font-medium text-primary hover:text-primary/80">
+              <Link href={`/block/${block.number}`} className="font-mono text-sm font-medium text-link hover:text-link/80">
                 {block.number}
               </Link>
               <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
@@ -61,7 +61,7 @@ export function LatestBlocks({ blocks }: { blocks: Block[] }) {
                 <span className="font-medium text-foreground">{block.producerName}</span>
               </div>
               <div className="text-xs text-muted-foreground">
-                <Link href={`/txs?block=${block.number}`} className="text-primary hover:text-primary/80">
+                <Link href={`/txs?block=${block.number}`} className="text-link hover:text-link/80">
                   {block.txCount} txns
                 </Link>{' '}in 3s
               </div>
@@ -85,7 +85,7 @@ export function LatestTransactions({ txs }: { txs: Transaction[] }) {
         {txs.map((tx) => (
           <motion.div
             key={tx.hash}
-            initial={{ opacity: 0, y: -16, backgroundColor: 'rgba(240, 185, 11, 0.1)' }}
+            initial={{ opacity: 0, y: -16, backgroundColor: 'rgba(240, 185, 11, 0.22)' }}
             animate={{ opacity: 1, y: 0, backgroundColor: 'rgba(240, 185, 11, 0)' }}
             transition={{ duration: 0.5 }}
             className="flex min-w-0 items-center gap-4 border-b border-border p-4 last:border-b-0 hover:bg-secondary/50"
@@ -94,7 +94,7 @@ export function LatestTransactions({ txs }: { txs: Transaction[] }) {
               <ArrowRightLeft className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <Link href={`/tx/${tx.hash}`} className="block truncate font-mono text-sm font-medium text-primary hover:text-primary/80">
+              <Link href={`/tx/${tx.hash}`} className="block truncate font-mono text-sm font-medium text-link hover:text-link/80">
                 {formatHash(tx.hash)}
               </Link>
               <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
@@ -104,14 +104,14 @@ export function LatestTransactions({ txs }: { txs: Transaction[] }) {
             <div className="hidden min-w-0 flex-1 sm:block">
               <div className="flex items-center gap-2 truncate text-sm">
                 <span className="text-muted-foreground">From</span>
-                <Link href={`/address/${tx.from}`} className="truncate font-mono text-primary hover:text-primary/80">
+                <Link href={`/address/${tx.from}`} className="truncate font-mono text-link hover:text-link/80">
                   {formatAddress(tx.from)}
                 </Link>
               </div>
               <div className="flex items-center gap-2 truncate text-sm">
                 <span className="text-muted-foreground">To</span>
                 {tx.to && tx.to !== ZERO_ADDRESS ? (
-                  <Link href={`/address/${tx.to}`} className="truncate font-mono text-primary hover:text-primary/80">
+                  <Link href={`/address/${tx.to}`} className="truncate font-mono text-link hover:text-link/80">
                     {formatAddress(tx.to)}
                   </Link>
                 ) : (

@@ -75,7 +75,7 @@ export default function Blocks() {
                   {data?.data.map((block, index) => (
                     <motion.tr 
                       key={block.number}
-                      initial={page === 1 && index < 5 ? { backgroundColor: 'rgba(240, 185, 11, 0.1)' } : false}
+                      initial={page === 1 && index < 5 ? { backgroundColor: 'rgba(240, 185, 11, 0.22)' } : false}
                       animate={{ backgroundColor: 'rgba(0, 0, 0, 0)' }}
                       transition={{ duration: 1.5 }}
                       className="hover:bg-secondary/30 transition-colors"
@@ -83,7 +83,7 @@ export default function Blocks() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <Box className="w-4 h-4 text-muted-foreground" />
-                          <Link href={`/block/${block.number}`} className="text-primary hover:text-primary/80 font-mono">
+                          <Link href={`/block/${block.number}`} className="text-link hover:text-link/80 font-mono">
                             {block.number}
                           </Link>
                         </div>
@@ -92,12 +92,12 @@ export default function Blocks() {
                         {formatAge(block.timestamp)}
                       </td>
                       <td className="px-4 py-3">
-                        <Link href={`/txs?block=${block.number}`} className="text-primary hover:text-primary/80 font-mono">
+                        <Link href={`/txs?block=${block.number}`} className="text-link hover:text-link/80 font-mono">
                           {block.txCount}
                         </Link>
                       </td>
                       <td className="px-4 py-3">
-                        <Link href={`/address/${block.validator}`} className="text-primary hover:text-primary/80 font-mono">
+                        <Link href={`/address/${block.validator}`} className="text-link hover:text-link/80 font-mono">
                           {formatAddress(block.validator, 8)}
                         </Link>
                       </td>

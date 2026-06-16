@@ -21,7 +21,7 @@ function StatCard({
   icon: any;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-4 rounded-xl border border-border bg-card p-5">
+    <div className="flex min-w-0 items-center gap-4 rounded-lg border border-border bg-card p-5">
       <div className="rounded-lg bg-secondary p-3">
         <Icon className="h-6 w-6 text-primary" />
       </div>
@@ -78,7 +78,7 @@ export function Overview({ stats, priceSeries }: { stats?: NetworkStats; priceSe
       </div>
 
       {/* Price card */}
-      <div className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-5">
+      <div className="flex min-w-0 flex-col rounded-lg border border-border bg-card p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -127,7 +127,7 @@ export function Overview({ stats, priceSeries }: { stats?: NetworkStats; priceSe
 
       {/* Network strip */}
       <div className="lg:col-span-3">
-        <div className="grid grid-cols-2 divide-y divide-border rounded-xl border border-border bg-card sm:grid-cols-3 sm:divide-y-0 lg:grid-cols-6 sm:[&>*]:border-r sm:[&>*]:border-border sm:[&>*:last-child]:border-r-0">
+        <div className="grid grid-cols-2 divide-y divide-border rounded-lg border border-border bg-card sm:grid-cols-3 sm:divide-y-0 lg:grid-cols-6 sm:[&>*]:border-r sm:[&>*]:border-border sm:[&>*:last-child]:border-r-0">
           <MiniStat label="Live TPS" value={stats ? formatNumber(stats.tps) : '—'} icon={Cpu} />
           <MiniStat label="Max TPS" value={stats ? formatNumber(stats.maxTps) : '—'} icon={Cpu} />
           <MiniStat label="Validators" value={stats ? formatNumber(stats.activeValidators) : '—'} icon={Server} />

@@ -18,7 +18,7 @@ export default function AddressDetail() {
     return (
       <div className="container mx-auto px-4 py-12 text-center">
         <h1 className="text-2xl font-bold mb-4">Address Not Found</h1>
-        <Link href="/" className="mt-6 inline-block text-primary hover:underline">Back to Home</Link>
+        <Link href="/" className="mt-6 inline-block text-link hover:underline">Back to Home</Link>
       </div>
     );
   }
@@ -88,7 +88,7 @@ export default function AddressDetail() {
       {/* Transactions Tab */}
       <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
         <div className="px-6 py-0 border-b border-border flex gap-6">
-          <button className="py-4 border-b-2 border-primary text-primary font-medium text-sm">
+          <button className="py-4 border-b-2 border-primary text-foreground font-medium text-sm">
             Transactions
           </button>
           <button className="py-4 border-b-2 border-transparent text-muted-foreground hover:text-foreground font-medium text-sm transition-colors">
@@ -136,7 +136,7 @@ export default function AddressDetail() {
                         ) : (
                           <div className="w-3.5 h-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                         )}
-                        <Link href={`/tx/${tx.hash}`} className="text-primary hover:text-primary/80 font-mono">
+                        <Link href={`/tx/${tx.hash}`} className="text-link hover:text-link/80 font-mono">
                           {formatHash(tx.hash)}
                         </Link>
                       </div>
@@ -147,7 +147,7 @@ export default function AddressDetail() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <Link href={`/block/${tx.blockNumber}`} className="text-primary hover:text-primary/80 font-mono">
+                      <Link href={`/block/${tx.blockNumber}`} className="text-link hover:text-link/80 font-mono">
                         {tx.blockNumber}
                       </Link>
                     </td>
@@ -158,7 +158,7 @@ export default function AddressDetail() {
                       {isOut ? (
                         <span className="font-mono text-muted-foreground">{formatAddress(tx.from)}</span>
                       ) : (
-                        <Link href={`/address/${tx.from}`} className="text-primary hover:text-primary/80 font-mono">
+                        <Link href={`/address/${tx.from}`} className="text-link hover:text-link/80 font-mono">
                           {formatAddress(tx.from)}
                         </Link>
                       )}
@@ -178,7 +178,7 @@ export default function AddressDetail() {
                       {!isOut ? (
                         <span className="font-mono text-muted-foreground">{tx.to ? formatAddress(tx.to) : 'Contract'}</span>
                       ) : tx.to ? (
-                        <Link href={`/address/${tx.to}`} className="text-primary hover:text-primary/80 font-mono">
+                        <Link href={`/address/${tx.to}`} className="text-link hover:text-link/80 font-mono">
                           {formatAddress(tx.to)}
                         </Link>
                       ) : (

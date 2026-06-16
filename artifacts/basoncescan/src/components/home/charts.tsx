@@ -4,16 +4,16 @@ import {
 } from 'recharts';
 import type { TrendPoint, PricePoint } from '@/lib/chain/types';
 
-// Palette — restricted to the Basonce brand tokens.
+// Palette — light theme, restricted to the Basonce brand tokens.
 export const C = {
   gold: '#F0B90B',
-  gold2: '#FCD535',
-  green: '#0ECB81',
-  red: '#F6465D',
-  muted: '#848E9C',
-  text: '#EAECEF',
-  card: '#181A20',
-  border: '#2B3139',
+  gold2: '#E0A800',
+  green: '#16A34A',
+  red: '#E5443B',
+  muted: '#6B7480',
+  text: '#1B1F27',
+  card: '#FFFFFF',
+  border: '#ECEEF1',
 };
 
 const axisProps = {
@@ -58,7 +58,7 @@ export function ChartCard({
   height?: number;
 }) {
   return (
-    <div className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-5">
+    <div className="flex min-w-0 flex-col rounded-lg border border-border bg-card p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="truncate text-sm font-semibold text-foreground">{title}</h3>

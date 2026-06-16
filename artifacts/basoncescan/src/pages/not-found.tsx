@@ -9,7 +9,7 @@ export default function NotFound() {
       </div>
       <h1 className="text-4xl font-bold text-foreground mb-4">404 - Page Not Found</h1>
       <p className="text-muted-foreground max-w-md mx-auto mb-8">
-        Oops! The page you're looking for doesn't exist on BasonceScan or has been moved.
+        Oops! The page you're looking for doesn't exist on BasonScan or has been moved.
       </p>
       <Link 
         href="/" 

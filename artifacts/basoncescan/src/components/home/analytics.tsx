@@ -44,7 +44,7 @@ export function Analytics({ data }: { data: HomeAnalytics }) {
             <AreaTrend data={data.tvlSeries} dataKey="tvl" name="TVL" color={C.gold} fmt={(v) => formatCompactUSD(v)} height={260} />
           </ChartCard>
         </div>
-        <div className="flex min-w-0 flex-col rounded-xl border border-border bg-card lg:col-span-3">
+        <div className="flex min-w-0 flex-col rounded-lg border border-border bg-card lg:col-span-3">
           <div className="flex items-center justify-between border-b border-border p-4">
             <h3 className="text-sm font-semibold text-foreground">DeFi Projects by TVL</h3>
             <Pill>{data.tvlProjects.length} protocols</Pill>
@@ -78,7 +78,7 @@ export function Analytics({ data }: { data: HomeAnalytics }) {
 
       {/* Top tokens + transfer volume */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-        <div className="flex min-w-0 flex-col rounded-xl border border-border bg-card lg:col-span-3">
+        <div className="flex min-w-0 flex-col rounded-lg border border-border bg-card lg:col-span-3">
           <div className="flex items-center justify-between border-b border-border p-4">
             <h3 className="text-sm font-semibold text-foreground">Top Tokens by Transfer Volume</h3>
             <Pill>24h</Pill>
@@ -111,7 +111,7 @@ export function Analytics({ data }: { data: HomeAnalytics }) {
             </table>
           </div>
           <div className="border-t border-border p-3 text-center">
-            <Link href="/token/0xbasonce" className="text-xs font-medium uppercase tracking-wider text-primary hover:text-primary/80">
+            <Link href="/token/0xbasonce" className="text-xs font-medium uppercase tracking-wider text-link hover:text-link/80">
               View BNC Token
             </Link>
           </div>

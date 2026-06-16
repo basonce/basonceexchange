@@ -22,7 +22,7 @@ export default function TokenDetail() {
     return (
       <div className="container mx-auto px-4 py-12 text-center">
         <h1 className="text-2xl font-bold mb-4">Token Not Found</h1>
-        <Link href="/" className="mt-6 inline-block text-primary hover:underline">Back to Home</Link>
+        <Link href="/" className="mt-6 inline-block text-link hover:underline">Back to Home</Link>
       </div>
     );
   }
@@ -88,7 +88,7 @@ export default function TokenDetail() {
               <div className="text-muted-foreground font-medium flex items-center gap-1">
                 Contract <Info className="w-3 h-3" />
               </div>
-              <div className="font-mono text-primary flex items-start gap-2 min-w-0">
+              <div className="font-mono text-link flex items-start gap-2 min-w-0">
                 <span className="break-all">{token.address}</span>
                 <button className="text-muted-foreground hover:text-foreground shrink-0 mt-0.5"><Copy className="w-3 h-3" /></button>
               </div>
@@ -102,7 +102,7 @@ export default function TokenDetail() {
             <div className="grid grid-cols-[120px_1fr] gap-4 text-sm">
               <div className="text-muted-foreground font-medium">Official Site</div>
               <div>
-                <a href="#" className="text-primary hover:underline flex items-center gap-1">
+                <a href="#" className="text-link hover:underline flex items-center gap-1">
                   <Globe className="w-3 h-3" /> https://basonce.com
                 </a>
               </div>
@@ -124,7 +124,7 @@ export default function TokenDetail() {
               onClick={() => setTab(t.id)}
               className={`py-4 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
                 tab === t.id
-                  ? 'border-primary text-primary'
+                  ? 'border-primary text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -149,15 +149,15 @@ export default function TokenDetail() {
                 {(transfers ?? []).map((tx) => (
                   <tr key={tx.hash} className="border-b border-border/60 hover:bg-muted/40 transition-colors">
                     <td className="px-6 py-3">
-                      <Link href={`/tx/${tx.hash}`} className="font-mono text-primary hover:underline">{formatHash(tx.hash)}</Link>
+                      <Link href={`/tx/${tx.hash}`} className="font-mono text-link hover:underline">{formatHash(tx.hash)}</Link>
                     </td>
                     <td className="px-6 py-3 text-muted-foreground whitespace-nowrap">{formatAge(tx.timestamp)}</td>
                     <td className="px-6 py-3">
-                      <Link href={`/address/${tx.from}`} className="font-mono text-primary hover:underline">{formatAddress(tx.from)}</Link>
+                      <Link href={`/address/${tx.from}`} className="font-mono text-link hover:underline">{formatAddress(tx.from)}</Link>
                     </td>
                     <td className="px-6 py-3">
                       {tx.to ? (
-                        <Link href={`/address/${tx.to}`} className="font-mono text-primary hover:underline">{formatAddress(tx.to)}</Link>
+                        <Link href={`/address/${tx.to}`} className="font-mono text-link hover:underline">{formatAddress(tx.to)}</Link>
                       ) : (
                         <span className="text-muted-foreground">Contract Creation</span>
                       )}
@@ -186,7 +186,7 @@ export default function TokenDetail() {
                   <tr key={h.address} className="border-b border-border/60 hover:bg-muted/40 transition-colors">
                     <td className="px-6 py-3 text-muted-foreground">{i + 1}</td>
                     <td className="px-6 py-3">
-                      <Link href={`/address/${h.address}`} className="font-mono text-primary hover:underline">{formatAddress(h.address)}</Link>
+                      <Link href={`/address/${h.address}`} className="font-mono text-link hover:underline">{formatAddress(h.address)}</Link>
                     </td>
                     <td className="px-6 py-3 text-right font-mono whitespace-nowrap">{formatNumber(h.balance)}</td>
                     <td className="px-6 py-3 text-right">

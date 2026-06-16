@@ -31,7 +31,7 @@ export default function BlockDetail() {
       <div className="container mx-auto px-4 py-12 text-center">
         <h1 className="text-2xl font-bold mb-4">Block Not Found</h1>
         <p className="text-muted-foreground">The block you are looking for does not exist or has not been indexed yet.</p>
-        <Link href="/" className="mt-6 inline-block text-primary hover:underline">Back to Home</Link>
+        <Link href="/" className="mt-6 inline-block text-link hover:underline">Back to Home</Link>
       </div>
     );
   }
@@ -91,7 +91,7 @@ export default function BlockDetail() {
           <InfoRow 
             label="Transactions:" 
             value={
-              <Link href={`/txs?block=${block.number}`} className="inline-flex items-center px-3 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-sm font-medium">
+              <Link href={`/txs?block=${block.number}`} className="inline-flex items-center px-3 py-1 rounded bg-link/10 text-link hover:bg-link/20 transition-colors text-sm font-medium">
                 {block.txCount} transactions
               </Link>
             } 
@@ -102,7 +102,7 @@ export default function BlockDetail() {
             value={
               <span className="flex flex-wrap items-center gap-2">
                 <span className="font-medium text-foreground">{block.producerName}</span>
-                <Link href={`/address/${block.validator}`} className="text-primary hover:text-primary/80 font-mono break-all">
+                <Link href={`/address/${block.validator}`} className="text-link hover:text-link/80 font-mono break-all">
                   {block.validator}
                 </Link>
               </span>
