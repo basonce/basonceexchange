@@ -7,9 +7,8 @@ import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, AlertCircle } from "lucide-react";
+import { Upload, AlertCircle, ChevronLeft } from "lucide-react";
+import { Link } from "wouter";
 
 export function Withdraw() {
   const { user } = useAuth();
@@ -39,21 +38,10 @@ export function Withdraw() {
     if (!user || !coin || !network || !amount || !destination) return;
 
     const amt = parseFloat(amount);
-    if (isNaN(amt) || amt <= 0) {
-      toast.error("Invalid amount");
-      return;
-    }
-
+    if (isNaN(amt) || amt <= 0) { toast.error("Invalid amount"); return; }
     if (!selectedNetwork) return;
-    if (amt < selectedNetwork.minWithdraw) {
-      toast.error(`Minimum withdrawal is ${selectedNetwork.minWithdraw} ${coin}`);
-      return;
-    }
-
-    if (amt > availableBalance) {
-      toast.error("Insufficient balance");
-      return;
-    }
+    if (amt < selectedNetwork.minWithdraw) { toast.error(`Minimum withdrawal is ${selectedNetwork.minWithdraw} ${coin}`); return; }
+    if (amt > availableBalance) { toast.error("Insufficient balance"); return; }
 
     let usdValue = 0;
     if (coin === 'BNC') usdValue = amt * bncPrice;
@@ -61,23 +49,14 @@ export function Withdraw() {
 
     setLoading(true);
     const res = await submitWithdrawal({
-      userId: user.id,
-      coinSymbol: coin,
-      networkId: network,
-      amount: amt,
-      destinationAddress: destination,
-      usdValue
+      userId: user.id, coinSymbol: coin, networkId: network, amount: amt, destinationAddress: destination, usdValue
     });
     setLoading(false);
 
     if (res.ok) {
-      if (res.status === 'hold') {
-        toast.success("Withdrawal submitted. Large amounts require manual review for security.");
-      } else {
-        toast.success("Withdrawal submitted successfully");
-      }
-      setAmount("");
-      setDestination("");
+      if (res.status === 'hold') toast.success("Withdrawal submitted. Large amounts require manual review for security.");
+      else toast.success("Withdrawal submitted successfully");
+      setAmount(""); setDestination("");
       queryClient.invalidateQueries({ queryKey: queryKeys.balances(user.id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.history(user.id) });
     } else {
@@ -90,81 +69,43 @@ export function Withdraw() {
     : 0;
 
   return (
-    <div className="px-6 pt-12 pb-20 flex flex-col h-full">
-      <div className="mb-8">
-        <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center mb-4">
-          <Upload className="w-6 h-6" />
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight">Withdraw</h1>
-        <p className="text-muted-foreground mt-1">Send crypto to an external wallet</p>
+    <div className="flex flex-col h-full bg-background min-h-screen">
+      <div className="px-4 pt-12 pb-4 bg-background sticky top-0 z-10 flex items-center gap-4">
+        <Link href="/" className="p-2"><ChevronLeft className="w-6 h-6" /></Link>
+        <h1 className="text-2xl font-bold">Withdraw</h1>
       </div>
 
-      <form onSubmit={handleWithdraw} className="space-y-6 flex-1">
-        
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Coin</Label>
-            <Select value={coin} onValueChange={setCoin}>
-              <SelectTrigger className="h-14 bg-card border-border text-lg px-4">
-                <SelectValue placeholder="Select coin" />
-              </SelectTrigger>
-              <SelectContent>
-                {withdrawableCoins.map(c => (
-                  <SelectItem key={c} value={c}>{c} (Avail: {balances.find(b=>b.symbol===c)?.balance||0})</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <form onSubmit={handleWithdraw} className="flex-1 px-4 space-y-6">
+        <div className="flex gap-4">
+          <div className="flex-1 space-y-2">
+            <label className="text-sm font-medium">Coin</label>
+            <select value={coin} onChange={e => setCoin(e.target.value)} className="w-full h-14 bg-card rounded-md px-4 outline-none">
+              {withdrawableCoins.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
-
-          <div className="space-y-2">
-            <Label>Network</Label>
-            <Select value={network} onValueChange={setNetwork}>
-              <SelectTrigger className="h-14 bg-card border-border text-lg px-4">
-                <SelectValue placeholder="Select network" />
-              </SelectTrigger>
-              <SelectContent>
-                {networksForCoin.map(n => (
-                  <SelectItem key={n.id} value={n.id}>{n.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex-1 space-y-2">
+            <label className="text-sm font-medium">Network</label>
+            <select value={network} onChange={e => setNetwork(e.target.value)} className="w-full h-14 bg-card rounded-md px-4 outline-none">
+              {networksForCoin.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
+            </select>
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label>Destination Address</Label>
+        <div className="space-y-2 relative">
+          <label className="text-sm font-medium">Address</label>
           <Input 
-            value={destination}
-            onChange={(e) => setDestination(e.target.value)}
-            placeholder="0x..."
-            className="h-14 bg-card border-border px-4 font-mono text-sm"
+            value={destination} onChange={(e) => setDestination(e.target.value)}
+            placeholder="0x..." className="h-14 bg-card border-none px-4 font-mono"
           />
         </div>
 
-        <div className="space-y-2">
-          <Label>Amount</Label>
-          <div className="relative">
-            <Input 
-              type="number"
-              step="any"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              className="h-16 bg-card border-border text-2xl font-bold px-4"
-            />
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-              <span className="font-bold text-muted-foreground">{coin}</span>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm" 
-                className="h-8"
-                onClick={() => setAmount(availableBalance.toString())}
-              >
-                MAX
-              </Button>
-            </div>
-          </div>
+        <div className="space-y-2 relative">
+          <label className="text-sm font-medium">Amount (Avail: {availableBalance})</label>
+          <Input 
+            type="number" step="any" value={amount} onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00" className="h-16 bg-card border-none text-2xl font-bold px-4"
+          />
+          <button type="button" onClick={() => setAmount(availableBalance.toString())} className="absolute right-4 top-10 text-primary font-bold">MAX</button>
         </div>
 
         {selectedNetwork && (
@@ -185,17 +126,8 @@ export function Withdraw() {
           </div>
         )}
 
-        <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 flex gap-3 text-sm text-primary">
-          <AlertCircle className="w-5 h-5 shrink-0" />
-          <p>Large withdrawals (≥ $500 USD value) are subject to manual security review and may be delayed.</p>
-        </div>
-
-        <Button 
-          type="submit" 
-          disabled={loading || !amount || !destination || !coin || !network}
-          className="w-full h-14 text-lg mt-auto bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          {loading ? "Processing..." : "Submit Withdrawal"}
+        <Button type="submit" disabled={loading || !amount || !destination || !coin || !network} className="w-full h-14 rounded-full mt-8 bg-primary">
+          {loading ? "Processing..." : "Submit"}
         </Button>
       </form>
     </div>

@@ -253,6 +253,35 @@ export async function getHistory(userId: string, limit = 100): Promise<TxRecord[
   return records.slice(0, limit);
 }
 
+export interface SwapResult {
+  ok: boolean;
+  error?: string;
+  fromAmount?: number;
+  toAmount?: number;
+  rate?: number;
+}
+
+// In-wallet swap. Like Send, the balance mutation happens ONLY server-side via a
+// service_role-locked SECURITY DEFINER RPC (wallet_user_swap). The server prices
+// both legs itself and derives the received amount — the client only proposes
+// what to spend.
+export async function swapTokens(from: string, to: string, fromAmount: number): Promise<SwapResult> {
+  const token = await getAccessToken();
+  if (!token) return { ok: false, error: 'You must be signed in' };
+  try {
+    const res = await fetch(`${API_BASE}/wallet/swap`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ from: from.toUpperCase(), to: to.toUpperCase(), fromAmount }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: json?.error || 'Swap failed' };
+    return { ok: true, fromAmount: json.fromAmount, toAmount: json.toAmount, rate: json.rate };
+  } catch {
+    return { ok: false, error: 'Network error. Please try again.' };
+  }
+}
+
 export interface SendResult { ok: boolean; error?: string }
 
 // Secure user-to-user transfer. The balance mutation happens ONLY server-side

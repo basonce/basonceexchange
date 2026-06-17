@@ -1,121 +1,243 @@
-import { useBncPrice, useBalances, useHistory } from "@/lib/hooks";
+import { useState } from "react";
+import { useBncPrice, useBalances, useHistory, useMarkets } from "@/lib/hooks";
 import { formatUsd, formatAmount, formatRelative } from "@/lib/format";
 import { motion } from "framer-motion";
-import { ArrowUpRight, ArrowDownLeft, Download, Upload, Clock, Zap } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, ArrowLeftRight, Plus, Settings, ScanLine, Clock, ChevronDown, Copy, Star } from "lucide-react";
 import { Link } from "wouter";
+import { CoinIcon } from "@/components/CoinIcon";
+import { toast } from "sonner";
+import useEmblaCarousel from "embla-carousel-react";
 
 export function Home() {
-  const { price, change } = useBncPrice();
+  const { price: bncPrice, change: bncChange } = useBncPrice();
   const { data: balances = [], isLoading: balancesLoading } = useBalances();
-  const { data: history = [], isLoading: historyLoading } = useHistory();
+  const { data: history = [] } = useHistory();
+  const { data: markets = [] } = useMarkets();
+  
+  const [activeTab, setActiveTab] = useState<"crypto" | "watchlist" | "nfts">("crypto");
+  const [emblaRef] = useEmblaCarousel({ loop: true });
 
-  const isPositive = change >= 0;
-
-  // Calculate total USD
   const totalUsd = balances.reduce((sum, b) => {
-    if (b.symbol === 'BNC') return sum + (b.balance * price);
+    if (b.symbol === 'BNC') return sum + (b.balance * bncPrice);
     if (b.symbol === 'USDT') return sum + b.balance;
-    return sum;
+    const m = markets.find(x => x.symbol === b.symbol);
+    return sum + (b.balance * (m?.price || 0));
   }, 0);
 
+  const prevTotalUsd = balances.reduce((sum, b) => {
+    if (b.symbol === 'BNC') return sum + (b.balance * (bncPrice / (1 + bncChange/100)));
+    if (b.symbol === 'USDT') return sum + b.balance;
+    const m = markets.find(x => x.symbol === b.symbol);
+    if (m) return sum + (b.balance * (m.price / (1 + m.change24h/100)));
+    return sum + 0;
+  }, 0);
+
+  const totalChangeUsd = totalUsd - prevTotalUsd;
+  const totalChangePct = prevTotalUsd > 0 ? (totalChangeUsd / prevTotalUsd) * 100 : 0;
+  const isPositive = totalChangePct >= 0;
+
+  const watchlistSymbols = JSON.parse(localStorage.getItem('bnc_watchlist') || '[]');
+  const watchlistMarkets = markets.filter(m => watchlistSymbols.includes(m.symbol));
+
+  const trending = [...markets].sort((a, b) => b.change24h - a.change24h).slice(0, 5);
+
   return (
-    <div className="flex flex-col min-h-full">
-      {/* Header / Total Balance */}
-      <div className="pt-12 px-6 pb-8 bg-card rounded-b-[40px] shadow-sm relative z-10 border-b border-border">
-        <div className="flex items-center justify-between mb-8">
-          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-            <Zap className="w-5 h-5 text-primary" />
-          </div>
-        </div>
+    <div className="flex flex-col min-h-full bg-background pb-24">
+      {/* Top Bar */}
+      <div className="flex items-center justify-between px-4 pt-12 pb-2">
+        <Link href="/settings" className="p-2 relative">
+          <Settings className="w-6 h-6 text-foreground" />
+          <div className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-background" />
+        </Link>
+        <Link href="/markets" className="flex-1 max-w-[200px] bg-secondary rounded-full h-8 flex items-center px-4">
+          <ScanLine className="w-4 h-4 text-muted-foreground mr-2" />
+          <span className="text-sm text-muted-foreground">Search</span>
+        </Link>
+        <Link href="/receive" className="p-2">
+          <ScanLine className="w-6 h-6 text-foreground" />
+        </Link>
+      </div>
 
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-1"
-        >
-          <p className="text-muted-foreground font-medium text-sm">Total Balance</p>
-          <h1 className="text-5xl font-bold tracking-tighter">
-            {balancesLoading ? "---" : formatUsd(totalUsd)}
-          </h1>
-        </motion.div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-4 gap-4 mt-8">
-          <ActionBtn href="/send" icon={ArrowUpRight} label="Send" />
-          <ActionBtn href="/receive" icon={ArrowDownLeft} label="Receive" />
-          <ActionBtn href="/receive" icon={Download} label="Deposit" />
-          <ActionBtn href="/withdraw" icon={Upload} label="Withdraw" />
+      {/* Main Wallet Pill */}
+      <div className="flex justify-center mt-2">
+        <div className="flex items-center gap-1 bg-secondary/50 rounded-full px-3 py-1 cursor-pointer" onClick={() => toast.success("Main Wallet selected")}>
+          <span className="text-sm font-medium">Main Wallet</span>
+          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          <Copy className="w-3 h-3 text-muted-foreground ml-1" onClick={(e) => { e.stopPropagation(); toast.success("Address copied"); }} />
         </div>
       </div>
 
-      <div className="px-6 pt-6 pb-20 space-y-8 flex-1 bg-background relative z-0 -mt-4">
-        {/* Token List */}
+      {/* Balance */}
+      <div className="flex flex-col items-center mt-6 mb-8">
+        <h1 className="text-[40px] font-bold tracking-tight">
+          {balancesLoading ? "---" : formatUsd(totalUsd)}
+        </h1>
+        <div className={`flex items-center gap-1 font-medium mt-1 ${isPositive ? 'text-primary' : 'text-destructive'}`}>
+          <span className="text-sm">{isPositive ? '+' : ''}{formatUsd(totalChangeUsd)} ({totalChangePct.toFixed(2)}%)</span>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex justify-center gap-6 mb-8">
+        <ActionBtn href="/send" icon={ArrowUpRight} label="Send" />
+        <ActionBtn href="/receive" icon={ArrowDownLeft} label="Receive" />
+        <ActionBtn href="/receive" icon={Plus} label="Buy" />
+        <ActionBtn href="/history" icon={Clock} label="History" />
+      </div>
+
+      {/* Carousel */}
+      <div className="px-4 mb-6">
+        <div className="overflow-hidden rounded-2xl" ref={emblaRef}>
+          <div className="flex">
+            <Link href="/discover" className="flex-[0_0_100%] min-w-0 h-28 bg-gradient-to-r from-blue-900 to-purple-900 rounded-2xl p-4 flex flex-col justify-center text-white mr-4 block">
+              <div className="font-bold text-lg">Start Earning</div>
+              <div className="text-sm opacity-80">Explore Basonce ecosystem</div>
+            </Link>
+            <Link href="/markets" className="flex-[0_0_100%] min-w-0 h-28 bg-gradient-to-r from-green-900 to-emerald-900 rounded-2xl p-4 flex flex-col justify-center text-white mr-4 block">
+              <div className="font-bold text-lg">Trade Perps</div>
+              <div className="text-sm opacity-80">High volume markets</div>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="px-4 flex items-center gap-6 border-b border-border/50 mb-4 relative">
+        {(["crypto", "watchlist", "nfts"] as const).map(tab => (
+          <button 
+            key={tab}
+            className={`pb-3 text-sm font-semibold capitalize relative ${activeTab === tab ? 'text-primary' : 'text-muted-foreground'}`}
+            onClick={() => setActiveTab(tab)}
+          >
+            {tab}
+            {activeTab === tab && (
+              <motion.div layoutId="home-tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      <div className="px-4 min-h-[200px]">
+        {activeTab === "crypto" && (
+          <div className="space-y-4">
+            {balances.map(b => {
+              const m = markets.find(x => x.symbol === b.symbol);
+              const price = b.symbol === 'BNC' ? bncPrice : (m?.price || 1);
+              const change = b.symbol === 'BNC' ? bncChange : (m?.change24h || 0);
+              return (
+                <Link key={b.symbol} href={`/token/${b.symbol}`} className="flex items-center justify-between block">
+                  <div className="flex items-center gap-3">
+                    <CoinIcon symbol={b.symbol} size={40} />
+                    <div>
+                      <div className="font-bold text-base">{b.symbol}</div>
+                      <div className="text-sm text-muted-foreground flex gap-2">
+                        {formatUsd(price)} 
+                        <span className={change >= 0 ? 'text-primary' : 'text-destructive'}>
+                          {change >= 0 ? '+' : ''}{change.toFixed(2)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold">{formatAmount(b.balance)}</div>
+                    <div className="text-sm text-muted-foreground">{formatUsd(b.balance * price)}</div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+
+        {activeTab === "watchlist" && (
+          <div className="space-y-4">
+            {watchlistMarkets.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground">Empty Watchlist</div>
+            ) : (
+              watchlistMarkets.map(m => (
+                <Link key={m.symbol} href={`/token/${m.symbol}`} className="flex items-center justify-between block">
+                  <div className="flex items-center gap-3">
+                    <CoinIcon symbol={m.symbol} size={40} />
+                    <div>
+                      <div className="font-bold">{m.symbol}</div>
+                      <div className="text-sm text-muted-foreground">{m.name}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold">{formatUsd(m.price)}</div>
+                    <div className={`text-sm ${m.change24h >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                      {m.change24h >= 0 ? '+' : ''}{m.change24h.toFixed(2)}%
+                    </div>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        )}
+
+        {activeTab === "nfts" && (
+          <div className="text-center py-12">
+            <div className="w-20 h-20 bg-secondary rounded-2xl mx-auto mb-4" />
+            <h3 className="font-bold text-lg">No NFTs yet</h3>
+            <p className="text-muted-foreground text-sm">Your collectibles will appear here</p>
+          </div>
+        )}
+      </div>
+
+      {/* Sections */}
+      <div className="mt-8 px-4 space-y-8">
         <div>
-          <h2 className="text-lg font-semibold mb-4 text-foreground/90">Assets</h2>
-          <div className="space-y-3">
-            {/* BNC is always featured */}
-            <TokenCard 
-              symbol="BNC" 
-              name="Basonce" 
-              balance={balances.find(b => b.symbol === 'BNC')?.balance || 0}
-              priceUsd={price}
-              change={change}
-              isPrimary
-            />
-            {/* USDT is standard */}
-            <TokenCard 
-              symbol="USDT" 
-              name="Tether" 
-              balance={balances.find(b => b.symbol === 'USDT')?.balance || 0}
-              priceUsd={1}
-            />
-            {/* Other Balances */}
-            {balances.filter(b => b.symbol !== 'BNC' && b.symbol !== 'USDT' && b.balance > 0).map(b => (
-              <TokenCard 
-                key={b.symbol}
-                symbol={b.symbol} 
-                name={b.symbol} 
-                balance={b.balance}
-              />
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-bold text-lg">Trending</h2>
+          </div>
+          <div className="space-y-4">
+            {trending.map(m => (
+               <Link key={m.symbol} href={`/token/${m.symbol}`} className="flex items-center justify-between block">
+               <div className="flex items-center gap-3">
+                 <CoinIcon symbol={m.symbol} size={40} />
+                 <div>
+                   <div className="font-bold">{m.symbol}</div>
+                 </div>
+               </div>
+               <div className="text-right">
+                 <div className="font-bold">{formatUsd(m.price)}</div>
+                 <div className={`text-sm ${m.change24h >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                   {m.change24h >= 0 ? '+' : ''}{m.change24h.toFixed(2)}%
+                 </div>
+               </div>
+             </Link>
             ))}
           </div>
         </div>
 
-        {/* Recent Activity */}
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground/90">Recent Activity</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-bold text-lg">Recent activity</h2>
             <Link href="/history" className="text-primary text-sm font-medium">See all</Link>
           </div>
-          
           <div className="space-y-4">
-            {historyLoading ? (
-              <div className="h-20 bg-card rounded-2xl animate-pulse" />
-            ) : history.length === 0 ? (
-              <div className="bg-card rounded-2xl p-6 text-center border border-border">
-                <p className="text-muted-foreground">No recent activity</p>
-              </div>
-            ) : (
-              history.slice(0, 3).map(tx => (
-                <div key={tx.id} className="flex items-center justify-between p-4 bg-card rounded-2xl border border-border">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                      <Clock className="w-5 h-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="font-medium capitalize">{tx.kind}</p>
-                      <p className="text-xs text-muted-foreground">{formatRelative(tx.createdAt)}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className={`font-semibold ${tx.amount > 0 ? 'text-green-500' : ''}`}>
-                      {tx.amount > 0 ? '+' : ''}{formatAmount(tx.amount)} {tx.symbol}
-                    </p>
-                    <p className="text-xs text-muted-foreground capitalize">{tx.status || 'completed'}</p>
-                  </div>
-                </div>
-              ))
-            )}
+             {history.slice(0, 3).map(tx => {
+               const isPositive = tx.amount > 0;
+               return (
+                 <div key={tx.id} className="flex items-center justify-between">
+                   <div className="flex items-center gap-3">
+                     <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
+                       {tx.kind === 'receive' ? <ArrowDownLeft className="w-5 h-5 text-primary" /> : <ArrowUpRight className="w-5 h-5" />}
+                     </div>
+                     <div>
+                       <p className="font-medium capitalize">{tx.kind}</p>
+                       <p className="text-xs text-muted-foreground">{formatRelative(tx.createdAt)}</p>
+                     </div>
+                   </div>
+                   <div className="text-right">
+                     <p className={`font-semibold ${isPositive ? 'text-primary' : ''}`}>
+                       {isPositive ? '+' : ''}{formatAmount(tx.amount)} {tx.symbol}
+                     </p>
+                     <p className="text-xs text-muted-foreground capitalize">{tx.status || 'completed'}</p>
+                   </div>
+                 </div>
+               );
+             })}
           </div>
         </div>
       </div>
@@ -125,42 +247,11 @@ export function Home() {
 
 function ActionBtn({ href, icon: Icon, label }: { href: string; icon: any; label: string }) {
   return (
-    <Link href={href} className="flex flex-col items-center gap-2 outline-none group">
+    <Link href={href} className="flex flex-col items-center gap-2 group block">
       <div className="w-14 h-14 bg-secondary rounded-2xl flex items-center justify-center group-active:scale-95 transition-transform">
         <Icon className="w-6 h-6 text-foreground" />
       </div>
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <span className="text-xs font-medium text-foreground">{label}</span>
     </Link>
-  );
-}
-
-function TokenCard({ symbol, name, balance, priceUsd, change, isPrimary }: any) {
-  const isPositive = change && change >= 0;
-  
-  return (
-    <div className={`p-4 rounded-3xl flex items-center justify-between border ${isPrimary ? 'bg-primary/5 border-primary/20' : 'bg-card border-border'}`}>
-      <div className="flex items-center gap-4">
-        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${isPrimary ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground'}`}>
-          {symbol[0]}
-        </div>
-        <div>
-          <p className="font-semibold text-lg">{symbol}</p>
-          <p className="text-sm text-muted-foreground">{name}</p>
-        </div>
-      </div>
-      <div className="text-right">
-        <p className="font-semibold text-lg">{formatAmount(balance)}</p>
-        {priceUsd !== undefined && (
-          <p className="text-sm text-muted-foreground flex items-center justify-end gap-1">
-            {formatUsd(balance * priceUsd)}
-            {change !== undefined && (
-              <span className={`text-xs ml-1 ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
-                {isPositive ? '+' : ''}{change}%
-              </span>
-            )}
-          </p>
-        )}
-      </div>
-    </div>
   );
 }

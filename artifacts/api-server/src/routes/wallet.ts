@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { createClient } from "@supabase/supabase-js";
 import { PAPONCE_URL, PAPONCE_SERVICE_KEY } from "../lib/supabase-config";
+import { getUsdPrice } from "../lib/prices";
 
 const router: IRouter = Router();
 
@@ -109,6 +110,103 @@ router.post("/wallet/transfer", async (req, res) => {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[wallet/transfer] Error:", message);
     res.status(500).json({ error: "Transfer failed" });
+  }
+});
+
+// In-wallet swap: convert one held asset into another at the live USD rate.
+// The server is authoritative — it prices both legs itself and derives the
+// received amount, so the client can never dictate how much it receives.
+const SWAP_FEE = 0.005; // 0.5% spread
+
+router.post("/wallet/swap", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    if (!token) {
+      res.status(401).json({ error: "Missing auth token" });
+      return;
+    }
+
+    const { data: userData, error: userErr } = await admin.auth.getUser(token);
+    if (userErr || !userData?.user?.id) {
+      res.status(401).json({ error: "Invalid auth token" });
+      return;
+    }
+    const userId = userData.user.id;
+
+    const { from, to, fromAmount } = (req.body || {}) as {
+      from?: unknown; to?: unknown; fromAmount?: unknown;
+    };
+
+    if (typeof from !== "string" || !from.trim()) {
+      res.status(400).json({ error: "From asset is required" });
+      return;
+    }
+    if (typeof to !== "string" || !to.trim()) {
+      res.status(400).json({ error: "To asset is required" });
+      return;
+    }
+    const fromSym = from.trim().toUpperCase();
+    const toSym = to.trim().toUpperCase();
+    if (fromSym === toSym) {
+      res.status(400).json({ error: "Choose two different assets" });
+      return;
+    }
+    const fromAmt = Number(fromAmount);
+    if (!Number.isFinite(fromAmt) || fromAmt <= 0) {
+      res.status(400).json({ error: "Invalid amount" });
+      return;
+    }
+
+    const [fromPrice, toPrice] = await Promise.all([
+      getUsdPrice(fromSym),
+      getUsdPrice(toSym),
+    ]);
+    if (fromPrice <= 0 || toPrice <= 0) {
+      res.status(400).json({ error: "This pair cannot be swapped right now" });
+      return;
+    }
+
+    const usdValue = fromAmt * fromPrice;
+    const toAmt = (usdValue * (1 - SWAP_FEE)) / toPrice;
+    if (!Number.isFinite(toAmt) || toAmt <= 0) {
+      res.status(400).json({ error: "Amount too small to swap" });
+      return;
+    }
+
+    const { data, error } = await admin.rpc("wallet_user_swap", {
+      p_user: userId,
+      p_from: fromSym,
+      p_to: toSym,
+      p_from_amount: fromAmt,
+      p_to_amount: toAmt,
+    });
+
+    if (error) {
+      const msg = error.message || "Swap failed";
+      const clean =
+        /INSUFFICIENT_BALANCE/.test(msg) ? "Insufficient balance" :
+        /SAME_SYMBOL/.test(msg) ? "Choose two different assets" :
+        /INVALID_AMOUNT/.test(msg) ? "Invalid amount" :
+        /INVALID_SYMBOL/.test(msg) ? "Invalid asset" :
+        "Swap failed";
+      res.status(/INSUFFICIENT_BALANCE/.test(msg) ? 400 : 400).json({ error: clean });
+      return;
+    }
+
+    res.json({
+      success: true,
+      from: fromSym,
+      to: toSym,
+      fromAmount: fromAmt,
+      toAmount: toAmt,
+      rate: fromPrice / toPrice,
+      result: data,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[wallet/swap] Error:", message);
+    res.status(500).json({ error: "Swap failed" });
   }
 });
 
