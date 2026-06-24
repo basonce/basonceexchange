@@ -1,4 +1,5 @@
 import { Block, Transaction, Address, Token, TokenHolder, NetworkStats, PaginatedResult, SearchResult, ChainDataSource, HomeAnalytics, PricePoint, TrendPoint, TvlProject, TopToken, TopAccount, ValidatorInfo, VerifiedContract, TokenListing, GasOracle, GasTier } from './types';
+import { computeBncMarket, bncSparkline } from '../bncMarket';
 
 // Helper functions for mock data generation
 const generateHash = (prefix: string, length: number) => {
@@ -119,7 +120,9 @@ interface TokenMeta {
 
 function tokenMeta(address: string): TokenMeta {
   if (address.toLowerCase() === '0xbasonce') {
-    return { name: 'Basonce Coin', symbol: 'BNC', decimals: 18, totalSupply: BNC_SUPPLY, price: BNC_PRICE, holderCount: 2437, native: true };
+    // Live BNC price from the shared exchange engine so the token detail page
+    // matches the header / home card exactly.
+    return { name: 'Basonce Coin', symbol: 'BNC', decimals: 18, totalSupply: BNC_SUPPLY, price: Number(computeBncMarket().price.toFixed(4)), holderCount: 2437, native: true };
   }
   return { name: 'Mock Token', symbol: 'MCK', decimals: 18, totalSupply: 1000000, price: 1.2, holderCount: 120, native: false };
 }
@@ -193,13 +196,11 @@ function wobble(base: number, spread: number, i: number, drift = 0): number {
 const ANALYTICS: HomeAnalytics = (() => {
   const days = 14;
 
-  const priceSeries: PricePoint[] = Array.from({ length: 30 }, (_, i) => {
-    const idx = 29 - i;
-    return {
-      t: Date.now() - idx * DAY_MS,
-      price: Number(wobble(BNC_PRICE, 0.06, i, 0.001).toFixed(4)),
-    };
-  });
+  // Coherent with the live BNC price: same exchange engine drives this sparkline.
+  const priceSeries: PricePoint[] = bncSparkline(30, 6 * 3600 * 1000).map((price, i) => ({
+    t: Date.now() - (29 - i) * DAY_MS,
+    price: Number(price.toFixed(4)),
+  }));
 
   const txTrend: TrendPoint[] = Array.from({ length: days }, (_, i) => {
     const total = Math.round(wobble(13_400_000, 0.18, i));
@@ -434,7 +435,10 @@ setInterval(() => {
 
 export class MockChainDataSource implements ChainDataSource {
   async getNetworkStats(): Promise<NetworkStats> {
-    const bncPrice = Number((BNC_PRICE + (Math.random() - 0.5) * 0.04).toFixed(4));
+    // Live BNC price + 24h % pulled from the shared exchange engine so the
+    // explorer mirrors the Kite Exchange / Basonce Wallet numbers exactly.
+    const m = computeBncMarket();
+    const bncPrice = Number(m.price.toFixed(4));
     return {
       latestBlock: currentBlockNumber,
       totalAccounts: 12_408_153 + Math.floor(transactions.length / 4),
@@ -446,9 +450,9 @@ export class MockChainDataSource implements ChainDataSource {
       totalTransferVolume: 7_626_760_608_687 + transactions.length * 1000,
       transferVolume24h: 30_642_469_210 + Math.floor(Math.random() * 5_000_000),
       bncPrice,
-      priceChange24h: Number((-1.12 + (Math.random() - 0.5) * 0.6).toFixed(2)),
+      priceChange24h: Number(m.change24h.toFixed(2)),
       marketCap: Math.round(bncPrice * BNC_SUPPLY),
-      volume24h: 465_780_000 + Math.floor((Math.random() - 0.5) * 8_000_000),
+      volume24h: Math.round(m.volumeMillions * 1_000_000),
       totalSupply: BNC_SUPPLY,
       totalStaked: 4_550_648_861,
       stakingRate: 47.9,
@@ -458,12 +462,19 @@ export class MockChainDataSource implements ChainDataSource {
       totalContracts: 3_597_188,
       totalTokens: 190_638,
       activeValidators: 21,
-      gasPriceGwei: Number((5.2 + Math.random() * 2).toFixed(2)),
+      gasPriceGwei: 0.01,
     };
   }
 
   async getHomeAnalytics(): Promise<HomeAnalytics> {
-    return ANALYTICS;
+    // Keep BNC's market cap in the Top Tokens widget aligned with the live price.
+    const liveCap = Math.round(computeBncMarket().price * BNC_SUPPLY);
+    return {
+      ...ANALYTICS,
+      topTokens: ANALYTICS.topTokens.map((t) =>
+        t.symbol === 'BNC' ? { ...t, marketCap: liveCap } : t
+      ),
+    };
   }
 
   async getTopAccounts(page: number, pageSize: number): Promise<PaginatedResult<TopAccount>> {
@@ -493,23 +504,36 @@ export class MockChainDataSource implements ChainDataSource {
   }
 
   async getTopTokens(): Promise<TokenListing[]> {
-    return TOKEN_LISTINGS;
+    // BNC row mirrors the live exchange price / 24h % / market cap.
+    const m = computeBncMarket();
+    return TOKEN_LISTINGS.map((t) =>
+      t.symbol === 'BNC'
+        ? {
+            ...t,
+            price: Number(m.price.toFixed(4)),
+            change24h: Number(m.change24h.toFixed(2)),
+            marketCap: Math.round(m.price * BNC_SUPPLY),
+          }
+        : t
+    );
   }
 
   async getGasOracle(): Promise<GasOracle> {
-    const base = 5.2 + Math.random() * 1.5;
+    // Ultra-low fees on the Basonce Chain — headline gas ~0.01 Gwei.
+    const base = 0.01;
     const transferGas = 21000;
+    const price = computeBncMarket().price;
     const tier = (gwei: number, timeSec: number): GasTier => ({
       gwei: Number(gwei.toFixed(2)),
-      usd: Number(((gwei * 1e-9 * transferGas) * BNC_PRICE).toFixed(4)),
+      usd: Number(((gwei * 1e-9 * transferGas) * price).toFixed(4)),
       timeSec,
     });
     return {
-      low: tier(base * 0.9, 30),
-      average: tier(base * 1.15, 12),
-      high: tier(base * 1.45, 6),
-      baseFee: Number(base.toFixed(2)),
-      bncPrice: BNC_PRICE,
+      low: tier(base, 30),
+      average: tier(base, 12),
+      high: tier(base, 6),
+      baseFee: base,
+      bncPrice: Number(price.toFixed(4)),
     };
   }
 

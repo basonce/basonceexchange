@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { Search } from 'lucide-react';
+import { Search, ChevronDown } from 'lucide-react';
 import { chainData } from '@/lib/chain';
 import { useToast } from '@/hooks/use-toast';
 
@@ -37,22 +37,25 @@ export function GlobalSearch({ className = '' }: { className?: string }) {
 
   return (
     <form onSubmit={handleSearch} className={`relative flex w-full items-center ${className}`}>
-      <select 
-        className="hidden md:block absolute left-1 h-9 rounded-md border-0 bg-transparent py-0 pl-3 pr-7 text-muted-foreground focus:ring-0 sm:text-sm outline-none"
-        aria-label="Filter search"
-      >
-        <option>All Filters</option>
-        <option>Addresses</option>
-        <option>Tokens</option>
-        <option>Names Tags</option>
-        <option>Labels</option>
-        <option>Websites</option>
-      </select>
-      <div className="hidden md:block absolute left-[105px] h-6 w-px bg-border" />
+      <div className="hidden md:flex absolute left-3 z-10 w-[108px] items-center justify-between">
+        <select
+          className="w-full appearance-none border-0 bg-transparent pr-1 text-sm text-muted-foreground outline-none focus:ring-0 cursor-pointer"
+          aria-label="Filter search"
+        >
+          <option>All Filters</option>
+          <option>Addresses</option>
+          <option>Tokens</option>
+          <option>Name Tags</option>
+          <option>Labels</option>
+          <option>Websites</option>
+        </select>
+        <ChevronDown className="pointer-events-none h-4 w-4 shrink-0 text-muted-foreground" />
+      </div>
+      <div className="hidden md:block absolute left-[132px] h-6 w-px bg-border" />
       <input
         type="text"
         placeholder="Search by Address / Txn Hash / Block / Token"
-        className="w-full h-11 rounded-md border border-border bg-card px-4 md:pl-[120px] pr-12 text-sm text-foreground shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground"
+        className="w-full h-11 rounded-md border border-border bg-card px-4 md:pl-[148px] pr-12 text-sm text-foreground shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />

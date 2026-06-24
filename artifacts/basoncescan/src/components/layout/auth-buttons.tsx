@@ -15,11 +15,13 @@ import { useToast } from '@/hooks/use-toast';
 
 type AuthMode = 'login' | 'register';
 
+const ASSET_BASE = import.meta.env.BASE_URL;
+
 const WALLETS = [
-  { id: 'basonce', name: 'Basonce Wallet', hint: 'Recommended' },
-  { id: 'metamask', name: 'MetaMask', hint: 'Browser extension' },
-  { id: 'walletconnect', name: 'WalletConnect', hint: 'Scan with mobile' },
-  { id: 'trust', name: 'Trust Wallet', hint: 'Mobile & extension' },
+  { id: 'basonce', name: 'Basonce Wallet', hint: 'Recommended', logo: `${ASSET_BASE}wallets/basonce.png` },
+  { id: 'metamask', name: 'MetaMask', hint: 'Browser extension', logo: `${ASSET_BASE}wallets/metamask.svg` },
+  { id: 'walletconnect', name: 'WalletConnect', hint: 'Scan with mobile', logo: `${ASSET_BASE}wallets/walletconnect.png` },
+  { id: 'trust', name: 'Trust Wallet', hint: 'Mobile & extension', logo: `${ASSET_BASE}wallets/trust.png` },
 ];
 
 function randomAddress() {
@@ -192,8 +194,13 @@ function ConnectWalletDialog({
               className="flex w-full items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary/60 hover:bg-muted disabled:opacity-60"
             >
               <span className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-md bg-secondary text-primary">
-                  <Wallet className="h-4 w-4" />
+                <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md bg-secondary">
+                  <img
+                    src={w.logo}
+                    alt={`${w.name} logo`}
+                    className="h-7 w-7 object-contain"
+                    loading="lazy"
+                  />
                 </span>
                 <span>
                   <span className="block text-sm font-medium text-foreground">{w.name}</span>
