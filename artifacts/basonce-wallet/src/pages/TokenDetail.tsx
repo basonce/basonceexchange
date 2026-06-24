@@ -18,9 +18,20 @@ export function TokenDetail() {
   if (!market && isBnc) {
     market = {
       symbol: 'BNC', name: 'Basonce', iconUrl: '', color: '#F0B90B',
-      price: bncLive.price, change24h: bncLive.change, marketCapUsd: 0, volumeUsd: 0, sparkline: []
+      price: bncLive.price, change24h: bncLive.change, volumeUsd: 0, sparkline: []
     };
   }
+
+  const [watchlist, setWatchlist] = useState<string[]>(
+    () => JSON.parse(localStorage.getItem('bnc_watchlist') || '[]')
+  );
+  const watched = watchlist.includes(symbol.toUpperCase());
+  const toggleWatch = () => {
+    const sym = symbol.toUpperCase();
+    const newW = watched ? watchlist.filter((s) => s !== sym) : [...watchlist, sym];
+    setWatchlist(newW);
+    localStorage.setItem('bnc_watchlist', JSON.stringify(newW));
+  };
 
   const balance = balances.find(b => b.symbol.toUpperCase() === symbol.toUpperCase())?.balance || 0;
 
