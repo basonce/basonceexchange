@@ -39,3 +39,31 @@ NETLIFY_SITE_ID = "191221a9-4dab-4004-87b4-5caccec33757"
 
 [nix]
 channel = "stable-25_05"
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
+localPort = 18285
+externalPort = 80
+
+[[ports]]
+localPort = 19323
+externalPort = 3000
+
+[[ports]]
+localPort = 21026
+externalPort = 3001
+
+[[ports]]
+localPort = 22794
+externalPort = 3003
+
+[[ports]]
+localPort = 23857
+externalPort = 3002
