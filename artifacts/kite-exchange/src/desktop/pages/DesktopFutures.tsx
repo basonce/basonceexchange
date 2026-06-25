@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { ChevronDown, Search, Star } from 'lucide-react';
+import { ChevronDown, Search, Star, Share2 } from 'lucide-react';
 import BinanceLightweightChart from '../../components/BinanceLightweightChart';
+import SharePositionCard from '../../components/SharePositionCard';
 import CoinLogo from '../../components/CoinLogo';
 import { useMarkets, DeskMarket } from '../useMarkets';
 import { useFuturesTrading } from '../hooks/useFuturesTrading';
@@ -53,6 +54,7 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
   const [stopPrice, setStopPrice] = useState('');
   const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null);
   const [tpslModal, setTpslModal] = useState<{ positionId: string; side: 'long' | 'short'; price: number } | null>(null);
+  const [shareModal, setShareModal] = useState<{ position: any; currentPrice: number; pnlAmount: number; pnlPercentage: number } | null>(null);
   const [bottomTab, setBottomTab] = useState<'positions' | 'orders' | 'history' | 'assets'>('positions');
   const isStop = orderType === 'stop-limit' || orderType === 'stop-market';
   const [funding, setFunding] = useState(getFundingCountdown());
@@ -426,7 +428,14 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
                         </button>
                       </td>
                       <td className="text-right px-2">
-                        <button onClick={() => closePos(p.id)} className="bg-[#F6465D]/10 hover:bg-[#F6465D]/20 text-[#F6465D] font-medium px-3 py-1 rounded text-xs">Cancel</button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button onClick={() => setShareModal({ position: p, currentPrice: mark, pnlAmount: pnl, pnlPercentage: roi })}
+                            title="Share PnL"
+                            className="bg-[#2B3139] hover:bg-[#363D47] text-[#EAECEF] p-1.5 rounded">
+                            <Share2 size={13} />
+                          </button>
+                          <button onClick={() => closePos(p.id)} className="bg-[#F6465D]/10 hover:bg-[#F6465D]/20 text-[#F6465D] font-medium px-3 py-1 rounded text-xs">Cancel</button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -532,6 +541,17 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
           />
         );
       })()}
+
+      {shareModal && (
+        <SharePositionCard
+          isOpen={true}
+          onClose={() => setShareModal(null)}
+          position={shareModal.position}
+          currentPrice={shareModal.currentPrice}
+          pnlAmount={shareModal.pnlAmount}
+          pnlPercentage={shareModal.pnlPercentage}
+        />
+      )}
 
       {toast && (
         <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-2xl text-sm max-w-sm ${toast.ok ? 'bg-[#0ECB81]' : 'bg-[#F6465D]'} text-white`}>
