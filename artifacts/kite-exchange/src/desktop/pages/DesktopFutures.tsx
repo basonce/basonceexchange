@@ -227,8 +227,8 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
             )}
           </div>
 
-          <div className="flex items-center gap-5 min-w-0">
-            <div className={`text-xl font-semibold shrink-0 tabular-nums whitespace-nowrap ${change >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+          <div className="flex items-center gap-7 min-w-0">
+            <div className={`text-2xl font-semibold shrink-0 tabular-nums whitespace-nowrap ${change >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
               {fmtHead(price)}
             </div>
             <Stat label="24h Change" value={`${change >= 0 ? '+' : ''}${change.toFixed(2)}%`} pos={change >= 0} />
@@ -643,8 +643,8 @@ function DeskTPSLModal({ side, price, existingTP, existingSL, onClose, onSave }:
 function Stat({ label, value, pos }: { label: string; value: string; pos?: boolean }) {
   return (
     <div className="shrink-0">
-      <div className="text-[10px] text-[#848E9C] whitespace-nowrap">{label}</div>
-      <div className={`text-xs font-medium tabular-nums whitespace-nowrap ${pos === undefined ? 'text-white' : pos ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>{value}</div>
+      <div className="text-xs text-[#848E9C] whitespace-nowrap mb-0.5">{label}</div>
+      <div className={`text-sm font-semibold tabular-nums whitespace-nowrap ${pos === undefined ? 'text-white' : pos ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>{value}</div>
     </div>
   );
 }
