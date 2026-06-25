@@ -327,7 +327,7 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
                       <td className="py-2.5 px-2">
                         <span className={`mr-1.5 inline-block w-0.5 h-3 align-middle ${p.side === 'LONG' ? 'bg-[#0ECB81]' : 'bg-[#F6465D]'}`} />
                         <span className="font-medium">{p.symbol}</span>
-                        <span className="ml-1 text-[10px] text-[#848E9C]">{p.leverage}x</span>
+                        <span className="ml-1.5 text-[11px] font-semibold text-[#F0B90B] bg-[#F0B90B]/10 px-1 py-0.5 rounded align-middle">{p.leverage}x</span>
                       </td>
                       <td>{(p.position_size / p.entry_price).toFixed(4)}</td>
                       <td>{fmt(p.entry_price)}</td>
@@ -338,7 +338,7 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
                         {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)} ({roi >= 0 ? '+' : ''}{roi.toFixed(2)}%)
                       </td>
                       <td className="text-right px-2">
-                        <button onClick={() => closePos(p.id)} className="bg-[#2B3139] hover:bg-[#363b44] px-3 py-1 rounded text-xs">Market</button>
+                        <button onClick={() => closePos(p.id)} className="bg-[#F6465D]/10 hover:bg-[#F6465D]/20 text-[#F6465D] font-medium px-3 py-1 rounded text-xs">Cancel</button>
                       </td>
                     </tr>
                   );
