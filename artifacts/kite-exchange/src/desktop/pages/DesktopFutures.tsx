@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { ChevronDown, Search, Star, Share2 } from 'lucide-react';
 import BinanceLightweightChart from '../../components/BinanceLightweightChart';
-import SharePositionCard from '../../components/SharePositionCard';
+import DesktopSharePositionCard from '../components/DesktopSharePositionCard';
 import CoinLogo from '../../components/CoinLogo';
 import { useMarkets, DeskMarket } from '../useMarkets';
 import { useFuturesTrading } from '../hooks/useFuturesTrading';
@@ -55,6 +55,7 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
   const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null);
   const [tpslModal, setTpslModal] = useState<{ positionId: string; side: 'long' | 'short'; price: number } | null>(null);
   const [shareModal, setShareModal] = useState<{ position: any; currentPrice: number; pnlAmount: number; pnlPercentage: number } | null>(null);
+  const [stopOpen, setStopOpen] = useState(false);
   const [bottomTab, setBottomTab] = useState<'positions' | 'orders' | 'history' | 'assets'>('positions');
   const isStop = orderType === 'stop-limit' || orderType === 'stop-market';
   const [funding, setFunding] = useState(getFundingCountdown());
@@ -218,14 +219,14 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
           </div>
 
           <div className="flex items-center gap-6 overflow-x-auto min-w-0">
-            <div className={`text-xl font-semibold shrink-0 ${change >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+            <div className={`text-xl font-semibold shrink-0 tabular-nums min-w-[110px] ${change >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
               {fmt(price)}
             </div>
-            <Stat label="24h Change" value={`${change >= 0 ? '+' : ''}${change.toFixed(2)}%`} pos={change >= 0} />
-            <Stat label="24h High" value={fmt(market?.high24h || 0)} />
-            <Stat label="24h Low" value={fmt(market?.low24h || 0)} />
-            <Stat label="24h Volume (USDT)" value={fmtVol(market?.volume || 0)} />
-            <Stat label="Funding / Countdown" value={funding} />
+            <Stat label="24h Change" value={`${change >= 0 ? '+' : ''}${change.toFixed(2)}%`} pos={change >= 0} minW={88} />
+            <Stat label="24h High" value={fmt(market?.high24h || 0)} minW={80} />
+            <Stat label="24h Low" value={fmt(market?.low24h || 0)} minW={80} />
+            <Stat label="24h Volume (USDT)" value={fmtVol(market?.volume || 0)} minW={100} />
+            <Stat label="Funding / Countdown" value={funding} minW={110} />
           </div>
         </div>
       </div>
@@ -308,15 +309,24 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
                 className={`pb-2 capitalize ${orderType === t ? 'text-[#F0B90B] border-b-2 border-[#F0B90B]' : 'text-[#848E9C]'}`}>{t}</button>
             ))}
             <div className={`relative pb-2 ${isStop ? 'border-b-2 border-[#F0B90B]' : ''}`}>
-              <select
-                value={isStop ? orderType : ''}
-                onChange={e => { if (e.target.value) setOrderType(e.target.value as 'stop-limit' | 'stop-market'); }}
-                className={`bg-transparent text-sm cursor-pointer outline-none appearance-none pr-3 ${isStop ? 'text-[#F0B90B]' : 'text-[#848E9C]'}`}>
-                <option value="" className="bg-[#181A20] text-white">Stop</option>
-                <option value="stop-limit" className="bg-[#181A20] text-white">Stop-Limit</option>
-                <option value="stop-market" className="bg-[#181A20] text-white">Stop-Market</option>
-              </select>
-              <ChevronDown size={11} className="absolute right-0 top-1.5 pointer-events-none" />
+              <button
+                type="button"
+                onClick={() => setStopOpen(o => !o)}
+                className={`flex items-center gap-1 text-sm whitespace-nowrap ${isStop ? 'text-[#F0B90B]' : 'text-[#848E9C]'}`}>
+                {orderType === 'stop-limit' ? 'Stop-Limit' : orderType === 'stop-market' ? 'Stop-Market' : 'Stop'}
+                <ChevronDown size={12} className={`transition-transform ${stopOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {stopOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setStopOpen(false)} />
+                  <div className="absolute top-full left-0 mt-1.5 z-20 bg-[#181A20] border border-[#2B3139] rounded-md shadow-xl overflow-hidden min-w-[128px]">
+                    <button type="button" onClick={() => { setOrderType('stop-limit'); setStopOpen(false); }}
+                      className={`block w-full text-left px-3 py-2 text-sm hover:bg-[#2B3139] ${orderType === 'stop-limit' ? 'text-[#F0B90B]' : 'text-white'}`}>Stop-Limit</button>
+                    <button type="button" onClick={() => { setOrderType('stop-market'); setStopOpen(false); }}
+                      className={`block w-full text-left px-3 py-2 text-sm hover:bg-[#2B3139] ${orderType === 'stop-market' ? 'text-[#F0B90B]' : 'text-white'}`}>Stop-Market</button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -543,7 +553,7 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
       })()}
 
       {shareModal && (
-        <SharePositionCard
+        <DesktopSharePositionCard
           isOpen={true}
           onClose={() => setShareModal(null)}
           position={shareModal.position}
@@ -621,11 +631,11 @@ function DeskTPSLModal({ side, price, existingTP, existingSL, onClose, onSave }:
   );
 }
 
-function Stat({ label, value, pos }: { label: string; value: string; pos?: boolean }) {
+function Stat({ label, value, pos, minW }: { label: string; value: string; pos?: boolean; minW?: number }) {
   return (
-    <div className="shrink-0">
+    <div className="shrink-0" style={minW ? { minWidth: `${minW}px` } : undefined}>
       <div className="text-[10px] text-[#848E9C] whitespace-nowrap">{label}</div>
-      <div className={`text-xs font-medium ${pos === undefined ? 'text-white' : pos ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>{value}</div>
+      <div className={`text-xs font-medium tabular-nums whitespace-nowrap ${pos === undefined ? 'text-white' : pos ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>{value}</div>
     </div>
   );
 }
