@@ -45,13 +45,16 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
 
   // Order form
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
-  const [orderType, setOrderType] = useState<'market' | 'limit'>('market');
+  const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop-limit' | 'stop-market'>('market');
   const [marginMode, setMarginMode] = useState<'cross' | 'isolated'>('cross');
   const [leverage, setLeverage] = useState(20);
   const [amount, setAmount] = useState('');
   const [limitPrice, setLimitPrice] = useState('');
+  const [stopPrice, setStopPrice] = useState('');
   const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [tpslModal, setTpslModal] = useState<{ positionId: string; side: 'long' | 'short'; price: number } | null>(null);
   const [bottomTab, setBottomTab] = useState<'positions' | 'orders' | 'history' | 'assets'>('positions');
+  const isStop = orderType === 'stop-limit' || orderType === 'stop-market';
   const [funding, setFunding] = useState(getFundingCountdown());
 
   useEffect(() => {
@@ -68,38 +71,91 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
     window.addEventListener('desk-select-coin', onSelect);
     return () => window.removeEventListener('desk-select-coin', onSelect);
   }, []);
-  useEffect(() => { if (orderType === 'limit' && !limitPrice && price > 0) setLimitPrice(price.toString()); }, [orderType, price, limitPrice]);
-
-  // Live mark prices for open positions across symbols.
-  const [markPrices, setMarkPrices] = useState<Record<string, number>>({});
-  const symbolsKey = ft.positions.map(p => p.symbol).join(',');
-  useEffect(() => {
-    let active = true;
-    const syms = Array.from(new Set(ft.positions.map(p => p.symbol)));
-    if (syms.length === 0) return;
-    const tick = async () => {
-      const entries = await Promise.all(syms.map(async s => [s, await fetchFreshFuturesPrice(s)] as const));
-      if (active) setMarkPrices(prev => ({ ...prev, ...Object.fromEntries(entries.filter(([, v]) => v > 0)) }));
-    };
-    tick();
-    const id = setInterval(tick, 4000);
-    return () => { active = false; clearInterval(id); };
-  }, [symbolsKey]);
+  useEffect(() => { if ((orderType === 'limit' || orderType === 'stop-limit') && !limitPrice && price > 0) setLimitPrice(price.toString()); }, [orderType, price, limitPrice]);
+  useEffect(() => { if (isStop && !stopPrice && price > 0) setStopPrice(price.toString()); }, [isStop, price, stopPrice]);
 
   const showToast = (ok: boolean, msg: string) => {
     setToast({ ok, msg });
     setTimeout(() => setToast(null), 4000);
   };
 
+  // Live mark prices + client-side trigger engine for stop orders & TP/SL.
+  // Watches every symbol that has an open position or a pending stop order; when
+  // a trigger price is crossed it executes through the audited money paths.
+  const [markPrices, setMarkPrices] = useState<Record<string, number>>({});
+  const ftRef = useRef(ft); ftRef.current = ft;
+  const inFlight = useRef<Set<string>>(new Set());
+  const watchSymbols = Array.from(new Set([
+    ...ft.positions.map(p => p.symbol),
+    ...ft.openOrders.map((o: any) => o.symbol),
+  ]));
+  const symbolsKey = watchSymbols.join(',');
+
+  useEffect(() => {
+    let active = true;
+    if (watchSymbols.length === 0) return;
+    const evaluateTriggers = async (prices: Record<string, number>) => {
+      const f = ftRef.current;
+      if (!f.userId) return;
+      // Conditional (stop) orders → open a position when the trigger is hit.
+      for (const o of f.openOrders) {
+        if (o.status !== 'pending') continue;
+        const mp = prices[o.symbol]; const trig = Number(o.trigger_price);
+        if (!mp || !trig) continue;
+        const buy = o.side === 'buy' || o.side === 'LONG';
+        const hit = buy ? mp >= trig : mp <= trig;
+        if (!hit || inFlight.current.has(o.id)) continue;
+        inFlight.current.add(o.id);
+        try {
+          const r = await f.executeStopOrder(o);
+          showToast(r.ok, r.ok ? `Stop order filled · ${o.symbol}` : `Stop order failed · ${o.symbol}`);
+        } finally { inFlight.current.delete(o.id); }
+      }
+      // TP/SL → close the position when the trigger is hit.
+      for (const t of f.tpslOrders) {
+        if (t.status !== 'active') continue;
+        const pos = f.positions.find(p => p.id === t.position_id);
+        if (!pos) continue;
+        const mp = prices[pos.symbol]; const trig = Number(t.trigger_price);
+        if (!mp || !trig) continue;
+        const isLong = pos.side === 'LONG';
+        const hit = t.type === 'tp' ? (isLong ? mp >= trig : mp <= trig) : (isLong ? mp <= trig : mp >= trig);
+        const key = 'tpsl-' + t.position_id;
+        if (!hit || inFlight.current.has(key)) continue;
+        inFlight.current.add(key);
+        try {
+          const res = await f.executeTpsl(t);
+          showToast(res.success, res.success
+            ? `${t.type === 'tp' ? 'Take Profit' : 'Stop Loss'} hit · ${pos.symbol} · PnL ${res.netPnl >= 0 ? '+' : ''}${res.netPnl.toFixed(2)}`
+            : 'TP/SL close failed');
+        } finally { inFlight.current.delete(key); }
+      }
+    };
+    const tick = async () => {
+      const entries = await Promise.all(watchSymbols.map(async s => [s, await fetchFreshFuturesPrice(s)] as const));
+      const fresh = Object.fromEntries(entries.filter(([, v]) => v > 0));
+      if (!active) return;
+      setMarkPrices(prev => ({ ...prev, ...fresh }));
+      await evaluateTriggers(fresh);
+    };
+    tick();
+    const id = setInterval(tick, 4000);
+    return () => { active = false; clearInterval(id); };
+  }, [symbolsKey]);
+
   const submit = async (s: 'buy' | 'sell') => {
     if (!user) { onAuth('login'); return; }
     setSide(s);
-    const res = await ft.placeOrder({
-      symbol: futuresSymbol, side: s, leverage, amount,
-      orderType, price: limitPrice, marginMode,
-    });
+    const res = isStop
+      ? await ft.placeStopOrder({ symbol: futuresSymbol, side: s, leverage, amount, orderType: orderType as 'stop-limit' | 'stop-market', price: limitPrice, stopPrice, marginMode })
+      : await ft.placeOrder({ symbol: futuresSymbol, side: s, leverage, amount, orderType: orderType as 'market' | 'limit', price: limitPrice, marginMode });
     showToast(res.ok, res.message);
-    if (res.ok) setAmount('');
+    if (res.ok) { setAmount(''); setStopPrice(''); }
+  };
+
+  const cancelOrder = async (id: string) => {
+    const ok = await ft.cancelOrder(id);
+    showToast(ok, ok ? 'Order cancelled' : 'Failed to cancel order');
   };
 
   const closePos = async (id: string) => {
@@ -244,18 +300,32 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
             </div>
           </div>
 
-          <div className="flex gap-3 text-sm border-b border-[#2B3139]">
+          <div className="flex items-center gap-4 text-sm border-b border-[#2B3139]">
             {(['limit', 'market'] as const).map(t => (
               <button key={t} onClick={() => setOrderType(t)}
                 className={`pb-2 capitalize ${orderType === t ? 'text-[#F0B90B] border-b-2 border-[#F0B90B]' : 'text-[#848E9C]'}`}>{t}</button>
             ))}
+            <div className={`relative pb-2 ${isStop ? 'border-b-2 border-[#F0B90B]' : ''}`}>
+              <select
+                value={isStop ? orderType : ''}
+                onChange={e => { if (e.target.value) setOrderType(e.target.value as 'stop-limit' | 'stop-market'); }}
+                className={`bg-transparent text-sm cursor-pointer outline-none appearance-none pr-3 ${isStop ? 'text-[#F0B90B]' : 'text-[#848E9C]'}`}>
+                <option value="" className="bg-[#181A20] text-white">Stop</option>
+                <option value="stop-limit" className="bg-[#181A20] text-white">Stop-Limit</option>
+                <option value="stop-market" className="bg-[#181A20] text-white">Stop-Market</option>
+              </select>
+              <ChevronDown size={11} className="absolute right-0 top-1.5 pointer-events-none" />
+            </div>
           </div>
 
           <div className="text-xs text-[#848E9C] flex justify-between">
             <span>Avbl</span><span className="text-white">{ft.usdtBalance.toFixed(2)} USDT</span>
           </div>
 
-          {orderType === 'limit' && (
+          {isStop && (
+            <Field label="Stop" suffix="USDT" value={stopPrice} onChange={setStopPrice} placeholder="Trigger price" />
+          )}
+          {(orderType === 'limit' || orderType === 'stop-limit') && (
             <Field label="Price" suffix="USDT" value={limitPrice} onChange={setLimitPrice} />
           )}
           <Field label="Margin" suffix="USDT" value={amount} onChange={setAmount} placeholder="Min 5" />
@@ -311,17 +381,21 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
                   <th className="font-normal">Liq. Price</th>
                   <th className="font-normal">Margin</th>
                   <th className="font-normal">PNL (ROI %)</th>
+                  <th className="font-normal">TP/SL</th>
                   <th className="font-normal text-right px-2">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {ft.positions.length === 0 && (
-                  <tr><td colSpan={8} className="text-center text-[#5E6673] py-10">No open positions</td></tr>
+                  <tr><td colSpan={9} className="text-center text-[#5E6673] py-10">No open positions</td></tr>
                 )}
                 {ft.positions.map(p => {
                   const mark = markPrices[p.symbol] || p.entry_price;
                   const pnl = calculateUnrealizedPNL(p.side, p.entry_price, mark, p.position_size);
                   const roi = p.margin > 0 ? (pnl / p.margin) * 100 : 0;
+                  const tps = ft.tpslOrders.filter((t: any) => t.position_id === p.id && t.status === 'active');
+                  const tp = tps.find((t: any) => t.type === 'tp');
+                  const sl = tps.find((t: any) => t.type === 'sl');
                   return (
                     <tr key={p.id} className="border-t border-[#2B3139]">
                       <td className="py-2.5 px-2">
@@ -337,6 +411,20 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
                       <td className={pnl >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}>
                         {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)} ({roi >= 0 ? '+' : ''}{roi.toFixed(2)}%)
                       </td>
+                      <td>
+                        <button onClick={() => setTpslModal({ positionId: p.id, side: p.side === 'LONG' ? 'long' : 'short', price: mark })}
+                          className="text-left hover:opacity-80">
+                          {tp || sl ? (
+                            <span className="text-[10px] leading-tight">
+                              {tp && <span className="text-[#0ECB81]">TP {fmt(Number(tp.trigger_price))}</span>}
+                              {tp && sl && <span className="text-[#848E9C]"> / </span>}
+                              {sl && <span className="text-[#F6465D]">SL {fmt(Number(sl.trigger_price))}</span>}
+                            </span>
+                          ) : (
+                            <span className="text-[#F0B90B] text-xs">+ Set</span>
+                          )}
+                        </button>
+                      </td>
                       <td className="text-right px-2">
                         <button onClick={() => closePos(p.id)} className="bg-[#F6465D]/10 hover:bg-[#F6465D]/20 text-[#F6465D] font-medium px-3 py-1 rounded text-xs">Cancel</button>
                       </td>
@@ -348,8 +436,42 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
           )}
 
           {bottomTab === 'orders' && (
-            <EmptyOr rows={ft.openOrders} cols={['Symbol', 'Side', 'Price', 'Amount', 'Status']}
-              render={(o: any) => [o.symbol, o.side, fmt(o.price), o.amount, o.status]} empty="No open orders" />
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-[#848E9C] text-left">
+                  <th className="py-2 px-2 font-normal">Symbol</th>
+                  <th className="font-normal">Type</th>
+                  <th className="font-normal">Side</th>
+                  <th className="font-normal">Trigger</th>
+                  <th className="font-normal">Price</th>
+                  <th className="font-normal">Margin</th>
+                  <th className="font-normal">Status</th>
+                  <th className="font-normal text-right px-2">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ft.openOrders.length === 0 && (
+                  <tr><td colSpan={8} className="text-center text-[#5E6673] py-10">No open orders</td></tr>
+                )}
+                {ft.openOrders.map((o: any) => {
+                  const isBuy = o.side === 'buy' || o.side === 'LONG';
+                  return (
+                    <tr key={o.id} className="border-t border-[#2B3139]">
+                      <td className="py-2.5 px-2 font-medium">{o.symbol}</td>
+                      <td className="capitalize">{String(o.type || '').replace('-', ' ')}</td>
+                      <td className={isBuy ? 'text-[#0ECB81]' : 'text-[#F6465D]'}>{isBuy ? 'Long' : 'Short'}</td>
+                      <td className="text-[#F0B90B]">{o.trigger_price ? fmt(Number(o.trigger_price)) : '—'}</td>
+                      <td>{o.price ? fmt(Number(o.price)) : 'Market'}</td>
+                      <td>{Number(o.amount).toFixed(2)} USDT</td>
+                      <td className="text-[#848E9C] capitalize">{o.status}</td>
+                      <td className="text-right px-2">
+                        <button onClick={() => cancelOrder(o.id)} className="bg-[#F6465D]/10 hover:bg-[#F6465D]/20 text-[#F6465D] font-medium px-3 py-1 rounded text-xs">Cancel</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
 
           {bottomTab === 'history' && (
@@ -391,11 +513,90 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
         </div>
       </div>
 
+      {tpslModal && (() => {
+        const tps = ft.tpslOrders.filter((t: any) => t.position_id === tpslModal.positionId && t.status === 'active');
+        const tp = tps.find((t: any) => t.type === 'tp');
+        const sl = tps.find((t: any) => t.type === 'sl');
+        return (
+          <DeskTPSLModal
+            side={tpslModal.side}
+            price={tpslModal.price}
+            existingTP={tp ? Number(tp.trigger_price) : undefined}
+            existingSL={sl ? Number(sl.trigger_price) : undefined}
+            onClose={() => setTpslModal(null)}
+            onSave={async (tpv, slv) => {
+              const r = await ft.saveTpsl(tpslModal.positionId, tpv, slv);
+              showToast(r.ok, r.ok ? 'TP/SL saved' : 'Failed to save TP/SL');
+              setTpslModal(null);
+            }}
+          />
+        );
+      })()}
+
       {toast && (
         <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-2xl text-sm max-w-sm ${toast.ok ? 'bg-[#0ECB81]' : 'bg-[#F6465D]'} text-white`}>
           {toast.msg}
         </div>
       )}
+    </div>
+  );
+}
+
+function DeskTPSLModal({ side, price, existingTP, existingSL, onClose, onSave }: {
+  side: 'long' | 'short';
+  price: number;
+  existingTP?: number;
+  existingSL?: number;
+  onClose: () => void;
+  onSave: (tp: number | null, sl: number | null) => void;
+}) {
+  const [tp, setTp] = useState(existingTP ? String(existingTP) : '');
+  const [sl, setSl] = useState(existingSL ? String(existingSL) : '');
+  const pct = (v: string) => {
+    const n = parseFloat(v);
+    if (!n || !price) return null;
+    const diff = side === 'long' ? n - price : price - n;
+    return (diff / price) * 100;
+  };
+  const tpPct = pct(tp);
+  const slPct = pct(sl);
+  return (
+    <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center" onClick={onClose}>
+      <div className="bg-[#181A20] w-[360px] rounded-lg p-5 border border-[#2B3139]" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-semibold">Take Profit / Stop Loss</h3>
+          <button onClick={onClose} className="text-[#848E9C] hover:text-white text-lg leading-none">×</button>
+        </div>
+        <div className="flex justify-between text-xs mb-4 bg-[#2B3139] rounded px-3 py-2">
+          <span className="text-[#848E9C]">Mark Price</span>
+          <span className="text-white font-medium">{fmt(price)} USDT</span>
+        </div>
+
+        <label className="text-xs text-[#848E9C] mb-1.5 block">Take Profit (USDT)</label>
+        <input value={tp} onChange={e => setTp(e.target.value)} type="number" placeholder="0.00"
+          className="w-full bg-[#0B0E11] border border-[#2B3139] rounded px-3 py-2.5 mb-1.5 text-sm outline-none text-white" />
+        {tpPct !== null && (
+          <div className="text-[11px] mb-3"><span className="text-[#848E9C]">Est. Profit: </span>
+            <span className={tpPct >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}>{tpPct.toFixed(2)}%</span></div>
+        )}
+
+        <label className="text-xs text-[#848E9C] mb-1.5 block mt-2">Stop Loss (USDT)</label>
+        <input value={sl} onChange={e => setSl(e.target.value)} type="number" placeholder="0.00"
+          className="w-full bg-[#0B0E11] border border-[#2B3139] rounded px-3 py-2.5 mb-1.5 text-sm outline-none text-white" />
+        {slPct !== null && (
+          <div className="text-[11px] mb-3"><span className="text-[#848E9C]">Est. Loss: </span>
+            <span className={slPct >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}>{slPct.toFixed(2)}%</span></div>
+        )}
+
+        <p className="text-[11px] text-[#5E6673] my-3">
+          {side === 'long' ? 'Long: TP above Mark Price, SL below Mark Price' : 'Short: TP below Mark Price, SL above Mark Price'}
+        </p>
+
+        <button onClick={() => onSave(tp ? parseFloat(tp) : null, sl ? parseFloat(sl) : null)}
+          className="w-full bg-[#F0B90B] hover:bg-[#F0B90B]/90 text-black font-semibold py-2.5 rounded text-sm">
+          Confirm
+        </button>
+      </div>
     </div>
   );
 }

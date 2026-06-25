@@ -7,6 +7,7 @@
 - [TON upgrade intent binding](ton-upgrade-intent-binding.md) — on-chain box-upgrade payments bound to a single user via server-reserved unique amount to stop hijack.
 - [Slides artifact catalog](slides-artifact-catalog.md) — pnpm catalog gap (missing wouter) that breaks fresh slides-artifact installs.
 - [basonce deposit signal](basonce-deposit-signal.md) — confirmed crypto deposit is only observable client-side via NOWPAY_ sentinel INSERT on user_balances; no transactions row.
+- [Futures client trigger engine](futures-client-trigger-engine.md) — stop/TP-SL execute client-side (no server engine); MUST use atomic pending→processing claim + confirm-before-retire or it double-fires.
 - [BasonScan BNC live price](basonscan-bnc-live-price.md) — every BNC display in the explorer must use computeBncMarket() (shared engine), never static BNC_PRICE; the green % is intentional.
 - [Basonce Wallet money flows](basonce-wallet-money-flows.md) — user_balances has no unique(user,symbol); always aggregate reads & write by row id; Send via service_role RPC, Withdraw mirrors kite client-side.
 - [basoncescan live feed](basonce-live-feed.md) — home feeds freeze unless optimistic updater matches query keys (use prefix setQueriesData) AND seed START_TIME lands ~now.
