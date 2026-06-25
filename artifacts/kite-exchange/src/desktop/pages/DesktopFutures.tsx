@@ -8,7 +8,7 @@ import { useFuturesTrading } from '../hooks/useFuturesTrading';
 import { useOrderBook } from '../hooks/useOrderBook';
 import { fetchFreshFuturesPrice } from '../lib/desktop-price';
 import { calculateUnrealizedPNL, getFundingCountdown } from '../../lib/futures-calculator';
-import { formatPriceSub, formatAmount } from '../../lib/format-utils';
+import { formatPriceSub, formatAmount, getPriceDecimals } from '../../lib/format-utils';
 
 const TIMEFRAMES = ['Time', '15m', '1h', '4h', '1D', '1W'];
 const LEVERAGES = [1, 2, 5, 10, 20, 50, 75, 100, 125];
@@ -19,6 +19,15 @@ function fmtVol(n: number): string {
   if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
   if (n >= 1e3) return (n / 1e3).toFixed(2) + 'K';
   return n.toFixed(2);
+}
+// Header values: constant decimal count (keeps trailing zeros) so the rendered
+// character count never changes as the price ticks. Combined with tabular-nums
+// this gives a naturally fixed width — no jitter, no oversized spacer boxes.
+function fmtHead(n: number): string {
+  if (!isFinite(n) || n <= 0) return '0.00';
+  if (n < 1) return formatPriceSub(n);
+  const d = getPriceDecimals(n);
+  return n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 }
 
 interface Props { user: any; onAuth: (m: 'login' | 'register') => void; onDeposit: () => void; }
@@ -218,15 +227,15 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
             )}
           </div>
 
-          <div className="flex items-center gap-6 min-w-0">
-            <div className={`text-xl font-semibold shrink-0 tabular-nums overflow-hidden whitespace-nowrap ${change >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`} style={{ width: '132px' }}>
-              {fmt(price)}
+          <div className="flex items-center gap-5 min-w-0">
+            <div className={`text-xl font-semibold shrink-0 tabular-nums whitespace-nowrap ${change >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+              {fmtHead(price)}
             </div>
-            <Stat label="24h Change" value={`${change >= 0 ? '+' : ''}${change.toFixed(2)}%`} pos={change >= 0} w={96} />
-            <Stat label="24h High" value={fmt(market?.high24h || 0)} w={92} />
-            <Stat label="24h Low" value={fmt(market?.low24h || 0)} w={92} />
-            <Stat label="24h Volume (USDT)" value={fmtVol(market?.volume || 0)} w={110} />
-            <Stat label="Funding / Countdown" value={funding} w={124} />
+            <Stat label="24h Change" value={`${change >= 0 ? '+' : ''}${change.toFixed(2)}%`} pos={change >= 0} />
+            <Stat label="24h High" value={fmtHead(market?.high24h || 0)} />
+            <Stat label="24h Low" value={fmtHead(market?.low24h || 0)} />
+            <Stat label="24h Volume (USDT)" value={fmtVol(market?.volume || 0)} />
+            <Stat label="Funding / Countdown" value={funding} />
           </div>
         </div>
       </div>
@@ -631,9 +640,9 @@ function DeskTPSLModal({ side, price, existingTP, existingSL, onClose, onSave }:
   );
 }
 
-function Stat({ label, value, pos, w }: { label: string; value: string; pos?: boolean; w?: number }) {
+function Stat({ label, value, pos }: { label: string; value: string; pos?: boolean }) {
   return (
-    <div className="shrink-0 overflow-hidden" style={w ? { width: `${w}px` } : undefined}>
+    <div className="shrink-0">
       <div className="text-[10px] text-[#848E9C] whitespace-nowrap">{label}</div>
       <div className={`text-xs font-medium tabular-nums whitespace-nowrap ${pos === undefined ? 'text-white' : pos ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>{value}</div>
     </div>
