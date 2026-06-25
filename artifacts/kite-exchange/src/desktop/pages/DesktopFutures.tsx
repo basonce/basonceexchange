@@ -218,15 +218,15 @@ export default function DesktopFutures({ user, onAuth, onDeposit }: Props) {
             )}
           </div>
 
-          <div className="flex items-center gap-6 overflow-x-auto min-w-0">
-            <div className={`text-xl font-semibold shrink-0 tabular-nums min-w-[110px] ${change >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+          <div className="flex items-center gap-6 min-w-0">
+            <div className={`text-xl font-semibold shrink-0 tabular-nums overflow-hidden whitespace-nowrap ${change >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`} style={{ width: '132px' }}>
               {fmt(price)}
             </div>
-            <Stat label="24h Change" value={`${change >= 0 ? '+' : ''}${change.toFixed(2)}%`} pos={change >= 0} minW={88} />
-            <Stat label="24h High" value={fmt(market?.high24h || 0)} minW={80} />
-            <Stat label="24h Low" value={fmt(market?.low24h || 0)} minW={80} />
-            <Stat label="24h Volume (USDT)" value={fmtVol(market?.volume || 0)} minW={100} />
-            <Stat label="Funding / Countdown" value={funding} minW={110} />
+            <Stat label="24h Change" value={`${change >= 0 ? '+' : ''}${change.toFixed(2)}%`} pos={change >= 0} w={96} />
+            <Stat label="24h High" value={fmt(market?.high24h || 0)} w={92} />
+            <Stat label="24h Low" value={fmt(market?.low24h || 0)} w={92} />
+            <Stat label="24h Volume (USDT)" value={fmtVol(market?.volume || 0)} w={110} />
+            <Stat label="Funding / Countdown" value={funding} w={124} />
           </div>
         </div>
       </div>
@@ -631,9 +631,9 @@ function DeskTPSLModal({ side, price, existingTP, existingSL, onClose, onSave }:
   );
 }
 
-function Stat({ label, value, pos, minW }: { label: string; value: string; pos?: boolean; minW?: number }) {
+function Stat({ label, value, pos, w }: { label: string; value: string; pos?: boolean; w?: number }) {
   return (
-    <div className="shrink-0" style={minW ? { minWidth: `${minW}px` } : undefined}>
+    <div className="shrink-0 overflow-hidden" style={w ? { width: `${w}px` } : undefined}>
       <div className="text-[10px] text-[#848E9C] whitespace-nowrap">{label}</div>
       <div className={`text-xs font-medium tabular-nums whitespace-nowrap ${pos === undefined ? 'text-white' : pos ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>{value}</div>
     </div>
