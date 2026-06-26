@@ -122,7 +122,7 @@ class PageErrorBoundary extends Component<{ children: ReactNode; name: string },
 
 type Page = 'markets' | 'trade' | 'wallet' | 'admin';
 
-const VALID_TABS = new Set(['home', 'sports', 'markets', 'trade', 'futures', 'aibot', 'mining', 'assets', 'profile', 'social-profile', 'miner', 'stock', 'p2p', 'convert', 'dex', 'alpha', 'copytrading', 'apikeys']);
+const VALID_TABS = new Set(['home', 'sports', 'market', 'markets', 'trade', 'futures', 'aibot', 'mining', 'assets', 'profile', 'social-profile', 'miner', 'stock', 'p2p', 'convert', 'dex', 'alpha', 'copytrading', 'apikeys']);
 
 // Desktop-only "More" landing pages (VIP, Affiliate, Academy, NFT, …) are
 // intentionally kept out of VALID_TABS so a mobile deep-link to one of them

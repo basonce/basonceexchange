@@ -6,6 +6,7 @@ import cryptoRouter from "./crypto";
 import adminRouter from "./admin";
 import portfolioRouter from "./portfolio";
 import walletRouter from "./wallet";
+import predictionsRouter from "./predictions";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(cryptoRouter);
 router.use(adminRouter);
 router.use(portfolioRouter);
 router.use(walletRouter);
+router.use(predictionsRouter);
 
 export default router;

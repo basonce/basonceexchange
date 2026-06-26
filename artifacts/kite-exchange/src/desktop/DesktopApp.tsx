@@ -24,6 +24,7 @@ const DesktopCopyTrading = lazy(() => import('./pages/DesktopCopyTrading'));
 const DesktopConvert = lazy(() => import('./pages/DesktopConvert'));
 const DesktopApiKeys = lazy(() => import('./pages/DesktopApiKeys'));
 const DesktopAssets = lazy(() => import('./pages/DesktopAssets'));
+const DesktopMarket = lazy(() => import('./pages/DesktopMarket'));
 const ProfilePage = lazy(() => import('../pages/ProfilePage'));
 const GamesSection = lazy(() => import('../components/GamesSection'));
 const SocialProfilePage = lazy(() => import('../pages/SocialProfilePage'));
@@ -172,6 +173,8 @@ export default function DesktopApp({ tab, onNavigate, user, onNavigateToAdmin }:
         return <Suspense fallback={<Loader />}><DesktopAssets onNavigate={onNavigate} /></Suspense>;
       case 'sports':
         return <DesktopSports title={title} onNavigate={onNavigate} />;
+      case 'market':
+        return <div className="bg-[#0B0E11] min-h-screen"><Suspense fallback={<Loader />}><DesktopMarket user={user} onAuth={openAuth} onDeposit={onDeposit} /></Suspense></div>;
       case 'profile':
         return <FramedPage title={title}><Suspense fallback={<Loader />}><ProfilePage onNavigateToAdmin={onNavigateToAdmin} onBack={() => onNavigate('home')} /></Suspense></FramedPage>;
       case 'social-profile':

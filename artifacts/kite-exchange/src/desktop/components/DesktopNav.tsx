@@ -16,7 +16,7 @@ import { supabase } from '../../lib/supabase';
 import type { TKey } from '../i18n/translations';
 
 export type DeskTab =
-  | 'home' | 'markets' | 'trade' | 'futures' | 'aibot' | 'mining' | 'assets' | 'profile' | 'sports'
+  | 'home' | 'markets' | 'trade' | 'futures' | 'aibot' | 'mining' | 'assets' | 'profile' | 'sports' | 'market'
   | 'vip' | 'affiliate' | 'referral' | 'junior' | 'launchpool' | 'megadrop' | 'miningpool' | 'aipro'
   | 'pay' | 'nft' | 'fantoken' | 'wallet' | 'chain' | 'academy' | 'charity' | 'travelrule'
   | 'stock' | 'p2p' | 'convert' | 'dex' | 'alpha' | 'copytrading' | 'apikeys'
@@ -50,6 +50,7 @@ const NAV_ITEMS: { key: TKey; tab: DeskTab; dropdown?: { key: TKey; tab: DeskTab
     ],
   },
   { key: 'sports', tab: 'sports' },
+  { key: 'market', tab: 'market' },
 ];
 
 type TradeItem = { icon: LucideIcon; title: string; desc: string; tab?: DeskTab; badge?: string };

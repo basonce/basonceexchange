@@ -10,7 +10,7 @@ import LANGUAGES_JSON from './languages.json';
 export const LANGUAGES: LangMeta[] = LANGUAGES_JSON as LangMeta[];
 
 export type TKey =
-  | 'buyCrypto' | 'markets' | 'trade' | 'futures' | 'earn' | 'sports'
+  | 'buyCrypto' | 'markets' | 'trade' | 'futures' | 'earn' | 'sports' | 'market'
   | 'spot' | 'aiTradingBot' | 'mining' | 'aiBot'
   | 'login' | 'signup' | 'deposit'
   | 'searchPlaceholder' | 'noResults' | 'language' | 'getApp' | 'scanToTrade'
@@ -32,7 +32,7 @@ export type TKey =
 type Dict = Partial<Record<TKey, string>>;
 
 const en: Record<TKey, string> = {
-  buyCrypto: 'Buy Crypto', markets: 'Markets', trade: 'Trade', futures: 'Futures', earn: 'Earn', sports: 'Sports',
+  buyCrypto: 'Buy Crypto', markets: 'Markets', trade: 'Trade', futures: 'Futures', earn: 'Earn', sports: 'Sports', market: 'Market',
   spot: 'Spot', aiTradingBot: 'AI Trading Bot', mining: 'Mining', aiBot: 'AI Bot',
   login: 'Log In', signup: 'Sign Up', deposit: 'Deposit',
   searchPlaceholder: 'Search coin or pair', noResults: 'No results', language: 'Language', getApp: 'Get the app', scanToTrade: 'Scan to trade on mobile',

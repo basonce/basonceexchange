@@ -1897,6 +1897,135 @@ async function minerVerifyTon(expectedNano, env) {
   return matches;
 }
 
+/* ═══════════════════════════════════════════════
+   BASONCE MARKET — Polymarket prediction markets
+   Real markets via the public Gamma API (no auth).
+   Parimutuel pools settled from Polymarket's real
+   resolution. Basonce bears zero counterparty risk.
+═══════════════════════════════════════════════ */
+const PM_GAMMA = 'https://gamma-api.polymarket.com';
+const PM_UA = { 'User-Agent': 'basonce-market/1.0', 'Accept': 'application/json' };
+
+function pmParseArr(v) {
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string') { try { return JSON.parse(v); } catch { return []; } }
+  return [];
+}
+
+// Pull top active events (grouped markets) by 24h volume and upsert every binary
+// Yes/No market into pm_markets via the pm_sync_market RPC (metadata only — never
+// touches pools or resolved markets).
+async function pmSyncMarkets(env, limit = 80) {
+  const url = `${PM_GAMMA}/events?closed=false&active=true&archived=false&order=volume24hr&ascending=false&limit=${limit}`;
+  const r = await fetch(url, { headers: PM_UA });
+  if (!r.ok) throw new Error('gamma events ' + r.status);
+  const events = await r.json();
+  let synced = 0;
+  for (let ei = 0; ei < (Array.isArray(events) ? events.length : 0); ei++) {
+    const ev = events[ei];
+    const category = (ev.tags && ev.tags.length ? (ev.tags[0].label || ev.tags[0].slug) : null) || 'Trending';
+    const markets = Array.isArray(ev.markets) ? ev.markets : [];
+    let mi = 0;
+    for (const m of markets) {
+      if (m.closed || m.archived || m.active === false) continue;
+      const outcomes = pmParseArr(m.outcomes).map((s) => String(s));
+      const prices = pmParseArr(m.outcomePrices).map(Number);
+      if (outcomes.length !== 2) continue;
+      const yi = outcomes.findIndex((o) => o.toLowerCase() === 'yes');
+      const ni = outcomes.findIndex((o) => o.toLowerCase() === 'no');
+      if (yi < 0 || ni < 0) continue; // only binary Yes/No markets
+      const liveYes = Number.isFinite(prices[yi]) ? prices[yi] : null;
+      const liveNo = Number.isFinite(prices[ni]) ? prices[ni] : null;
+      const question = String(m.question || m.groupItemTitle || ev.title || '').trim();
+      if (!question) continue;
+      const image = m.image || m.icon || ev.image || ev.icon || null;
+      const endDate = m.endDate || ev.endDate || null;
+      const volume = Number(m.volume || m.volumeNum || m.volume24hr || 0) || 0;
+      const featured = ei < 8 && mi === 0; // a handful of hero markets
+      try {
+        await sbRpc('pm_sync_market', {
+          p_source_id: String(m.id),
+          p_condition_id: m.conditionId || null,
+          p_slug: m.slug || ev.slug || null,
+          p_question: question,
+          p_category: category,
+          p_image: image,
+          p_end_date: endDate,
+          p_live_yes: liveYes,
+          p_live_no: liveNo,
+          p_volume: volume,
+          p_featured: featured,
+        }, env);
+        synced++;
+        mi++;
+      } catch { /* skip individual market failures */ }
+    }
+  }
+  return synced;
+}
+
+// Check our OPEN markets against Polymarket and settle the ones that resolved.
+// A market is resolved when Polymarket reports closed=true AND outcome prices
+// have collapsed to ~[1,0] / ~[0,1] (a clear winner).
+async function pmSettleResolved(env, maxPages = 30, pageSize = 100) {
+  let checked = 0, settled = 0, cursor = '';
+  // Page through EVERY open market by ascending id cursor. Using a cursor (not
+  // a bare limit/offset) guarantees full coverage and avoids skips even as rows
+  // leave the open set when they get settled mid-run — so funds never stay stuck.
+  for (let page = 0; page < maxPages; page++) {
+    let q = `?status=eq.open&select=id,source_id&order=id.asc&limit=${pageSize}`;
+    if (cursor) q += `&id=gt.${encodeURIComponent(cursor)}`;
+    const open = await sbGet('pm_markets', q, env);
+    if (!Array.isArray(open) || !open.length) break;
+    cursor = open[open.length - 1].id; // advance by id regardless of settlement
+
+    const ids = open.map((o) => o.source_id).filter(Boolean);
+    const byId = {};
+    for (let i = 0; i < ids.length; i += 20) {
+      const chunk = ids.slice(i, i + 20);
+      const qs = chunk.map((id) => 'id=' + encodeURIComponent(id)).join('&');
+      try {
+        const r = await fetch(`${PM_GAMMA}/markets?${qs}&limit=20`, { headers: PM_UA });
+        if (!r.ok) continue;
+        const arr = await r.json();
+        for (const m of (Array.isArray(arr) ? arr : [])) byId[String(m.id)] = m;
+      } catch { /* ignore chunk errors */ }
+    }
+
+    for (const row of open) {
+      const m = byId[String(row.source_id)];
+      if (!m) continue;
+      checked++;
+      const closed = m.closed === true || m.closed === 'true';
+      if (!closed) continue;
+      const outcomes = pmParseArr(m.outcomes).map((s) => String(s));
+      const prices = pmParseArr(m.outcomePrices).map(Number);
+      if (outcomes.length !== 2 || prices.length !== 2) continue;
+      let winIdx = -1;
+      if (prices[0] >= 0.99 && prices[1] <= 0.01) winIdx = 0;
+      else if (prices[1] >= 0.99 && prices[0] <= 0.01) winIdx = 1;
+      if (winIdx < 0) continue; // closed but not cleanly resolved yet
+      const w = outcomes[winIdx].toLowerCase();
+      const winner = w === 'yes' ? 'Yes' : (w === 'no' ? 'No' : null);
+      if (!winner) continue;
+      try {
+        await sbRpc('pm_settle_market', { p_market_id: row.id, p_winning_outcome: winner }, env);
+        settled++;
+      } catch { /* ALREADY_SETTLED or transient — retried next run */ }
+    }
+
+    if (open.length < pageSize) break;
+  }
+  return { checked, settled };
+}
+
+async function pmRunSyncAndSettle(env) {
+  const out = { synced: 0, checked: 0, settled: 0, errors: [] };
+  try { out.synced = await pmSyncMarkets(env, 80); } catch (e) { out.errors.push('sync:' + (e.message || e)); }
+  try { const s = await pmSettleResolved(env, 60); out.checked = s.checked; out.settled = s.settled; } catch (e) { out.errors.push('settle:' + (e.message || e)); }
+  return out;
+}
+
 export default {
   // Native Cloudflare Cron Trigger handler — fires whenever wrangler cron schedule hits.
   // For Pages Functions deployments without cron triggers, /cron/scan-all is the fallback
@@ -1911,6 +2040,8 @@ export default {
         }
       }
     }).catch(()=>{}));
+    // Basonce Market: refresh Polymarket markets + auto-settle resolved ones.
+    ctx.waitUntil(pmRunSyncAndSettle(env).catch(()=>{}));
   },
   async fetch(request, env) {
     const method = request.method;
@@ -1948,6 +2079,64 @@ export default {
     try {
       /* ── HEALTH ── */
       if (method==='GET' && path==='/healthz') return ok({status:'ok',platform:'cloudflare'});
+
+      /* ── BASONCE MARKET — prediction markets (parimutuel, real Polymarket) ── */
+      if (path==='/predictions/markets' && method==='GET') {
+        const sel = 'id,source_id,question,category,image,end_date,status,winning_outcome,live_yes,live_no,volume,yes_pool,no_pool,bet_count,featured';
+        let query = `?status=eq.open&select=${sel}&order=featured.desc,volume.desc&limit=150`;
+        const cat = q.category && q.category !== 'All' ? q.category : '';
+        if (cat) query += `&category=eq.${encodeURIComponent(cat)}`;
+        if (q.q) query += `&question=ilike.${encodeURIComponent('*' + q.q + '*')}`;
+        const markets = await sbGet('pm_markets', query, env);
+        let categories = [];
+        try {
+          const cats = await sbGet('pm_markets', '?status=eq.open&select=category', env);
+          categories = [...new Set((cats || []).map((c) => c.category).filter(Boolean))].sort();
+        } catch {}
+        return ok({ markets: markets || [], categories });
+      }
+      if (path==='/predictions/my-bets' && method==='GET') {
+        const uid = await getAuthedUserId(request, env);
+        if (!uid) return err(401, 'Sign in to view your bets');
+        const bets = await sbGet('pm_bets', `?user_id=eq.${uid}&select=*,pm_markets(question,image,status,winning_outcome,category)&order=created_at.desc&limit=100`, env);
+        return ok({ bets: bets || [] });
+      }
+      if (path.startsWith('/predictions/market/') && method==='GET') {
+        const id = path.slice('/predictions/market/'.length);
+        if (!id) return err(400, 'market id required');
+        const rows = await sbGet('pm_markets', `?id=eq.${encodeURIComponent(id)}&limit=1`, env);
+        const market = rows && rows[0];
+        if (!market) return err(404, 'Market not found');
+        let myBets = [];
+        const uid = await getAuthedUserId(request, env);
+        if (uid) {
+          try { myBets = await sbGet('pm_bets', `?market_id=eq.${encodeURIComponent(id)}&user_id=eq.${uid}&order=created_at.desc`, env); } catch {}
+        }
+        return ok({ market, myBets: myBets || [] });
+      }
+      if (path==='/predictions/bet' && method==='POST') {
+        const uid = await getAuthedUserId(request, env);
+        if (!uid) return err(401, 'Sign in to place a bet');
+        const marketId = String(body.market_id || '');
+        const outcome = String(body.outcome || '');
+        const amount = Number(body.amount);
+        if (!marketId) return err(400, 'market_id required');
+        if (outcome !== 'Yes' && outcome !== 'No') return err(400, 'Outcome must be Yes or No');
+        if (!Number.isFinite(amount) || amount < 1) return err(400, 'Minimum bet is 1 USDT');
+        if (amount > 100000) return err(400, 'Maximum bet is 100000 USDT');
+        try {
+          const res = await sbRpc('pm_place_bet', { p_user_id: uid, p_market_id: marketId, p_outcome: outcome, p_amount: Math.round(amount * 1e8) / 1e8 }, env);
+          return ok(res);
+        } catch (e) {
+          const msg = String(e.message || e);
+          if (msg.includes('INSUFFICIENT_BALANCE')) return err(400, 'Insufficient USDT balance');
+          if (msg.includes('MARKET_CLOSED') || msg.includes('MARKET_ENDED')) return err(400, 'This market is closed');
+          if (msg.includes('MARKET_NOT_FOUND')) return err(404, 'Market not found');
+          if (msg.includes('INVALID_AMOUNT')) return err(400, 'Invalid bet amount');
+          if (msg.includes('INVALID_OUTCOME')) return err(400, 'Invalid outcome');
+          return err(500, 'Bet failed, please try again');
+        }
+      }
 
       /* ── 3D CASINO GAMES (logged-in web users, USDT) ── */
       if (method==='POST' && path.startsWith('/games/')) {
@@ -3377,8 +3566,21 @@ export default {
         const expected = env.CRON_SECRET || env.SUPABASE_SERVICE_ROLE_KEY?.slice(-12) || '';
         if (!expected || tokenIn !== expected) return err(403, 'Forbidden — pass ?token=<CRON_SECRET>');
         const aggregate = await runFullScan(env, 24000);
+        // Piggyback the prediction-market refresh on the already-configured cron.
+        try { aggregate.predictions = await pmRunSyncAndSettle(env); } catch {}
         aggregate.ok = true;
         return ok(aggregate);
+      }
+      /* Basonce Market cron: refresh Polymarket markets + auto-settle resolved.
+         Hit from cron-job.org/UptimeRobot every few minutes, or relies on the
+         native scheduled() handler / the scan-all piggyback above. */
+      if ((method==='GET' || method==='POST') && path==='/cron/predictions-sync') {
+        const tokenIn = url.searchParams.get('token') || request.headers.get('x-cron-token') || '';
+        const expected = env.CRON_SECRET || env.SUPABASE_SERVICE_ROLE_KEY?.slice(-12) || '';
+        if (!expected || tokenIn !== expected) return err(403, 'Forbidden — pass ?token=<CRON_SECRET>');
+        const res = await pmRunSyncAndSettle(env);
+        res.ok = true;
+        return ok(res);
       }
       if (method==='GET' && path==='/debug-scan') {
         const addr = url.searchParams.get('addr') || '';
