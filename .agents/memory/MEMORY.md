@@ -8,6 +8,7 @@
 - [Slides artifact catalog](slides-artifact-catalog.md) — pnpm catalog gap (missing wouter) that breaks fresh slides-artifact installs.
 - [basonce deposit signal](basonce-deposit-signal.md) — confirmed crypto deposit is only observable client-side via NOWPAY_ sentinel INSERT on user_balances; no transactions row.
 - [basonce predictions routes](basonce-predictions-routes.md) — /predictions/* lives in BOTH cf-worker/_worker.js (prod) and api-server predictions.ts (dev); edit in lockstep.
+- [basonce real-time crypto feed](basonce-realtime-crypto-feed.md) — Binance geo-blocked here; use Coinbase public API/WS client-side for real BTC price+trades; never-empty tape fallback keys on real trades.
 - [Polymarket price-history](polymarket-price-history.md) — Gamma source_id → clobTokenIds[Yes] → CLOB prices-history; return empty on miss (never fabricate); don't feed 1s clock tick into fetch deps.
 - [Prediction-market money safety](prediction-market-money-safety.md) — parimutuel settle must let the last winner absorb rounding residual; resolver must page all open markets by id cursor.
 - [Futures client trigger engine](futures-client-trigger-engine.md) — stop/TP-SL execute client-side (no server engine); MUST use atomic pending→processing claim + confirm-before-retire or it double-fires.

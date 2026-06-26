@@ -6,6 +6,7 @@ import {
   LayoutGrid,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import BtcUpDownCard from '../components/BtcUpDownCard';
 
 /* ────────────────────────────────────────────────────────────────────────
    Basonce Markets — Polymarket-style prediction market (desktop web only).
@@ -677,12 +678,18 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
             <div className="text-center py-20 text-[#848E9C]">No markets found.</div>
           ) : (
             <>
+              {showHero && (
+                <div className="mb-8">
+                  <BtcUpDownCard />
+                </div>
+              )}
+
               {showHero && featured.length > 0 && (
                 <div className="mb-8 space-y-4">
                   <h2 className="flex items-center gap-2 text-sm font-semibold text-[#848E9C] uppercase tracking-wider">
                     <Flame className="w-4 h-4 text-[#F0B90B]" /> Featured
                   </h2>
-                  <HeroCarousel markets={markets} featured={featured} onOpen={openMarket} />
+                  <HeroCarousel featured={featured} onOpen={openMarket} />
                 </div>
               )}
 
@@ -776,84 +783,12 @@ function BuyButtons({ p, onPick, size = 'md' }: { p: number; onPick: (side: 'Yes
   );
 }
 
-/* ── Live bets feed (vertical, real bets flowing in) ──────────────────── */
-
-function LiveBetsFeed({ markets, onOpen }: { markets: Market[]; onOpen: (m: Market) => void }) {
-  const [bets, setBets] = useState<ActBet[]>([]);
-
-  useEffect(() => {
-    let alive = true;
-    const load = () => {
-      fetch('/api/predictions/activity', { cache: 'no-store' })
-        .then((r) => (r.ok ? r.json() : { bets: [] }))
-        .then((j) => { if (alive) setBets(Array.isArray(j.bets) ? j.bets : []); })
-        .catch(() => {});
-    };
-    load();
-    const t = setInterval(load, 10000);
-    return () => { alive = false; clearInterval(t); };
-  }, []);
-
-  const byId = useMemo(() => new Map(markets.map((m) => [m.id, m])), [markets]);
-  const list = useMemo(
-    () => bets.filter((b) => b.pm_markets?.question).slice(0, 9),
-    [bets],
-  );
-
-  return (
-    <div className="flex flex-col h-full bg-[#181A20] border border-[#2B3139] rounded-2xl overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-[#2B3139] bg-[#0B0E11] shrink-0">
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0ECB81] opacity-75" />
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-[#0ECB81]" />
-        </span>
-        <span className="text-[11px] font-bold uppercase tracking-wider text-[#EAECEF]">Live Bets</span>
-        <span className="ml-auto flex items-center gap-1 text-[10px] text-[#5E6673] uppercase tracking-wider">
-          <Radio className="w-3 h-3" /> Real-time
-        </span>
-      </div>
-      <div className="flex-1 overflow-hidden divide-y divide-[#2B3139]/50">
-        {list.length === 0 ? (
-          <div className="px-4 py-10 text-center text-xs text-[#5E6673]">Waiting for the next bet…</div>
-        ) : (
-          list.map((b) => {
-            const m = b.market_id ? byId.get(b.market_id) : undefined;
-            const yes = b.outcome === 'Yes';
-            return (
-              <button
-                key={b.id}
-                onClick={() => m && onOpen(m)}
-                disabled={!m}
-                className="basonce-fadeup w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[#1E2329] disabled:cursor-default"
-              >
-                <span className={`flex items-center justify-center w-7 h-7 rounded-lg shrink-0 ${yes ? 'bg-[#0ECB81]/15 text-[#0ECB81]' : 'bg-[#F6465D]/15 text-[#F6465D]'}`}>
-                  <Zap className="w-3.5 h-3.5" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5 text-xs">
-                    <span className={`font-bold ${yes ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>{b.outcome}</span>
-                    <span className="font-semibold tabular-nums text-[#EAECEF]">{fmtUsd(num(b.amount))} USDT</span>
-                  </span>
-                  <span className="block text-[11px] text-[#848E9C] truncate mt-0.5">{b.pm_markets?.question}</span>
-                </span>
-                <span className="shrink-0 text-[10px] text-[#5E6673]">{fmtAgo(b.created_at)}</span>
-              </button>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-}
-
 /* ── Hero carousel: auto-cycling featured markets + live bets feed ────── */
 
 function HeroCarousel({
-  markets,
   featured,
   onOpen,
 }: {
-  markets: Market[];
   featured: Market[];
   onOpen: (m: Market, side?: 'Yes' | 'No') => void;
 }) {
@@ -872,12 +807,11 @@ function HeroCarousel({
   const current = featured[Math.min(idx, n - 1)];
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-4 items-stretch">
-      <div
-        className="relative"
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
-      >
+    <div
+      className="relative"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
         <HeroMarket key={current.id} m={current} onOpen={(side) => onOpen(current, side)} />
         {n > 1 && (
           <>
@@ -907,10 +841,6 @@ function HeroCarousel({
             </div>
           </>
         )}
-      </div>
-      <div className="hidden xl:block">
-        <LiveBetsFeed markets={markets} onOpen={(m) => onOpen(m)} />
-      </div>
     </div>
   );
 }
