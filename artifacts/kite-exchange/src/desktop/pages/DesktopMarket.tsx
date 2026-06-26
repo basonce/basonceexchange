@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search, TrendingUp, TrendingDown, Clock, ArrowLeft, Loader2, CheckCircle2, XCircle,
   Wallet, Flame, ListChecks, RefreshCw, Trophy, Ban, Activity, Zap, BarChart3, Radio,
+  Globe, Landmark, Coins, Bitcoin, Newspaper, Cpu, Vote, Users, ChevronRight, Sparkles,
+  LayoutGrid,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -226,6 +228,23 @@ function MarketThumb({ m, size = 44 }: { m: Market; size?: number }) {
   );
 }
 
+/** Map a real category name to an icon so the nav reads like Polymarket's. */
+function categoryIcon(name: string): React.ReactNode {
+  const k = name.toLowerCase();
+  if (k === 'all') return <LayoutGrid className="w-3.5 h-3.5" />;
+  if (k.includes('sport') || k.includes('soccer') || k.includes('football') || k.includes('nba') || k.includes('nfl')) return <Trophy className="w-3.5 h-3.5" />;
+  if (k.includes('crypto') || k.includes('bitcoin') || k.includes('btc') || k.includes('eth')) return <Bitcoin className="w-3.5 h-3.5" />;
+  if (k.includes('politic') || k.includes('election')) return <Vote className="w-3.5 h-3.5" />;
+  if (k.includes('econ') || k.includes('finance') || k.includes('fed') || k.includes('rate')) return <Landmark className="w-3.5 h-3.5" />;
+  if (k.includes('geo') || k.includes('world') || k.includes('war')) return <Globe className="w-3.5 h-3.5" />;
+  if (k.includes('tech') || k.includes('ai')) return <Cpu className="w-3.5 h-3.5" />;
+  if (k.includes('culture') || k.includes('pop') || k.includes('celeb')) return <Users className="w-3.5 h-3.5" />;
+  if (k.includes('news') || k.includes('mention')) return <Newspaper className="w-3.5 h-3.5" />;
+  if (k.includes('earn') || k.includes('business')) return <Coins className="w-3.5 h-3.5" />;
+  if (k.includes('trend') || k.includes('new')) return <Flame className="w-3.5 h-3.5" />;
+  return <BarChart3 className="w-3.5 h-3.5" />;
+}
+
 /* ── Live odds tape (top, auto-scrolling) ────────────────────────────── */
 
 function OddsTape({ markets, onOpen }: { markets: Market[]; onOpen: (m: Market) => void }) {
@@ -433,6 +452,7 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
   const [query, setQuery] = useState('');
   const [view, setView] = useState<'browse' | 'mybets'>('browse');
   const [selected, setSelected] = useState<Market | null>(null);
+  const [selectedSide, setSelectedSide] = useState<'Yes' | 'No'>('Yes');
   const [balance, setBalance] = useState<number | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date>(new Date());
   const [, setTick] = useState(0);
@@ -511,6 +531,13 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
     loadMarkets(true);
   }, [loadBalance, loadMarkets]);
 
+  // Open the detail modal, optionally pre-selecting the Yes/No side the user
+  // clicked on a card (Polymarket-style one-click "Buy Yes / Buy No").
+  const openMarket = useCallback((m: Market, sideToBuy: 'Yes' | 'No' = 'Yes') => {
+    setSelectedSide(sideToBuy);
+    setSelected(m);
+  }, []);
+
   return (
     <div className="max-w-[1600px] mx-auto px-6 py-8 text-[#EAECEF]">
       <style dangerouslySetInnerHTML={{ __html: `
@@ -570,7 +597,7 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
       {/* Live odds tape */}
       {markets.length > 0 && view === 'browse' && (
         <div className="mb-5 rounded-xl overflow-hidden border border-[#2B3139]">
-          <OddsTape markets={markets} onOpen={setSelected} />
+          <OddsTape markets={markets} onOpen={openMarket} />
         </div>
       )}
 
@@ -595,7 +622,7 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
       </div>
 
       {view === 'mybets' ? (
-        <MyBets user={user} onOpen={(m) => { setView('browse'); setSelected(m); }} markets={markets} />
+        <MyBets user={user} onOpen={(m) => { setView('browse'); openMarket(m, 'Yes'); }} markets={markets} />
       ) : (
         <>
           {/* Search + categories */}
@@ -623,12 +650,13 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
               <button
                 key={c}
                 onClick={() => setCategory(c)}
-                className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   category === c
                     ? 'bg-[#F0B90B] text-black'
-                    : 'bg-[#181A20] border border-[#2B3139] text-[#848E9C] hover:text-[#EAECEF]'
+                    : 'bg-[#181A20] border border-[#2B3139] text-[#848E9C] hover:text-[#EAECEF] hover:border-[#3a424d]'
                 }`}
               >
+                {categoryIcon(c)}
                 {c}
               </button>
             ))}
@@ -655,7 +683,7 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                     {featured.map((m) => (
-                      <FeaturedCard key={m.id} m={m} onClick={() => setSelected(m)} />
+                      <FeaturedCard key={m.id} m={m} onOpen={(side) => openMarket(m, side)} />
                     ))}
                   </div>
                 </div>
@@ -665,12 +693,12 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
                 <div className="flex-1 min-w-0">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {grid.map((m) => (
-                      <MarketCard key={m.id} m={m} onClick={() => setSelected(m)} />
+                      <MarketCard key={m.id} m={m} onOpen={(side) => openMarket(m, side)} />
                     ))}
                   </div>
                 </div>
                 <aside className="hidden xl:block w-80 shrink-0 space-y-4 sticky top-4">
-                  <TrendingRail markets={markets} onOpen={setSelected} />
+                  <TrendingRail markets={markets} onOpen={openMarket} />
                   <div className="bg-[#181A20] border border-[#2B3139] rounded-2xl p-4">
                     <h3 className="flex items-center gap-2 text-sm font-bold mb-3">
                       <Zap className="w-4 h-4 text-[#F0B90B]" /> How it works
@@ -691,12 +719,13 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
 
       {/* Live activity tape (sticky bottom) */}
       {markets.length > 0 && view === 'browse' && (
-        <ActivityTape markets={markets} onOpen={setSelected} />
+        <ActivityTape markets={markets} onOpen={openMarket} />
       )}
 
       {selected && (
         <MarketDetail
           market={selected}
+          initialSide={selectedSide}
           user={user}
           balance={balance}
           onAuth={onAuth}
@@ -711,7 +740,7 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
 
 /* ── Cards ───────────────────────────────────────────────────────────── */
 
-function useHistory(marketId: string, interval: '1d' | '1w' | 'max', enabled: boolean) {
+function useHistory(marketId: string, interval: '1h' | '6h' | '1d' | '1w' | 'max', enabled: boolean) {
   const [points, setPoints] = useState<Point[] | null>(null);
   const [loading, setLoading] = useState(false);
   useEffect(() => {
@@ -727,14 +756,40 @@ function useHistory(marketId: string, interval: '1d' | '1w' | 'max', enabled: bo
   return { points, loading };
 }
 
-function FeaturedCard({ m, onClick }: { m: Market; onClick: () => void }) {
+/** Polymarket-style one-click buy buttons shown on every card. */
+function BuyButtons({ p, onPick, size = 'md' }: { p: number; onPick: (side: 'Yes' | 'No') => void; size?: 'sm' | 'md' }) {
+  const pad = size === 'sm' ? 'py-1.5 text-xs' : 'py-2 text-sm';
+  return (
+    <div className="grid grid-cols-2 gap-2 mt-1">
+      <button
+        onClick={(e) => { e.stopPropagation(); onPick('Yes'); }}
+        className={`group/yes rounded-lg bg-[#0ECB81]/10 hover:bg-[#0ECB81] text-[#0ECB81] hover:text-black text-center font-bold transition-colors ${pad}`}
+      >
+        <span className="group-hover/yes:hidden">Yes {pct(p)}</span>
+        <span className="hidden group-hover/yes:inline">Buy Yes</span>
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); onPick('No'); }}
+        className={`group/no rounded-lg bg-[#F6465D]/10 hover:bg-[#F6465D] text-[#F6465D] hover:text-white text-center font-bold transition-colors ${pad}`}
+      >
+        <span className="group-hover/no:hidden">No {pct(1 - p)}</span>
+        <span className="hidden group-hover/no:inline">Buy No</span>
+      </button>
+    </div>
+  );
+}
+
+function FeaturedCard({ m, onOpen }: { m: Market; onOpen: (side?: 'Yes' | 'No') => void }) {
   const p = yesProb(m);
   const { points } = useHistory(m.id, '1w', true);
   const series = useMemo(() => (points || []).map((x) => x.p), [points]);
   return (
-    <button
-      onClick={onClick}
-      className="text-left bg-gradient-to-b from-[#1E2329] to-[#181A20] border border-[#2B3139] hover:border-[#F0B90B] rounded-2xl p-4 transition-all hover:-translate-y-0.5 flex flex-col gap-3 h-full basonce-fadeup"
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen()}
+      onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
+      className="cursor-pointer text-left bg-gradient-to-b from-[#1E2329] to-[#181A20] border border-[#2B3139] hover:border-[#F0B90B] rounded-2xl p-4 transition-all hover:-translate-y-0.5 flex flex-col gap-3 h-full basonce-fadeup"
     >
       <div className="flex items-start gap-3">
         <MarketThumb m={m} size={48} />
@@ -745,21 +800,25 @@ function FeaturedCard({ m, onClick }: { m: Market; onClick: () => void }) {
       </div>
       <div className="-mx-1"><Sparkline points={series} height={40} /></div>
       <OddsBar p={p} />
+      <BuyButtons p={p} onPick={(side) => onOpen(side)} size="sm" />
       <div className="flex items-center justify-between text-xs text-[#848E9C] mt-auto pt-1">
         <span className="flex items-center gap-1"><TrendingUp className="w-3.5 h-3.5" /> {fmtCompact(num(m.volume))} Vol</span>
         <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {fmtEnd(m.end_date)}</span>
       </div>
-    </button>
+    </div>
   );
 }
 
-function MarketCard({ m, onClick }: { m: Market; onClick: () => void }) {
+function MarketCard({ m, onOpen }: { m: Market; onOpen: (side?: 'Yes' | 'No') => void }) {
   const p = yesProb(m);
   const pool = num(m.yes_pool) + num(m.no_pool);
   return (
-    <button
-      onClick={onClick}
-      className="text-left bg-[#181A20] border border-[#2B3139] hover:border-[#F0B90B] rounded-xl p-4 transition-all hover:-translate-y-0.5 flex flex-col gap-3 h-full"
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen()}
+      onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
+      className="cursor-pointer text-left bg-[#181A20] border border-[#2B3139] hover:border-[#F0B90B] rounded-xl p-4 transition-all hover:-translate-y-0.5 flex flex-col gap-3 h-full"
     >
       <div className="flex items-start gap-3">
         <MarketThumb m={m} size={44} />
@@ -769,23 +828,20 @@ function MarketCard({ m, onClick }: { m: Market; onClick: () => void }) {
         </div>
       </div>
       <OddsBar p={p} />
-      <div className="grid grid-cols-2 gap-2 mt-1">
-        <div className="rounded-lg bg-[#0ECB81]/10 text-[#0ECB81] text-center py-1.5 text-sm font-semibold">Yes {pct(p)}</div>
-        <div className="rounded-lg bg-[#F6465D]/10 text-[#F6465D] text-center py-1.5 text-sm font-semibold">No {pct(1 - p)}</div>
-      </div>
+      <BuyButtons p={p} onPick={(side) => onOpen(side)} />
       <div className="flex items-center justify-between text-xs text-[#848E9C] mt-auto pt-1">
         <span className="flex items-center gap-1"><TrendingUp className="w-3.5 h-3.5" /> {fmtCompact(num(m.volume))} Vol</span>
         {pool > 0 && <span>Pool {fmtCompact(pool)}</span>}
         <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {fmtEnd(m.end_date)}</span>
       </div>
-    </button>
+    </div>
   );
 }
 
 /* ── Price chart (detail) ────────────────────────────────────────────── */
 
 function PriceChart({ marketId, currentYes }: { marketId: string; currentYes: number }) {
-  const [range, setRange] = useState<'1d' | '1w' | 'max'>('1w');
+  const [range, setRange] = useState<'1h' | '6h' | '1d' | '1w' | 'max'>('1w');
   const { points, loading } = useHistory(marketId, range, true);
   const gid = useMemo(() => 'pc' + Math.random().toString(36).slice(2), []);
   const pathRef = useRef<SVGPathElement>(null);
@@ -831,7 +887,7 @@ function PriceChart({ marketId, currentYes }: { marketId: string; currentYes: nu
           <span className="text-lg font-bold tabular-nums" style={{ color }}>{pct(currentYes)}</span>
         </div>
         <div className="flex items-center gap-1">
-          {(['1d', '1w', 'max'] as const).map((r) => (
+          {(['1h', '6h', '1d', '1w', 'max'] as const).map((r) => (
             <button
               key={r}
               onClick={() => setRange(r)}
@@ -839,7 +895,7 @@ function PriceChart({ marketId, currentYes }: { marketId: string; currentYes: nu
                 range === r ? 'bg-[#2B3139] text-[#EAECEF]' : 'text-[#5E6673] hover:text-[#EAECEF]'
               }`}
             >
-              {r === '1d' ? '1D' : r === '1w' ? '1W' : 'All'}
+              {r === '1h' ? '1H' : r === '6h' ? '6H' : r === '1d' ? '1D' : r === '1w' ? '1W' : 'All'}
             </button>
           ))}
         </div>
@@ -883,9 +939,10 @@ function PriceChart({ marketId, currentYes }: { marketId: string; currentYes: nu
 /* ── Detail + bet panel ──────────────────────────────────────────────── */
 
 function MarketDetail({
-  market, user, balance, onAuth, onDeposit, onClose, onBetPlaced,
+  market, initialSide, user, balance, onAuth, onDeposit, onClose, onBetPlaced,
 }: {
   market: Market;
+  initialSide?: 'Yes' | 'No';
   user: any;
   balance: number | null;
   onAuth: (mode: 'login' | 'register') => void;
@@ -895,7 +952,7 @@ function MarketDetail({
 }) {
   const [m, setM] = useState<Market>(market);
   const [myBets, setMyBets] = useState<Bet[]>([]);
-  const [side, setSide] = useState<'Yes' | 'No'>('Yes');
+  const [side, setSide] = useState<'Yes' | 'No'>(initialSide ?? 'Yes');
   const [amount, setAmount] = useState('');
   const [placing, setPlacing] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
