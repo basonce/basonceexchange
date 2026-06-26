@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bitcoin, ArrowUp, ArrowDown, Radio, Clock } from 'lucide-react';
+import { ArrowUp, ArrowDown, Radio, Clock } from 'lucide-react';
 
 /* ────────────────────────────────────────────────────────────────────────
    "<Coin> Up or Down · 5m" — a Polymarket-style live card driven entirely by
@@ -13,6 +13,7 @@ import { Bitcoin, ArrowUp, ArrowDown, Radio, Clock } from 'lucide-react';
    ──────────────────────────────────────────────────────────────────────── */
 
 type Trade = { id: number; side: 'buy' | 'sell'; price: number; size: number; time: number };
+type Act = { id: number; side: 'up' | 'down'; amt: number; who: string; t: number };
 type Pt = { t: number; p: number };
 type RangeKey = '5M' | '15M' | '1H' | '1D';
 
@@ -38,7 +39,7 @@ const RANGES: Record<RangeKey, { ms: number; gran: number }> = {
   '1D': { ms: 24 * 60 * 60_000, gran: 300 },
 };
 
-const dec = (p: number) => (p >= 1000 ? 2 : p >= 1 ? 2 : p >= 0.1 ? 4 : 5);
+const dec = (p: number) => (p >= 1000 ? 2 : p >= 100 ? 2 : p >= 1 ? 4 : p >= 0.01 ? 5 : 6);
 const fmtUsd = (n: number) =>
   n.toLocaleString('en-US', { minimumFractionDigits: dec(n), maximumFractionDigits: dec(n) });
 const fmtSize = (n: number) =>
@@ -50,21 +51,91 @@ const fmtTime = (ms: number) => {
   ).padStart(2, '0')}`;
 };
 
-function CoinBadge({ coin, size = 32 }: { coin: Coin; size?: number }) {
-  return (
-    <span
-      className="flex items-center justify-center rounded-full font-bold shrink-0"
-      style={{
-        width: size,
-        height: size,
-        background: `${coin.color}22`,
-        color: coin.color,
-        fontSize: size * 0.34,
-      }}
-    >
-      {coin.id === 'BTC' ? <Bitcoin style={{ width: size * 0.6, height: size * 0.6 }} /> : coin.sym.slice(0, 1)}
-    </span>
-  );
+/* Real, original brand logos (inline SVG, self-contained — no network needed). */
+function CoinLogo({ id, size = 32 }: { id: string; size?: number }) {
+  const common = { width: size, height: size, viewBox: '0 0 32 32', className: 'shrink-0 block' };
+  switch (id) {
+    case 'BTC':
+      return (
+        <svg {...common}>
+          <g fill="none">
+            <circle cx="16" cy="16" r="16" fill="#F7931A" />
+            <path
+              fill="#FFF"
+              d="M23.189 14.02c.314-2.096-1.283-3.223-3.465-3.975l.708-2.84-1.728-.43-.69 2.765c-.454-.114-.92-.22-1.385-.326l.695-2.783L15.596 6l-.708 2.839c-.376-.086-.746-.17-1.104-.26l.002-.009-2.384-.595-.46 1.846s1.283.294 1.256.312c.7.175.826.638.805 1.006l-.806 3.235c.048.012.11.03.18.057l-.183-.045-1.13 4.532c-.086.212-.303.531-.793.41.018.025-1.256-.313-1.256-.313l-.858 1.978 2.25.561c.418.105.828.215 1.231.318l-.715 2.872 1.727.43.708-2.84c.472.127.93.245 1.378.357l-.706 2.828 1.728.43.715-2.866c2.948.558 5.164.333 6.097-2.333.752-2.146-.037-3.385-1.588-4.192 1.13-.26 1.98-1.003 2.207-2.538zm-3.95 5.538c-.533 2.147-4.148.986-5.32.695l.95-3.805c1.172.293 4.929.872 4.37 3.11zm.535-5.569c-.487 1.953-3.495.96-4.47.717l.86-3.45c.975.243 4.118.696 3.61 2.733z"
+            />
+          </g>
+        </svg>
+      );
+    case 'ETH':
+      return (
+        <svg {...common}>
+          <g fill="none">
+            <circle cx="16" cy="16" r="16" fill="#627EEA" />
+            <g fill="#FFF" fillRule="nonzero">
+              <path fillOpacity=".602" d="M16.498 4v8.87l7.497 3.35z" />
+              <path d="M16.498 4L9 16.22l7.498-3.35z" />
+              <path fillOpacity=".602" d="M16.498 21.968v6.027L24 17.616z" />
+              <path d="M16.498 27.995v-6.028L9 17.616z" />
+              <path fillOpacity=".2" d="M16.498 20.573l7.497-4.353-7.497-3.348z" />
+              <path fillOpacity=".602" d="M9 16.22l7.498 4.353v-7.701z" />
+            </g>
+          </g>
+        </svg>
+      );
+    case 'SOL':
+      return (
+        <svg {...common}>
+          <defs>
+            <linearGradient id="sol-grad" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#9945FF" />
+              <stop offset="100%" stopColor="#14F195" />
+            </linearGradient>
+          </defs>
+          <circle cx="16" cy="16" r="16" fill="#121212" />
+          <g transform="translate(6.6 9) scale(0.0477)">
+            <path
+              fill="url(#sol-grad)"
+              d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z"
+            />
+            <path
+              fill="url(#sol-grad)"
+              d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z"
+            />
+            <path
+              fill="url(#sol-grad)"
+              d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z"
+            />
+          </g>
+        </svg>
+      );
+    case 'XRP':
+      return (
+        <svg {...common}>
+          <g fill="none">
+            <circle cx="16" cy="16" r="16" fill="#23292F" />
+            <path
+              fill="#FFF"
+              d="M23.07 8h2.89l-6.015 5.957a5.621 5.621 0 0 1-7.89 0L6.038 8H8.93l4.57 4.523a3.556 3.556 0 0 0 4.996 0L23.07 8zM8.895 24.563H6l6.055-5.993a5.621 5.621 0 0 1 7.89 0L26 24.562h-2.892l-4.61-4.563a3.556 3.556 0 0 0-4.995 0l-4.608 4.564z"
+            />
+          </g>
+        </svg>
+      );
+    case 'DOGE':
+      return (
+        <svg {...common}>
+          <g fill="none">
+            <circle cx="16" cy="16" r="16" fill="#C2A633" />
+            <path
+              fill="#FFF"
+              d="M13.248 14.61h2.103c.342 0 .357.011.357-.34v-.928c0-.351-.015-.34-.357-.34h-2.103v1.608zm0 2.05v2.421c0 .375.011.4.385.4.722-.002 1.444.012 2.166-.022a4.4 4.4 0 0 0 .882-.142c.657-.163 1.169-.532 1.475-1.155.196-.4.28-.832.305-1.273.032-.554.022-1.107-.114-1.65-.2-.802-.69-1.328-1.49-1.546a4.836 4.836 0 0 0-.985-.15c-.714-.034-1.43-.027-2.146-.036-.318-.004-.353.024-.353.339v2.014h-.706c-.342 0-.353.011-.353.357v.788c0 .335.012.348.346.348h.713zm-2.46 2.864v-3.21h-.502c-.302 0-.313-.012-.313-.32v-.873c0-.286.014-.3.307-.3h.508v-.214c0-1.054.003-2.108-.002-3.162-.002-.366.038-.347-.34-.348-1.054-.003-2.108-.001-3.162-.001-.318 0-.353.035-.353.354v9.96c0 .069-.003.138.002.207.012.144.087.219.231.226.07.003.139.002.208.002 1.04 0 2.08.002 3.12-.001.36-.001.523.04.523-.43v-1.69z"
+            />
+          </g>
+        </svg>
+      );
+    default:
+      return null;
+  }
 }
 
 function PriceChart({ pts, open, color }: { pts: Pt[]; open: number | null; color: string }) {
@@ -166,6 +237,9 @@ export default function BtcUpDownCard() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [now, setNow] = useState(Date.now());
   const [live, setLive] = useState(false);
+  // Live bet activity (simulated for now — real player bets are blended in as
+  // they arrive, then the simulated share is dialed down).
+  const [acts, setActs] = useState<Act[]>([]);
 
   const coin = COINS.find((c) => c.id === sel)!;
   const selProduct = coin.product;
@@ -261,6 +335,36 @@ export default function BtcUpDownCard() {
     setTrades([]);
     tradeBufRef.current = [];
     armGuardRef.current();
+  }, [sel]);
+
+  // Simulated live-bet activity strip (per coin). Explicitly a placeholder until
+  // real Up/Down bets flow in; kept realistic and easy to dial down later.
+  useEffect(() => {
+    const AMTS = [5, 5, 10, 10, 15, 25, 25, 50, 75, 100, 150, 250, 500];
+    const hex = (n: number) =>
+      Math.floor(Math.random() * Math.pow(16, n))
+        .toString(16)
+        .padStart(n, '0');
+    const make = (): Act => ({
+      id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
+      side: Math.random() < 0.5 ? 'up' : 'down',
+      amt: AMTS[Math.floor(Math.random() * AMTS.length)],
+      who: `0x${hex(4)}…${hex(3)}`,
+      t: Date.now(),
+    });
+    setActs(Array.from({ length: 16 }, make));
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      if (!alive) return;
+      setActs((prev) => [make(), ...prev].slice(0, 28));
+      timer = setTimeout(tick, 1200 + Math.random() * 2800);
+    };
+    timer = setTimeout(tick, 1500);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
   }, [sel]);
 
   // Real-time feed: WS for all coins (price) + matches; REST polling fallback.
@@ -465,13 +569,16 @@ export default function BtcUpDownCard() {
           __html: `
         @keyframes uod-rowin { 0% { opacity: 0; transform: translateY(-6px); } 100% { opacity: 1; transform: translateY(0); } }
         .uod-rowin { animation: uod-rowin 0.35s ease-out both; }
+        @keyframes uod-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        .uod-marquee { animation: uod-marquee 40s linear infinite; will-change: transform; }
+        .uod-marquee-wrap:hover .uod-marquee { animation-play-state: paused; }
       `,
         }}
       />
 
       {/* Header */}
       <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-[#2B3139]">
-        <CoinBadge coin={coin} />
+        <CoinLogo id={coin.id} />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="text-base font-bold text-[#EAECEF]">{coin.name} Up or Down</h3>
@@ -535,6 +642,31 @@ export default function BtcUpDownCard() {
 
           {/* Animated real price chart */}
           <PriceChart pts={chartPts} open={open} color={coin.color} />
+
+          {/* Live bet activity — scrolling strip of Up/Down buyers & sellers */}
+          <div className="uod-marquee-wrap flex items-stretch rounded-lg border border-[#2B3139] bg-[#0B0E11] overflow-hidden">
+            <div className="flex items-center gap-1.5 px-2.5 border-r border-[#2B3139] shrink-0">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#F0B90B] opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#F0B90B]" />
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#848E9C]">Live Bets</span>
+            </div>
+            <div className="relative overflow-hidden flex-1">
+              <div className="uod-marquee inline-flex whitespace-nowrap py-2">
+                {(acts.length ? [...acts, ...acts] : []).map((a, i) => (
+                  <span key={`${a.id}-${i}`} className="inline-flex items-center gap-1.5 px-3 text-[11px] tabular-nums">
+                    <span className={`inline-flex h-1.5 w-1.5 rounded-full ${a.side === 'up' ? 'bg-[#0ECB81]' : 'bg-[#F6465D]'}`} />
+                    <span className={`font-bold ${a.side === 'up' ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+                      {a.side === 'up' ? 'UP' : 'DOWN'}
+                    </span>
+                    <span className="text-[#EAECEF]">${a.amt}</span>
+                    <span className="text-[#5E6673]">{a.who}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
 
           {/* Range selector */}
           <div className="flex items-center gap-1.5">
@@ -624,7 +756,7 @@ export default function BtcUpDownCard() {
               }`}
               style={active ? { borderColor: c.color } : undefined}
             >
-              <CoinBadge coin={c} size={30} />
+              <CoinLogo id={c.id} size={30} />
               <div className="min-w-0 flex-1">
                 <div className="text-[13px] font-semibold text-[#EAECEF] truncate">{c.name}</div>
                 <div className="text-[10px] text-[#5E6673]">Up or Down · 5m</div>

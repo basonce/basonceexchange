@@ -34,6 +34,11 @@ seconds, and stop polling once WS trades flow (single live source). When the
 tape can switch sources (e.g. multi-coin selector), RE-ARM that 5s guard on
 every switch — a one-shot mount guard leaves switched-to coins empty forever.
 
+**Decimal precision:** a low-priced coin (XRP ~$1.02) formatted with only 2
+decimals looks FROZEN — every tick rounds to the same "1.02". Scale displayed
+decimals by magnitude: ≥100 → 2, 1–100 → 4, <1 → 5–6, so sub-cent movement is
+visible. Same trap applies to any per-coin %change/price readout.
+
 **Multi-coin:** BTC/ETH/SOL/XRP/DOGE all exist as Coinbase `*-USD` products;
 one WS can subscribe `ticker`+`matches` for all of them. Gotcha: WS/REST
 identify coins by PRODUCT id (`BTC-USD`) but UI state is usually keyed by a
