@@ -249,4 +249,208 @@ router.post("/predictions/bet", async (req, res) => {
   }
 });
 
+/* ── UP/DOWN 5-min parimutuel rounds (server-authoritative, mirrors worker) ── */
+const UOD_COINS: Record<string, string> = {
+  BTC: "BTC-USD", ETH: "ETH-USD", SOL: "SOL-USD", XRP: "XRP-USD", DOGE: "DOGE-USD",
+};
+const UOD_ROUND_SECS = 300;
+const UOD_CYCLE = 310;
+const UOD_TICK_THROTTLE = 3;
+
+function uodClock(nowSec: number) {
+  const idx = Math.floor(nowSec / UOD_CYCLE);
+  const openAt = idx * UOD_CYCLE;
+  const lockAt = openAt + UOD_ROUND_SECS;
+  const pos = nowSec - openAt;
+  const phase = pos < UOD_ROUND_SECS ? "open" : "resolving";
+  const countdown = phase === "open" ? UOD_ROUND_SECS - pos : UOD_CYCLE - pos;
+  return { idx, openAt, lockAt, phase, countdown };
+}
+
+async function uodSpotPrices(): Promise<Record<string, number>> {
+  const out: Record<string, number> = {};
+  await Promise.all(
+    Object.entries(UOD_COINS).map(async ([coin, prod]) => {
+      try {
+        const r = await fetch(`https://api.exchange.coinbase.com/products/${prod}/ticker`, {
+          headers: { "User-Agent": "basonce-market/1.0", Accept: "application/json" },
+        });
+        if (!r.ok) return;
+        const j = (await r.json()) as { price?: string };
+        const p = Number(j.price);
+        if (Number.isFinite(p) && p > 0) out[coin] = p;
+      } catch {
+        /* skip */
+      }
+    }),
+  );
+  return out;
+}
+
+router.get("/predictions/updown", async (_req, res) => {
+  try {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const clk = uodClock(nowSec);
+    // throttled global tick
+    let doTick = false;
+    try {
+      const cutoff = new Date((nowSec - UOD_TICK_THROTTLE) * 1000).toISOString();
+      const { data: won } = await admin
+        .from("uod_meta")
+        .update({ last_tick_at: new Date().toISOString() })
+        .eq("id", 1)
+        .lt("last_tick_at", cutoff)
+        .select("id");
+      doTick = Array.isArray(won) && won.length > 0;
+    } catch {
+      /* ignore */
+    }
+    if (!doTick) {
+      const { data: cur0 } = await admin.from("uod_rounds").select("id").eq("round_index", clk.idx).limit(1);
+      if (!cur0 || cur0.length === 0) doTick = true;
+    }
+    if (doTick) {
+      const prices = await uodSpotPrices();
+      if (Object.keys(prices).length) {
+        try {
+          await admin.rpc("uod_sync", {
+            p_idx: clk.idx,
+            p_open_at: new Date(clk.openAt * 1000).toISOString(),
+            p_lock_at: new Date(clk.lockAt * 1000).toISOString(),
+            p_prices: prices,
+          });
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    const { data: cur } = await admin
+      .from("uod_rounds")
+      .select("id,coin,status,open_at,lock_at,open_price,up_pool,down_pool,bet_count")
+      .eq("round_index", clk.idx);
+    const { data: recent } = await admin
+      .from("uod_rounds")
+      .select("coin,round_index,open_price,close_price,winning_side,up_pool,down_pool,settled_at")
+      .eq("status", "settled")
+      .order("round_index", { ascending: false })
+      .limit(40);
+    const { data: activity } = await admin
+      .from("uod_bets")
+      .select("coin,side,amount,created_at")
+      .order("created_at", { ascending: false })
+      .limit(24);
+    const coins: Record<string, unknown> = {};
+    for (const r of cur || []) coins[(r as { coin: string }).coin] = r;
+    const lastResult: Record<string, unknown> = {};
+    for (const r of recent || []) {
+      const c = (r as { coin: string }).coin;
+      if (!lastResult[c]) lastResult[c] = r;
+    }
+    res.json({
+      now: nowSec, idx: clk.idx, open_at: clk.openAt, lock_at: clk.lockAt,
+      phase: clk.phase, countdown: clk.countdown, coins, last_result: lastResult, activity: activity || [],
+    });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to load rounds" });
+  }
+});
+
+router.post("/predictions/updown/bet", async (req, res) => {
+  try {
+    const uid = await authedUserId(req.headers.authorization);
+    if (!uid) {
+      res.status(401).json({ error: "Sign in to place a bet" });
+      return;
+    }
+    const { coin, side, amount } = (req.body || {}) as { coin?: unknown; side?: unknown; amount?: unknown };
+    const c = String(coin || "").toUpperCase();
+    const s = String(side || "").toLowerCase();
+    const amt = Number(amount);
+    if (!UOD_COINS[c]) {
+      res.status(400).json({ error: "Invalid coin" });
+      return;
+    }
+    if (s !== "up" && s !== "down") {
+      res.status(400).json({ error: "Side must be up or down" });
+      return;
+    }
+    if (!Number.isFinite(amt) || amt < 1) {
+      res.status(400).json({ error: "Minimum bet is 1 USDT" });
+      return;
+    }
+    if (amt > 100000) {
+      res.status(400).json({ error: "Maximum bet is 100000 USDT" });
+      return;
+    }
+    const nowSec = Math.floor(Date.now() / 1000);
+    const clk = uodClock(nowSec);
+    if (clk.phase !== "open") {
+      res.status(400).json({ error: "Round is locked — settling" });
+      return;
+    }
+    let openPrice: number | null = null;
+    const { data: ex } = await admin
+      .from("uod_rounds")
+      .select("open_price")
+      .eq("coin", c)
+      .eq("round_index", clk.idx)
+      .limit(1);
+    if (ex && ex[0] && (ex[0] as { open_price: number | null }).open_price != null) {
+      openPrice = Number((ex[0] as { open_price: number }).open_price);
+    }
+    if (openPrice == null) {
+      const prices = await uodSpotPrices();
+      if (prices[c] != null) openPrice = prices[c];
+    }
+    if (openPrice == null) {
+      res.status(503).json({ error: "Price feed unavailable, please try again" });
+      return;
+    }
+    const { data, error } = await admin.rpc("uod_place_bet", {
+      p_user_id: uid,
+      p_coin: c,
+      p_round_index: clk.idx,
+      p_open_at: new Date(clk.openAt * 1000).toISOString(),
+      p_lock_at: new Date(clk.lockAt * 1000).toISOString(),
+      p_open_price: openPrice,
+      p_side: s,
+      p_amount: Math.round(amt * 1e8) / 1e8,
+    });
+    if (error) {
+      const msg = error.message || "";
+      if (msg.includes("INSUFFICIENT_BALANCE")) { res.status(400).json({ error: "Insufficient USDT balance" }); return; }
+      if (msg.includes("ROUND_LOCKED")) { res.status(400).json({ error: "Round is locked — settling" }); return; }
+      if (msg.includes("INVALID_AMOUNT")) { res.status(400).json({ error: "Invalid bet amount" }); return; }
+      if (msg.includes("INVALID_SIDE")) { res.status(400).json({ error: "Invalid side" }); return; }
+      if (msg.includes("INVALID_COIN")) { res.status(400).json({ error: "Invalid coin" }); return; }
+      res.status(500).json({ error: "Bet failed, please try again" });
+      return;
+    }
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: "Bet failed, please try again" });
+  }
+});
+
+router.get("/predictions/updown/my-bets", async (req, res) => {
+  try {
+    const uid = await authedUserId(req.headers.authorization);
+    if (!uid) {
+      res.status(401).json({ error: "Sign in to view your bets" });
+      return;
+    }
+    const { data: bets } = await admin
+      .from("uod_bets")
+      .select(
+        "id,coin,side,amount,status,payout,created_at,settled_at,round_id,uod_rounds(round_index,open_price,close_price,winning_side,lock_at,status)",
+      )
+      .eq("user_id", uid)
+      .order("created_at", { ascending: false })
+      .limit(60);
+    res.json({ bets: bets || [] });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to load bets" });
+  }
+});
+
 export default router;

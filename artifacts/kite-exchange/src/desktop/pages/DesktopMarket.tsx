@@ -680,7 +680,13 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
             <>
               {showHero && (
                 <div className="mb-8">
-                  <BtcUpDownCard />
+                  <BtcUpDownCard
+                    user={user}
+                    balance={balance}
+                    onAuth={onAuth}
+                    onDeposit={onDeposit}
+                    onBetPlaced={onBetPlaced}
+                  />
                 </div>
               )}
 

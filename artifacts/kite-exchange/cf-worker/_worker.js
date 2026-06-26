@@ -1912,6 +1912,40 @@ function pmParseArr(v) {
   return [];
 }
 
+/* ── UP/DOWN 5-minute parimutuel rounds ──────────────────────────────
+   All coins share one clock: a 310s cycle = 300s OPEN betting + 10s
+   RESOLVE gap. round_index = floor(epoch/310). Settlement is server
+   authoritative: open/close prices are Coinbase spot captured by THIS
+   worker, never trusted from the client. */
+const UOD_COINS = { BTC:'BTC-USD', ETH:'ETH-USD', SOL:'SOL-USD', XRP:'XRP-USD', DOGE:'DOGE-USD' };
+const UOD_ROUND_SECS = 300;
+const UOD_CYCLE = 310;            // 300s betting + 10s resolve
+const UOD_TICK_THROTTLE = 3;      // at most one global tick every N seconds
+
+function uodClock(nowSec) {
+  const idx = Math.floor(nowSec / UOD_CYCLE);
+  const openAt = idx * UOD_CYCLE;
+  const lockAt = openAt + UOD_ROUND_SECS;
+  const pos = nowSec - openAt;     // 0..310
+  const phase = pos < UOD_ROUND_SECS ? 'open' : 'resolving';
+  const countdown = phase === 'open' ? (UOD_ROUND_SECS - pos) : (UOD_CYCLE - pos);
+  return { idx, openAt, lockAt, phase, countdown };
+}
+
+async function uodSpotPrices() {
+  const out = {};
+  await Promise.all(Object.entries(UOD_COINS).map(async ([coin, prod]) => {
+    try {
+      const r = await fetch(`https://api.exchange.coinbase.com/products/${prod}/ticker`, { headers: PM_UA });
+      if (!r.ok) return;
+      const j = await r.json();
+      const p = Number(j.price);
+      if (Number.isFinite(p) && p > 0) out[coin] = p;
+    } catch {}
+  }));
+  return out;
+}
+
 // Pull top active events (grouped markets) by 24h volume and upsert every binary
 // Yes/No market into pm_markets via the pm_sync_market RPC (metadata only — never
 // touches pools or resolved markets).
@@ -2178,6 +2212,100 @@ export default {
           if (msg.includes('INVALID_OUTCOME')) return err(400, 'Invalid outcome');
           return err(500, 'Bet failed, please try again');
         }
+      }
+
+      /* ── UP/DOWN 5-min parimutuel rounds (server-authoritative) ── */
+      if (path==='/predictions/updown' && method==='GET') {
+        const nowSec = Math.floor(Date.now()/1000);
+        const clk = uodClock(nowSec);
+        // throttled global tick: only one caller every UOD_TICK_THROTTLE seconds
+        let doTick = false;
+        try {
+          const cutoff = new Date((nowSec - UOD_TICK_THROTTLE) * 1000).toISOString();
+          const won = await sbPatch('uod_meta', `?id=eq.1&last_tick_at=lt.${cutoff}`, { last_tick_at: new Date().toISOString() }, env);
+          doTick = Array.isArray(won) && won.length > 0;
+        } catch {}
+        if (!doTick) {
+          // cold-start safety: if the current round rows don't exist yet, force a tick
+          try {
+            const cur0 = await sbGet('uod_rounds', `?round_index=eq.${clk.idx}&select=id&limit=1`, env);
+            if (!cur0 || cur0.length === 0) doTick = true;
+          } catch {}
+        }
+        if (doTick) {
+          const prices = await uodSpotPrices();
+          if (Object.keys(prices).length) {
+            try {
+              await sbRpc('uod_sync', {
+                p_idx: clk.idx,
+                p_open_at: new Date(clk.openAt * 1000).toISOString(),
+                p_lock_at: new Date(clk.lockAt * 1000).toISOString(),
+                p_prices: prices,
+              }, env);
+            } catch {}
+          }
+        }
+        let cur = [], recent = [], activity = [];
+        try { cur = await sbGet('uod_rounds', `?round_index=eq.${clk.idx}&select=id,coin,status,open_at,lock_at,open_price,up_pool,down_pool,bet_count`, env); } catch {}
+        try { recent = await sbGet('uod_rounds', `?status=eq.settled&select=coin,round_index,open_price,close_price,winning_side,up_pool,down_pool,settled_at&order=round_index.desc&limit=40`, env); } catch {}
+        try { activity = await sbGet('uod_bets', `?select=coin,side,amount,created_at&order=created_at.desc&limit=24`, env); } catch {}
+        const coins = {};
+        for (const r of (cur || [])) coins[r.coin] = r;
+        const lastResult = {};
+        for (const r of (recent || [])) { if (!lastResult[r.coin]) lastResult[r.coin] = r; }
+        return ok({ now: nowSec, idx: clk.idx, open_at: clk.openAt, lock_at: clk.lockAt, phase: clk.phase, countdown: clk.countdown, coins, last_result: lastResult, activity: activity || [] });
+      }
+      if (path==='/predictions/updown/bet' && method==='POST') {
+        const uid = await getAuthedUserId(request, env);
+        if (!uid) return err(401, 'Sign in to place a bet');
+        const coin = String(body.coin || '').toUpperCase();
+        const side = String(body.side || '').toLowerCase();
+        const amount = Number(body.amount);
+        if (!UOD_COINS[coin]) return err(400, 'Invalid coin');
+        if (side !== 'up' && side !== 'down') return err(400, 'Side must be up or down');
+        if (!Number.isFinite(amount) || amount < 1) return err(400, 'Minimum bet is 1 USDT');
+        if (amount > 100000) return err(400, 'Maximum bet is 100000 USDT');
+        const nowSec = Math.floor(Date.now()/1000);
+        const clk = uodClock(nowSec);
+        if (clk.phase !== 'open') return err(400, 'Round is locked — settling');
+        // resolve the round's open_price (spot at creation) for first-bet-of-round
+        let openPrice = null;
+        try {
+          const ex = await sbGet('uod_rounds', `?coin=eq.${coin}&round_index=eq.${clk.idx}&select=open_price&limit=1`, env);
+          if (ex && ex[0] && ex[0].open_price != null) openPrice = Number(ex[0].open_price);
+        } catch {}
+        if (openPrice == null) {
+          const prices = await uodSpotPrices();
+          if (prices[coin] != null) openPrice = prices[coin];
+        }
+        if (openPrice == null) return err(503, 'Price feed unavailable, please try again');
+        try {
+          const res = await sbRpc('uod_place_bet', {
+            p_user_id: uid, p_coin: coin, p_round_index: clk.idx,
+            p_open_at: new Date(clk.openAt * 1000).toISOString(),
+            p_lock_at: new Date(clk.lockAt * 1000).toISOString(),
+            p_open_price: openPrice, p_side: side,
+            p_amount: Math.round(amount * 1e8) / 1e8,
+          }, env);
+          return ok(res);
+        } catch (e) {
+          const msg = String(e.message || e);
+          if (msg.includes('INSUFFICIENT_BALANCE')) return err(400, 'Insufficient USDT balance');
+          if (msg.includes('ROUND_LOCKED')) return err(400, 'Round is locked — settling');
+          if (msg.includes('INVALID_AMOUNT')) return err(400, 'Invalid bet amount');
+          if (msg.includes('INVALID_SIDE')) return err(400, 'Invalid side');
+          if (msg.includes('INVALID_COIN')) return err(400, 'Invalid coin');
+          return err(500, 'Bet failed, please try again');
+        }
+      }
+      if (path==='/predictions/updown/my-bets' && method==='GET') {
+        const uid = await getAuthedUserId(request, env);
+        if (!uid) return err(401, 'Sign in to view your bets');
+        let bets = [];
+        try {
+          bets = await sbGet('uod_bets', `?user_id=eq.${uid}&select=id,coin,side,amount,status,payout,created_at,settled_at,round_id,uod_rounds(round_index,open_price,close_price,winning_side,lock_at,status)&order=created_at.desc&limit=60`, env);
+        } catch {}
+        return ok({ bets: bets || [] });
       }
 
       /* ── 3D CASINO GAMES (logged-in web users, USDT) ── */

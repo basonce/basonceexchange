@@ -1,5 +1,61 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUp, ArrowDown, Radio, Clock } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowUp, ArrowDown, Radio, Clock, Lock, Loader2, Wallet, CheckCircle2, XCircle } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+
+/* Server-authoritative 5-minute parimutuel round state (see /api/predictions/updown). */
+type UodRound = {
+  id: string;
+  coin: string;
+  status: 'open' | 'resolving' | 'settled';
+  open_at: string;
+  lock_at: string;
+  open_price: number | string | null;
+  up_pool: number | string;
+  down_pool: number | string;
+  bet_count: number;
+};
+type UodResult = {
+  coin: string;
+  round_index: number;
+  open_price: number | string | null;
+  close_price: number | string | null;
+  winning_side: 'up' | 'down' | 'tie' | null;
+  up_pool: number | string;
+  down_pool: number | string;
+};
+type UodActivity = { coin: string; side: 'up' | 'down'; amount: number | string; created_at: string };
+type UodState = {
+  now: number;
+  idx: number;
+  open_at: number;
+  lock_at: number;
+  phase: 'open' | 'resolving';
+  countdown: number;
+  coins: Record<string, UodRound>;
+  last_result: Record<string, UodResult>;
+  activity: UodActivity[];
+};
+type MyBet = {
+  id: string;
+  coin: string;
+  side: 'up' | 'down';
+  amount: number | string;
+  status: 'open' | 'won' | 'lost' | 'refunded';
+  payout: number | string | null;
+  created_at: string;
+  uod_rounds?: { round_index: number; winning_side: string | null; status: string } | null;
+};
+
+const FEE_RATE = 0.02;
+const PRESETS = [1, 5, 25, 100];
+
+interface CardProps {
+  user: any;
+  balance: number | null;
+  onAuth: (mode: 'login' | 'register') => void;
+  onDeposit: () => void;
+  onBetPlaced: () => void;
+}
 
 /* ────────────────────────────────────────────────────────────────────────
    "<Coin> Up or Down · 5m" — a Polymarket-style live card driven entirely by
@@ -228,7 +284,7 @@ function PriceChart({ pts, open, color }: { pts: Pt[]; open: number | null; colo
   );
 }
 
-export default function BtcUpDownCard() {
+export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetPlaced }: CardProps) {
   const [sel, setSel] = useState<string>('BTC');
   const [range, setRange] = useState<RangeKey>('5M');
   const [prices, setPrices] = useState<Record<string, number>>({});
@@ -237,9 +293,14 @@ export default function BtcUpDownCard() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [now, setNow] = useState(Date.now());
   const [live, setLive] = useState(false);
-  // Live bet activity (simulated for now — real player bets are blended in as
-  // they arrive, then the simulated share is dialed down).
-  const [acts, setActs] = useState<Act[]>([]);
+
+  // Server-authoritative round state + the user's own bets.
+  const [round, setRound] = useState<UodState | null>(null);
+  const [myBets, setMyBets] = useState<MyBet[]>([]);
+  const [betSide, setBetSide] = useState<'up' | 'down'>('up');
+  const [amount, setAmount] = useState<string>('5');
+  const [placing, setPlacing] = useState(false);
+  const [betMsg, setBetMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
   const coin = COINS.find((c) => c.id === sel)!;
   const selProduct = coin.product;
@@ -270,7 +331,6 @@ export default function BtcUpDownCard() {
     return () => clearInterval(t);
   }, []);
 
-  const roundEnd = (Math.floor(now / ROUND_MS) + 1) * ROUND_MS;
   const roundKey = Math.floor(now / ROUND_MS);
 
   // Real round "price to beat" = open of the current 5m candle, for every coin.
@@ -337,35 +397,61 @@ export default function BtcUpDownCard() {
     armGuardRef.current();
   }, [sel]);
 
-  // Simulated live-bet activity strip (per coin). Explicitly a placeholder until
-  // real Up/Down bets flow in; kept realistic and easy to dial down later.
+  // Authoritative round state poll (drives the lazy throttled server tick:
+  // creating rounds, locking + settling at 5m, opening the next from a fresh price).
   useEffect(() => {
-    const AMTS = [5, 5, 10, 10, 15, 25, 25, 50, 75, 100, 150, 250, 500];
-    const hex = (n: number) =>
-      Math.floor(Math.random() * Math.pow(16, n))
-        .toString(16)
-        .padStart(n, '0');
-    const make = (): Act => ({
-      id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
-      side: Math.random() < 0.5 ? 'up' : 'down',
-      amt: AMTS[Math.floor(Math.random() * AMTS.length)],
-      who: `0x${hex(4)}…${hex(3)}`,
-      t: Date.now(),
-    });
-    setActs(Array.from({ length: 16 }, make));
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;
-    const tick = () => {
-      if (!alive) return;
-      setActs((prev) => [make(), ...prev].slice(0, 28));
-      timer = setTimeout(tick, 1200 + Math.random() * 2800);
+    const load = async () => {
+      try {
+        const r = await fetch('/api/predictions/updown', { cache: 'no-store' });
+        if (!alive) return;
+        if (r.ok) {
+          const j = (await r.json()) as UodState;
+          if (alive) setRound(j);
+        }
+      } catch {
+        /* keep last known round; never fabricate */
+      } finally {
+        if (alive) timer = setTimeout(load, 2000);
+      }
     };
-    timer = setTimeout(tick, 1500);
+    load();
     return () => {
       alive = false;
       clearTimeout(timer);
     };
-  }, [sel]);
+  }, []);
+
+  // The signed-in user's own bets (active position this round + recent results).
+  const loadMyBets = useCallback(async () => {
+    if (!user?.id) {
+      setMyBets([]);
+      return;
+    }
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+      const r = await fetch('/api/predictions/updown/my-bets', {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
+      if (r.ok) {
+        const j = await r.json();
+        setMyBets(Array.isArray(j.bets) ? j.bets : []);
+      }
+    } catch {
+      /* keep last known */
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadMyBets();
+    if (!user?.id) return;
+    const t = setInterval(loadMyBets, 5000);
+    return () => clearInterval(t);
+  }, [loadMyBets, user?.id]);
 
   // Real-time feed: WS for all coins (price) + matches; REST polling fallback.
   useEffect(() => {
@@ -538,8 +624,15 @@ export default function BtcUpDownCard() {
     };
   }, []);
 
+  const num = (v: number | string | null | undefined) => (v == null ? 0 : typeof v === 'number' ? v : parseFloat(v) || 0);
+
   const price = prices[sel] ?? null;
-  const open = opens[sel] ?? null;
+  // Server-authoritative round for the selected coin.
+  const serverRound = round?.coins?.[sel] ?? null;
+  const serverOpen = serverRound && serverRound.open_price != null ? num(serverRound.open_price) : null;
+  // "Price to Beat" = the immutable open captured by the server when the round
+  // was created; fall back to the live 5m candle open only until the poll lands.
+  const open = serverOpen ?? opens[sel] ?? null;
   const chg = price != null && open ? (price - open) / open : 0;
   const chgAbs = price != null && open ? price - open : 0;
   const isUp = chg >= 0;
@@ -551,16 +644,113 @@ export default function BtcUpDownCard() {
     return w.length >= 2 ? w : series.slice(-2);
   }, [series, cutoff]);
 
-  // Real buy/sell pressure from the streaming taker sides (volume-weighted).
-  const buyVol = trades.filter((t) => t.side === 'buy').reduce((s, t) => s + t.size, 0);
-  const sellVol = trades.filter((t) => t.side === 'sell').reduce((s, t) => s + t.size, 0);
-  const totalVol = buyVol + sellVol;
-  const buyPct = totalVol > 0 ? Math.round((buyVol / totalVol) * 100) : 50;
-  const sellPct = 100 - buyPct;
+  // ── Round timing (smooth local countdown derived from server lock_at) ──
+  const nowSec = Math.floor(now / 1000);
+  const lockAt = round?.lock_at ?? null;
+  const openAt = round?.open_at ?? null;
+  const phase: 'open' | 'resolving' =
+    lockAt != null ? (nowSec < lockAt ? 'open' : 'resolving') : round?.phase ?? 'open';
+  const cycleEnd = openAt != null ? openAt + 310 : null;
+  const countdown =
+    phase === 'open'
+      ? Math.max(0, (lockAt ?? nowSec) - nowSec)
+      : Math.max(0, (cycleEnd ?? nowSec) - nowSec);
+  const mm = Math.floor(countdown / 60);
+  const ss = countdown % 60;
+  const locked = phase !== 'open';
 
-  const remain = Math.max(0, roundEnd - now);
-  const mm = Math.floor(remain / 60000);
-  const ss = Math.floor((remain % 60000) / 1000);
+  // ── Betting pools (real USDT staked this round) ──
+  const upPool = num(serverRound?.up_pool);
+  const downPool = num(serverRound?.down_pool);
+  const totalPool = upPool + downPool;
+  const upPct = totalPool > 0 ? Math.round((upPool / totalPool) * 100) : 50;
+  const downPct = 100 - upPct;
+
+  // Potential payout multiplier for the entered amount on the chosen side.
+  const amtNum = parseFloat(amount) || 0;
+  const payoutEstimate = (side: 'up' | 'down', stake: number) => {
+    if (stake <= 0) return null;
+    const sidePool = side === 'up' ? upPool : downPool;
+    const otherPool = side === 'up' ? downPool : upPool;
+    if (otherPool <= 0) return { payout: stake, mult: 1 }; // no losers yet → stake back
+    const share = otherPool * (1 - FEE_RATE) * (stake / (sidePool + stake));
+    const payout = stake + share;
+    return { payout, mult: payout / stake };
+  };
+  const est = payoutEstimate(betSide, amtNum);
+
+  // My active position this round + most recent settled result for this coin.
+  const myActive = useMemo(
+    () =>
+      myBets.find(
+        (b) => b.coin === sel && b.status === 'open' && b.uod_rounds?.round_index === round?.idx,
+      ) ?? null,
+    [myBets, sel, round?.idx],
+  );
+  const lastResult = round?.last_result?.[sel] ?? null;
+  const myLastSettled = useMemo(
+    () => myBets.find((b) => b.coin === sel && b.status !== 'open') ?? null,
+    [myBets, sel],
+  );
+
+  // Real live-bet activity strip from the server (most recent across all coins).
+  const acts: Act[] = useMemo(
+    () =>
+      (round?.activity ?? []).map((a, i) => ({
+        id: new Date(a.created_at).getTime() * 1000 + i,
+        side: a.side,
+        amt: num(a.amount),
+        who: a.coin,
+        t: new Date(a.created_at).getTime(),
+      })),
+    [round?.activity],
+  );
+
+  const placeBet = async () => {
+    setBetMsg(null);
+    if (!user) {
+      onAuth('login');
+      return;
+    }
+    if (locked) {
+      setBetMsg({ kind: 'err', text: 'Round is locked — settling. Next round opens shortly.' });
+      return;
+    }
+    if (!Number.isFinite(amtNum) || amtNum < 1) {
+      setBetMsg({ kind: 'err', text: 'Minimum bet is 1 USDT.' });
+      return;
+    }
+    if (amtNum > 100000) {
+      setBetMsg({ kind: 'err', text: 'Maximum bet is 100000 USDT.' });
+      return;
+    }
+    if (balance != null && amtNum > balance) {
+      setBetMsg({ kind: 'err', text: 'Insufficient USDT balance.' });
+      return;
+    }
+    setPlacing(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      const res = await fetch('/api/predictions/updown/bet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ coin: sel, side: betSide, amount: amtNum }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setBetMsg({ kind: 'err', text: j.error || 'Bet failed, please try again.' });
+      } else {
+        setBetMsg({ kind: 'ok', text: `Bet placed: ${fmtUsd(amtNum)} USDT on ${betSide.toUpperCase()}.` });
+        loadMyBets();
+        onBetPlaced();
+      }
+    } catch {
+      setBetMsg({ kind: 'err', text: 'Network error, please try again.' });
+    } finally {
+      setPlacing(false);
+    }
+  };
 
   return (
     <div className="rounded-2xl border border-[#2B3139] bg-gradient-to-br from-[#1E2329] to-[#0B0E11] overflow-hidden">
@@ -629,9 +819,10 @@ export default function BtcUpDownCard() {
             </div>
             <div className="text-right">
               <div className="flex items-center justify-end gap-1 text-[10px] text-[#848E9C] uppercase tracking-wider">
-                <Clock className="w-3 h-3" /> Round ends in
+                {locked ? <Lock className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                {locked ? 'Settling · next round' : 'Round locks in'}
               </div>
-              <div className="flex items-baseline justify-end gap-1.5 mt-0.5 tabular-nums text-[#F6465D]">
+              <div className={`flex items-baseline justify-end gap-1.5 mt-0.5 tabular-nums ${locked ? 'text-[#F0B90B]' : 'text-[#F6465D]'}`}>
                 <span className="text-2xl font-bold">{String(mm).padStart(2, '0')}</span>
                 <span className="text-[10px] font-semibold">MIN</span>
                 <span className="text-2xl font-bold">{String(ss).padStart(2, '0')}</span>
@@ -685,22 +876,186 @@ export default function BtcUpDownCard() {
             ))}
           </div>
 
-          {/* Up / Down pressure */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className={`rounded-xl border p-3 text-center transition-colors ${isUp ? 'border-[#0ECB81]/40 bg-[#0ECB81]/10' : 'border-[#2B3139] bg-[#0B0E11]'}`}>
-              <div className="flex items-center justify-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-[#0ECB81]">
-                <ArrowUp className="w-3.5 h-3.5" /> Up
-              </div>
-              <div className="text-2xl font-bold tabular-nums text-[#0ECB81] mt-1">{buyPct}%</div>
-              <div className="text-[10px] text-[#5E6673] mt-0.5">buy pressure</div>
+          {/* ── BET PANEL: real parimutuel USDT betting ── */}
+          <div className="rounded-xl border border-[#2B3139] bg-[#0B0E11] p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#EAECEF]">
+                Bet this round
+              </span>
+              <span className="flex items-center gap-1.5 text-[11px] text-[#848E9C]">
+                <Wallet className="w-3.5 h-3.5 text-[#F0B90B]" />
+                {balance == null ? '—' : fmtUsd(balance)} <span className="text-[#5E6673]">USDT</span>
+              </span>
             </div>
-            <div className={`rounded-xl border p-3 text-center transition-colors ${!isUp ? 'border-[#F6465D]/40 bg-[#F6465D]/10' : 'border-[#2B3139] bg-[#0B0E11]'}`}>
-              <div className="flex items-center justify-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-[#F6465D]">
-                <ArrowDown className="w-3.5 h-3.5" /> Down
+
+            {/* Pool split bar */}
+            <div>
+              <div className="flex justify-between text-[10px] font-semibold mb-1">
+                <span className="text-[#0ECB81]">UP · ${fmtUsd(upPool)}</span>
+                <span className="text-[#F6465D]">${fmtUsd(downPool)} · DOWN</span>
               </div>
-              <div className="text-2xl font-bold tabular-nums text-[#F6465D] mt-1">{sellPct}%</div>
-              <div className="text-[10px] text-[#5E6673] mt-0.5">sell pressure</div>
+              <div className="h-1.5 w-full rounded-full overflow-hidden bg-[#F6465D]/30 flex">
+                <div className="h-full bg-[#0ECB81]" style={{ width: `${totalPool > 0 ? upPct : 50}%` }} />
+              </div>
+              <div className="flex justify-between text-[10px] text-[#5E6673] mt-0.5">
+                <span>{totalPool > 0 ? `${upPct}%` : '—'}</span>
+                <span>Pot ${fmtUsd(totalPool)}</span>
+                <span>{totalPool > 0 ? `${downPct}%` : '—'}</span>
+              </div>
             </div>
+
+            {/* UP / DOWN side toggle */}
+            <div className="grid grid-cols-2 gap-2">
+              {(['up', 'down'] as const).map((s) => {
+                const on = betSide === s;
+                const up = s === 'up';
+                const m = payoutEstimate(s, 100);
+                return (
+                  <button
+                    key={s}
+                    onClick={() => setBetSide(s)}
+                    disabled={locked}
+                    className={`rounded-lg border p-2.5 text-center transition-colors disabled:opacity-50 ${
+                      on
+                        ? up
+                          ? 'border-[#0ECB81] bg-[#0ECB81]/15'
+                          : 'border-[#F6465D] bg-[#F6465D]/15'
+                        : 'border-[#2B3139] bg-[#0B0E11] hover:bg-[#1E2329]'
+                    }`}
+                  >
+                    <div className={`flex items-center justify-center gap-1 text-sm font-bold ${up ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+                      {up ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
+                      {up ? 'UP' : 'DOWN'}
+                    </div>
+                    <div className="text-[10px] text-[#5E6673] mt-0.5 tabular-nums">
+                      {m ? `~${m.mult.toFixed(2)}x` : '—'}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Amount presets + custom */}
+            <div className="grid grid-cols-4 gap-2">
+              {PRESETS.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setAmount(String(p))}
+                  disabled={locked}
+                  className={`rounded-lg border py-1.5 text-xs font-semibold tabular-nums transition-colors disabled:opacity-50 ${
+                    amount === String(p)
+                      ? 'border-[#F0B90B] bg-[#F0B90B]/10 text-[#F0B90B]'
+                      : 'border-[#2B3139] text-[#848E9C] hover:text-[#EAECEF] hover:bg-[#1E2329]'
+                  }`}
+                >
+                  ${p}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border border-[#2B3139] bg-[#0B0E11] px-3 py-2">
+              <span className="text-xs text-[#5E6673]">$</span>
+              <input
+                type="number"
+                min={1}
+                step="any"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                disabled={locked}
+                placeholder="Amount"
+                className="flex-1 bg-transparent text-sm text-[#EAECEF] tabular-nums outline-none placeholder:text-[#5E6673] disabled:opacity-50"
+              />
+              <span className="text-[10px] text-[#5E6673]">USDT</span>
+            </div>
+
+            {/* Potential payout */}
+            {est && !locked && (
+              <div className="flex justify-between text-[11px]">
+                <span className="text-[#848E9C]">Est. payout if {betSide.toUpperCase()} wins</span>
+                <span className="font-semibold tabular-nums text-[#0ECB81]">
+                  ${fmtUsd(est.payout)} <span className="text-[#5E6673]">({est.mult.toFixed(2)}x)</span>
+                </span>
+              </div>
+            )}
+
+            {betMsg && (
+              <div className={`text-[11px] font-medium ${betMsg.kind === 'ok' ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+                {betMsg.text}
+              </div>
+            )}
+
+            {/* Action button */}
+            {!user ? (
+              <button
+                onClick={() => onAuth('login')}
+                className="w-full rounded-lg bg-[#F0B90B] py-2.5 text-sm font-bold text-[#0B0E11] hover:bg-[#f8c92e] transition-colors"
+              >
+                Sign in to bet
+              </button>
+            ) : locked ? (
+              <button
+                disabled
+                className="w-full rounded-lg bg-[#2B3139] py-2.5 text-sm font-bold text-[#848E9C] cursor-not-allowed"
+              >
+                Round locked — settling…
+              </button>
+            ) : balance != null && amtNum > balance ? (
+              <button
+                onClick={onDeposit}
+                className="w-full rounded-lg bg-[#F0B90B] py-2.5 text-sm font-bold text-[#0B0E11] hover:bg-[#f8c92e] transition-colors"
+              >
+                Deposit USDT
+              </button>
+            ) : (
+              <button
+                onClick={placeBet}
+                disabled={placing || amtNum < 1}
+                className={`w-full rounded-lg py-2.5 text-sm font-bold text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
+                  betSide === 'up' ? 'bg-[#0ECB81] hover:bg-[#0fd98a]' : 'bg-[#F6465D] hover:bg-[#ff5b71]'
+                }`}
+              >
+                {placing && <Loader2 className="w-4 h-4 animate-spin" />}
+                {placing ? 'Placing…' : `Bet ${amtNum >= 1 ? `$${fmtUsd(amtNum)} ` : ''}${betSide.toUpperCase()}`}
+              </button>
+            )}
+
+            {/* My active position this round */}
+            {myActive && (
+              <div className="flex items-center justify-between rounded-lg border border-[#2B3139] bg-[#1E2329] px-3 py-2 text-[11px]">
+                <span className="flex items-center gap-1.5">
+                  <span className={`inline-flex h-1.5 w-1.5 rounded-full ${myActive.side === 'up' ? 'bg-[#0ECB81]' : 'bg-[#F6465D]'}`} />
+                  <span className="text-[#848E9C]">Your bet:</span>
+                  <span className={`font-bold ${myActive.side === 'up' ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+                    {myActive.side.toUpperCase()}
+                  </span>
+                </span>
+                <span className="font-semibold tabular-nums text-[#EAECEF]">${fmtUsd(num(myActive.amount))} USDT</span>
+              </div>
+            )}
+
+            {/* Last settled result for this coin */}
+            {lastResult && lastResult.winning_side && (
+              <div className="flex items-center justify-between text-[10px] text-[#5E6673]">
+                <span>
+                  Last round:{' '}
+                  <span className={lastResult.winning_side === 'up' ? 'text-[#0ECB81]' : lastResult.winning_side === 'down' ? 'text-[#F6465D]' : 'text-[#848E9C]'}>
+                    {lastResult.winning_side === 'tie' ? 'TIE · refunded' : lastResult.winning_side.toUpperCase()}
+                  </span>
+                  {lastResult.close_price != null && ` @ $${fmtUsd(num(lastResult.close_price))}`}
+                </span>
+                {myLastSettled && myLastSettled.uod_rounds?.round_index === lastResult.round_index && (
+                  <span className={`flex items-center gap-1 font-semibold ${myLastSettled.status === 'won' ? 'text-[#0ECB81]' : myLastSettled.status === 'refunded' ? 'text-[#848E9C]' : 'text-[#F6465D]'}`}>
+                    {myLastSettled.status === 'won' ? (
+                      <><CheckCircle2 className="w-3 h-3" /> +${fmtUsd(num(myLastSettled.payout))}</>
+                    ) : myLastSettled.status === 'refunded' ? (
+                      'Refunded'
+                    ) : (
+                      <><XCircle className="w-3 h-3" /> Lost</>
+                    )}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
