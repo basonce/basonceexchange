@@ -25,6 +25,21 @@ async function authedUserId(authHeader: string | undefined): Promise<string | nu
 const MARKET_SELECT =
   "id,source_id,question,category,image,end_date,status,winning_outcome,live_yes,live_no,volume,yes_pool,no_pool,bet_count,featured";
 
+const PM_GAMMA = "https://gamma-api.polymarket.com";
+const PM_UA = { "User-Agent": "basonce-market/1.0", Accept: "application/json" };
+
+function pmParseArr(v: unknown): unknown[] {
+  if (Array.isArray(v)) return v;
+  if (typeof v === "string") {
+    try {
+      return JSON.parse(v);
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 router.get("/predictions/markets", async (req, res) => {
   try {
     let query = admin
@@ -66,6 +81,80 @@ router.get("/predictions/my-bets", async (req, res) => {
     res.json({ bets: bets || [] });
   } catch (e) {
     res.status(500).json({ error: "Failed to load bets" });
+  }
+});
+
+router.get("/predictions/activity", async (_req, res) => {
+  try {
+    const { data: bets } = await admin
+      .from("pm_bets")
+      .select("id,outcome,amount,created_at,pm_markets(question,image,category)")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    res.json({ bets: bets || [] });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to load activity" });
+  }
+});
+
+router.get("/predictions/history/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { data: rows } = await admin
+      .from("pm_markets")
+      .select("source_id")
+      .eq("id", id)
+      .limit(1);
+    const src = rows && rows[0] && (rows[0] as { source_id?: string }).source_id;
+    if (!src) {
+      res.status(404).json({ error: "Market not found" });
+      return;
+    }
+    const interval =
+      typeof req.query.interval === "string" &&
+      ["1h", "6h", "1d", "1w", "max"].includes(req.query.interval)
+        ? req.query.interval
+        : "1w";
+    const fidelity =
+      interval === "1h" ? 1 : interval === "6h" ? 10 : interval === "1d" ? 30 : interval === "1w" ? 180 : 720;
+    const gr = await fetch(`${PM_GAMMA}/markets?id=${encodeURIComponent(src)}&limit=1`, { headers: PM_UA });
+    if (!gr.ok) {
+      res.json({ points: [] });
+      return;
+    }
+    const arr = (await gr.json()) as Array<Record<string, unknown>>;
+    const m = Array.isArray(arr) ? arr[0] : null;
+    if (!m) {
+      res.json({ points: [] });
+      return;
+    }
+    const outcomes = pmParseArr(m.outcomes).map((s) => String(s).toLowerCase());
+    const toks = pmParseArr(m.clobTokenIds) as string[];
+    const yi = outcomes.findIndex((o) => o === "yes");
+    if (yi < 0) {
+      res.json({ points: [] });
+      return;
+    }
+    const tok = toks[yi];
+    if (!tok) {
+      res.json({ points: [] });
+      return;
+    }
+    const cr = await fetch(
+      `https://clob.polymarket.com/prices-history?market=${encodeURIComponent(tok)}&interval=${interval}&fidelity=${fidelity}`,
+      { headers: PM_UA },
+    );
+    if (!cr.ok) {
+      res.json({ points: [] });
+      return;
+    }
+    const cj = (await cr.json()) as { history?: Array<{ t: number; p: number }> };
+    const points = (cj && Array.isArray(cj.history) ? cj.history : [])
+      .map((h) => ({ t: Number(h.t), p: Number(h.p) }))
+      .filter((h) => Number.isFinite(h.t) && Number.isFinite(h.p));
+    res.json({ points });
+  } catch (e) {
+    res.json({ points: [] });
   }
 });
 

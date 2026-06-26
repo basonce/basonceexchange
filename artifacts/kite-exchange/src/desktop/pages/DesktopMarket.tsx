@@ -1,18 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Search, TrendingUp, Clock, ArrowLeft, Loader2, CheckCircle2, XCircle,
-  Wallet, Flame, ListChecks, RefreshCw, Trophy, Ban,
+  Search, TrendingUp, TrendingDown, Clock, ArrowLeft, Loader2, CheckCircle2, XCircle,
+  Wallet, Flame, ListChecks, RefreshCw, Trophy, Ban, Activity, Zap, BarChart3, Radio,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import type { DeskTab } from '../components/DesktopNav';
 
 /* ────────────────────────────────────────────────────────────────────────
-   Basonce Market — Polymarket-style prediction market (desktop web only).
+   Basonce Markets — Polymarket-style prediction market (desktop web only).
    Real Polymarket markets (synced server-side via Gamma API). Parimutuel
    pool betting with real USDT: stake goes into the Yes/No pool, and when the
    real Polymarket market resolves the winning pool splits the losing pool
    (minus a small fee). Basonce bears no risk. All money flows through the
    service-role pm_* RPCs behind /api/predictions/*.
+
+   Everything shown is REAL: live odds and volume come from Polymarket, price
+   charts come from Polymarket's CLOB price history, and the activity tape shows
+   real platform bets. Nothing on this page is fabricated.
    ──────────────────────────────────────────────────────────────────────── */
 
 interface Props {
@@ -57,6 +60,16 @@ type Bet = {
   } | null;
 };
 
+type ActBet = {
+  id: string;
+  outcome: 'Yes' | 'No';
+  amount: number;
+  created_at: string;
+  pm_markets?: { question: string; image: string | null; category: string | null } | null;
+};
+
+type Point = { t: number; p: number };
+
 const FEE_RATE = 0.02; // 2% house fee on the losing pool (matches pm_settle_market)
 
 const num = (v: unknown) => {
@@ -69,6 +82,7 @@ const fmtUsd = (n: number) =>
 
 const fmtCompact = (n: number) => {
   const v = num(n);
+  if (v >= 1_000_000_000) return `$${(v / 1_000_000_000).toFixed(1)}B`;
   if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
   if (v >= 1_000) return `$${(v / 1_000).toFixed(1)}K`;
   return `$${v.toFixed(0)}`;
@@ -90,6 +104,18 @@ const fmtEnd = (iso: string | null) => {
   return 'Ends soon';
 };
 
+const fmtAgo = (iso: string) => {
+  const d = new Date(iso).getTime();
+  if (!Number.isFinite(d)) return '';
+  const s = Math.max(0, Math.floor((Date.now() - d) / 1000));
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+};
+
 /** Live implied probability for the Yes side, preferring Polymarket's live
  *  price and falling back to the on-platform pool ratio. */
 function yesProb(m: Market): number {
@@ -106,6 +132,31 @@ async function authHeader(): Promise<Record<string, string>> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/* ── Animated number (count-up on change) ────────────────────────────── */
+
+function useCountUp(target: number, duration = 800) {
+  const [val, setVal] = useState(target);
+  const prev = useRef(target);
+  useEffect(() => {
+    const from = prev.current;
+    const to = target;
+    if (from === to) { setVal(to); return; }
+    let raf = 0;
+    let start = 0;
+    const tick = (ts: number) => {
+      if (!start) start = ts;
+      const k = Math.min(1, (ts - start) / duration);
+      const e = 1 - Math.pow(1 - k, 3);
+      setVal(from + (to - from) * e);
+      if (k < 1) raf = requestAnimationFrame(tick);
+      else prev.current = to;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return val;
+}
+
 /* ── Small presentational pieces ─────────────────────────────────────── */
 
 function OddsBar({ p }: { p: number }) {
@@ -114,10 +165,41 @@ function OddsBar({ p }: { p: number }) {
     <div className="flex items-center gap-2">
       <span className="text-[#0ECB81] text-xs font-semibold w-9">{yes}%</span>
       <div className="flex-1 h-1.5 rounded-full bg-[#F6465D]/30 overflow-hidden">
-        <div className="h-full rounded-full bg-[#0ECB81]" style={{ width: `${yes}%` }} />
+        <div
+          className="h-full rounded-full bg-[#0ECB81] transition-[width] duration-700 ease-out"
+          style={{ width: `${yes}%` }}
+        />
       </div>
       <span className="text-[#F6465D] text-xs font-semibold w-9 text-right">{100 - yes}%</span>
     </div>
+  );
+}
+
+function Sparkline({ points, height = 38 }: { points: number[]; height?: number }) {
+  const gid = useMemo(() => 'spk' + Math.random().toString(36).slice(2), []);
+  if (!points || points.length < 2) return <div style={{ height }} />;
+  const w = 100;
+  const h = height;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const span = max - min || 1;
+  const step = w / (points.length - 1);
+  const coords = points.map((p, i) => [i * step, h - ((p - min) / span) * (h - 4) - 2]);
+  const line = coords.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(2)} ${y.toFixed(2)}`).join(' ');
+  const area = `${line} L ${w} ${h} L 0 ${h} Z`;
+  const up = points[points.length - 1] >= points[0];
+  const color = up ? '#0ECB81' : '#F6465D';
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width: '100%', height }}>
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.28" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${gid})`} />
+      <path d={line} fill="none" stroke={color} strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -144,6 +226,202 @@ function MarketThumb({ m, size = 44 }: { m: Market; size?: number }) {
   );
 }
 
+/* ── Live odds tape (top, auto-scrolling) ────────────────────────────── */
+
+function OddsTape({ markets, onOpen }: { markets: Market[]; onOpen: (m: Market) => void }) {
+  const items = useMemo(
+    () => [...markets].sort((a, b) => num(b.volume) - num(a.volume)).slice(0, 24),
+    [markets],
+  );
+  if (items.length === 0) return null;
+  const doubled = [...items, ...items];
+  const duration = Math.max(40, items.length * 5);
+  return (
+    <div className="relative overflow-hidden border-y border-[#2B3139] bg-[#0B0E11]/80">
+      <div
+        className="basonce-marquee flex items-center gap-6 py-2 w-max"
+        style={{ animationDuration: `${duration}s` }}
+      >
+        {doubled.map((m, i) => {
+          const p = yesProb(m);
+          const up = p >= 0.5;
+          return (
+            <button
+              key={`${m.id}-${i}`}
+              onClick={() => onOpen(m)}
+              className="flex items-center gap-2 shrink-0 text-xs hover:opacity-80 transition-opacity"
+            >
+              <span className="text-[#848E9C] max-w-[200px] truncate">{m.question}</span>
+              <span className={`font-semibold tabular-nums ${up ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+                {up ? <TrendingUp className="inline w-3 h-3 mb-0.5" /> : <TrendingDown className="inline w-3 h-3 mb-0.5" />} {pct(p)}
+              </span>
+              <span className="text-[#5E6673]">{fmtCompact(num(m.volume))}</span>
+              <span className="text-[#2B3139]">•</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Live activity tape (bottom, sticky, real bets + market quotes) ───── */
+
+function ActivityTape({ markets, onOpen }: { markets: Market[]; onOpen: (m: Market) => void }) {
+  const [bets, setBets] = useState<ActBet[]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    const load = () => {
+      fetch('/api/predictions/activity', { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : { bets: [] }))
+        .then((j) => { if (alive) setBets(Array.isArray(j.bets) ? j.bets : []); })
+        .catch(() => {});
+    };
+    load();
+    const t = setInterval(load, 12000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
+
+  const quotes = useMemo(
+    () => [...markets].sort((a, b) => num(b.volume) - num(a.volume)).slice(0, 20),
+    [markets],
+  );
+
+  type Item =
+    | { kind: 'bet'; key: string; bet: ActBet }
+    | { kind: 'quote'; key: string; m: Market };
+
+  const items: Item[] = useMemo(() => {
+    const b: Item[] = bets
+      .filter((x) => x.pm_markets?.question)
+      .map((x) => ({ kind: 'bet', key: 'b' + x.id, bet: x }));
+    const qz: Item[] = quotes.map((m) => ({ kind: 'quote', key: 'q' + m.id, m }));
+    // Interleave real bets through the market-quote tape so the strip always has
+    // motion, while keeping bets and live quotes clearly distinct.
+    const out: Item[] = [];
+    let bi = 0;
+    for (let i = 0; i < qz.length; i++) {
+      if (bi < b.length && i % 2 === 1) out.push(b[bi++]);
+      out.push(qz[i]);
+    }
+    while (bi < b.length) out.push(b[bi++]);
+    return out;
+  }, [bets, quotes]);
+
+  if (items.length === 0) return null;
+  const doubled = [...items, ...items];
+  const duration = Math.max(45, items.length * 6);
+
+  return (
+    <div className="sticky bottom-0 z-30 -mx-6 mt-10 border-t border-[#2B3139] bg-[#0B0E11]/95 backdrop-blur-md">
+      <div className="flex items-stretch">
+        <div className="flex items-center gap-2 px-4 shrink-0 border-r border-[#2B3139] bg-[#181A20]">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#F6465D] opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#F6465D]" />
+          </span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#EAECEF]">Live Tape</span>
+        </div>
+        <div className="relative overflow-hidden flex-1">
+          <div
+            className="basonce-marquee flex items-center gap-5 py-2.5 w-max"
+            style={{ animationDuration: `${duration}s` }}
+          >
+            {doubled.map((it, i) =>
+              it.kind === 'bet' ? (
+                <span key={`${it.key}-${i}`} className="flex items-center gap-2 shrink-0 text-xs">
+                  <span className={`flex items-center justify-center w-4 h-4 rounded ${it.bet.outcome === 'Yes' ? 'bg-[#0ECB81]/15 text-[#0ECB81]' : 'bg-[#F6465D]/15 text-[#F6465D]'}`}>
+                    <Zap className="w-2.5 h-2.5" />
+                  </span>
+                  <span className={`font-semibold ${it.bet.outcome === 'Yes' ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+                    {it.bet.outcome}
+                  </span>
+                  <span className="font-semibold tabular-nums text-[#EAECEF]">{fmtUsd(num(it.bet.amount))} USDT</span>
+                  <span className="text-[#848E9C] max-w-[180px] truncate">{it.bet.pm_markets?.question}</span>
+                  <span className="text-[#5E6673]">{fmtAgo(it.bet.created_at)}</span>
+                  <span className="text-[#2B3139]">•</span>
+                </span>
+              ) : (
+                <button
+                  key={`${it.key}-${i}`}
+                  onClick={() => onOpen(it.m)}
+                  className="flex items-center gap-2 shrink-0 text-xs hover:opacity-80 transition-opacity"
+                >
+                  <BarChart3 className="w-3 h-3 text-[#F0B90B]" />
+                  <span className="text-[#848E9C] max-w-[180px] truncate">{it.m.question}</span>
+                  <span className="font-semibold tabular-nums text-[#0ECB81]">Yes {pct(yesProb(it.m))}</span>
+                  <span className="text-[#5E6673]">{fmtCompact(num(it.m.volume))} Vol</span>
+                  <span className="text-[#2B3139]">•</span>
+                </button>
+              ),
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Trending rail (hot markets by real volume) ──────────────────────── */
+
+function TrendingRail({ markets, onOpen }: { markets: Market[]; onOpen: (m: Market) => void }) {
+  const top = useMemo(
+    () => [...markets].sort((a, b) => num(b.volume) - num(a.volume)).slice(0, 7),
+    [markets],
+  );
+  if (top.length === 0) return null;
+  return (
+    <div className="bg-[#181A20] border border-[#2B3139] rounded-2xl overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#2B3139]">
+        <h3 className="flex items-center gap-2 text-sm font-bold">
+          <Flame className="w-4 h-4 text-[#F0B90B]" /> Hot Markets
+        </h3>
+        <span className="text-[10px] uppercase tracking-wider text-[#5E6673]">by 24h volume</span>
+      </div>
+      <div className="divide-y divide-[#2B3139]">
+        {top.map((m, i) => {
+          const p = yesProb(m);
+          const up = p >= 0.5;
+          return (
+            <button
+              key={m.id}
+              onClick={() => onOpen(m)}
+              className="w-full text-left flex items-center gap-3 px-4 py-2.5 hover:bg-[#1E2329] transition-colors"
+            >
+              <span className="text-xs font-bold text-[#5E6673] w-4 tabular-nums">{i + 1}</span>
+              <MarketThumb m={m} size={30} />
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-medium line-clamp-1">{m.question}</div>
+                <div className="text-[11px] text-[#5E6673]">{fmtCompact(num(m.volume))} Vol</div>
+              </div>
+              <span className={`text-xs font-semibold tabular-nums shrink-0 ${up ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+                {pct(p)}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Stats bar ───────────────────────────────────────────────────────── */
+
+function StatTile({ label, value, accent, icon }: { label: string; value: string; accent?: string; icon: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 bg-[#181A20] border border-[#2B3139] rounded-xl px-4 py-3">
+      <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${accent || 'bg-[#2B3139] text-[#F0B90B]'}`}>
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <div className="text-[11px] uppercase tracking-wider text-[#5E6673]">{label}</div>
+        <div className="text-lg font-bold tabular-nums leading-tight">{value}</div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Page ────────────────────────────────────────────────────────────── */
 
 export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
@@ -156,6 +434,8 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
   const [view, setView] = useState<'browse' | 'mybets'>('browse');
   const [selected, setSelected] = useState<Market | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<Date>(new Date());
+  const [, setTick] = useState(0);
 
   const loadBalance = useCallback(async () => {
     if (!user?.id) { setBalance(null); return; }
@@ -168,8 +448,8 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
     setBalance(total);
   }, [user?.id]);
 
-  const loadMarkets = useCallback(async () => {
-    setLoading(true);
+  const loadMarkets = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
@@ -180,11 +460,11 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
       const json = await res.json();
       setMarkets(Array.isArray(json.markets) ? json.markets : []);
       if (Array.isArray(json.categories) && json.categories.length) setCategories(json.categories);
+      setUpdatedAt(new Date());
     } catch (e: any) {
-      setError('Could not load markets. Please try again.');
-      setMarkets([]);
+      if (!silent) { setError('Could not load markets. Please try again.'); setMarkets([]); }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [category, query]);
 
@@ -195,6 +475,19 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
     const t = setTimeout(() => { loadMarkets(); }, query ? 300 : 0);
     return () => clearTimeout(t);
   }, [loadMarkets, query]);
+
+  // Live auto-refresh: silently pull fresh odds/volume every 15s so the page
+  // keeps moving with the real markets (no spinner, smooth transitions).
+  useEffect(() => {
+    const t = setInterval(() => { loadMarkets(true); setTick((x) => x + 1); }, 15000);
+    return () => clearInterval(t);
+  }, [loadMarkets]);
+
+  // "Updated Ns ago" relabels every second.
+  useEffect(() => {
+    const t = setInterval(() => setTick((x) => x + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const showHero = category === 'All' && !query;
   const featured = useMemo(
@@ -207,43 +500,79 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
     return markets.filter(m => !heroIds.has(m.id));
   }, [markets, featured, showHero]);
 
+  const totalVolume = useMemo(() => markets.reduce((s, m) => s + num(m.volume), 0), [markets]);
+  const volCount = useCountUp(totalVolume);
+  const liveCount = useCountUp(markets.length);
+  const catCount = useCountUp(categories.length);
+  const agoSecs = Math.max(0, Math.floor((Date.now() - updatedAt.getTime()) / 1000));
+
   const onBetPlaced = useCallback(() => {
     loadBalance();
-    loadMarkets();
+    loadMarkets(true);
   }, [loadBalance, loadMarkets]);
 
   return (
     <div className="max-w-[1600px] mx-auto px-6 py-8 text-[#EAECEF]">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes basonce-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        .basonce-marquee { animation-name: basonce-marquee; animation-timing-function: linear; animation-iteration-count: infinite; }
+        .basonce-marquee:hover { animation-play-state: paused; }
+        @keyframes basonce-fadeup { 0% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: translateY(0); } }
+        .basonce-fadeup { animation: basonce-fadeup 0.4s ease-out both; }
+        @keyframes basonce-draw { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
+      ` }} />
+
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
-        <div>
-          <h1 className="flex items-center gap-2.5 text-2xl font-bold">
-            <span className="w-9 h-9 rounded-lg bg-[#F0B90B] text-black flex items-center justify-center">
-              <TrendingUp className="w-5 h-5" />
-            </span>
-            Basonce Market
-          </h1>
-          <p className="text-sm text-[#848E9C] mt-1.5 max-w-xl">
-            Trade on real-world events. Markets and outcomes are sourced live from Polymarket — bet USDT into a shared pool and winners split the pot when the event resolves.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {user && (
-            <div className="flex items-center gap-2 bg-[#181A20] border border-[#2B3139] rounded-lg px-3 py-2">
-              <Wallet className="w-4 h-4 text-[#F0B90B]" />
-              <span className="text-sm font-semibold tabular-nums">
-                {balance == null ? '—' : fmtUsd(balance)} <span className="text-[#848E9C] font-normal">USDT</span>
+      <div className="relative overflow-hidden rounded-2xl border border-[#2B3139] bg-gradient-to-br from-[#1E2329] via-[#181A20] to-[#0B0E11] p-6 mb-5">
+        <div className="absolute -top-16 -right-10 w-64 h-64 rounded-full bg-[#F0B90B]/10 blur-3xl pointer-events-none" />
+        <div className="relative flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="flex items-center gap-2.5 text-2xl font-bold">
+              <span className="w-9 h-9 rounded-lg bg-[#F0B90B] text-black flex items-center justify-center">
+                <TrendingUp className="w-5 h-5" />
               </span>
-              <button
-                onClick={onDeposit}
-                className="ml-1 px-2.5 py-1 text-xs font-semibold rounded bg-[#F0B90B] hover:bg-[#FCD535] text-black transition-colors"
-              >
-                Deposit
-              </button>
-            </div>
-          )}
+              Basonce Markets
+              <span className="ml-1 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#F6465D]/15 text-[#F6465D] text-[11px] font-bold uppercase tracking-wider">
+                <Radio className="w-3 h-3" /> Live
+              </span>
+            </h1>
+            <p className="text-sm text-[#848E9C] mt-1.5 max-w-xl">
+              Trade on real-world events. Odds, volume and charts are sourced live from Polymarket — bet USDT into a shared pool and winners split the pot when the event resolves.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {user && (
+              <div className="flex items-center gap-2 bg-[#0B0E11] border border-[#2B3139] rounded-lg px-3 py-2">
+                <Wallet className="w-4 h-4 text-[#F0B90B]" />
+                <span className="text-sm font-semibold tabular-nums">
+                  {balance == null ? '—' : fmtUsd(balance)} <span className="text-[#848E9C] font-normal">USDT</span>
+                </span>
+                <button
+                  onClick={onDeposit}
+                  className="ml-1 px-2.5 py-1 text-xs font-semibold rounded bg-[#F0B90B] hover:bg-[#FCD535] text-black transition-colors"
+                >
+                  Deposit
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
+          <StatTile label="Total Volume" value={fmtCompact(volCount)} icon={<TrendingUp className="w-4 h-4" />} accent="bg-[#0ECB81]/15 text-[#0ECB81]" />
+          <StatTile label="Live Markets" value={Math.round(liveCount).toLocaleString()} icon={<Activity className="w-4 h-4" />} accent="bg-[#F0B90B]/15 text-[#F0B90B]" />
+          <StatTile label="Categories" value={Math.round(catCount).toLocaleString()} icon={<BarChart3 className="w-4 h-4" />} accent="bg-[#3B82F6]/15 text-[#3B82F6]" />
+          <StatTile label="Last Update" value={agoSecs < 2 ? 'just now' : `${agoSecs}s ago`} icon={<RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />} accent="bg-[#F6465D]/15 text-[#F6465D]" />
         </div>
       </div>
+
+      {/* Live odds tape */}
+      {markets.length > 0 && view === 'browse' && (
+        <div className="mb-5 rounded-xl overflow-hidden border border-[#2B3139]">
+          <OddsTape markets={markets} onOpen={setSelected} />
+        </div>
+      )}
 
       {/* View switch */}
       <div className="flex items-center gap-1 mb-5 border-b border-[#2B3139]">
@@ -313,13 +642,13 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
           ) : error ? (
             <div className="text-center py-20">
               <p className="text-[#F6465D] mb-3">{error}</p>
-              <button onClick={loadMarkets} className="px-4 py-2 bg-[#2B3139] hover:bg-[#3a424d] rounded-lg text-sm transition-colors">Retry</button>
+              <button onClick={() => loadMarkets()} className="px-4 py-2 bg-[#2B3139] hover:bg-[#3a424d] rounded-lg text-sm transition-colors">Retry</button>
             </div>
           ) : markets.length === 0 ? (
             <div className="text-center py-20 text-[#848E9C]">No markets found.</div>
           ) : (
             <>
-              {category === 'All' && !query && featured.length > 0 && (
+              {showHero && featured.length > 0 && (
                 <div className="mb-8">
                   <h2 className="flex items-center gap-2 text-sm font-semibold text-[#848E9C] uppercase tracking-wider mb-3">
                     <Flame className="w-4 h-4 text-[#F0B90B]" /> Featured
@@ -332,14 +661,37 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {grid.map((m) => (
-                  <MarketCard key={m.id} m={m} onClick={() => setSelected(m)} />
-                ))}
+              <div className="flex gap-6 items-start">
+                <div className="flex-1 min-w-0">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {grid.map((m) => (
+                      <MarketCard key={m.id} m={m} onClick={() => setSelected(m)} />
+                    ))}
+                  </div>
+                </div>
+                <aside className="hidden xl:block w-80 shrink-0 space-y-4 sticky top-4">
+                  <TrendingRail markets={markets} onOpen={setSelected} />
+                  <div className="bg-[#181A20] border border-[#2B3139] rounded-2xl p-4">
+                    <h3 className="flex items-center gap-2 text-sm font-bold mb-3">
+                      <Zap className="w-4 h-4 text-[#F0B90B]" /> How it works
+                    </h3>
+                    <ol className="space-y-2.5 text-xs text-[#848E9C]">
+                      <li className="flex gap-2"><span className="text-[#F0B90B] font-bold">1.</span> Pick a real Polymarket event and a side — Yes or No.</li>
+                      <li className="flex gap-2"><span className="text-[#F0B90B] font-bold">2.</span> Your USDT joins the shared pool for that side.</li>
+                      <li className="flex gap-2"><span className="text-[#F0B90B] font-bold">3.</span> When Polymarket resolves, winners split the losing pool (minus a {Math.round(FEE_RATE * 100)}% fee), pro-rata to their stake.</li>
+                      <li className="flex gap-2"><span className="text-[#F0B90B] font-bold">4.</span> Payouts are automatic — no claim needed.</li>
+                    </ol>
+                  </div>
+                </aside>
               </div>
             </>
           )}
         </>
+      )}
+
+      {/* Live activity tape (sticky bottom) */}
+      {markets.length > 0 && view === 'browse' && (
+        <ActivityTape markets={markets} onOpen={setSelected} />
       )}
 
       {selected && (
@@ -359,12 +711,30 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
 
 /* ── Cards ───────────────────────────────────────────────────────────── */
 
+function useHistory(marketId: string, interval: '1d' | '1w' | 'max', enabled: boolean) {
+  const [points, setPoints] = useState<Point[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (!enabled) return;
+    let alive = true;
+    setLoading(true);
+    fetch(`/api/predictions/history/${marketId}?interval=${interval}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : { points: [] }))
+      .then((j) => { if (alive) { setPoints(Array.isArray(j.points) ? j.points : []); setLoading(false); } })
+      .catch(() => { if (alive) { setPoints([]); setLoading(false); } });
+    return () => { alive = false; };
+  }, [marketId, interval, enabled]);
+  return { points, loading };
+}
+
 function FeaturedCard({ m, onClick }: { m: Market; onClick: () => void }) {
   const p = yesProb(m);
+  const { points } = useHistory(m.id, '1w', true);
+  const series = useMemo(() => (points || []).map((x) => x.p), [points]);
   return (
     <button
       onClick={onClick}
-      className="text-left bg-gradient-to-b from-[#1E2329] to-[#181A20] border border-[#2B3139] hover:border-[#F0B90B] rounded-2xl p-4 transition-colors flex flex-col gap-3 h-full"
+      className="text-left bg-gradient-to-b from-[#1E2329] to-[#181A20] border border-[#2B3139] hover:border-[#F0B90B] rounded-2xl p-4 transition-all hover:-translate-y-0.5 flex flex-col gap-3 h-full basonce-fadeup"
     >
       <div className="flex items-start gap-3">
         <MarketThumb m={m} size={48} />
@@ -373,6 +743,7 @@ function FeaturedCard({ m, onClick }: { m: Market; onClick: () => void }) {
           <h3 className="text-sm font-semibold leading-snug line-clamp-2 mt-0.5">{m.question}</h3>
         </div>
       </div>
+      <div className="-mx-1"><Sparkline points={series} height={40} /></div>
       <OddsBar p={p} />
       <div className="flex items-center justify-between text-xs text-[#848E9C] mt-auto pt-1">
         <span className="flex items-center gap-1"><TrendingUp className="w-3.5 h-3.5" /> {fmtCompact(num(m.volume))} Vol</span>
@@ -388,7 +759,7 @@ function MarketCard({ m, onClick }: { m: Market; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="text-left bg-[#181A20] border border-[#2B3139] hover:border-[#F0B90B] rounded-xl p-4 transition-colors flex flex-col gap-3 h-full"
+      className="text-left bg-[#181A20] border border-[#2B3139] hover:border-[#F0B90B] rounded-xl p-4 transition-all hover:-translate-y-0.5 flex flex-col gap-3 h-full"
     >
       <div className="flex items-start gap-3">
         <MarketThumb m={m} size={44} />
@@ -408,6 +779,104 @@ function MarketCard({ m, onClick }: { m: Market; onClick: () => void }) {
         <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {fmtEnd(m.end_date)}</span>
       </div>
     </button>
+  );
+}
+
+/* ── Price chart (detail) ────────────────────────────────────────────── */
+
+function PriceChart({ marketId, currentYes }: { marketId: string; currentYes: number }) {
+  const [range, setRange] = useState<'1d' | '1w' | 'max'>('1w');
+  const { points, loading } = useHistory(marketId, range, true);
+  const gid = useMemo(() => 'pc' + Math.random().toString(36).slice(2), []);
+  const pathRef = useRef<SVGPathElement>(null);
+
+  const W = 620;
+  const H = 200;
+  const PAD = 6;
+
+  const geom = useMemo(() => {
+    const pts = points || [];
+    if (pts.length < 2) return null;
+    const ys = pts.map((p) => p.p);
+    const min = Math.min(...ys, 0);
+    const max = Math.max(...ys, 1);
+    const xspan = pts.length - 1;
+    const toX = (i: number) => (i / xspan) * (W - PAD * 2) + PAD;
+    const toY = (p: number) => H - PAD - ((p - min) / (max - min || 1)) * (H - PAD * 2);
+    const coords = pts.map((p, i) => [toX(i), toY(p.p)] as [number, number]);
+    const line = coords.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(2)} ${y.toFixed(2)}`).join(' ');
+    const area = `${line} L ${coords[coords.length - 1][0].toFixed(2)} ${H - PAD} L ${PAD} ${H - PAD} Z`;
+    const up = pts[pts.length - 1].p >= pts[0].p;
+    const last = coords[coords.length - 1];
+    return { line, area, up, last };
+  }, [points]);
+
+  useEffect(() => {
+    const el = pathRef.current;
+    if (!el || !geom) return;
+    const len = el.getTotalLength();
+    el.style.setProperty('--len', String(len));
+    el.style.strokeDasharray = String(len);
+    el.style.strokeDashoffset = String(len);
+    el.style.animation = 'basonce-draw 0.9s ease-out forwards';
+  }, [geom]);
+
+  const color = geom?.up ? '#0ECB81' : '#F6465D';
+
+  return (
+    <div className="rounded-xl bg-[#0B0E11] border border-[#2B3139] p-3">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-[#848E9C]">Yes price</span>
+          <span className="text-lg font-bold tabular-nums" style={{ color }}>{pct(currentYes)}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          {(['1d', '1w', 'max'] as const).map((r) => (
+            <button
+              key={r}
+              onClick={() => setRange(r)}
+              className={`px-2 py-0.5 text-[11px] font-semibold rounded transition-colors ${
+                range === r ? 'bg-[#2B3139] text-[#EAECEF]' : 'text-[#5E6673] hover:text-[#EAECEF]'
+              }`}
+            >
+              {r === '1d' ? '1D' : r === '1w' ? '1W' : 'All'}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="relative" style={{ height: H }}>
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center text-[#5E6673]">
+            <Loader2 className="w-5 h-5 animate-spin" />
+          </div>
+        )}
+        {!loading && !geom && (
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-[#5E6673]">
+            Price history unavailable for this market.
+          </div>
+        )}
+        {geom && (
+          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full" style={{ height: H }}>
+            <defs>
+              <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+                <stop offset="100%" stopColor={color} stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {[0.25, 0.5, 0.75].map((g) => (
+              <line key={g} x1={PAD} x2={W - PAD} y1={H * g} y2={H * g} stroke="#2B3139" strokeWidth="1" strokeDasharray="3 4" />
+            ))}
+            <path d={geom.area} fill={`url(#${gid})`} />
+            <path ref={pathRef} d={geom.line} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+            <circle cx={geom.last[0]} cy={geom.last[1]} r="3.5" fill={color} />
+            <circle cx={geom.last[0]} cy={geom.last[1]} r="3.5" fill={color} opacity="0.5">
+              <animate attributeName="r" from="3.5" to="9" dur="1.4s" repeatCount="indefinite" />
+              <animate attributeName="opacity" from="0.5" to="0" dur="1.4s" repeatCount="indefinite" />
+            </circle>
+          </svg>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -444,6 +913,12 @@ function MarketDetail({
   }, [market.id]);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  // Keep the open market detail live too.
+  useEffect(() => {
+    const t = setInterval(refresh, 15000);
+    return () => clearInterval(t);
+  }, [refresh]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -520,6 +995,11 @@ function MarketDetail({
               <span className="flex items-center gap-1"><TrendingUp className="w-3.5 h-3.5" /> {fmtCompact(num(m.volume))} Volume</span>
             </div>
           </div>
+        </div>
+
+        {/* Live price chart */}
+        <div className="px-5 pt-5">
+          <PriceChart marketId={m.id} currentYes={p} />
         </div>
 
         <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">

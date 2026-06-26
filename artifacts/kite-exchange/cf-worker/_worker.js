@@ -2101,6 +2101,48 @@ export default {
         const bets = await sbGet('pm_bets', `?user_id=eq.${uid}&select=*,pm_markets(question,image,status,winning_outcome,category)&order=created_at.desc&limit=100`, env);
         return ok({ bets: bets || [] });
       }
+      if (path==='/predictions/activity' && method==='GET') {
+        // Public live tape of REAL recent bets across the platform. No user
+        // identity is exposed — only side, amount, time and the market — so it
+        // mirrors Polymarket's public trade tape without leaking who bet.
+        let bets = [];
+        try {
+          bets = await sbGet('pm_bets', `?select=id,outcome,amount,created_at,pm_markets(question,image,category)&order=created_at.desc&limit=50`, env);
+        } catch {}
+        return ok({ bets: bets || [] });
+      }
+      if (path.startsWith('/predictions/history/') && method==='GET') {
+        // REAL Polymarket price history for the Yes outcome: resolve the market's
+        // Gamma source -> clobTokenIds[Yes] -> CLOB prices-history. Never fabricated;
+        // on any upstream failure we honestly return an empty series.
+        const id = path.slice('/predictions/history/'.length);
+        if (!id) return err(400, 'market id required');
+        const rows = await sbGet('pm_markets', `?id=eq.${encodeURIComponent(id)}&select=source_id&limit=1`, env);
+        const src = rows && rows[0] && rows[0].source_id;
+        if (!src) return err(404, 'Market not found');
+        const interval = ['1h','6h','1d','1w','max'].includes(q.interval) ? q.interval : '1w';
+        const fidelity = interval==='1h'?1:interval==='6h'?10:interval==='1d'?30:interval==='1w'?180:720;
+        try {
+          const gr = await fetch(`${PM_GAMMA}/markets?id=${encodeURIComponent(src)}&limit=1`, { headers: PM_UA });
+          if (!gr.ok) return ok({ points: [] });
+          const arr = await gr.json();
+          const m = Array.isArray(arr) ? arr[0] : null;
+          if (!m) return ok({ points: [] });
+          const outcomes = pmParseArr(m.outcomes).map((s) => String(s).toLowerCase());
+          const toks = pmParseArr(m.clobTokenIds);
+          const yi = outcomes.findIndex((o) => o === 'yes');
+          if (yi < 0) return ok({ points: [] });
+          const tok = toks[yi];
+          if (!tok) return ok({ points: [] });
+          const cr = await fetch(`https://clob.polymarket.com/prices-history?market=${encodeURIComponent(tok)}&interval=${interval}&fidelity=${fidelity}`, { headers: PM_UA });
+          if (!cr.ok) return ok({ points: [] });
+          const cj = await cr.json();
+          const points = (cj && Array.isArray(cj.history) ? cj.history : [])
+            .map((h) => ({ t: Number(h.t), p: Number(h.p) }))
+            .filter((h) => Number.isFinite(h.t) && Number.isFinite(h.p));
+          return ok({ points });
+        } catch { return ok({ points: [] }); }
+      }
       if (path.startsWith('/predictions/market/') && method==='GET') {
         const id = path.slice('/predictions/market/'.length);
         if (!id) return err(400, 'market id required');
