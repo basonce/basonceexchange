@@ -30,4 +30,12 @@ needed; no worker proxy required.
 **Never-empty rule:** a "live trades" tape must key its fallback on real TRADES
 arriving, not just any message — ticker-only price updates can otherwise leave
 the trade list empty. Start REST polling if no trades stream in within a few
-seconds, and stop polling once WS trades flow (single live source).
+seconds, and stop polling once WS trades flow (single live source). When the
+tape can switch sources (e.g. multi-coin selector), RE-ARM that 5s guard on
+every switch — a one-shot mount guard leaves switched-to coins empty forever.
+
+**Multi-coin:** BTC/ETH/SOL/XRP/DOGE all exist as Coinbase `*-USD` products;
+one WS can subscribe `ticker`+`matches` for all of them. Gotcha: WS/REST
+identify coins by PRODUCT id (`BTC-USD`) but UI state is usually keyed by a
+short COIN id (`BTC`). Normalize to ONE key space when writing the price/quote
+buffers, or current price + per-coin %move silently render as "—".
