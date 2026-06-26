@@ -8,31 +8,41 @@ export default function Cover() {
         <div className="flex items-center gap-[1.2vw]">
           <div className="w-[2.2vw] h-[2.2vw] rounded-md bg-primary" />
           <span className="font-display font-bold text-[1.7vw] tracking-tight text-text">
-            KITE EXCHANGE
+            BASONCE EXCHANGE
           </span>
           <span className="text-muted text-[1.2vw] font-body">· basonce.com</span>
         </div>
 
-        <div className="max-w-[80vw]">
+        <div className="max-w-[82vw]">
           <div className="text-primary font-body font-extrabold tracking-[0.3em] text-[1.3vw] uppercase mb-[3vh]">
-            Yıllık Gelir-Gider Özeti
+            Yatırımcı Sunumu · Gizli
           </div>
           <h1 className="font-display font-bold text-[6vw] leading-[0.98] tracking-tight text-balance">
-            Spot, vadeli ve P2P.
-            <span className="text-primary"> Tek borsada.</span>
+            Parçalı küresel finansı
+            <span className="text-primary"> tek deftere</span> bağlıyoruz.
           </h1>
-          <p className="mt-[4vh] text-muted text-[1.9vw] font-body max-w-[60vw] leading-snug text-pretty">
-            Tahtalar, işlem komisyonları, P2P alım-satım, kopya ticaret ve token
-            madenciliği — gelir getiren eksiksiz bir kripto borsası.
+          <p className="mt-[4vh] text-muted text-[1.9vw] font-body max-w-[62vw] leading-snug text-pretty">
+            Basonce Exchange — kendi zinciri, kendi explorer'ı ve modüler
+            ürünleriyle ledger tabanlı bir finansal işletim sistemi. Bugün canlı.
           </p>
         </div>
 
         <div className="flex items-end justify-between">
-          <div className="flex items-baseline gap-[1.5vw]">
-            <span className="text-muted text-[1.3vw] font-body">Yıllık net kâr</span>
-            <span className="font-display font-bold text-primary text-[3.6vw] leading-none">
-              $15,0M
-            </span>
+          <div className="flex items-stretch gap-[2.5vw]">
+            <div>
+              <div className="font-display font-bold text-primary text-[3.2vw] leading-none">103M+</div>
+              <div className="text-muted text-[1.15vw] font-body mt-[1vh]">Kayıtlı kullanıcı</div>
+            </div>
+            <div className="w-px bg-white/10" />
+            <div>
+              <div className="font-display font-bold text-text text-[3.2vw] leading-none">350+</div>
+              <div className="text-muted text-[1.15vw] font-body mt-[1vh]">Listelenen varlık</div>
+            </div>
+            <div className="w-px bg-white/10" />
+            <div>
+              <div className="font-display font-bold text-accent text-[3.2vw] leading-none">$25.58B</div>
+              <div className="text-muted text-[1.15vw] font-body mt-[1vh]">Zincir TVL</div>
+            </div>
           </div>
           <div className="text-right text-muted text-[1.2vw] font-body leading-tight">
             <div className="text-text font-semibold">Gizli Belge</div>

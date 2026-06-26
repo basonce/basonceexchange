@@ -4,95 +4,127 @@
     "position": 1,
     "filepath": "src/pages/slides/Cover.tsx",
     "title": "Kapak",
-    "description": "Kite Exchange tam kapsamlı kripto borsası, yıllık gelir-gider özeti.",
-    "speakerNotes": "Spot, vadeli ve P2P tek borsada. Gelir getiren eksiksiz bir kripto borsasının yıllık finansal özeti."
+    "description": "Basonce Exchange — ledger tabanlı modüler finansal işletim sistemi; 103M+ kullanıcı, 350+ varlık, $25.58B TVL.",
+    "speakerNotes": ""
   },
   {
-    "id": "exchange",
+    "id": "vision",
     "position": 2,
-    "filepath": "src/pages/slides/Exchange.tsx",
-    "title": "Borsa Nedir",
-    "description": "basonce.com'un modülleri: tahta, spot, vadeli, P2P, kopya, mining, Telegram.",
-    "speakerNotes": "Canlı çalışan bir borsa. Her modül ayrı gelir kapısı; Telegram düşük maliyetli kullanıcı kanalı."
+    "filepath": "src/pages/slides/Vision.tsx",
+    "title": "Vizyon",
+    "description": "Parçalı küresel finansı tek ledger tabanlı modüler işletim sistemi altında birleştirmek.",
+    "speakerNotes": ""
   },
   {
-    "id": "revenue-model",
+    "id": "platform",
     "position": 3,
-    "filepath": "src/pages/slides/RevenueModel.tsx",
-    "title": "Gelir Motorları",
-    "description": "Beş gelir motoru ve $20,5M yıllık toplam.",
-    "speakerNotes": "Tahta $9M, vadeli $5,8M, spot $2,9M, mining $1,8M, P2P $1,0M. Tam kapasite $20,5M yıllık."
+    "filepath": "src/pages/slides/Platform.tsx",
+    "title": "Canlı Platform",
+    "description": "basonce.com ana sayfası: 103M+ kullanıcı, 350+ varlık, 7/24 işlem.",
+    "speakerNotes": ""
   },
   {
-    "id": "revenue-listings",
+    "id": "basonchain",
     "position": 4,
-    "filepath": "src/pages/slides/RevenueListings.tsx",
-    "title": "Gelir 1 — Tahta/Listeleme",
-    "description": "Tahta listeleme ücretleri: günlük $25k, yıllık $9M.",
-    "speakerNotes": "Tahta başı $5.000, günde 5 listeleme. Sıfır maliyet, saf kâr."
+    "filepath": "src/pages/slides/Basonchain.tsx",
+    "title": "Basonchain",
+    "description": "EVM uyumlu token oluşturma, kontrollü Web3 listeleme ve ücret modeli.",
+    "speakerNotes": ""
   },
   {
-    "id": "revenue-fees",
+    "id": "basonscan",
     "position": 5,
-    "filepath": "src/pages/slides/RevenueFees.tsx",
-    "title": "Gelir 2-3-4 — Komisyonlar",
-    "description": "Spot, vadeli ve P2P komisyon; toplam $9,7M.",
-    "speakerNotes": "Spot $2,9M, vadeli $5,8M, P2P $1,0M. Her işlemde otomatik tahsilat, hacimle katlanır."
+    "filepath": "src/pages/slides/BasonScan.tsx",
+    "title": "BasonScan",
+    "description": "Halka açık explorer: 12.41M hesap, $25.58B TVL, 4.42B işlem; tam şeffaflık.",
+    "speakerNotes": ""
   },
   {
-    "id": "revenue-token",
+    "id": "spot",
     "position": 6,
-    "filepath": "src/pages/slides/RevenueToken.tsx",
-    "title": "Gelir 5 — Mining & Token",
-    "description": "BNC madenciliği, TON kutuları, $1,8M yıllık katkı.",
-    "speakerNotes": "Ücretsiz madencilik büyüme kancası; TON kutu satışı doğrudan gelir ve güçlü kazanım kanalı."
+    "filepath": "src/pages/slides/Spot.tsx",
+    "title": "Spot Ticaret",
+    "description": "CLOB emir defteri, profesyonel grafikler, her işlemde komisyon.",
+    "speakerNotes": ""
   },
   {
-    "id": "user-economics",
+    "id": "futures",
     "position": 7,
-    "filepath": "src/pages/slides/UserEconomics.tsx",
-    "title": "Kişi Başı Ekonomi & Reklam",
-    "description": "ARPU $137, CAC ~$13, reklam bütçesi ile kullanıcı kazanımı.",
-    "speakerNotes": "150k aktif kullanıcı, kullanıcı başı $137 gelir, $13 kazanım maliyeti, ~10x getiri. Reklam katlanarak geri döner."
+    "filepath": "src/pages/slides/Futures.tsx",
+    "title": "Vadeli İşlemler",
+    "description": "100x'e kadar kaldıraç, perpetual sözleşmeler, entegre risk motoru.",
+    "speakerNotes": ""
   },
   {
-    "id": "projection",
+    "id": "markets",
     "position": 8,
-    "filepath": "src/pages/slides/Projection.tsx",
-    "title": "Yıllık Projeksiyon",
-    "description": "Çeyrek bazında büyüme, tam kapasite $20,5M ve net $15,0M.",
-    "speakerNotes": "12 ayda kademeli büyüme. 4. çeyrekte tam kapasite. Tahmini değerler."
+    "filepath": "src/pages/slides/Markets.tsx",
+    "title": "Piyasa & Likidite",
+    "description": "350+ varlık, VWAP fiyatlama, dış likidite entegrasyonu.",
+    "speakerNotes": ""
   },
   {
-    "id": "costs",
+    "id": "multi-asset",
     "position": 9,
-    "filepath": "src/pages/slides/Costs.tsx",
-    "title": "Gelir, Gider, Net Kâr",
-    "description": "$20,5M gelir, $5,5M gider, $15,0M net kâr, %73 marj.",
-    "speakerNotes": "Şeffaf P&L tablosu. Para nereden geliyor, nereye gidiyor. Net marj %73."
+    "filepath": "src/pages/slides/MultiAsset.tsx",
+    "title": "Çoklu Varlık",
+    "description": "Hisse, ETF, emtia, metal ve forex; eklenti tabanlı modül mimarisi.",
+    "speakerNotes": ""
   },
   {
-    "id": "licenses",
+    "id": "wallet",
     "position": 10,
-    "filepath": "src/pages/slides/Licenses.tsx",
-    "title": "Lisanslar",
-    "description": "Türkiye/MASAK, VASP, yurtdışı yapı; $1,0M bütçe, 6-12 ay.",
-    "speakerNotes": "Net durum: lisanslar süreçte. Çoklu yargı bölgesi stratejisi. Yıllık bütçeden $1,0M ayrılır."
+    "filepath": "src/pages/slides/Wallet.tsx",
+    "title": "Cüzdan & Saklama",
+    "description": "NOWPayments HD cüzdan (BIP44), sıcak/soğuk çoklu imza, otomatik dengeleme.",
+    "speakerNotes": ""
   },
   {
-    "id": "strategy",
+    "id": "mining",
     "position": 11,
-    "filepath": "src/pages/slides/Strategy.tsx",
-    "title": "Büyüme Stratejisi",
-    "description": "Likidite, viral kazanım, listeleme, elde tutma, uyum, genişleme.",
-    "speakerNotes": "Altı kollu plan: likidite önce, viral büyüme, tahta motoru, elde tutma, güven, bölgesel genişleme."
+    "filepath": "src/pages/slides/Mining.tsx",
+    "title": "Madencilik & Teşvik",
+    "description": "Bulut madenciliği, kullanıcı kazanım kancası, ekipman satışı.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "ledger",
+    "position": 12,
+    "filepath": "src/pages/slides/Ledger.tsx",
+    "title": "İşlem Defteri",
+    "description": "Değişmez çift girişli, hash-zincirli defter ve uçtan uca denetim.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "risk-engine",
+    "position": 13,
+    "filepath": "src/pages/slides/RiskEngine.tsx",
+    "title": "Risk & Hedging",
+    "description": "İç+dış likidite, otomatik hedging ve gerçek zamanlı marj yönetimi.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "revenue",
+    "position": 14,
+    "filepath": "src/pages/slides/Revenue.tsx",
+    "title": "Gelir Modeli",
+    "description": "Token/listeleme, spot, vadeli, çoklu varlık, çekim ve madencilik gelirleri.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "roadmap",
+    "position": 15,
+    "filepath": "src/pages/slides/Roadmap.tsx",
+    "title": "Yol Haritası",
+    "description": "Canlı platformdan uyum, modül genişlemesi ve küresel ölçeğe.",
+    "speakerNotes": ""
   },
   {
     "id": "closing",
-    "position": 12,
+    "position": 16,
     "filepath": "src/pages/slides/Closing.tsx",
     "title": "Kapanış",
-    "description": "Kapanış ve iletişim çağrısı.",
-    "speakerNotes": "Borsa hazır, sıradaki adım ölçek. Beş motor çalışıyor, marj %73."
+    "description": "Tek defter, tüm finans — vizyon ve yatırım çağrısı.",
+    "speakerNotes": ""
   }
 ]
