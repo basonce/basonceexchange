@@ -677,21 +677,24 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
           ) : (
             <>
               {showHero && featured.length > 0 && (
-                <div className="mb-8">
-                  <h2 className="flex items-center gap-2 text-sm font-semibold text-[#848E9C] uppercase tracking-wider mb-3">
+                <div className="mb-8 space-y-4">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold text-[#848E9C] uppercase tracking-wider">
                     <Flame className="w-4 h-4 text-[#F0B90B]" /> Featured
                   </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                    {featured.map((m) => (
-                      <FeaturedCard key={m.id} m={m} onOpen={(side) => openMarket(m, side)} />
-                    ))}
-                  </div>
+                  <HeroMarket m={featured[0]} onOpen={(side) => openMarket(featured[0], side)} />
+                  {featured.length > 1 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {featured.slice(1).map((m) => (
+                        <FeaturedCard key={m.id} m={m} onOpen={(side) => openMarket(m, side)} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
               <div className="flex gap-6 items-start">
                 <div className="flex-1 min-w-0">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {grid.map((m) => (
                       <MarketCard key={m.id} m={m} onOpen={(side) => openMarket(m, side)} />
                     ))}
@@ -775,6 +778,52 @@ function BuyButtons({ p, onPick, size = 'md' }: { p: number; onPick: (side: 'Yes
         <span className="group-hover/no:hidden">No {pct(1 - p)}</span>
         <span className="hidden group-hover/no:inline">Buy No</span>
       </button>
+    </div>
+  );
+}
+
+/** Large Polymarket-style hero market: big live chart + buy panel + stats. */
+function HeroMarket({ m, onOpen }: { m: Market; onOpen: (side?: 'Yes' | 'No') => void }) {
+  const p = yesProb(m);
+  const pool = num(m.yes_pool) + num(m.no_pool);
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-5 bg-gradient-to-br from-[#1E2329] to-[#0B0E11] border border-[#2B3139] rounded-2xl p-5 basonce-fadeup">
+      <div className="min-w-0">
+        <div className="flex items-start gap-3 mb-3">
+          <MarketThumb m={m} size={56} />
+          <div className="min-w-0">
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#F0B90B] uppercase tracking-wider">
+              {categoryIcon(m.category || 'Trending')} {m.category || 'Trending'} · Featured
+            </span>
+            <h2 className="text-xl font-bold leading-snug mt-1 line-clamp-2">{m.question}</h2>
+          </div>
+        </div>
+        <PriceChart marketId={m.id} currentYes={p} />
+      </div>
+      <div className="flex flex-col justify-between gap-4">
+        <div className="grid grid-cols-2 gap-3 text-center">
+          <div className="rounded-xl bg-[#0B0E11] border border-[#2B3139] p-3">
+            <div className="text-[11px] text-[#848E9C] uppercase tracking-wider">Yes</div>
+            <div className="text-3xl font-bold text-[#0ECB81] tabular-nums leading-none mt-1">{pct(p)}</div>
+          </div>
+          <div className="rounded-xl bg-[#0B0E11] border border-[#2B3139] p-3">
+            <div className="text-[11px] text-[#848E9C] uppercase tracking-wider">No</div>
+            <div className="text-3xl font-bold text-[#F6465D] tabular-nums leading-none mt-1">{pct(1 - p)}</div>
+          </div>
+        </div>
+        <BuyButtons p={p} onPick={(side) => onOpen(side)} />
+        <div className="grid grid-cols-3 gap-2 text-center text-xs">
+          <div className="rounded-lg bg-[#0B0E11] border border-[#2B3139] py-2"><div className="text-[#848E9C]">Volume</div><div className="font-semibold mt-0.5">{fmtCompact(num(m.volume))}</div></div>
+          <div className="rounded-lg bg-[#0B0E11] border border-[#2B3139] py-2"><div className="text-[#848E9C]">Pool</div><div className="font-semibold mt-0.5">{pool > 0 ? fmtCompact(pool) : '—'}</div></div>
+          <div className="rounded-lg bg-[#0B0E11] border border-[#2B3139] py-2"><div className="text-[#848E9C]">Ends</div><div className="font-semibold mt-0.5">{fmtEnd(m.end_date)}</div></div>
+        </div>
+        <button
+          onClick={() => onOpen()}
+          className="w-full py-2.5 rounded-lg bg-[#F0B90B] text-black font-bold text-sm hover:brightness-110 transition-all flex items-center justify-center gap-1.5"
+        >
+          View market <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   );
 }
