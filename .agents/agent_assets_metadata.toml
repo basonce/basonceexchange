@@ -1427,3 +1427,9 @@ id = "GGOXWxbnGGKzvPRiL9FKr"
 uri = "file://screenshots/mobile-shop-redesign.jpg"
 type = "image"
 title = "2+3 - Mining Shop: yeni kurumsal baslik + LIVE STATISTICS"
+
+[[outputs]]
+id = "Cr-GxQfh11Y0By8li2DCs"
+uri = "file://.local/outputs/Basonce-Exchange---Yatirimci-Sunumu.pdf"
+type = "pdf"
+title = "Basonce Exchange — Yatırımcı Sunumu (PDF)"
