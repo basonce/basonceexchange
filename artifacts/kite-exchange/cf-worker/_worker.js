@@ -2107,7 +2107,7 @@ export default {
         // mirrors Polymarket's public trade tape without leaking who bet.
         let bets = [];
         try {
-          bets = await sbGet('pm_bets', `?select=id,outcome,amount,created_at,pm_markets(question,image,category)&order=created_at.desc&limit=50`, env);
+          bets = await sbGet('pm_bets', `?select=id,market_id,outcome,amount,created_at,pm_markets(question,image,category)&order=created_at.desc&limit=50`, env);
         } catch {}
         return ok({ bets: bets || [] });
       }

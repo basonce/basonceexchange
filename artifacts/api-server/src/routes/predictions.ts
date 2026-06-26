@@ -88,7 +88,7 @@ router.get("/predictions/activity", async (_req, res) => {
   try {
     const { data: bets } = await admin
       .from("pm_bets")
-      .select("id,outcome,amount,created_at,pm_markets(question,image,category)")
+      .select("id,market_id,outcome,amount,created_at,pm_markets(question,image,category)")
       .order("created_at", { ascending: false })
       .limit(50);
     res.json({ bets: bets || [] });

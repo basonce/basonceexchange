@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search, TrendingUp, TrendingDown, Clock, ArrowLeft, Loader2, CheckCircle2, XCircle,
   Wallet, Flame, ListChecks, RefreshCw, Trophy, Ban, Activity, Zap, BarChart3, Radio,
-  Globe, Landmark, Coins, Bitcoin, Newspaper, Cpu, Vote, Users, ChevronRight, Sparkles,
+  Globe, Landmark, Coins, Bitcoin, Newspaper, Cpu, Vote, Users, ChevronRight, ChevronLeft, Sparkles,
   LayoutGrid,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -64,6 +64,7 @@ type Bet = {
 
 type ActBet = {
   id: string;
+  market_id?: string;
   outcome: 'Yes' | 'No';
   amount: number;
   created_at: string;
@@ -681,14 +682,7 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
                   <h2 className="flex items-center gap-2 text-sm font-semibold text-[#848E9C] uppercase tracking-wider">
                     <Flame className="w-4 h-4 text-[#F0B90B]" /> Featured
                   </h2>
-                  <HeroMarket m={featured[0]} onOpen={(side) => openMarket(featured[0], side)} />
-                  {featured.length > 1 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {featured.slice(1).map((m) => (
-                        <FeaturedCard key={m.id} m={m} onOpen={(side) => openMarket(m, side)} />
-                      ))}
-                    </div>
-                  )}
+                  <HeroCarousel markets={markets} featured={featured} onOpen={openMarket} />
                 </div>
               )}
 
@@ -782,6 +776,145 @@ function BuyButtons({ p, onPick, size = 'md' }: { p: number; onPick: (side: 'Yes
   );
 }
 
+/* ── Live bets feed (vertical, real bets flowing in) ──────────────────── */
+
+function LiveBetsFeed({ markets, onOpen }: { markets: Market[]; onOpen: (m: Market) => void }) {
+  const [bets, setBets] = useState<ActBet[]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    const load = () => {
+      fetch('/api/predictions/activity', { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : { bets: [] }))
+        .then((j) => { if (alive) setBets(Array.isArray(j.bets) ? j.bets : []); })
+        .catch(() => {});
+    };
+    load();
+    const t = setInterval(load, 10000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
+
+  const byId = useMemo(() => new Map(markets.map((m) => [m.id, m])), [markets]);
+  const list = useMemo(
+    () => bets.filter((b) => b.pm_markets?.question).slice(0, 9),
+    [bets],
+  );
+
+  return (
+    <div className="flex flex-col h-full bg-[#181A20] border border-[#2B3139] rounded-2xl overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-[#2B3139] bg-[#0B0E11] shrink-0">
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0ECB81] opacity-75" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-[#0ECB81]" />
+        </span>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-[#EAECEF]">Live Bets</span>
+        <span className="ml-auto flex items-center gap-1 text-[10px] text-[#5E6673] uppercase tracking-wider">
+          <Radio className="w-3 h-3" /> Real-time
+        </span>
+      </div>
+      <div className="flex-1 overflow-hidden divide-y divide-[#2B3139]/50">
+        {list.length === 0 ? (
+          <div className="px-4 py-10 text-center text-xs text-[#5E6673]">Waiting for the next bet…</div>
+        ) : (
+          list.map((b) => {
+            const m = b.market_id ? byId.get(b.market_id) : undefined;
+            const yes = b.outcome === 'Yes';
+            return (
+              <button
+                key={b.id}
+                onClick={() => m && onOpen(m)}
+                disabled={!m}
+                className="basonce-fadeup w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[#1E2329] disabled:cursor-default"
+              >
+                <span className={`flex items-center justify-center w-7 h-7 rounded-lg shrink-0 ${yes ? 'bg-[#0ECB81]/15 text-[#0ECB81]' : 'bg-[#F6465D]/15 text-[#F6465D]'}`}>
+                  <Zap className="w-3.5 h-3.5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5 text-xs">
+                    <span className={`font-bold ${yes ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>{b.outcome}</span>
+                    <span className="font-semibold tabular-nums text-[#EAECEF]">{fmtUsd(num(b.amount))} USDT</span>
+                  </span>
+                  <span className="block text-[11px] text-[#848E9C] truncate mt-0.5">{b.pm_markets?.question}</span>
+                </span>
+                <span className="shrink-0 text-[10px] text-[#5E6673]">{fmtAgo(b.created_at)}</span>
+              </button>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Hero carousel: auto-cycling featured markets + live bets feed ────── */
+
+function HeroCarousel({
+  markets,
+  featured,
+  onOpen,
+}: {
+  markets: Market[];
+  featured: Market[];
+  onOpen: (m: Market, side?: 'Yes' | 'No') => void;
+}) {
+  const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const n = featured.length;
+
+  useEffect(() => { if (idx >= n) setIdx(0); }, [n, idx]);
+  useEffect(() => {
+    if (n <= 1 || paused) return;
+    const t = setInterval(() => setIdx((i) => (i + 1) % n), 6000);
+    return () => clearInterval(t);
+  }, [n, paused]);
+
+  if (n === 0) return null;
+  const current = featured[Math.min(idx, n - 1)];
+
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-4 items-stretch">
+      <div
+        className="relative"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
+        <HeroMarket key={current.id} m={current} onOpen={(side) => onOpen(current, side)} />
+        {n > 1 && (
+          <>
+            <button
+              onClick={() => setIdx((i) => (i - 1 + n) % n)}
+              aria-label="Previous featured market"
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-[#0B0E11]/80 border border-[#2B3139] text-[#EAECEF] flex items-center justify-center hover:bg-[#1E2329] transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setIdx((i) => (i + 1) % n)}
+              aria-label="Next featured market"
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-[#0B0E11]/80 border border-[#2B3139] text-[#EAECEF] flex items-center justify-center hover:bg-[#1E2329] transition-colors"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+            <div className="flex items-center justify-center gap-2 mt-3">
+              {featured.map((m, i) => (
+                <button
+                  key={m.id}
+                  onClick={() => setIdx(i)}
+                  aria-label={`Show featured market ${i + 1}`}
+                  className={`h-1.5 rounded-full transition-all ${i === idx ? 'w-7 bg-[#F0B90B]' : 'w-2.5 bg-[#2B3139] hover:bg-[#3a424d]'}`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+      <div className="hidden xl:block">
+        <LiveBetsFeed markets={markets} onOpen={(m) => onOpen(m)} />
+      </div>
+    </div>
+  );
+}
+
 /** Large Polymarket-style hero market: big live chart + buy panel + stats. */
 function HeroMarket({ m, onOpen }: { m: Market; onOpen: (side?: 'Yes' | 'No') => void }) {
   const p = yesProb(m);
@@ -823,36 +956,6 @@ function HeroMarket({ m, onOpen }: { m: Market; onOpen: (side?: 'Yes' | 'No') =>
         >
           View market <ChevronRight className="w-4 h-4" />
         </button>
-      </div>
-    </div>
-  );
-}
-
-function FeaturedCard({ m, onOpen }: { m: Market; onOpen: (side?: 'Yes' | 'No') => void }) {
-  const p = yesProb(m);
-  const { points } = useHistory(m.id, '1w', true);
-  const series = useMemo(() => (points || []).map((x) => x.p), [points]);
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => onOpen()}
-      onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
-      className="cursor-pointer text-left bg-gradient-to-b from-[#1E2329] to-[#181A20] border border-[#2B3139] hover:border-[#F0B90B] rounded-2xl p-4 transition-all hover:-translate-y-0.5 flex flex-col gap-3 h-full basonce-fadeup"
-    >
-      <div className="flex items-start gap-3">
-        <MarketThumb m={m} size={48} />
-        <div className="min-w-0 flex-1">
-          <span className="text-[10px] font-semibold text-[#F0B90B] uppercase tracking-wider">{m.category || 'Trending'}</span>
-          <h3 className="text-sm font-semibold leading-snug line-clamp-2 mt-0.5">{m.question}</h3>
-        </div>
-      </div>
-      <div className="-mx-1"><Sparkline points={series} height={40} /></div>
-      <OddsBar p={p} />
-      <BuyButtons p={p} onPick={(side) => onOpen(side)} size="sm" />
-      <div className="flex items-center justify-between text-xs text-[#848E9C] mt-auto pt-1">
-        <span className="flex items-center gap-1"><TrendingUp className="w-3.5 h-3.5" /> {fmtCompact(num(m.volume))} Vol</span>
-        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {fmtEnd(m.end_date)}</span>
       </div>
     </div>
   );
