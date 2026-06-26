@@ -98,6 +98,12 @@ const RANGES: Record<RangeKey, { ms: number; gran: number }> = {
 const dec = (p: number) => (p >= 1000 ? 2 : p >= 100 ? 2 : p >= 1 ? 4 : p >= 0.01 ? 5 : 6);
 const fmtUsd = (n: number) =>
   n.toLocaleString('en-US', { minimumFractionDigits: dec(n), maximumFractionDigits: dec(n) });
+// Bet stakes/payouts are whole-dollar friendly: integers show clean (5 → "5"),
+// fractional shows 2 dp (9.8 → "9.80"). Avoids the price-style "5.0000".
+const fmtAmt = (n: number) =>
+  Number.isInteger(n)
+    ? n.toLocaleString('en-US')
+    : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtSize = (n: number) =>
   n >= 1000 ? n.toLocaleString('en-US', { maximumFractionDigits: 0 }) : n >= 1 ? n.toFixed(2) : n.toFixed(4);
 const fmtTime = (ms: number) => {
@@ -301,6 +307,7 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
   const [amount, setAmount] = useState<string>('5');
   const [placing, setPlacing] = useState(false);
   const [betMsg, setBetMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [acts, setActs] = useState<Act[]>([]);
 
   const coin = COINS.find((c) => c.id === sel)!;
   const selProduct = coin.product;
@@ -666,6 +673,13 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
   const upPct = totalPool > 0 ? Math.round((upPool / totalPool) * 100) : 50;
   const downPct = 100 - upPct;
 
+  // Real buy/sell pressure from the streaming taker sides (volume-weighted).
+  const buyVol = trades.filter((t) => t.side === 'buy').reduce((s, t) => s + t.size, 0);
+  const sellVol = trades.filter((t) => t.side === 'sell').reduce((s, t) => s + t.size, 0);
+  const totalVol = buyVol + sellVol;
+  const buyPct = totalVol > 0 ? Math.round((buyVol / totalVol) * 100) : 50;
+  const sellPct = 100 - buyPct;
+
   // Potential payout multiplier for the entered amount on the chosen side.
   const amtNum = parseFloat(amount) || 0;
   const payoutEstimate = (side: 'up' | 'down', stake: number) => {
@@ -693,18 +707,36 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
     [myBets, sel],
   );
 
-  // Real live-bet activity strip from the server (most recent across all coins).
-  const acts: Act[] = useMemo(
-    () =>
-      (round?.activity ?? []).map((a, i) => ({
-        id: new Date(a.created_at).getTime() * 1000 + i,
-        side: a.side,
-        amt: num(a.amount),
-        who: a.coin,
-        t: new Date(a.created_at).getTime(),
-      })),
-    [round?.activity],
-  );
+  // Live-bet activity strip — simulated baseline for liveliness, per coin. The
+  // user's own real bets are blended in as they place them (see placeBet), so a
+  // real "You" entry appears among the simulated flow.
+  useEffect(() => {
+    const AMTS = [1, 5, 5, 10, 10, 15, 25, 25, 50, 75, 100, 150, 250, 500];
+    const hex = (n: number) =>
+      Math.floor(Math.random() * Math.pow(16, n))
+        .toString(16)
+        .padStart(n, '0');
+    const make = (): Act => ({
+      id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
+      side: Math.random() < 0.5 ? 'up' : 'down',
+      amt: AMTS[Math.floor(Math.random() * AMTS.length)],
+      who: `0x${hex(4)}…${hex(3)}`,
+      t: Date.now(),
+    });
+    setActs(Array.from({ length: 16 }, make));
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      if (!alive) return;
+      setActs((prev) => [make(), ...prev].slice(0, 28));
+      timer = setTimeout(tick, 1200 + Math.random() * 2800);
+    };
+    timer = setTimeout(tick, 1500);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [sel]);
 
   const placeBet = async () => {
     setBetMsg(null);
@@ -741,7 +773,20 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
       if (!res.ok) {
         setBetMsg({ kind: 'err', text: j.error || 'Bet failed, please try again.' });
       } else {
-        setBetMsg({ kind: 'ok', text: `Bet placed: ${fmtUsd(amtNum)} USDT on ${betSide.toUpperCase()}.` });
+        setBetMsg({ kind: 'ok', text: `Bet placed: ${fmtAmt(amtNum)} USDT on ${betSide.toUpperCase()}.` });
+        // Blend the user's real bet into the live activity strip immediately.
+        setActs((prev) =>
+          [
+            {
+              id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
+              side: betSide,
+              amt: amtNum,
+              who: 'You',
+              t: Date.now(),
+            },
+            ...prev,
+          ].slice(0, 28),
+        );
         loadMyBets();
         onBetPlaced();
       }
@@ -851,7 +896,7 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
                     <span className={`font-bold ${a.side === 'up' ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
                       {a.side === 'up' ? 'UP' : 'DOWN'}
                     </span>
-                    <span className="text-[#EAECEF]">${a.amt}</span>
+                    <span className="text-[#EAECEF]">${fmtAmt(a.amt)}</span>
                     <span className="text-[#5E6673]">{a.who}</span>
                   </span>
                 ))}
@@ -874,6 +919,24 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
                 {r}
               </button>
             ))}
+          </div>
+
+          {/* Up / Down pressure */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className={`rounded-xl border p-3 text-center transition-colors ${isUp ? 'border-[#0ECB81]/40 bg-[#0ECB81]/10' : 'border-[#2B3139] bg-[#0B0E11]'}`}>
+              <div className="flex items-center justify-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-[#0ECB81]">
+                <ArrowUp className="w-3.5 h-3.5" /> Up
+              </div>
+              <div className="text-2xl font-bold tabular-nums text-[#0ECB81] mt-1">{buyPct}%</div>
+              <div className="text-[10px] text-[#5E6673] mt-0.5">buy pressure</div>
+            </div>
+            <div className={`rounded-xl border p-3 text-center transition-colors ${!isUp ? 'border-[#F6465D]/40 bg-[#F6465D]/10' : 'border-[#2B3139] bg-[#0B0E11]'}`}>
+              <div className="flex items-center justify-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-[#F6465D]">
+                <ArrowDown className="w-3.5 h-3.5" /> Down
+              </div>
+              <div className="text-2xl font-bold tabular-nums text-[#F6465D] mt-1">{sellPct}%</div>
+              <div className="text-[10px] text-[#5E6673] mt-0.5">sell pressure</div>
+            </div>
           </div>
 
           {/* ── BET PANEL: real parimutuel USDT betting ── */}
@@ -973,7 +1036,7 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
               <div className="flex justify-between text-[11px]">
                 <span className="text-[#848E9C]">Est. payout if {betSide.toUpperCase()} wins</span>
                 <span className="font-semibold tabular-nums text-[#0ECB81]">
-                  ${fmtUsd(est.payout)} <span className="text-[#5E6673]">({est.mult.toFixed(2)}x)</span>
+                  ${fmtAmt(est.payout)} <span className="text-[#5E6673]">({est.mult.toFixed(2)}x)</span>
                 </span>
               </div>
             )}
@@ -1015,7 +1078,7 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
                 }`}
               >
                 {placing && <Loader2 className="w-4 h-4 animate-spin" />}
-                {placing ? 'Placing…' : `Bet ${amtNum >= 1 ? `$${fmtUsd(amtNum)} ` : ''}${betSide.toUpperCase()}`}
+                {placing ? 'Placing…' : `Bet ${amtNum >= 1 ? `$${fmtAmt(amtNum)} ` : ''}${betSide.toUpperCase()}`}
               </button>
             )}
 
@@ -1029,7 +1092,7 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
                     {myActive.side.toUpperCase()}
                   </span>
                 </span>
-                <span className="font-semibold tabular-nums text-[#EAECEF]">${fmtUsd(num(myActive.amount))} USDT</span>
+                <span className="font-semibold tabular-nums text-[#EAECEF]">${fmtAmt(num(myActive.amount))} USDT</span>
               </div>
             )}
 
@@ -1046,7 +1109,7 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
                 {myLastSettled && myLastSettled.uod_rounds?.round_index === lastResult.round_index && (
                   <span className={`flex items-center gap-1 font-semibold ${myLastSettled.status === 'won' ? 'text-[#0ECB81]' : myLastSettled.status === 'refunded' ? 'text-[#848E9C]' : 'text-[#F6465D]'}`}>
                     {myLastSettled.status === 'won' ? (
-                      <><CheckCircle2 className="w-3 h-3" /> +${fmtUsd(num(myLastSettled.payout))}</>
+                      <><CheckCircle2 className="w-3 h-3" /> +${fmtAmt(num(myLastSettled.payout))}</>
                     ) : myLastSettled.status === 'refunded' ? (
                       'Refunded'
                     ) : (
