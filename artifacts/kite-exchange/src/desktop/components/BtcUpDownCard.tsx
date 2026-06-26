@@ -308,6 +308,8 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
   const [placing, setPlacing] = useState(false);
   const [betMsg, setBetMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [acts, setActs] = useState<Act[]>([]);
+  const [animBuyPct, setAnimBuyPct] = useState(50);
+  const buyTargetRef = useRef(50);
 
   const coin = COINS.find((c) => c.id === sel)!;
   const selProduct = coin.product;
@@ -678,20 +680,26 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
   const sellVol = trades.filter((t) => t.side === 'sell').reduce((s, t) => s + t.size, 0);
   const totalVol = buyVol + sellVol;
   const buyPct = totalVol > 0 ? Math.round((buyVol / totalVol) * 100) : 50;
-  const sellPct = 100 - buyPct;
 
-  // Potential payout multiplier for the entered amount on the chosen side.
+  // ── Live display odds ──
+  // Implied odds from the (continuously animated) buy/sell pressure — the
+  // underdog side pays more. A risk premium grows as the round nears lock, so
+  // both odds rise as time runs out ("risk arttıkça oran artsın").
   const amtNum = parseFloat(amount) || 0;
-  const payoutEstimate = (side: 'up' | 'down', stake: number) => {
-    if (stake <= 0) return null;
-    const sidePool = side === 'up' ? upPool : downPool;
-    const otherPool = side === 'up' ? downPool : upPool;
-    if (otherPool <= 0) return { payout: stake, mult: 1 }; // no losers yet → stake back
-    const share = otherPool * (1 - FEE_RATE) * (stake / (sidePool + stake));
-    const payout = stake + share;
-    return { payout, mult: payout / stake };
+  const animSellPct = 100 - animBuyPct;
+  const lockProgress =
+    openAt != null && lockAt != null && lockAt > openAt
+      ? Math.max(0, Math.min(1, (nowSec - openAt) / (lockAt - openAt)))
+      : 0;
+  const riskPremium = 1 + lockProgress * 0.6;
+  const oddsFromPct = (pct: number) => {
+    const frac = Math.max(0.05, Math.min(0.95, pct / 100));
+    return Math.max(1.01, (1 / frac) * (1 - FEE_RATE) * riskPremium);
   };
-  const est = payoutEstimate(betSide, amtNum);
+  const oddsUp = oddsFromPct(animBuyPct);
+  const oddsDown = oddsFromPct(animSellPct);
+  const selOdds = betSide === 'up' ? oddsUp : oddsDown;
+  const estPayout = amtNum > 0 ? amtNum * selOdds : 0;
 
   // My active position this round + most recent settled result for this coin.
   const myActive = useMemo(
@@ -737,6 +745,24 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
       clearTimeout(timer);
     };
   }, [sel]);
+
+  // Continuously drift the displayed pressure toward the live target so the
+  // percentages are always moving (and flash on every change). Real trade
+  // volume is the target; small jitter keeps it lively even in quiet markets.
+  useEffect(() => {
+    buyTargetRef.current = buyPct;
+  }, [buyPct]);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setAnimBuyPct((prev) => {
+        const target = buyTargetRef.current;
+        const jitter = (Math.random() - 0.5) * 4;
+        const next = prev + (target - prev) * 0.2 + jitter;
+        return Math.round(Math.max(12, Math.min(88, next)));
+      });
+    }, 850);
+    return () => clearInterval(id);
+  }, []);
 
   const placeBet = async () => {
     setBetMsg(null);
@@ -927,14 +953,14 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
               <div className="flex items-center justify-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-[#0ECB81]">
                 <ArrowUp className="w-3.5 h-3.5" /> Up
               </div>
-              <div className="text-2xl font-bold tabular-nums text-[#0ECB81] mt-1">{buyPct}%</div>
+              <div key={animBuyPct} className="odd-flash-up rounded-md text-2xl font-bold tabular-nums text-[#0ECB81] mt-1">{animBuyPct}%</div>
               <div className="text-[10px] text-[#5E6673] mt-0.5">buy pressure</div>
             </div>
             <div className={`rounded-xl border p-3 text-center transition-colors ${!isUp ? 'border-[#F6465D]/40 bg-[#F6465D]/10' : 'border-[#2B3139] bg-[#0B0E11]'}`}>
               <div className="flex items-center justify-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-[#F6465D]">
                 <ArrowDown className="w-3.5 h-3.5" /> Down
               </div>
-              <div className="text-2xl font-bold tabular-nums text-[#F6465D] mt-1">{sellPct}%</div>
+              <div key={animSellPct} className="odd-flash-down rounded-md text-2xl font-bold tabular-nums text-[#F6465D] mt-1">{animSellPct}%</div>
               <div className="text-[10px] text-[#5E6673] mt-0.5">sell pressure</div>
             </div>
           </div>
@@ -954,15 +980,15 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
             {/* Pool split bar */}
             <div>
               <div className="flex justify-between text-[10px] font-semibold mb-1">
-                <span className="text-[#0ECB81]">UP · ${fmtUsd(upPool)}</span>
-                <span className="text-[#F6465D]">${fmtUsd(downPool)} · DOWN</span>
+                <span className="text-[#0ECB81]">UP · ${fmtAmt(upPool)}</span>
+                <span className="text-[#F6465D]">${fmtAmt(downPool)} · DOWN</span>
               </div>
               <div className="h-1.5 w-full rounded-full overflow-hidden bg-[#F6465D]/30 flex">
                 <div className="h-full bg-[#0ECB81]" style={{ width: `${totalPool > 0 ? upPct : 50}%` }} />
               </div>
               <div className="flex justify-between text-[10px] text-[#5E6673] mt-0.5">
                 <span>{totalPool > 0 ? `${upPct}%` : '—'}</span>
-                <span>Pot ${fmtUsd(totalPool)}</span>
+                <span>Pot ${fmtAmt(totalPool)}</span>
                 <span>{totalPool > 0 ? `${downPct}%` : '—'}</span>
               </div>
             </div>
@@ -972,7 +998,7 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
               {(['up', 'down'] as const).map((s) => {
                 const on = betSide === s;
                 const up = s === 'up';
-                const m = payoutEstimate(s, 100);
+                const odds = up ? oddsUp : oddsDown;
                 return (
                   <button
                     key={s}
@@ -990,8 +1016,8 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
                       {up ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
                       {up ? 'UP' : 'DOWN'}
                     </div>
-                    <div className="text-[10px] text-[#5E6673] mt-0.5 tabular-nums">
-                      {m ? `~${m.mult.toFixed(2)}x` : '—'}
+                    <div className={`mt-0.5 text-base font-extrabold tabular-nums ${up ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+                      <span key={odds.toFixed(2)} className="inline-block odds-changed">{odds.toFixed(2)}x</span>
                     </div>
                   </button>
                 );
@@ -1032,11 +1058,12 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
             </div>
 
             {/* Potential payout */}
-            {est && !locked && (
+            {estPayout > 0 && !locked && (
               <div className="flex justify-between text-[11px]">
                 <span className="text-[#848E9C]">Est. payout if {betSide.toUpperCase()} wins</span>
                 <span className="font-semibold tabular-nums text-[#0ECB81]">
-                  ${fmtAmt(est.payout)} <span className="text-[#5E6673]">({est.mult.toFixed(2)}x)</span>
+                  ${fmtAmt(estPayout)}{' '}
+                  <span key={selOdds.toFixed(2)} className="inline-block odds-changed text-[#5E6673]">({selOdds.toFixed(2)}x)</span>
                 </span>
               </div>
             )}
