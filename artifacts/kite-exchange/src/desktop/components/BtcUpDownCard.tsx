@@ -48,6 +48,9 @@ type MyBet = {
 
 const FEE_RATE = 0.02;
 const PRESETS = [1, 5, 25, 100];
+// Betting closes this many seconds BEFORE the round locks, so nobody can snipe a
+// last-second bet once the direction is nearly decided (anti-manipulation guard).
+const BET_CUTOFF_SECS = 20;
 
 interface CardProps {
   user: any;
@@ -310,6 +313,12 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
   const [acts, setActs] = useState<Act[]>([]);
   const [animBuyPct, setAnimBuyPct] = useState(50);
   const buyTargetRef = useRef(50);
+  const animBuyRef = useRef(50);
+  // Which half of the unified pressure block is flashing right now ('up' when the
+  // UP % just rose, 'down' when it fell) + a key that bumps on every change so the
+  // flash re-triggers and visibly sweeps from one side to the other.
+  const [pressurePulse, setPressurePulse] = useState<{ side: 'up' | 'down'; k: number }>({ side: 'up', k: 0 });
+  const pulseKRef = useRef(0);
 
   const coin = COINS.find((c) => c.id === sel)!;
   const selProduct = coin.product;
@@ -667,6 +676,9 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
   const mm = Math.floor(countdown / 60);
   const ss = countdown % 60;
   const locked = phase !== 'open';
+  // Betting also closes in the final BET_CUTOFF_SECS of an open round so nobody can
+  // snipe the outcome at the last second. The on-chain settlement is unchanged.
+  const bettingClosed = locked || countdown <= BET_CUTOFF_SECS;
 
   // ── Betting pools (real USDT staked this round) ──
   const upPool = num(serverRound?.up_pool);
@@ -681,17 +693,28 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
   const totalVol = buyVol + sellVol;
   const buyPct = totalVol > 0 ? Math.round((buyVol / totalVol) * 100) : 50;
 
-  // ── Live display odds ──
-  // Implied odds from the (continuously animated) buy/sell pressure — the
-  // underdog side pays more. A risk premium grows as the round nears lock, so
-  // both odds rise as time runs out ("risk arttıkça oran artsın").
+  // ── Smart live odds, driven by the REAL price direction ──
+  // The pressure % the user sees leans toward the side that is actually winning:
+  // when price is above the "Price to Beat" UP is winning, so UP% climbs and (since
+  // odds = 1/probability) UP pays LESS while DOWN pays MORE — and vice-versa. The
+  // conviction sharpens as the round nears lock (a small move early is uncertain, the
+  // same move with seconds left is near-decisive), which is the "smart" part the user
+  // asked for ("yukarı gidiyorsa UP oranını düşür, kırmızıysa yükselt").
   const amtNum = parseFloat(amount) || 0;
   const animSellPct = 100 - animBuyPct;
   const lockProgress =
     openAt != null && lockAt != null && lockAt > openAt
       ? Math.max(0, Math.min(1, (nowSec - openAt) / (lockAt - openAt)))
       : 0;
-  const riskPremium = 1 + lockProgress * 0.6;
+  // Logistic map of the price move into a win-probability for UP. Steepness grows
+  // with lockProgress so late moves dominate; weight also shifts from live trade
+  // pressure toward pure price as the lock approaches.
+  const priceDelta = open && price != null && open > 0 ? (price - open) / open : 0;
+  const probK = 130 + lockProgress * 420;
+  const pUpPrice = 1 / (1 + Math.exp(-probK * priceDelta));
+  const wPrice = 0.6 + lockProgress * 0.4;
+  const pressureTarget = Math.max(8, Math.min(92, pUpPrice * 100 * wPrice + buyPct * (1 - wPrice)));
+  const riskPremium = 1 + lockProgress * 0.45;
   const oddsFromPct = (pct: number) => {
     const frac = Math.max(0.05, Math.min(0.95, pct / 100));
     return Math.max(1.01, (1 / frac) * (1 - FEE_RATE) * riskPremium);
@@ -750,16 +773,19 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
   // percentages are always moving (and flash on every change). Real trade
   // volume is the target; small jitter keeps it lively even in quiet markets.
   useEffect(() => {
-    buyTargetRef.current = buyPct;
-  }, [buyPct]);
+    buyTargetRef.current = pressureTarget;
+  }, [pressureTarget]);
   useEffect(() => {
     const id = setInterval(() => {
-      setAnimBuyPct((prev) => {
-        const target = buyTargetRef.current;
-        const jitter = (Math.random() - 0.5) * 4;
-        const next = prev + (target - prev) * 0.2 + jitter;
-        return Math.round(Math.max(12, Math.min(88, next)));
-      });
+      const prev = animBuyRef.current;
+      const target = buyTargetRef.current;
+      const jitter = (Math.random() - 0.5) * 4;
+      const next = Math.round(Math.max(8, Math.min(92, prev + (target - prev) * 0.2 + jitter)));
+      animBuyRef.current = next;
+      setAnimBuyPct(next);
+      // Flash whichever side just gained — this makes the highlight visibly sweep
+      // back and forth between the UP and DOWN halves of the unified block.
+      if (next !== prev) setPressurePulse({ side: next > prev ? 'up' : 'down', k: ++pulseKRef.current });
     }, 850);
     return () => clearInterval(id);
   }, []);
@@ -772,6 +798,10 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
     }
     if (locked) {
       setBetMsg({ kind: 'err', text: 'Round is locked — settling. Next round opens shortly.' });
+      return;
+    }
+    if (bettingClosed) {
+      setBetMsg({ kind: 'err', text: 'Betting closed for this round — locks in the final seconds.' });
       return;
     }
     if (!Number.isFinite(amtNum) || amtNum < 1) {
@@ -947,21 +977,35 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
             ))}
           </div>
 
-          {/* Up / Down pressure */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className={`rounded-xl border p-3 text-center transition-colors ${isUp ? 'border-[#0ECB81]/40 bg-[#0ECB81]/10' : 'border-[#2B3139] bg-[#0B0E11]'}`}>
-              <div className="flex items-center justify-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-[#0ECB81]">
-                <ArrowUp className="w-3.5 h-3.5" /> Up
+          {/* Up / Down pressure — ONE unified block; the flash sweeps from the UP
+              half to the DOWN half as conviction shifts side to side. */}
+          <div className="rounded-xl border border-[#2B3139] bg-[#0B0E11] overflow-hidden">
+            <div className="grid grid-cols-2">
+              <div
+                key={`up-${pressurePulse.side === 'up' ? pressurePulse.k : 'idle'}`}
+                className={`p-3 text-center ${pressurePulse.side === 'up' ? 'odd-flash-up' : ''}`}
+              >
+                <div className="flex items-center justify-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-[#0ECB81]">
+                  <ArrowUp className="w-3.5 h-3.5" /> Up
+                </div>
+                <div className="text-2xl font-bold tabular-nums text-[#0ECB81] mt-1">{animBuyPct}%</div>
+                <div className="text-[10px] text-[#5E6673] mt-0.5">buy pressure</div>
               </div>
-              <div key={animBuyPct} className="odd-flash-up rounded-md text-2xl font-bold tabular-nums text-[#0ECB81] mt-1">{animBuyPct}%</div>
-              <div className="text-[10px] text-[#5E6673] mt-0.5">buy pressure</div>
+              <div
+                key={`down-${pressurePulse.side === 'down' ? pressurePulse.k : 'idle'}`}
+                className={`p-3 text-center border-l border-[#2B3139] ${pressurePulse.side === 'down' ? 'odd-flash-down' : ''}`}
+              >
+                <div className="flex items-center justify-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-[#F6465D]">
+                  <ArrowDown className="w-3.5 h-3.5" /> Down
+                </div>
+                <div className="text-2xl font-bold tabular-nums text-[#F6465D] mt-1">{animSellPct}%</div>
+                <div className="text-[10px] text-[#5E6673] mt-0.5">sell pressure</div>
+              </div>
             </div>
-            <div className={`rounded-xl border p-3 text-center transition-colors ${!isUp ? 'border-[#F6465D]/40 bg-[#F6465D]/10' : 'border-[#2B3139] bg-[#0B0E11]'}`}>
-              <div className="flex items-center justify-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-[#F6465D]">
-                <ArrowDown className="w-3.5 h-3.5" /> Down
-              </div>
-              <div key={animSellPct} className="odd-flash-down rounded-md text-2xl font-bold tabular-nums text-[#F6465D] mt-1">{animSellPct}%</div>
-              <div className="text-[10px] text-[#5E6673] mt-0.5">sell pressure</div>
+            {/* live ratio rail under both halves */}
+            <div className="flex h-1 w-full">
+              <div className="h-full bg-[#0ECB81] transition-all duration-700 ease-out" style={{ width: `${animBuyPct}%` }} />
+              <div className="h-full bg-[#F6465D] transition-all duration-700 ease-out" style={{ width: `${animSellPct}%` }} />
             </div>
           </div>
 
@@ -1003,7 +1047,7 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
                   <button
                     key={s}
                     onClick={() => setBetSide(s)}
-                    disabled={locked}
+                    disabled={bettingClosed}
                     className={`rounded-lg border p-2.5 text-center transition-colors disabled:opacity-50 ${
                       on
                         ? up
@@ -1030,7 +1074,7 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
                 <button
                   key={p}
                   onClick={() => setAmount(String(p))}
-                  disabled={locked}
+                  disabled={bettingClosed}
                   className={`rounded-lg border py-1.5 text-xs font-semibold tabular-nums transition-colors disabled:opacity-50 ${
                     amount === String(p)
                       ? 'border-[#F0B90B] bg-[#F0B90B]/10 text-[#F0B90B]'
@@ -1050,7 +1094,7 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
                 inputMode="decimal"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                disabled={locked}
+                disabled={bettingClosed}
                 placeholder="Amount"
                 className="flex-1 bg-transparent text-sm text-[#EAECEF] tabular-nums outline-none placeholder:text-[#5E6673] disabled:opacity-50"
               />
@@ -1058,7 +1102,7 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
             </div>
 
             {/* Potential payout */}
-            {estPayout > 0 && !locked && (
+            {estPayout > 0 && !bettingClosed && (
               <div className="flex justify-between text-[11px]">
                 <span className="text-[#848E9C]">Est. payout if {betSide.toUpperCase()} wins</span>
                 <span className="font-semibold tabular-nums text-[#0ECB81]">
@@ -1082,12 +1126,12 @@ export default function BtcUpDownCard({ user, balance, onAuth, onDeposit, onBetP
               >
                 Sign in to bet
               </button>
-            ) : locked ? (
+            ) : bettingClosed ? (
               <button
                 disabled
                 className="w-full rounded-lg bg-[#2B3139] py-2.5 text-sm font-bold text-[#848E9C] cursor-not-allowed"
               >
-                Round locked — settling…
+                {locked ? 'Round locked — settling…' : `Betting closed — locks in ${countdown}s`}
               </button>
             ) : balance != null && amtNum > balance ? (
               <button

@@ -255,6 +255,7 @@ const UOD_COINS: Record<string, string> = {
 };
 const UOD_ROUND_SECS = 300;
 const UOD_CYCLE = 310;
+const UOD_BET_CUTOFF = 20;
 const UOD_TICK_THROTTLE = 3;
 
 function uodClock(nowSec: number) {
@@ -386,6 +387,11 @@ router.post("/predictions/updown/bet", async (req, res) => {
     const clk = uodClock(nowSec);
     if (clk.phase !== "open") {
       res.status(400).json({ error: "Round is locked — settling" });
+      return;
+    }
+    // Anti-snipe: refuse bets in the final UOD_BET_CUTOFF seconds before lock.
+    if (clk.lockAt - nowSec <= UOD_BET_CUTOFF) {
+      res.status(400).json({ error: "Betting closed — round is locking" });
       return;
     }
     let openPrice: number | null = null;

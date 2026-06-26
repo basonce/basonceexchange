@@ -1921,6 +1921,7 @@ const UOD_COINS = { BTC:'BTC-USD', ETH:'ETH-USD', SOL:'SOL-USD', XRP:'XRP-USD', 
 const UOD_ROUND_SECS = 300;
 const UOD_CYCLE = 310;            // 300s betting + 10s resolve
 const UOD_TICK_THROTTLE = 3;      // at most one global tick every N seconds
+const UOD_BET_CUTOFF = 20;        // betting closes this many seconds before lock
 
 function uodClock(nowSec) {
   const idx = Math.floor(nowSec / UOD_CYCLE);
@@ -2268,6 +2269,8 @@ export default {
         const nowSec = Math.floor(Date.now()/1000);
         const clk = uodClock(nowSec);
         if (clk.phase !== 'open') return err(400, 'Round is locked — settling');
+        // Anti-snipe: refuse bets in the final UOD_BET_CUTOFF seconds before lock.
+        if (clk.lockAt - nowSec <= UOD_BET_CUTOFF) return err(400, 'Betting closed — round is locking');
         // resolve the round's open_price (spot at creation) for first-bet-of-round
         let openPrice = null;
         try {
