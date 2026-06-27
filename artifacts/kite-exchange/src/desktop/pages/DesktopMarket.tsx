@@ -260,7 +260,7 @@ function OddsTape({ markets, onOpen }: { markets: Market[]; onOpen: (m: Market) 
   return (
     <div className="relative overflow-hidden border-y border-[#2B3139] bg-[#0B0E11]/80">
       <div
-        className="basonce-marquee flex items-center gap-6 py-2 w-max"
+        className="basonce-marquee flex items-center gap-6 py-1.5 w-max"
         style={{ animationDuration: `${duration}s` }}
       >
         {doubled.map((m, i) => {
@@ -596,38 +596,34 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
 
       {/* Live odds tape */}
       {markets.length > 0 && view === 'browse' && (
-        <div className="mb-5 rounded-xl overflow-hidden border border-[#2B3139]">
+        <div className="mb-3 rounded-lg overflow-hidden border border-[#2B3139]">
           <OddsTape markets={markets} onOpen={openMarket} />
         </div>
       )}
 
-      {/* View switch */}
-      <div className="flex items-center gap-1 mb-5 border-b border-[#2B3139]">
-        <button
-          onClick={() => setView('browse')}
-          className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors flex items-center gap-2 ${
-            view === 'browse' ? 'border-[#F0B90B] text-[#F0B90B]' : 'border-transparent text-[#848E9C] hover:text-[#EAECEF]'
-          }`}
-        >
-          <Flame className="w-4 h-4" /> Markets
-        </button>
-        <button
-          onClick={() => { if (!user) { onAuth('login'); return; } setView('mybets'); }}
-          className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors flex items-center gap-2 ${
-            view === 'mybets' ? 'border-[#F0B90B] text-[#F0B90B]' : 'border-transparent text-[#848E9C] hover:text-[#EAECEF]'
-          }`}
-        >
-          <ListChecks className="w-4 h-4" /> My Bets
-        </button>
-      </div>
-
-      {view === 'mybets' ? (
-        <MyBets user={user} onOpen={(m) => { setView('browse'); openMarket(m, 'Yes'); }} markets={markets} />
-      ) : (
-        <>
-          {/* Search + categories */}
-          <div className="flex items-center gap-3 mb-5 flex-wrap">
-            <div className="flex items-center gap-2 bg-[#181A20] border border-[#2B3139] rounded-lg px-3 py-2 w-72 max-w-full">
+      {/* Tabs + search — single compact bar */}
+      <div className="flex items-center justify-between gap-3 mb-4 border-b border-[#2B3139] flex-wrap">
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setView('browse')}
+            className={`px-3.5 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors flex items-center gap-2 ${
+              view === 'browse' ? 'border-[#F0B90B] text-[#F0B90B]' : 'border-transparent text-[#848E9C] hover:text-[#EAECEF]'
+            }`}
+          >
+            <Flame className="w-4 h-4" /> Markets
+          </button>
+          <button
+            onClick={() => { if (!user) { onAuth('login'); return; } setView('mybets'); }}
+            className={`px-3.5 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors flex items-center gap-2 ${
+              view === 'mybets' ? 'border-[#F0B90B] text-[#F0B90B]' : 'border-transparent text-[#848E9C] hover:text-[#EAECEF]'
+            }`}
+          >
+            <ListChecks className="w-4 h-4" /> My Bets
+          </button>
+        </div>
+        {view === 'browse' && (
+          <div className="flex items-center gap-2 pb-1.5">
+            <div className="flex items-center gap-2 bg-[#181A20] border border-[#2B3139] rounded-lg px-3 py-1.5 w-56 max-w-full focus-within:border-[#F0B90B]/50 transition-colors">
               <Search className="w-4 h-4 text-[#848E9C]" />
               <input
                 value={query}
@@ -638,19 +634,26 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
             </div>
             <button
               onClick={() => { loadMarkets(); loadBalance(); }}
-              className="flex items-center gap-1.5 text-sm text-[#848E9C] hover:text-[#EAECEF] px-2 py-2 transition-colors"
+              className="flex items-center justify-center w-9 h-9 rounded-lg text-[#848E9C] hover:text-[#EAECEF] hover:bg-[#181A20] border border-[#2B3139] transition-colors"
               title="Refresh"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
+        )}
+      </div>
 
-          <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1 no-scrollbar">
+      {view === 'mybets' ? (
+        <MyBets user={user} onOpen={(m) => { setView('browse'); openMarket(m, 'Yes'); }} markets={markets} />
+      ) : (
+        <>
+          {/* Categories */}
+          <div className="flex items-center gap-2 mb-5 overflow-x-auto pb-1 no-scrollbar">
             {['All', ...categories].map((c) => (
               <button
                 key={c}
                 onClick={() => setCategory(c)}
-                className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors ${
                   category === c
                     ? 'bg-[#F0B90B] text-black'
                     : 'bg-[#181A20] border border-[#2B3139] text-[#848E9C] hover:text-[#EAECEF] hover:border-[#3a424d]'
@@ -677,7 +680,7 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
           ) : (
             <>
               {showHero && (
-                <div className="mb-8">
+                <div className="mb-5">
                   <BtcUpDownCard
                     user={user}
                     balance={balance}
