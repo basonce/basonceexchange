@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search, TrendingUp, TrendingDown, Clock, ArrowLeft, Loader2, CheckCircle2, XCircle,
-  Wallet, Flame, ListChecks, RefreshCw, Trophy, Ban, Activity, Zap, BarChart3, Radio,
+  Wallet, Flame, ListChecks, RefreshCw, Trophy, Ban, Zap, BarChart3, Radio,
   Globe, Landmark, Coins, Bitcoin, Newspaper, Cpu, Vote, Users, ChevronRight, ChevronLeft, Sparkles,
   LayoutGrid,
 } from 'lucide-react';
@@ -429,16 +429,12 @@ function TrendingRail({ markets, onOpen }: { markets: Market[]; onOpen: (m: Mark
 
 /* ── Stats bar ───────────────────────────────────────────────────────── */
 
-function StatTile({ label, value, accent, icon }: { label: string; value: string; accent?: string; icon: React.ReactNode }) {
+function StatInline({ label, value, dot, className }: { label: string; value: string; dot?: string; className?: string }) {
   return (
-    <div className="flex items-center gap-3 bg-[#181A20] border border-[#2B3139] rounded-xl px-4 py-3">
-      <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${accent || 'bg-[#2B3139] text-[#F0B90B]'}`}>
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <div className="text-[11px] uppercase tracking-wider text-[#5E6673]">{label}</div>
-        <div className="text-lg font-bold tabular-nums leading-tight">{value}</div>
-      </div>
+    <div className="flex items-center gap-1.5 whitespace-nowrap">
+      {dot && <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />}
+      <span className="text-[11px] uppercase tracking-wider text-[#5E6673]">{label}</span>
+      <span className={`text-sm font-bold tabular-nums ${className || 'text-[#EAECEF]'}`}>{value}</span>
     </div>
   );
 }
@@ -551,48 +547,50 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
         @keyframes basonce-draw { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
       ` }} />
 
-      {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl border border-[#2B3139] bg-gradient-to-br from-[#1E2329] via-[#181A20] to-[#0B0E11] p-6 mb-5">
-        <div className="absolute -top-16 -right-10 w-64 h-64 rounded-full bg-[#F0B90B]/10 blur-3xl pointer-events-none" />
-        <div className="relative flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="flex items-center gap-2.5 text-2xl font-bold">
-              <span className="w-9 h-9 rounded-lg bg-[#F0B90B] text-black flex items-center justify-center">
-                <TrendingUp className="w-5 h-5" />
+      {/* Header — compact, Binance-style bar */}
+      <div className="relative overflow-hidden rounded-xl border border-[#2B3139] bg-gradient-to-r from-[#1E2329] to-[#0B0E11] px-4 py-3 mb-4">
+        <div className="absolute -top-10 -right-6 w-32 h-32 rounded-full bg-[#F0B90B]/5 blur-3xl pointer-events-none" />
+        <div className="relative flex items-center justify-between gap-x-4 gap-y-2 flex-wrap">
+          <div className="flex items-center gap-x-4 gap-y-2 flex-wrap">
+            <h1 className="flex items-center gap-2 text-base font-bold whitespace-nowrap">
+              <span className="w-6 h-6 rounded-md bg-[#F0B90B] text-black flex items-center justify-center">
+                <TrendingUp className="w-3.5 h-3.5" />
               </span>
               Basonce Markets
-              <span className="ml-1 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#F6465D]/15 text-[#F6465D] text-[11px] font-bold uppercase tracking-wider">
-                <Radio className="w-3 h-3" /> Live
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#F6465D]/15 text-[#F6465D] text-[10px] font-bold uppercase tracking-wider">
+                <Radio className="w-2.5 h-2.5" /> Live
               </span>
             </h1>
-            <p className="text-sm text-[#848E9C] mt-1.5 max-w-xl">
-              Trade on real-world events. Odds, volume and charts are sourced live from Polymarket — bet USDT into a shared pool and winners split the pot when the event resolves.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {user && (
-              <div className="flex items-center gap-2 bg-[#0B0E11] border border-[#2B3139] rounded-lg px-3 py-2">
-                <Wallet className="w-4 h-4 text-[#F0B90B]" />
-                <span className="text-sm font-semibold tabular-nums">
-                  {balance == null ? '—' : fmtUsd(balance)} <span className="text-[#848E9C] font-normal">USDT</span>
-                </span>
-                <button
-                  onClick={onDeposit}
-                  className="ml-1 px-2.5 py-1 text-xs font-semibold rounded bg-[#F0B90B] hover:bg-[#FCD535] text-black transition-colors"
-                >
-                  Deposit
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* Stats */}
-        <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
-          <StatTile label="Total Volume" value={fmtCompact(volCount)} icon={<TrendingUp className="w-4 h-4" />} accent="bg-[#0ECB81]/15 text-[#0ECB81]" />
-          <StatTile label="Live Markets" value={Math.round(liveCount).toLocaleString()} icon={<Activity className="w-4 h-4" />} accent="bg-[#F0B90B]/15 text-[#F0B90B]" />
-          <StatTile label="Categories" value={Math.round(catCount).toLocaleString()} icon={<BarChart3 className="w-4 h-4" />} accent="bg-[#3B82F6]/15 text-[#3B82F6]" />
-          <StatTile label="Last Update" value={agoSecs < 2 ? 'just now' : `${agoSecs}s ago`} icon={<RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />} accent="bg-[#F6465D]/15 text-[#F6465D]" />
+            <div className="hidden md:block h-5 w-px bg-[#2B3139]" />
+
+            <div className="flex items-center gap-x-5 gap-y-1.5 flex-wrap">
+              <StatInline label="Volume" value={fmtCompact(volCount)} dot="bg-[#0ECB81]" className="text-[#0ECB81]" />
+              <StatInline label="Live" value={Math.round(liveCount).toLocaleString()} dot="bg-[#F0B90B]" className="text-[#F0B90B]" />
+              <StatInline label="Categories" value={Math.round(catCount).toLocaleString()} dot="bg-[#3B82F6]" className="text-[#3B82F6]" />
+              <StatInline
+                label="Updated"
+                value={agoSecs < 2 ? 'just now' : `${agoSecs}s ago`}
+                dot={`bg-[#F6465D] ${loading ? 'animate-pulse' : ''}`}
+                className="text-[#848E9C]"
+              />
+            </div>
+          </div>
+
+          {user && (
+            <div className="flex items-center gap-2 bg-[#0B0E11] border border-[#2B3139] rounded-lg px-3 py-1.5">
+              <Wallet className="w-4 h-4 text-[#F0B90B]" />
+              <span className="text-sm font-semibold tabular-nums">
+                {balance == null ? '—' : fmtUsd(balance)} <span className="text-[#848E9C] font-normal">USDT</span>
+              </span>
+              <button
+                onClick={onDeposit}
+                className="ml-1 px-2.5 py-1 text-xs font-semibold rounded bg-[#F0B90B] hover:bg-[#FCD535] text-black transition-colors"
+              >
+                Deposit
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
