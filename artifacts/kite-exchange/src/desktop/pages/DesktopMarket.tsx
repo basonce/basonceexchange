@@ -92,7 +92,14 @@ const fmtCompact = (n: number) => {
   return `$${v.toFixed(0)}`;
 };
 
-const pct = (v: number) => `${Math.round(Math.max(0, Math.min(1, v)) * 100)}%`;
+const pct = (v: number) => {
+  const p = Math.max(0, Math.min(1, v)) * 100;
+  // A live market never reads as a flat "0%"/"100%" — tiny-but-real odds
+  // (e.g. 0.05%) collapse to "<1%"/">99%" instead of looking like missing data.
+  if (p > 0 && p < 1) return '<1%';
+  if (p > 99 && p < 100) return '>99%';
+  return `${Math.round(p)}%`;
+};
 
 const fmtEnd = (iso: string | null) => {
   if (!iso) return 'No end date';
@@ -128,6 +135,13 @@ function yesProb(m: Market): number {
   const n = num(m.no_pool);
   if (y + n > 0) return y / (y + n);
   return 0.5;
+}
+
+/** A market worth featuring in the hero: real, non-extreme live odds. Markets
+ *  pinned near 0%/100% (no real two-sided action) make for dead hero charts. */
+function hasSaneOdds(m: Market): boolean {
+  const y = num(m.live_yes);
+  return m.live_yes != null && Number.isFinite(y) && y >= 0.03 && y <= 0.97;
 }
 
 async function authHeader(): Promise<Record<string, string>> {
@@ -508,10 +522,27 @@ export default function DesktopMarket({ user, onAuth, onDeposit }: Props) {
   }, []);
 
   const showHero = category === 'All' && !query;
-  const featured = useMemo(
-    () => (showHero ? markets.filter(m => m.featured).slice(0, 4) : []),
-    [markets, showHero],
-  );
+  // Hero candidates: featured-flagged markets first, then top-volume markets —
+  // all with sane (non-extreme) live odds. History availability is enforced
+  // below so the hero never lands on a market with a dead/empty chart.
+  const featuredCandidates = useMemo(() => {
+    if (!showHero) return [];
+    const sane = markets.filter(hasSaneOdds);
+    const byVol = [...sane].sort((a, b) => num(b.volume) - num(a.volume));
+    const seen = new Set<string>();
+    const out: Market[] = [];
+    for (const m of [...sane.filter(m => m.featured), ...byVol]) {
+      if (seen.has(m.id)) continue;
+      seen.add(m.id);
+      out.push(m);
+      if (out.length >= 12) break;
+    }
+    return out;
+  }, [markets, showHero]);
+  // Only keep candidates that actually have a real price history to chart —
+  // never feature a market that would render "Price history unavailable".
+  const featuredWithHistory = useFeaturedHistory(featuredCandidates);
+  const featured = useMemo(() => featuredWithHistory.slice(0, 4), [featuredWithHistory]);
   const grid = useMemo(() => {
     if (!showHero) return markets;
     const heroIds = new Set(featured.map(f => f.id));
@@ -765,6 +796,30 @@ function useHistory(marketId: string, interval: '1h' | '6h' | '1d' | '1w' | 'max
     return () => { alive = false; };
   }, [marketId, interval, enabled]);
   return { points, loading };
+}
+
+/** Given featured candidates, returns only those whose Polymarket price history
+ *  actually has chartable data — so the hero never shows an empty chart. */
+function useFeaturedHistory(candidates: Market[]): Market[] {
+  const [okIds, setOkIds] = useState<Set<string>>(() => new Set());
+  // Order-independent key: re-check only when the candidate *set* changes, not
+  // when volume reshuffles their order on each silent refresh.
+  const key = candidates.map((c) => c.id).sort().join(',');
+  useEffect(() => {
+    if (candidates.length === 0) { setOkIds(new Set()); return; }
+    let alive = true;
+    Promise.all(
+      candidates.map((c) =>
+        fetch(`/api/predictions/history/${c.id}?interval=1w`, { cache: 'no-store' })
+          .then((r) => (r.ok ? r.json() : { points: [] }))
+          .then((j) => ({ id: c.id, ok: Array.isArray(j.points) && j.points.length >= 2 }))
+          .catch(() => ({ id: c.id, ok: false })),
+      ),
+    ).then((res) => { if (alive) setOkIds(new Set(res.filter((r) => r.ok).map((r) => r.id))); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return useMemo(() => candidates.filter((c) => okIds.has(c.id)), [candidates, okIds]);
 }
 
 /** Polymarket-style one-click buy buttons shown on every card. */

@@ -107,8 +107,15 @@ const fmtAmt = (n: number) =>
   Number.isInteger(n)
     ? n.toLocaleString('en-US')
     : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtSize = (n: number) =>
-  n >= 1000 ? n.toLocaleString('en-US', { maximumFractionDigits: 0 }) : n >= 1 ? n.toFixed(2) : n.toFixed(4);
+const fmtSize = (n: number) => {
+  if (!Number.isFinite(n) || n <= 0) return '0';
+  if (n >= 1000) return n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  if (n >= 1) return n.toFixed(2);
+  if (n >= 0.01) return n.toFixed(4);
+  // Sub-0.01 trades (most BTC fills) are dust at 4dp — show real satoshi-level
+  // precision and trim trailing zeros so each reads as a concrete number.
+  return n.toFixed(8).replace(/\.?0+$/, '');
+};
 const fmtTime = (ms: number) => {
   const d = new Date(ms);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(
