@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Download, ChevronRight, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, TrendingUp, Gift, Cpu } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
+import UserLedger from './UserLedger';
 
 interface HistoryItem {
   id: string;
@@ -16,7 +17,7 @@ interface HistoryItem {
   notes?: string;
 }
 
-type FilterType = 'All' | 'Deposit' | 'Withdraw' | 'Transfer' | 'Earn' | 'Other';
+type FilterType = 'All' | 'Deposit' | 'Withdraw' | 'Transfer' | 'Earn' | 'Other' | 'Ledger';
 
 interface AssetsHistoryModalProps {
   onClose: () => void;
@@ -104,7 +105,7 @@ export default function AssetsHistoryModal({ onClose }: AssetsHistoryModalProps)
   const [filter, setFilter] = useState<FilterType>('All');
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
 
-  const filters: FilterType[] = ['All', 'Deposit', 'Withdraw', 'Transfer', 'Earn', 'Other'];
+  const filters: FilterType[] = ['All', 'Deposit', 'Withdraw', 'Transfer', 'Earn', 'Other', 'Ledger'];
 
   useEffect(() => {
     fetchAll();
@@ -252,7 +253,9 @@ export default function AssetsHistoryModal({ onClose }: AssetsHistoryModalProps)
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {loading ? (
+        {filter === 'Ledger' ? (
+          <UserLedger />
+        ) : loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-6 h-6 border-2 border-[#F0B90B] border-t-transparent rounded-full animate-spin" />
           </div>
