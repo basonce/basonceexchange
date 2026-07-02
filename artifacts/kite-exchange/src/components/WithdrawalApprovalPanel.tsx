@@ -80,20 +80,19 @@ export default function WithdrawalApprovalPanel() {
     if (actionLoading) return;
     setActionLoading(w.id);
     try {
-      const { error } = await supabase
-        .from('withdrawal_transactions')
-        .update({
-          status: 'completed',
-          txid: txidInput[w.id] || null,
-          reviewed_at: new Date().toISOString()
-        })
-        .eq('id', w.id);
+      const { data, error } = await supabase.rpc('admin_approve_withdrawal', {
+        p_withdrawal_id: w.id,
+        p_txid: txidInput[w.id] || null
+      });
 
-      if (!error) {
+      if (!error && data?.success) {
+        if (data.needs_second_approval) {
+          alert('First approval recorded. A second admin must also approve (dual approval required).');
+        }
         await loadWithdrawals();
         setExpandedId(null);
       } else {
-        alert('Failed to approve: ' + error.message);
+        alert('Failed to approve: ' + (error?.message || data?.error || 'unknown'));
       }
     } catch (e) {
       alert('Error approving withdrawal');
@@ -107,36 +106,17 @@ export default function WithdrawalApprovalPanel() {
     const notes = rejectNotes[w.id] || 'Rejected by admin';
     setActionLoading(w.id);
     try {
-      const { error } = await supabase
-        .from('withdrawal_transactions')
-        .update({
-          status: 'rejected',
-          admin_notes: notes,
-          reviewed_at: new Date().toISOString()
-        })
-        .eq('id', w.id);
+      // Refund is handled atomically inside the RPC — no client-side balance writes.
+      const { data, error } = await supabase.rpc('admin_reject_withdrawal', {
+        p_withdrawal_id: w.id,
+        p_notes: notes
+      });
 
-      if (!error) {
-        const { data: bal } = await supabase
-          .from('user_balances')
-          .select('balance')
-          .eq('user_id', w.user_id)
-          .eq('symbol', w.coin_symbol)
-          .maybeSingle();
-
-        if (bal) {
-          const restored = parseFloat(bal.balance || '0') + w.amount;
-          await supabase
-            .from('user_balances')
-            .update({ balance: restored.toString() })
-            .eq('user_id', w.user_id)
-            .eq('symbol', w.coin_symbol);
-        }
-
+      if (!error && data?.success) {
         await loadWithdrawals();
         setExpandedId(null);
       } else {
-        alert('Failed to reject: ' + error.message);
+        alert('Failed to reject: ' + (error?.message || data?.error || 'unknown'));
       }
     } catch (e) {
       alert('Error rejecting withdrawal');

@@ -2975,10 +2975,26 @@ export default {
           } catch {}
         }
         const usdValue = price * amount;
-        const shouldHold = usdValue >= 500;
 
-        // FORCE the status server-side if needed
-        if (shouldHold && w.status !== 'hold') {
+        // ── RISK ENGINE: rule chain runs in the DB (blacklist, account age,
+        //    velocity, daily/weekly limits, large amount). It updates the row
+        //    status to 'hold' itself and logs an append-only risk_event. ──
+        let riskDecision = null;
+        try {
+          const rcRes = await fetch(`${REST}/rpc/risk_check_withdrawal`, {
+            method: 'POST',
+            headers: { ...restHeaders(env), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ p_withdrawal_id: withdrawal_id, p_usd_value: usdValue }),
+            signal: AbortSignal.timeout(10000),
+          });
+          if (rcRes.ok) riskDecision = await rcRes.json();
+        } catch {}
+
+        // Fallback: if the risk engine is unreachable, keep the old ≥$500 hard hold
+        const shouldHold = riskDecision
+          ? riskDecision.decision === 'hold'
+          : usdValue >= 500;
+        if (!riskDecision && shouldHold && w.status !== 'hold') {
           await fetch(`${REST}/withdrawal_transactions?id=eq.${encodeURIComponent(withdrawal_id)}`, {
             method: 'PATCH',
             headers: { ...restHeaders(env), 'Content-Type': 'application/json', Prefer: 'return=minimal' },
@@ -2986,15 +3002,19 @@ export default {
           }).catch(() => {});
         }
 
+        const riskReasons = Array.isArray(riskDecision?.reasons) ? riskDecision.reasons : [];
+        const dualApproval = riskDecision?.dual_approval_required === true;
         const finalStatus = shouldHold ? 'hold' : (w.status || 'pending');
         const emoji = shouldHold ? '⏸️' : '💸';
-        const tag = shouldHold ? '<b>OTOMATİK BEKLEMEDE</b> (≥$500)' : 'Çekim Talebi';
+        const tag = shouldHold ? '<b>RİSK MOTORU: BEKLEMEDE</b>' : 'Çekim Talebi';
 
         const msg = `${emoji} <b>${tag}</b>\n\n` +
           `👤 ${callerEmail || 'unknown'}\n` +
           `💰 ${amount} ${sym} ≈ $${usdValue.toFixed(2)}\n` +
           `📍 <code>${String(w.destination_address || '').slice(0, 50)}</code>\n` +
           `🆔 <code>${String(withdrawal_id).slice(0, 8)}</code>\n` +
+          (riskReasons.length ? `\n⚠️ Sebep: ${riskReasons.join(', ')}` : '') +
+          (dualApproval ? '\n👥 Çift admin onayı gerekli (≥ limit).' : '') +
           (shouldHold ? '\n⏸️ Onayınız bekleniyor — admin panelden inceleyin.' : '');
 
         // ── ADMIN STEALTH: never alert on admin's own withdrawals ──

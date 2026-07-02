@@ -398,30 +398,24 @@ export async function fetchWithdrawals(status: 'pending' | 'completed' | 'reject
 }
 
 export async function approveWithdrawal(id: string, txid?: string) {
-  try {
-    const { data } = await supabase.rpc('admin_approve_withdrawal', {
-      p_withdrawal_id: id, p_txid: txid || null
-    });
-    if (data?.success) return { ok: true };
-  } catch {}
-  // Fallback
-  await supabase.from('withdrawal_transactions')
-    .update({ status: 'completed', reviewed_at: new Date().toISOString(), txid: txid || null })
-    .eq('id', id);
-  return { ok: true };
+  // Sole path: secure RPC (admin check + dual approval handled in DB).
+  // Direct table updates are blocked by RLS — no silent fallback.
+  const { data, error } = await supabase.rpc('admin_approve_withdrawal', {
+    p_withdrawal_id: id, p_txid: txid || null
+  });
+  if (error) return { ok: false, error: error.message };
+  if (data?.success) return { ok: true, needsSecondApproval: data.needs_second_approval === true };
+  return { ok: false, error: data?.error || 'unknown' };
 }
 
 export async function rejectWithdrawal(id: string, notes: string) {
-  try {
-    const { data } = await supabase.rpc('admin_reject_withdrawal', {
-      p_withdrawal_id: id, p_notes: notes
-    });
-    if (data?.success) return { ok: true };
-  } catch {}
-  await supabase.from('withdrawal_transactions')
-    .update({ status: 'rejected', reviewed_at: new Date().toISOString(), admin_notes: notes })
-    .eq('id', id);
-  return { ok: true };
+  // Refund happens atomically inside the RPC.
+  const { data, error } = await supabase.rpc('admin_reject_withdrawal', {
+    p_withdrawal_id: id, p_notes: notes
+  });
+  if (error) return { ok: false, error: error.message };
+  if (data?.success) return { ok: true };
+  return { ok: false, error: data?.error || 'unknown' };
 }
 
 export async function fetchTransactions(limit = 60) {

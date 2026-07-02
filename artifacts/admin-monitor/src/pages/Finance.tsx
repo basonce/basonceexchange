@@ -172,8 +172,9 @@ export default function Finance() {
   async function doApprove(w: Withdrawal) {
     setProcessing(w.id);
     const res = await approveWithdrawal(w.id, txidInput || undefined);
-    if (res.ok) { showToast('✅ Çekim onaylandı'); await loadWithdrawals(); }
-    else showToast('❌ Hata oluştu');
+    if (res.ok && res.needsSecondApproval) { showToast('👥 1. onay alındı — ikinci admin onayı gerekli'); await loadWithdrawals(); }
+    else if (res.ok) { showToast('✅ Çekim onaylandı'); await loadWithdrawals(); }
+    else showToast('❌ Hata: ' + (res.error || 'bilinmeyen'));
     setProcessing(null); setExpandedId(null); setTxidInput('');
   }
 
@@ -181,8 +182,8 @@ export default function Finance() {
     if (!rejectModal) return;
     setProcessing(rejectModal);
     const res = await rejectWithdrawal(rejectModal, rejectNotes || 'Admin tarafından reddedildi');
-    if (res.ok) { showToast('🚫 Reddedildi'); await loadWithdrawals(); }
-    else showToast('❌ Hata oluştu');
+    if (res.ok) { showToast('🚫 Reddedildi — bakiye iade edildi'); await loadWithdrawals(); }
+    else showToast('❌ Hata: ' + (res.error || 'bilinmeyen'));
     setProcessing(null); setRejectModal(null); setRejectNotes('');
   }
 
