@@ -1433,3 +1433,9 @@ id = "Cr-GxQfh11Y0By8li2DCs"
 uri = "file://.local/outputs/Basonce-Exchange---Yatirimci-Sunumu.pdf"
 type = "pdf"
 title = "Basonce Exchange — Yatırımcı Sunumu (PDF)"
+
+[[outputs]]
+id = "qfWzXBi5WBBF6xp0GThAN"
+uri = "file://.local/outputs/Kite-Exchange---Denetim-Altyapisi.pdf"
+type = "pdf"
+title = "Kite Exchange — Denetim Altyapısı (PDF, 4 slayt)"
