@@ -150,5 +150,37 @@
     "title": "Kapanış",
     "description": "Tek defter, tüm finans — vizyon ve yatırım çağrısı.",
     "speakerNotes": ""
+  },
+  {
+    "id": "detail-ledger",
+    "filepath": "src/pages/slides/DetailLedger.tsx",
+    "title": "Ek 1 — Çift Kayıtlı Defter (Detay)",
+    "description": "Yatırımcı el kitapçığı: çift kayıtlı defterin detaylı anlatımı; sıfır toplam, değişmez kayıt, kanıtlanabilir bakiye, canlı izleme.",
+    "speakerNotes": "",
+    "position": 20
+  },
+  {
+    "id": "detail-risk",
+    "filepath": "src/pages/slides/DetailRisk.tsx",
+    "title": "Ek 2 — Risk Motoru (Detay)",
+    "description": "Yatırımcı el kitapçığı: kural zinciri detayı; limitler, davranış analizi, yeni hesap koruması, kara liste, gerekçeli karar kaydı.",
+    "speakerNotes": "",
+    "position": 21
+  },
+  {
+    "id": "detail-treasury",
+    "filepath": "src/pages/slides/DetailTreasury.tsx",
+    "title": "Ek 3 — Hazine & Onaylı Çekim (Detay)",
+    "description": "Yatırımcı el kitapçığı: dört aşamalı çekim akışı, çift onay, atomik iade, sıcak/soğuk saklama.",
+    "speakerNotes": "",
+    "position": 22
+  },
+  {
+    "id": "detail-audit",
+    "filepath": "src/pages/slides/DetailAudit.tsx",
+    "title": "Ek 4 — Denetime Hazır Mimari (Detay)",
+    "description": "Yatırımcı el kitapçığı: denetçi soruları ve kayıtlı cevapları, dürüst güvenlik ilkesi, lisans yolunun dört adımı.",
+    "speakerNotes": "",
+    "position": 23
   }
 ]
