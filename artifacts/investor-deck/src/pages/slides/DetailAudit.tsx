@@ -11,12 +11,12 @@ export default function DetailAudit() {
         <div className="w-full h-px bg-white/10 mb-[3vh]" />
 
         <h2 className="font-display font-bold text-[3.4vw] leading-tight tracking-tight mb-[1.2vh]">
-          Denetime hazır mimari — lisans yolunda teknik taraf tamam
+          Kurumsal denetim altyapısı — bugün canlıda, lisansa hazır
         </h2>
         <p className="text-white/95 text-[1.5vw] font-body max-w-[80vw] leading-snug mb-[3.5vh] text-pretty">
-          Denetçilerin aradığı "hiç açık yok" iddiası değil, "riskler biliniyor ve
-          yönetiliyor" kanıtıdır. Bu mimaride denetçinin soracağı her sorunun
-          kayıtlara dayanan bir cevabı vardır.
+          Basonce, küresel borsaların standardı olan denetim altyapısını ilk günden
+          kurdu: her bakiye kanıtlanabilir, her karar kayıtlı, her çekim kontrollü.
+          Denetçinin soracağı her sorunun kayıtlara dayanan net bir cevabı hazır.
         </p>
 
         <div className="grid grid-cols-3 gap-[1.4vw]">
