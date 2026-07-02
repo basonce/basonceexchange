@@ -1,0 +1,710 @@
+{
+  "info": {
+    "name": "Trading Platform API",
+    "description": "Full API collection for the Trading Platform. Import this into Postman.\n\n**Setup:**\n1. Set `base_url` variable to your server URL\n2. Register & login — access_token and refresh_token auto-save\n3. All protected routes use {{access_token}} automatically",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url",      "value": "http://localhost:3000/api",  "type": "string" },
+    { "key": "access_token",  "value": "",                            "type": "string" },
+    { "key": "refresh_token", "value": "",                            "type": "string" },
+    { "key": "user_id",       "value": "",                            "type": "string" },
+    { "key": "trade_id",      "value": "",                            "type": "string" },
+    { "key": "withdrawal_id", "value": "",                            "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "── PHASE 1 · AUTH ──",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth","register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Passw0rd!\",\n  \"full_name\": \"Ahmed Hassan\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Email",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/auth/verify-email?token=TOKEN_FROM_EMAIL", "host": ["{{base_url}}"], "path": ["auth","verify-email"], "query": [{ "key": "token", "value": "TOKEN_FROM_EMAIL" }] }
+          },
+          "response": []
+        },
+        {
+          "name": "Resend Verification Email",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/resend-verification", "host": ["{{base_url}}"], "path": ["auth","resend-verification"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"user@example.com\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "var json = pm.response.json();",
+                "if (json.success) {",
+                "  pm.collectionVariables.set('access_token',  json.data.access_token);",
+                "  pm.collectionVariables.set('refresh_token', json.data.refresh_token);",
+                "  pm.collectionVariables.set('user_id',       json.data.user.id);",
+                "  console.log('Tokens saved!');",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth","login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Passw0rd!\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "var json = pm.response.json();",
+                "if (json.success) {",
+                "  pm.collectionVariables.set('access_token',  json.data.access_token);",
+                "  pm.collectionVariables.set('refresh_token', json.data.refresh_token);",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/refresh", "host": ["{{base_url}}"], "path": ["auth","refresh"] },
+            "body": { "mode": "raw", "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/auth/logout", "host": ["{{base_url}}"], "path": ["auth","logout"] },
+            "body": { "mode": "raw", "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/forgot-password", "host": ["{{base_url}}"], "path": ["auth","forgot-password"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"user@example.com\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/reset-password", "host": ["{{base_url}}"], "path": ["auth","reset-password"] },
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"TOKEN_FROM_EMAIL\",\n  \"password\": \"NewPassw0rd!\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth","me"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "── PHASE 2 · WALLET ──",
+      "item": [
+        {
+          "name": "Get Balance",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/wallet/balance", "host": ["{{base_url}}"], "path": ["wallet","balance"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transaction History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/wallet/transactions?page=1&limit=20",
+              "host": ["{{base_url}}"], "path": ["wallet","transactions"],
+              "query": [
+                { "key": "page",  "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "type",  "value": "", "disabled": true, "description": "deposit|withdrawal|trade_buy|trade_sell|fee|refund" }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "── PHASE 2 · DEPOSIT ──",
+      "item": [
+        {
+          "name": "Get Supported Peers (10 coins)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/deposit/peers", "host": ["{{base_url}}"], "path": ["deposit","peers"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Deposit Address — BTC",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/deposit/address/BTC?network=btc", "host": ["{{base_url}}"], "path": ["deposit","address","BTC"], "query": [{ "key": "network", "value": "btc" }] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Deposit Address — ETH",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/deposit/address/ETH?network=eth", "host": ["{{base_url}}"], "path": ["deposit","address","ETH"], "query": [{ "key": "network", "value": "eth" }] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Deposit Address — BNB (BEP20)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/deposit/address/BNB?network=bsc", "host": ["{{base_url}}"], "path": ["deposit","address","BNB"], "query": [{ "key": "network", "value": "bsc" }] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Deposit Address — XRP (with MEMO)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/deposit/address/XRP?network=xrp", "host": ["{{base_url}}"], "path": ["deposit","address","XRP"], "query": [{ "key": "network", "value": "xrp" }] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Deposit Address — ADA",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/deposit/address/ADA?network=ada", "host": ["{{base_url}}"], "path": ["deposit","address","ADA"], "query": [{ "key": "network", "value": "ada" }] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Deposit Address — SOL",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/deposit/address/SOL?network=sol", "host": ["{{base_url}}"], "path": ["deposit","address","SOL"], "query": [{ "key": "network", "value": "sol" }] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Deposit Address — DOGE",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/deposit/address/DOGE?network=doge", "host": ["{{base_url}}"], "path": ["deposit","address","DOGE"], "query": [{ "key": "network", "value": "doge" }] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Deposit Address — TRX",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/deposit/address/TRX?network=trx", "host": ["{{base_url}}"], "path": ["deposit","address","TRX"], "query": [{ "key": "network", "value": "trx" }] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Deposit Address — LTC",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/deposit/address/LTC?network=ltc", "host": ["{{base_url}}"], "path": ["deposit","address","LTC"], "query": [{ "key": "network", "value": "ltc" }] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Deposit Address — MATIC",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/deposit/address/MATIC?network=matic", "host": ["{{base_url}}"], "path": ["deposit","address","MATIC"], "query": [{ "key": "network", "value": "matic" }] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Deposit History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/deposit/history?page=1&limit=20",
+              "host": ["{{base_url}}"], "path": ["deposit","history"],
+              "query": [
+                { "key": "page",   "value": "1" },
+                { "key": "limit",  "value": "20" },
+                { "key": "coin",   "value": "",   "disabled": true },
+                { "key": "status", "value": "",   "disabled": true, "description": "pending|confirming|completed|failed" }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "── PHASE 3 · TRADING ──",
+      "item": [
+        {
+          "name": "Get Ticker Price — BTC-USDT",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/trade/ticker/BTC-USDT", "host": ["{{base_url}}"], "path": ["trade","ticker","BTC-USDT"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Place Market Buy Order",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "var json = pm.response.json();",
+                "if (json.success) pm.collectionVariables.set('trade_id', json.data.trade_id);"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/trade/order", "host": ["{{base_url}}"], "path": ["trade","order"] },
+            "body": { "mode": "raw", "raw": "{\n  \"symbol\": \"BTC-USDT\",\n  \"side\": \"buy\",\n  \"type\": \"market\",\n  \"amount\": \"0.001\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Place Market Sell Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/trade/order", "host": ["{{base_url}}"], "path": ["trade","order"] },
+            "body": { "mode": "raw", "raw": "{\n  \"symbol\": \"ETH-USDT\",\n  \"side\": \"sell\",\n  \"type\": \"market\",\n  \"amount\": \"0.05\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Place Limit Buy Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/trade/order", "host": ["{{base_url}}"], "path": ["trade","order"] },
+            "body": { "mode": "raw", "raw": "{\n  \"symbol\": \"BTC-USDT\",\n  \"side\": \"buy\",\n  \"type\": \"limit\",\n  \"amount\": \"0.001\",\n  \"price\": \"40000\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Open Orders",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/trade/orders?page=1&limit=20",
+              "host": ["{{base_url}}"], "path": ["trade","orders"],
+              "query": [
+                { "key": "page",   "value": "1" },
+                { "key": "limit",  "value": "20" },
+                { "key": "symbol", "value": "", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Trade History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/trade/history?page=1&limit=20",
+              "host": ["{{base_url}}"], "path": ["trade","history"],
+              "query": [
+                { "key": "page",   "value": "1" },
+                { "key": "limit",  "value": "20" },
+                { "key": "symbol", "value": "", "disabled": true },
+                { "key": "side",   "value": "", "disabled": true, "description": "buy|sell" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Order",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/trade/order/{{trade_id}}", "host": ["{{base_url}}"], "path": ["trade","order","{{trade_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/trade/order/{{trade_id}}", "host": ["{{base_url}}"], "path": ["trade","order","{{trade_id}}"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "── PHASE 4 · WITHDRAWAL ──",
+      "item": [
+        {
+          "name": "Get Withdrawal Fees (all coins)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/withdraw/fees", "host": ["{{base_url}}"], "path": ["withdraw","fees"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Request Withdrawal — BTC",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "var json = pm.response.json();",
+                "if (json.success) pm.collectionVariables.set('withdrawal_id', json.data.withdrawal_id);"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/withdraw/request", "host": ["{{base_url}}"], "path": ["withdraw","request"] },
+            "body": { "mode": "raw", "raw": "{\n  \"coin\": \"BTC\",\n  \"network\": \"btc\",\n  \"address\": \"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh\",\n  \"amount\": \"0.005\",\n  \"memo\": null\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Request Withdrawal — XRP (with memo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/withdraw/request", "host": ["{{base_url}}"], "path": ["withdraw","request"] },
+            "body": { "mode": "raw", "raw": "{\n  \"coin\": \"XRP\",\n  \"network\": \"xrp\",\n  \"address\": \"rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh\",\n  \"amount\": \"100\",\n  \"memo\": \"123456789\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Withdrawal History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/withdraw/history?page=1&limit=20",
+              "host": ["{{base_url}}"], "path": ["withdraw","history"],
+              "query": [
+                { "key": "page",   "value": "1" },
+                { "key": "limit",  "value": "20" },
+                { "key": "status", "value": "", "disabled": true, "description": "pending|processing|completed|failed|cancelled" },
+                { "key": "coin",   "value": "", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Withdrawal",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/withdraw/{{withdrawal_id}}", "host": ["{{base_url}}"], "path": ["withdraw","{{withdrawal_id}}"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "── PHASE 5 · ADMIN 👑 ──",
+      "item": [
+        {
+          "name": "Login as Admin",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "var json = pm.response.json();",
+                "if (json.success) {",
+                "  pm.collectionVariables.set('access_token',  json.data.access_token);",
+                "  pm.collectionVariables.set('refresh_token', json.data.refresh_token);",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth","login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@yourdomain.com\",\n  \"password\": \"Admin@123456\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/admin/stats", "host": ["{{base_url}}"], "path": ["admin","stats"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/admin/users?page=1&limit=20",
+              "host": ["{{base_url}}"], "path": ["admin","users"],
+              "query": [
+                { "key": "page",        "value": "1" },
+                { "key": "limit",       "value": "20" },
+                { "key": "search",      "value": "", "disabled": true },
+                { "key": "is_active",   "value": "", "disabled": true },
+                { "key": "is_verified", "value": "", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Detail",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/admin/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["admin","users","{{user_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Suspend User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admin/users/{{user_id}}/status", "host": ["{{base_url}}"], "path": ["admin","users","{{user_id}}","status"] },
+            "body": { "mode": "raw", "raw": "{\n  \"is_active\": false\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Activate User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admin/users/{{user_id}}/status", "host": ["{{base_url}}"], "path": ["admin","users","{{user_id}}","status"] },
+            "body": { "mode": "raw", "raw": "{\n  \"is_active\": true\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Credit User Balance",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admin/users/{{user_id}}/credit", "host": ["{{base_url}}"], "path": ["admin","users","{{user_id}}","credit"] },
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": \"100.00\",\n  \"reason\": \"Promotional credit\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Deposits",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/admin/deposits?page=1&limit=20",
+              "host": ["{{base_url}}"], "path": ["admin","deposits"],
+              "query": [
+                { "key": "page",   "value": "1" },
+                { "key": "limit",  "value": "20" },
+                { "key": "status", "value": "", "disabled": true },
+                { "key": "coin",   "value": "", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Withdrawals (Pending)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/admin/withdrawals?status=pending&page=1&limit=20",
+              "host": ["{{base_url}}"], "path": ["admin","withdrawals"],
+              "query": [
+                { "key": "status", "value": "pending" },
+                { "key": "page",   "value": "1" },
+                { "key": "limit",  "value": "20" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Approve Withdrawal ✅",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admin/withdrawals/{{withdrawal_id}}/approve", "host": ["{{base_url}}"], "path": ["admin","withdrawals","{{withdrawal_id}}","approve"] },
+            "body": { "mode": "raw", "raw": "{\n  \"admin_note\": \"Address verified\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Reject Withdrawal ❌",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admin/withdrawals/{{withdrawal_id}}/reject", "host": ["{{base_url}}"], "path": ["admin","withdrawals","{{withdrawal_id}}","reject"] },
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Suspicious address\"\n}" }
+          },
+          "response": []
+        },
+        {
+          "name": "Fees Report",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/admin/fees",
+              "host": ["{{base_url}}"], "path": ["admin","fees"],
+              "query": [
+                { "key": "from", "value": "2024-01-01", "disabled": true },
+                { "key": "to",   "value": "2024-12-31", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "KuCoin Live Balance",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": { "raw": "{{base_url}}/admin/kucoin-balance", "host": ["{{base_url}}"], "path": ["admin","kucoin-balance"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Audit Logs",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/admin/audit-logs?page=1&limit=50",
+              "host": ["{{base_url}}"], "path": ["admin","audit-logs"],
+              "query": [
+                { "key": "page",    "value": "1" },
+                { "key": "limit",   "value": "50" },
+                { "key": "user_id", "value": "", "disabled": true },
+                { "key": "action",  "value": "", "disabled": true, "description": "user_login|user_registered|password_reset|admin_suspend_user|..." }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "── HEALTH ──",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/../health", "host": ["{{base_url}}"], "path": ["..","health"] }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
