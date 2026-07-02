@@ -58,6 +58,7 @@ import WalletGeneratorPage from '../pages/WalletGeneratorPage';
 import DataProtectionPanel from './DataProtectionPanel';
 import UserWalletAssignments from './UserWalletAssignments';
 import IncomingFundsPanel from './IncomingFundsPanel';
+import AuditPanel from './AuditPanel';
 import DepositRadarPanel from './DepositRadarPanel';
 import WithdrawalApprovalPanel from './WithdrawalApprovalPanel';
 import TradfiLogosPanel from './TradfiLogosPanel';
@@ -109,7 +110,7 @@ const cryptoSymbols = [
   'AVAX', 'DOT', 'MATIC', 'LINK', 'UNI', 'LTC', 'ATOM', 'PEPE', 'SHIB', 'WIF', 'BONK'
 ];
 
-type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue' | 'visitors' | 'vip' | 'live' | 'restrictions' | 'quick-restrict' | 'matches' | 'p2p-disputes' | 'radar' | 'social' | 'copy-trading';
+type AdminTab = 'overview' | 'command' | 'agents' | 'support' | 'position' | 'wallets' | 'user-wallets' | 'deposits' | 'withdrawals' | 'security' | 'activity' | 'deploy' | 'ai' | 'analytics' | 'wallet-gen' | 'data-protection' | 'incoming-funds' | 'tradfi-logos' | 'revenue' | 'visitors' | 'vip' | 'live' | 'restrictions' | 'quick-restrict' | 'matches' | 'p2p-disputes' | 'radar' | 'social' | 'copy-trading' | 'audit';
 
 // ── BTC-only pair list ───────────────────────────────────────
 const BTC_ONLY_PAIRS = [
@@ -2531,6 +2532,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'position', label: 'Pozisyon', icon: Target },
     { id: 'deposits', label: 'Yatırım', icon: DollarSign, badge: newDepositCount },
     { id: 'withdrawals', label: 'Çekim', icon: ArrowUpRight, badge: newWithdrawalCount },
+    { id: 'audit', label: 'Denetim', icon: BarChart3 },
     { id: 'security', label: 'Güvenlik', icon: Shield },
     { id: 'activity', label: 'Aktivite', icon: Activity },
     { id: 'deploy', label: 'Deploy', icon: Server },
@@ -2920,6 +2922,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
 
         {activeTab === 'withdrawals' && (
           <WithdrawalApprovalPanel />
+        )}
+
+        {activeTab === 'audit' && (
+          <AuditPanel />
         )}
 
         {activeTab === 'security' && (
