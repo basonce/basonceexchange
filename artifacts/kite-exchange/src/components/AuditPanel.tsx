@@ -19,7 +19,28 @@ interface JournalEntry {
   ref_id: string | null;
   description: string | null;
   created_at: string;
-  ledger_postings: { symbol: string; amount: number }[];
+  ledger_postings: { symbol: string; amount: number; account?: { kind: string; code: string } | null }[];
+}
+
+type LedgerPeriod = 'day' | 'week' | 'month' | 'year' | 'all';
+
+const PERIODS: { key: LedgerPeriod; label: string }[] = [
+  { key: 'day', label: 'Günlük' },
+  { key: 'week', label: 'Haftalık' },
+  { key: 'month', label: 'Aylık' },
+  { key: 'year', label: 'Yıllık' },
+  { key: 'all', label: 'Tümü' },
+];
+
+function periodStart(p: LedgerPeriod): string | null {
+  if (p === 'all') return null;
+  const now = new Date();
+  const d = new Date(now);
+  if (p === 'day') d.setDate(now.getDate() - 1);
+  else if (p === 'week') d.setDate(now.getDate() - 7);
+  else if (p === 'month') d.setMonth(now.getMonth() - 1);
+  else d.setFullYear(now.getFullYear() - 1);
+  return d.toISOString();
 }
 
 interface RiskRule {
@@ -82,6 +103,8 @@ export default function AuditPanel() {
   const [newReason, setNewReason] = useState('');
   const [toast, setToast] = useState('');
   const [processing, setProcessing] = useState<string | null>(null);
+  const [period, setPeriod] = useState<LedgerPeriod>('day');
+  const [exporting, setExporting] = useState(false);
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(''), 3000); }
 
@@ -91,13 +114,16 @@ export default function AuditPanel() {
   }, []);
 
   const loadJournal = useCallback(async () => {
-    const { data } = await supabase
+    let q = supabase
       .from('ledger_journal')
-      .select('*, ledger_postings(symbol, amount)')
+      .select('*, ledger_postings(symbol, amount, account:ledger_accounts(kind, code))')
       .order('created_at', { ascending: false })
-      .limit(30);
+      .limit(1000);
+    const start = periodStart(period);
+    if (start) q = q.gte('created_at', start);
+    const { data } = await q;
     setJournal((data as JournalEntry[]) || []);
-  }, []);
+  }, [period]);
 
   const loadRisk = useCallback(async () => {
     const [{ data: r }, { data: e }, { data: b }] = await Promise.all([
@@ -159,6 +185,48 @@ export default function AuditPanel() {
     });
     if (!error && data?.success) { showToast('✅ Kaldırıldı'); await loadRisk(); }
     else showToast('❌ ' + (error?.message || data?.error || 'hata'));
+  }
+
+  function userNetBySymbol(entries: JournalEntry[]): { symbol: string; net: number }[] {
+    const map: Record<string, number> = {};
+    for (const j of entries) {
+      for (const p of j.ledger_postings || []) {
+        if (p.account?.kind === 'user') map[p.symbol] = (map[p.symbol] || 0) + Number(p.amount);
+      }
+    }
+    return Object.entries(map)
+      .map(([symbol, net]) => ({ symbol, net }))
+      .filter(x => Math.abs(x.net) > 1e-9)
+      .sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
+  }
+
+  function downloadCsv() {
+    setExporting(true);
+    try {
+      const rows: string[] = ['Tarih;İşlem Türü;Açıklama;Hesap;Hesap Kodu;Sembol;Tutar'];
+      for (const j of journal) {
+        const date = new Date(j.created_at).toLocaleString('tr-TR');
+        const desc = (j.description || '').replace(/;/g, ',').replace(/\r?\n/g, ' ');
+        for (const p of j.ledger_postings || []) {
+          const kind = p.account?.kind === 'user' ? 'Kullanıcı' : 'Platform';
+          const amount = String(p.amount).replace('.', ',');
+          rows.push(`${date};${j.entry_type};${desc};${kind};${p.account?.code || ''};${p.symbol};${amount}`);
+        }
+      }
+      const label = PERIODS.find(x => x.key === period)?.label || period;
+      const blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `basonce-defter-${label.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`📥 ${rows.length - 1} kayıt indirildi`);
+    } finally {
+      setExporting(false);
+    }
   }
 
   async function doApprove(id: string) {
@@ -244,8 +312,47 @@ export default function AuditPanel() {
       {/* ── Defter ── */}
       {tab === 'ledger' && (
         <div className="space-y-2">
-          {journal.length === 0 && !loading && <p className={lblCls}>Henüz yevmiye kaydı yok (yeni para hareketleri burada görünür).</p>}
-          {journal.map(j => (
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            {PERIODS.map(p => (
+              <button key={p.key} onClick={() => setPeriod(p.key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+                  period === p.key ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-500'
+                }`}>{p.label}</button>
+            ))}
+          </div>
+
+          {!loading && (
+            <div className={cardCls}>
+              <div className="flex items-center justify-between">
+                <p className={lblCls}>DÖNEM ÖZETİ — KULLANICI BAKİYE DEĞİŞİMİ</p>
+                <span className={lblCls}>{journal.length} yevmiye</span>
+              </div>
+              <div className="mt-2 space-y-1.5">
+                {userNetBySymbol(journal).slice(0, 12).map(x => (
+                  <div key={x.symbol} className="flex justify-between text-sm">
+                    <span className="font-medium text-gray-900">{x.symbol}</span>
+                    <span className={x.net >= 0 ? 'text-red-600' : 'text-green-600'}>
+                      {x.net >= 0 ? '+' : ''}{fmtNum(x.net)}
+                      <span className="text-[10px] text-gray-400 ml-1">{x.net >= 0 ? '(borç arttı)' : '(platform lehine)'}</span>
+                    </span>
+                  </div>
+                ))}
+                {userNetBySymbol(journal).length === 0 && <p className={lblCls}>Bu dönemde kullanıcı bakiye hareketi yok.</p>}
+              </div>
+              <p className="text-[10px] text-gray-400 mt-2">
+                + kullanıcılara borç arttı (para girişi/kazanç) · − borç azaldı (çekim/kayıp, platform lehine)
+              </p>
+              <button onClick={downloadCsv} disabled={exporting || journal.length === 0}
+                className={`mt-3 w-full py-2.5 rounded-xl text-xs font-bold bg-gray-900 text-white ${
+                  exporting || journal.length === 0 ? 'opacity-50' : ''
+                }`}>
+                📥 CSV İndir (Excel) — {PERIODS.find(x => x.key === period)?.label}
+              </button>
+            </div>
+          )}
+
+          {journal.length === 0 && !loading && <p className={lblCls}>Bu dönemde yevmiye kaydı yok (yeni para hareketleri burada görünür).</p>}
+          {journal.slice(0, 50).map(j => (
             <div key={j.id} className={cardCls}>
               <div className="flex justify-between items-start">
                 <p className="text-sm font-semibold text-gray-900">{j.entry_type}</p>
