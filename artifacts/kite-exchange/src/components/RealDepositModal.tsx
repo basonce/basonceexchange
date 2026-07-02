@@ -8,6 +8,15 @@ import StableCoinLogo from './CoinLogo';
 
 const MAJOR_COINS = ['USDT', 'USDC', 'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'AVAX', 'DOT', 'MATIC', 'LTC', 'TRX'];
 
+// COIN:NETWORK pairs with REAL per-user deposit addresses (NOWPayments).
+// Must stay in sync with NOWPAY_CUR in cf-worker/_worker.js.
+const NOWPAY_SUPPORTED = new Set([
+  'USDT:TRC20', 'USDT:BEP20', 'USDT:ERC20',
+  'BTC:BTC', 'ETH:ERC20', 'ETH:ETH', 'BNB:BEP20',
+  'SOL:SOL', 'TRX:TRC20', 'DOGE:DOGE', 'LTC:LTC',
+  'XRP:XRP', 'ADA:ADA',
+]);
+
 interface RealDepositModalProps {
   onClose: () => void;
   currency?: string;
@@ -93,19 +102,6 @@ const BEP20_MOCK_NETWORK: SelectedNetwork = {
   is_mainnet: true,
 };
 
-const TRC20_MOCK_NETWORK: SelectedNetwork = {
-  id: 'trc20-default',
-  network_name: 'Tron (TRC20)',
-  network_code: 'TRC20',
-  chain_id: null,
-  contract_address: null,
-  min_deposit: 1,
-  confirmations_required: 20,
-  estimated_arrival_minutes: 3,
-  withdrawal_fee: 0,
-  is_mainnet: true,
-};
-
 export function RealDepositModal({ onClose, currency: initialCurrency, network: initialNetwork }: RealDepositModalProps) {
   const [step, setStep] = useState<'coin' | 'network' | 'address'>('coin');
   const [selectedCoin, setSelectedCoin] = useState<SelectedCoin | null>(null);
@@ -116,6 +112,8 @@ export function RealDepositModal({ onClose, currency: initialCurrency, network: 
   const [error, setError] = useState('');
   const [tssBannerVisible, setTssBannerVisible] = useState(true);
   const [isAltcoin, setIsAltcoin] = useState(false);
+  const [minAmount, setMinAmount] = useState(0);
+  const [extraId, setExtraId] = useState<string | null>(null);
 
   useEffect(() => {
     document.body.classList.add('deposit-modal-open');
@@ -148,65 +146,49 @@ export function RealDepositModal({ onClose, currency: initialCurrency, network: 
       setLoading(true);
       setError('');
       setDepositAddress('');
+      setExtraId(null);
+      setMinAmount(0);
       const user = await getCurrentUser();
       if (!user) { setError('Please login first'); return; }
 
-      const { data: wallets, error: walletsError } = await supabase
-        .rpc('get_user_deposit_addresses', { user_id_param: user.id });
+      const coin = (selectedCoin?.symbol || 'USDT').toUpperCase();
+      const net = (selectedNetwork?.network_code || '').toUpperCase();
 
-      if (walletsError) { setError('Failed to load deposit address'); return; }
-
-      const targetNetwork = selectedNetwork?.network_code.toUpperCase();
-      const bep20Wallet = wallets?.find((w: any) => w.network === 'BEP20');
-      const trc20Wallet = wallets?.find((w: any) => w.network === 'TRC20');
-
-      let wallet = wallets?.find((w: any) => w.network === targetNetwork);
-
-      if (!wallet) {
-        if (targetNetwork === 'TRC20' && trc20Wallet) {
-          wallet = trc20Wallet;
-        } else if (bep20Wallet) {
-          wallet = bep20Wallet;
-          setSelectedNetwork(BEP20_MOCK_NETWORK);
-          setIsAltcoin(true);
-        } else if (trc20Wallet) {
-          wallet = trc20Wallet;
-          setSelectedNetwork(TRC20_MOCK_NETWORK);
-          setIsAltcoin(true);
-        } else {
-          const { data: assignResult, error: assignError } = await supabase
-            .rpc('assign_wallet_to_user', { p_user_id: user.id });
-
-          if (assignError || !assignResult?.success) {
-            setError('Deposit wallet could not be assigned. Please contact support.');
-            return;
-          }
-
-          const { data: retryWallets } = await supabase
-            .rpc('get_user_deposit_addresses', { user_id_param: user.id });
-
-          if (!retryWallets || retryWallets.length === 0) {
-            setError('No deposit wallets available right now. Please try again in a few minutes or contact support.');
-            return;
-          }
-
-          const retryTarget = retryWallets.find((w: any) => w.network === targetNetwork)
-            || retryWallets.find((w: any) => w.network === 'BEP20')
-            || retryWallets.find((w: any) => w.network === 'TRC20');
-
-          if (!retryTarget) {
-            setError('Deposit wallet assignment failed. Please contact support.');
-            return;
-          }
-
-          wallet = retryTarget;
-          if (retryTarget.network === 'BEP20') setSelectedNetwork(BEP20_MOCK_NETWORK);
-          if (retryTarget.network === 'TRC20') setSelectedNetwork(TRC20_MOCK_NETWORK);
-          setIsAltcoin(true);
-        }
+      if (!NOWPAY_SUPPORTED.has(`${coin}:${net}`)) {
+        setError(`Address deposit isn't available for ${coin} (${net}) yet. Please use the Instant Crypto Deposit option instead.`);
+        return;
       }
 
-      setDepositAddress(wallet.address);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) { setError('Please login first'); return; }
+
+      const res = await fetch('/api/nowpay/deposit-address', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ currency: coin, network: net }),
+      });
+
+      const text = await res.text();
+      let j: any = null;
+      try { j = JSON.parse(text); } catch {
+        // Dev preview has no cf-worker — only the live site can create addresses.
+        setError('Deposit addresses can only be generated on the live site (basonce.com).');
+        return;
+      }
+
+      if (!res.ok || !j.address) {
+        if (j?.error === 'unsupported') {
+          setError(`Address deposit isn't available for ${coin} (${net}) yet. Please use the Instant Crypto Deposit option instead.`);
+        } else {
+          setError(j?.error || 'Could not generate a deposit address. Please try again.');
+        }
+        return;
+      }
+
+      setDepositAddress(j.address);
+      setExtraId(j.extra_id || null);
+      setMinAmount(Number(j.min_amount) || 0);
       await updateCoinHistory();
     } catch {
       setError('Failed to load deposit address');
@@ -394,6 +376,37 @@ export function RealDepositModal({ onClose, currency: initialCurrency, network: 
                 )}
               </div>
             </div>
+
+            {minAmount > 0 && (
+              <div className="mx-4 mb-3 p-3 bg-[#2b2a1f] border border-[#4a4520] rounded-xl flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-[#F0B90B] flex-shrink-0 mt-0.5" />
+                <div className="flex-1 text-[13px] text-gray-300 leading-relaxed">
+                  Minimum deposit:{' '}
+                  <span className="text-white font-semibold">
+                    {minAmount} {selectedCoin?.symbol}
+                  </span>
+                  . Amounts below this may not be credited.
+                </div>
+              </div>
+            )}
+
+            {extraId && (
+              <div className="mx-4 mb-3">
+                <div className="text-[13px] text-gray-500 mb-1">Memo / Tag (required)</div>
+                <div className="flex items-center gap-2 bg-[#1e2329] rounded-xl px-3 py-2.5">
+                  <span className="flex-1 text-[14px] font-mono text-white break-all">{extraId}</span>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(extraId)}
+                    className="text-gray-400"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="text-[12px] text-red-400 mt-1">
+                  You must include this memo/tag or your deposit will be lost.
+                </div>
+              </div>
+            )}
 
             <div className="mx-4 mb-3 h-px bg-[#1e2329]" />
 

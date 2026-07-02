@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Check, X, RefreshCw, Clock, TrendingDown, TrendingUp, Copy, ArrowDownLeft, BarChart2 } from 'lucide-react';
-import { fetchWithdrawals, approveWithdrawal, rejectWithdrawal, fetchTransactions, manualDeposit, searchUsersByEmail, fetchIncomingFunds, creditIncomingFund, fetchRevenueSummary, fetchTopTraders } from '../lib/admin-api';
+import { fetchWithdrawals, approveWithdrawal, rejectWithdrawal, sendPayout, fetchTransactions, manualDeposit, searchUsersByEmail, fetchIncomingFunds, creditIncomingFund, fetchRevenueSummary, fetchTopTraders } from '../lib/admin-api';
 import { supabase } from '../lib/supabase';
 
 type FinTab = 'withdrawals' | 'incoming' | 'history' | 'deposit' | 'revenue';
@@ -9,6 +9,7 @@ interface Withdrawal {
   id: string; coin_symbol?: string; currency?: string; amount: number; status: string;
   created_at: string; user_email?: string; destination_address?: string;
   network?: string; receive_amount?: number; txid?: string;
+  payout_batch_id?: string; payout_status?: string;
   user_profiles?: { email: string; full_name: string };
 }
 interface Tx { id: string; type: string; symbol: string; amount: number; created_at: string; user_profiles?: { email: string }; notes?: string; }
@@ -176,6 +177,16 @@ export default function Finance() {
     else if (res.ok) { showToast('✅ Çekim onaylandı'); await loadWithdrawals(); }
     else showToast('❌ Hata: ' + (res.error || 'bilinmeyen'));
     setProcessing(null); setExpandedId(null); setTxidInput('');
+  }
+
+  async function doPayout(w: Withdrawal) {
+    if (!confirm(`${Number(w.receive_amount || w.amount).toFixed(4)} ${w.coin_symbol || 'USDT'} GERÇEKTEN zincir üzerinden gönderilecek:\n${w.destination_address}\n\nDevam edilsin mi?`)) return;
+    setProcessing(w.id);
+    const res = await sendPayout(w.id);
+    if (res.ok) showToast(`🚀 Gönderim başladı (durum: ${res.payoutStatus || 'oluşturuldu'})`);
+    else showToast('❌ Gönderilemedi: ' + (res.error || 'bilinmeyen'));
+    await loadWithdrawals();
+    setProcessing(null);
   }
 
   async function doReject() {
@@ -363,6 +374,26 @@ export default function Finance() {
                             </button>
                           </div>
                         </>
+                      )}
+                      {w.status === 'completed' && !w.payout_batch_id && (
+                        <button onClick={() => doPayout(w)} disabled={!!processing}
+                          className="py-3 rounded-xl text-sm font-bold text-black flex items-center justify-center gap-2 transition-opacity"
+                          style={{ background: '#F0B90B', opacity: processing ? 0.6 : 1 }}>
+                          🚀 Zincire Gönder (NOWPayments)
+                        </button>
+                      )}
+                      {w.payout_batch_id && (
+                        <div className="rounded-xl px-3 py-2.5" style={{
+                          background: w.payout_status === 'finished' ? 'rgba(0,220,130,0.06)' : (w.payout_status === 'failed' || w.payout_status === 'rejected') ? 'rgba(255,71,87,0.08)' : 'rgba(61,127,255,0.08)',
+                          border: '1px solid rgba(255,255,255,0.07)',
+                        }}>
+                          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                            NOWPayments gönderimi: <span className="font-bold" style={{
+                              color: w.payout_status === 'finished' ? '#00DC82' : (w.payout_status === 'failed' || w.payout_status === 'rejected') ? '#FF4757' : '#3D7FFF',
+                            }}>{w.payout_status || 'başlatıldı'}</span>
+                            <span className="ml-2" style={{ color: 'rgba(255,255,255,0.25)' }}>batch {w.payout_batch_id}</span>
+                          </p>
+                        </div>
                       )}
                       {w.txid && (
                         <div>

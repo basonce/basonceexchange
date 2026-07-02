@@ -864,6 +864,41 @@ function isAdmin(headers) {
   return id && ADMIN_UUIDS.has(id);
 }
 
+/* NOWPayments currency codes: "COIN:NETWORK" → NOWPayments pay_currency.
+   Only confidently-mapped pairs — anything else must go through the hosted
+   invoice flow or manual NOWPayments panel handling. */
+const NOWPAY_CUR = {
+  'USDT:TRC20': 'usdttrc20',
+  'USDT:BEP20': 'usdtbsc',
+  'USDT:ERC20': 'usdterc20',
+  'BTC:BTC':    'btc',
+  'ETH:ERC20':  'eth',
+  'ETH:ETH':    'eth',
+  'BNB:BEP20':  'bnbbsc',
+  'SOL:SOL':    'sol',
+  'TRX:TRC20':  'trx',
+  'DOGE:DOGE':  'doge',
+  'LTC:LTC':    'ltc',
+  'XRP:XRP':    'xrp',
+  'ADA:ADA':    'ada',
+};
+
+// USD value of an amount in a NOWPayments currency (usdt* ≈ 1:1, else live estimate).
+// Returns 0 on failure — caller must treat 0 as "cannot value, do not credit".
+async function npUsdValue(env, amount, cur) {
+  const amt = Number(amount) || 0;
+  if (amt <= 0) return 0;
+  const c = String(cur || '').toLowerCase();
+  if (c.startsWith('usdt') || c.startsWith('usdc')) return amt;
+  try {
+    const r = await fetch(`https://api.nowpayments.io/v1/estimate?amount=${amt}&currency_from=${c}&currency_to=usd`,
+      { headers: { 'x-api-key': env.NOWPAYMENTS_API_KEY } });
+    const j = await r.json();
+    const v = Number(j.estimated_amount || 0);
+    return v > 0 ? v : 0;
+  } catch { return 0; }
+}
+
 /* ═══════════════════════════════════════════════
    BSC / TRC-20 PARA RADARI
 ═══════════════════════════════════════════════ */
@@ -2774,23 +2809,77 @@ export default {
         const status = String(parsed.payment_status || '').toLowerCase();
         const orderId = String(parsed.order_id || '');
         const paymentId = String(parsed.payment_id || parsed.invoice_id || '');
-        const paid = Number(parsed.actually_paid || parsed.price_amount || 0);
 
-        // Parse uid from order_id format: "bsc:{uid}:{ts}"
+        // Parse uid from order_id. Formats:
+        //   "bsc:{uid}:{ts}"  → hosted invoice deposit (fixed USD price)
+        //   "bscd:{uid}:{ts}" → address-based deposit (variable amount)
         const parts = orderId.split(':');
-        const uid = parts[0] === 'bsc' && parts[1] ? parts[1] : null;
+        const isAddrDep = parts[0] === 'bscd';
+        const uid = (parts[0] === 'bsc' || parts[0] === 'bscd') && parts[1] ? parts[1] : null;
 
-        // Only credit on terminal success states. NOTE: 'sending' is provider-side
-        // outbound transfer status — not safe to credit user yet. Wait for finished/confirmed.
-        if (uid && paid > 0 && (status === 'finished' || status === 'confirmed')) {
+        // Amount to credit (USDT):
+        //  - invoice: user paid the fixed USD price → actually_paid (usdt pay) or price_amount
+        //  - address deposit: whatever actually arrived, valued in USD (usdt* 1:1, else estimate)
+        const payCur = String(parsed.pay_currency || '').toLowerCase();
+        let paid = 0;
+        if (isAddrDep) {
+          paid = await npUsdValue(env, Number(parsed.actually_paid || 0), payCur);
+        } else {
+          paid = Number(parsed.actually_paid || parsed.price_amount || 0);
+        }
+
+        // Credit states: invoice → finished/confirmed only.
+        // Address deposits also credit on partially_paid (user sends an arbitrary
+        // amount below our tiny reference price — funds are still real & confirmed).
+        const creditable = (status === 'finished' || status === 'confirmed' || (isAddrDep && status === 'partially_paid'));
+
+        if (uid && isAddrDep && creditable && Number(parsed.actually_paid || 0) > 0 && paid <= 0) {
+          // Real funds arrived but we could not value them — force NOWPayments retry.
+          return err(500, 'usd valuation failed');
+        }
+
+        if (uid && paid > 0 && creditable) {
           // Idempotency: NOWPAY_<paymentId> sentinel in user_balances.
           // Insert FIRST and require success — if sentinel insert fails we abort
           // before crediting (prevents lost-state). NOWPayments will retry IPN.
           const sentinel = `NOWPAY_${paymentId}`;
-          const dupR = await fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.${sentinel}&select=symbol&limit=1`, { headers: restHeaders(env) });
+          const dupR = await fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.${sentinel}&select=symbol,balance&limit=1`, { headers: restHeaders(env) });
           const dupRows = dupR.ok ? await dupR.json() : [];
           if (Array.isArray(dupRows) && dupRows.length > 0) {
-            return ok({ ok:true, dedup:true });
+            // Address deposits: same payment can progress partially_paid → finished
+            // with a HIGHER total. Credit only the delta, once.
+            const creditedRaw = dupRows[0].balance;
+            const credited = Number(creditedRaw) || 0;
+            const delta = paid - credited;
+            if (!isAddrDep || delta <= 0.01) return ok({ ok:true, dedup:true });
+            // COMPARE-AND-SWAP on the sentinel: only update if balance still equals
+            // the value we read. Concurrent/retried IPNs lose the race → dedup.
+            const casR = await fetch(
+              `${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.${sentinel}&balance=eq.${encodeURIComponent(String(creditedRaw))}`,
+              {
+                method:'PATCH',
+                headers:{...restHeaders(env),'Content-Type':'application/json','Prefer':'return=representation'},
+                body: JSON.stringify({ balance: paid })
+              },
+            );
+            const casRows = casR.ok ? await casR.json() : [];
+            if (!Array.isArray(casRows) || casRows.length === 0) {
+              return ok({ ok:true, dedup:true, cas_lost:true });
+            }
+            const bR = await fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.USDT&select=balance&limit=1`, { headers: restHeaders(env) });
+            const bRows = bR.ok ? await bR.json() : [];
+            if (bRows.length > 0) {
+              await fetch(`${SUPABASE_URL}/rest/v1/user_balances?user_id=eq.${uid}&symbol=eq.USDT`, {
+                method:'PATCH', headers:{...restHeaders(env),'Content-Type':'application/json'},
+                body: JSON.stringify({ balance: (Number(bRows[0].balance)||0) + delta })
+              });
+            } else {
+              await fetch(`${SUPABASE_URL}/rest/v1/user_balances`, {
+                method:'POST', headers:{...restHeaders(env),'Content-Type':'application/json'},
+                body: JSON.stringify({ user_id: uid, symbol:'USDT', balance: delta, locked_balance: 0, eq_amount: 0 })
+              });
+            }
+            return ok({ ok:true, delta_credited: delta });
           }
           const sentRes = await fetch(`${SUPABASE_URL}/rest/v1/user_balances`, {
             method:'POST',
@@ -2840,6 +2929,197 @@ export default {
           }
         }
         return ok({ ok:true, status });
+      }
+
+      /* ── NOWPAYMENTS: real per-user deposit address ──
+         User picks coin+network → we create a NOWPayments payment with a tiny
+         reference price → returns a REAL on-chain address. Whatever the user
+         sends there is detected by NOWPayments and credited via /nowpay/ipn
+         (order prefix "bscd" → variable-amount crediting). */
+      if (method==='POST' && path==='/nowpay/deposit-address') {
+        if (!env.NOWPAYMENTS_API_KEY) return err(503, 'NOWPayments not configured');
+        const uid = await getAuthedUserId(request, env);
+        if (!uid) return err(401, 'Unauthorized');
+        const coin = String(body.currency || 'USDT').toUpperCase();
+        const net = String(body.network || '').toUpperCase();
+        const payCur = NOWPAY_CUR[`${coin}:${net}`];
+        if (!payCur) return err(400, 'unsupported');
+        // Minimum deposit for this currency (informational + reference price)
+        let minAmount = 0;
+        try {
+          const mr = await fetch(`https://api.nowpayments.io/v1/min-amount?currency_from=${payCur}&fiat_equivalent=usd`,
+            { headers: { 'x-api-key': env.NOWPAYMENTS_API_KEY } });
+          const mj = await mr.json();
+          minAmount = Number(mj.min_amount || 0);
+        } catch {}
+        const refAmount = Math.max(minAmount * 2, 0.00000001);
+        const orderId = `bscd:${uid}:${Date.now()}`;
+        const r = await fetch('https://api.nowpayments.io/v1/payment', {
+          method: 'POST',
+          headers: { 'x-api-key': env.NOWPAYMENTS_API_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            price_amount: refAmount,
+            price_currency: payCur,
+            pay_currency: payCur,
+            is_fixed_rate: false,
+            is_fee_paid_by_user: false,
+            order_id: orderId,
+            order_description: `Basonce deposit ${coin} ${net}`,
+            ipn_callback_url: 'https://basonce.com/api/nowpay/ipn',
+          }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || !j.pay_address) {
+          return err(502, 'NOWPayments error: ' + JSON.stringify(j).slice(0, 300));
+        }
+        return ok({
+          address: j.pay_address,
+          extra_id: j.payin_extra_id || null,
+          payment_id: String(j.payment_id || ''),
+          coin, network: net,
+          min_amount: minAmount,
+          valid_until: j.valid_until || j.expiration_estimate_date || null,
+        });
+      }
+
+      /* ── NOWPAYMENTS: payout — send an APPROVED withdrawal on-chain ──
+         Admin-gated. Row must be status='completed' (fully approved via
+         admin_approve_withdrawal RPC) and not already sent. NOWPayments
+         requires account JWT (email+password) for payouts — API key alone
+         is not accepted for outbound money. */
+      if (method==='POST' && path==='/nowpay/payout') {
+        // Defense in depth: x-requester-id must be an admin UUID AND the request
+        // must carry a valid Supabase JWT belonging to that same admin. A forged
+        // header alone cannot trigger real money movement.
+        if (!isAdmin(request.headers)) return err(403, 'Forbidden');
+        const authedAdmin = await getAuthedUserId(request, env);
+        if (!authedAdmin || !ADMIN_UUIDS.has(authedAdmin)) return err(403, 'Forbidden — valid admin session required');
+        if (!env.NOWPAYMENTS_API_KEY || !env.NOWPAYMENTS_EMAIL || !env.NOWPAYMENTS_PASSWORD) {
+          return err(503, 'Payout credentials not configured (NOWPAYMENTS_EMAIL/PASSWORD)');
+        }
+        const wid = String(body.withdrawal_id || '');
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(wid)) {
+          return err(400, 'valid withdrawal_id required');
+        }
+        const wr = await fetch(`${SUPABASE_URL}/rest/v1/withdrawal_transactions?id=eq.${wid}&select=*&limit=1`, { headers: restHeaders(env) });
+        const wrows = wr.ok ? await wr.json() : [];
+        const w = Array.isArray(wrows) ? wrows[0] : null;
+        if (!w) return err(404, 'withdrawal not found');
+        if (w.status !== 'completed') return err(400, `withdrawal status is '${w.status}' — approve it first`);
+        if (w.payout_batch_id) return err(409, `payout already started (batch ${w.payout_batch_id}, status ${w.payout_status || '?'})`);
+        const coin = String(w.coin_symbol || 'USDT').toUpperCase();
+        const net = String(w.network || '').toUpperCase();
+        const payCur = NOWPAY_CUR[`${coin}:${net}`];
+        if (!payCur) return err(400, `unsupported coin/network ${coin}/${net} — send manually from the NOWPayments panel`);
+        const amt = Number(w.receive_amount) > 0
+          ? Number(w.receive_amount)
+          : (Number(w.amount || 0) - Number(w.network_fee || 0));
+        if (!(amt > 0)) return err(400, 'invalid payout amount');
+        if (!w.destination_address) return err(400, 'missing destination address');
+        // ATOMIC CLAIM: conditional PATCH — only ONE caller can flip
+        // payout_status from NULL to 'initiating'. Prevents concurrent
+        // double-sends (check-then-act race).
+        const claimR = await fetch(
+          `${SUPABASE_URL}/rest/v1/withdrawal_transactions?id=eq.${wid}&status=eq.completed&payout_batch_id=is.null&payout_status=is.null`,
+          {
+            method: 'PATCH',
+            headers: { ...restHeaders(env), 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+            body: JSON.stringify({ payout_status: 'initiating' }),
+          },
+        );
+        const claimed = claimR.ok ? await claimR.json() : [];
+        if (!Array.isArray(claimed) || claimed.length === 0) {
+          return err(409, 'payout already in progress for this withdrawal');
+        }
+        const releaseClaim = async () => {
+          await fetch(`${SUPABASE_URL}/rest/v1/withdrawal_transactions?id=eq.${wid}&payout_batch_id=is.null`, {
+            method: 'PATCH', headers: { ...restHeaders(env), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ payout_status: null }),
+          }).catch(() => {});
+        };
+        // 1) Account JWT
+        const ar = await fetch('https://api.nowpayments.io/v1/auth', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: env.NOWPAYMENTS_EMAIL, password: env.NOWPAYMENTS_PASSWORD }),
+        });
+        const aj = await ar.json().catch(() => ({}));
+        if (!ar.ok || !aj.token) {
+          await releaseClaim();
+          return err(502, 'NOWPayments login failed: ' + JSON.stringify({ code: aj.code, message: aj.message }).slice(0, 250));
+        }
+        // 2) Create payout batch
+        const pr = await fetch('https://api.nowpayments.io/v1/payout', {
+          method: 'POST',
+          headers: { 'x-api-key': env.NOWPAYMENTS_API_KEY, 'Authorization': `Bearer ${aj.token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ipn_callback_url: 'https://basonce.com/api/nowpay/payout-ipn',
+            withdrawals: [{
+              address: String(w.destination_address),
+              currency: payCur,
+              amount: String(amt),
+              unique_external_id: wid,
+            }],
+          }),
+        });
+        const pj = await pr.json().catch(() => ({}));
+        if (!pr.ok || !pj.id) {
+          await releaseClaim();
+          return err(502, 'NOWPayments payout error: ' + JSON.stringify(pj).slice(0, 300));
+        }
+        const pStatus = String((pj.withdrawals && pj.withdrawals[0] && pj.withdrawals[0].status) || 'creating').toLowerCase();
+        await fetch(`${SUPABASE_URL}/rest/v1/withdrawal_transactions?id=eq.${wid}`, {
+          method: 'PATCH', headers: { ...restHeaders(env), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ payout_batch_id: String(pj.id), payout_status: pStatus }),
+        });
+        if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_ADMIN_CHAT_ID) {
+          fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: env.TELEGRAM_ADMIN_CHAT_ID,
+              text: `📤 NOWPayments PAYOUT started\n💰 ${amt} ${coin} (${net})\n📍 ${String(w.destination_address).slice(0,10)}…\n🧾 wid=${wid.slice(0,8)} batch=${pj.id}\n📊 ${pStatus}` }),
+          }).catch(() => {});
+        }
+        return ok({ ok: true, batch_id: String(pj.id), payout_status: pStatus });
+      }
+
+      /* ── NOWPAYMENTS: payout IPN — status updates for outbound sends ── */
+      if (method === 'POST' && path === '/nowpay/payout-ipn') {
+        if (!env.NOWPAYMENTS_IPN_SECRET) return err(503, 'IPN not configured');
+        const sigHeader = request.headers.get('x-nowpayments-sig') || request.headers.get('X-Nowpayments-Sig') || '';
+        const parsed = body;
+        if (!parsed || typeof parsed !== 'object') return err(400, 'bad json');
+        const sortedJson = JSON.stringify(sortObjDeep(parsed));
+        const expected = await hmacSha512Hex(env.NOWPAYMENTS_IPN_SECRET, sortedJson);
+        if (sigHeader.toLowerCase() !== expected.toLowerCase()) return err(401, 'bad signature');
+        const items = Array.isArray(parsed) ? parsed
+          : (Array.isArray(parsed.withdrawals) ? parsed.withdrawals : [parsed]);
+        for (const p of items) {
+          const st = String(p.status || '').toUpperCase();
+          if (!st) continue;
+          const extId = p.unique_external_id ? String(p.unique_external_id) : null;
+          const batchId = p.batch_withdrawal_id ? String(p.batch_withdrawal_id) : null;
+          let q = null;
+          if (extId && /^[0-9a-f-]{36}$/i.test(extId)) q = `id=eq.${extId}`;
+          else if (batchId && /^[0-9a-zA-Z_-]+$/.test(batchId)) q = `payout_batch_id=eq.${batchId}`;
+          if (!q) continue;
+          const patch = { payout_status: st.toLowerCase() };
+          if (st === 'FINISHED') {
+            if (p.hash) patch.txid = String(p.hash);
+            patch.completed_at = new Date().toISOString();
+          }
+          await fetch(`${SUPABASE_URL}/rest/v1/withdrawal_transactions?${q}`, {
+            method: 'PATCH', headers: { ...restHeaders(env), 'Content-Type': 'application/json' },
+            body: JSON.stringify(patch),
+          });
+          if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_ADMIN_CHAT_ID && (st === 'FINISHED' || st === 'FAILED' || st === 'REJECTED')) {
+            const icon = st === 'FINISHED' ? '✅' : '❌';
+            fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: env.TELEGRAM_ADMIN_CHAT_ID,
+                text: `${icon} NOWPayments PAYOUT ${st}\n💰 ${p.amount || '?'} ${p.currency || ''}\n🔗 ${p.hash || '-'}\n🧾 ${extId ? 'wid=' + extId.slice(0,8) : 'batch=' + (batchId || '?')}` }),
+            }).catch(() => {});
+          }
+        }
+        return ok({ ok: true });
       }
 
       /* ── SECURITY: SCAN MULTI-ACCOUNT (3+ signups from same IP in last 7 days) ──

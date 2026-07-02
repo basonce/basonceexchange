@@ -408,6 +408,30 @@ export async function approveWithdrawal(id: string, txid?: string) {
   return { ok: false, error: data?.error || 'unknown' };
 }
 
+export async function sendPayout(withdrawalId: string) {
+  // Triggers a REAL on-chain send via NOWPayments (cf-worker, admin-gated).
+  // Worker verifies BOTH the admin UUID header AND the Supabase JWT.
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
+  if (!user || !session?.access_token) return { ok: false, error: 'Oturum bulunamadı' };
+  try {
+    const res = await fetch('https://basonce.com/api/nowpay/payout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-requester-id': user.id,
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ withdrawal_id: withdrawalId }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: j.error || `HTTP ${res.status}` };
+    return { ok: true, batchId: j.batch_id as string, payoutStatus: j.payout_status as string };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Ağ hatası' };
+  }
+}
+
 export async function rejectWithdrawal(id: string, notes: string) {
   // Refund happens atomically inside the RPC.
   const { data, error } = await supabase.rpc('admin_reject_withdrawal', {
