@@ -6,7 +6,7 @@ export default function Vision() {
       <div className="relative h-full w-full flex flex-col px-[8vw] py-[7vh]">
         <div className="flex items-center justify-between mb-[1vh]">
           <span className="font-display font-bold text-primary text-[1.2vw] tracking-tight">BASONCE EXCHANGE</span>
-          <span className="text-muted text-[1.1vw] font-body">02 / 16</span>
+          <span className="text-muted text-[1.1vw] font-body">02 / 19</span>
         </div>
         <div className="w-full h-px bg-white/10 mb-[5vh]" />
 

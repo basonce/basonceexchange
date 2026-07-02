@@ -91,8 +91,8 @@
     "id": "ledger",
     "position": 12,
     "filepath": "src/pages/slides/Ledger.tsx",
-    "title": "İşlem Defteri",
-    "description": "Değişmez çift girişli, hash-zincirli defter ve uçtan uca denetim.",
+    "title": "Çift Kayıtlı Defter",
+    "description": "Canlıda çalışan çift kayıtlı defter: her hareket iki bacaklı, toplam her an sıfır, kayıtlar değiştirilemez, ters kayıtla düzeltme.",
     "speakerNotes": ""
   },
   {
@@ -104,8 +104,32 @@
     "speakerNotes": ""
   },
   {
+    "id": "security-risk",
+    "filepath": "src/pages/slides/SecurityRisk.tsx",
+    "title": "Risk Motoru",
+    "description": "Her çekim kural zincirinden geçer: limitler, davranış analizi, yeni hesap kontrolü, kara liste; her karar kayıt altında.",
+    "speakerNotes": "",
+    "position": 14
+  },
+  {
+    "id": "treasury",
+    "filepath": "src/pages/slides/Treasury.tsx",
+    "title": "Hazine & Onaylı Çekim",
+    "description": "Onay kuyruğu, büyük tutarlarda iki ayrı yetkiliyle çift onay, sıcak/soğuk cüzdan saklama standardı.",
+    "speakerNotes": "",
+    "position": 15
+  },
+  {
+    "id": "audit-ready",
+    "filepath": "src/pages/slides/AuditReady.tsx",
+    "title": "Denetime Hazır Mimari",
+    "description": "Denetçi sorularının kayıtlı cevapları ve lisans yolu: teknik altyapı hazır, KYC + hukuk + bağımsız denetim adımları.",
+    "speakerNotes": "",
+    "position": 16
+  },
+  {
     "id": "revenue",
-    "position": 14,
+    "position": 17,
     "filepath": "src/pages/slides/Revenue.tsx",
     "title": "Gelir Modeli",
     "description": "Token/listeleme, spot, vadeli, çoklu varlık, çekim ve madencilik gelirleri.",
@@ -113,7 +137,7 @@
   },
   {
     "id": "roadmap",
-    "position": 15,
+    "position": 18,
     "filepath": "src/pages/slides/Roadmap.tsx",
     "title": "Yol Haritası",
     "description": "Canlı platformdan uyum, modül genişlemesi ve küresel ölçeğe.",
@@ -121,7 +145,7 @@
   },
   {
     "id": "closing",
-    "position": 16,
+    "position": 19,
     "filepath": "src/pages/slides/Closing.tsx",
     "title": "Kapanış",
     "description": "Tek defter, tüm finans — vizyon ve yatırım çağrısı.",

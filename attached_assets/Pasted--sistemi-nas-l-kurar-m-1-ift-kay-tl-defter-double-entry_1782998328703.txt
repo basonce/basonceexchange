@@ -1,0 +1,14 @@
+Üç sistemi nasıl kurarım?
+1. Çift kayıtlı defter (double-entry ledger)
+Her para hareketi iki bacaklı yazılır: para bir hesaptan çıkar, diğerine girer. Sistemdeki tüm hesapların toplamı her an sıfır olmak zorundadır — bir kuruş bile açık verirse sistem alarm verir ve işlemi durdurur. Buna ek olarak kayıtlar değiştirilemez olur: geçmiş bir kayıt asla silinmez/düzeltilmez, hata varsa ters kayıtla düzeltilir (bankaların yaptığı gibi). Denetçi geldiğinde "şu kullanıcının bakiyesi neden bu?" sorusunun cevabı, ilk günden bugüne her hareketiyle kanıtlanabilir.
+
+2. Risk motoru
+Her işlem (yatırma, çekme, alım-satım) gerçekleşmeden önce bir kural zincirinden geçer: günlük/aylık limit kontrolü, ani davranış değişikliği tespiti (örn. hep 100$ çeken biri aniden 50.000$ çekmeye kalkarsa), yeni hesap kısıtlamaları, kara liste adres kontrolü. Kurala takılan işlem otomatik durur ve yönetici incelemesine düşer. Her karar kayıt altına alınır — denetçiye "şüpheli işlemleri nasıl yakalıyorsunuz?" sorusunun cevabı budur.
+
+3. Ana cüzdan + onaylı çekim
+Yatırılan paralar tek bir ana cüzdanda (hazinede) toplanır. Çekim istendiğinde para otomatik gönderilmez: önce risk motorundan geçer, sonra onay kuyruğuna düşer, yetkili onaylayınca gönderilir. Büyük tutarlar için çift onay (iki ayrı kişi) kuralı konur. Paranın büyük kısmı internete kapalı "soğuk" cüzdanda, günlük işlem için küçük kısmı "sıcak" cüzdanda tutulur — borsaların standardı budur.
+
+Dürüst olmam gereken iki nokta
+"%100 güvenli" sözünü sana kimse dürüstçe veremez — dünyanın en büyük borsaları bile hacklendi. Doğru hedef şu: katmanlı güvenlik + her şeyin kayıtlı olması + tek bir açığın tüm parayı riske atmaması. Denetçilerin aradığı da zaten "hiç açık yok" değil, "riskler biliniyor ve yönetiliyor" kanıtıdır. Ben sana bu standardı kurarım.
+
+Lisans sadece yazılım işi değil. Denetimden geçmek için yazılımın yanında şunlar da gerekir: şirket kuruluşu ve hangi ülkeden lisans alınacağının seçimi (avukat işi), kimlik doğrulama sistemi (KYC — Sumsub gibi hazır servislerle entegre edilir, bunu ben bağlarım), ve bağımsız güvenlik denetimi (dış firma). Yani ben teknik tarafı denetime hazır hale getiririm; hukuki tarafı yatırımcınla birlikte yürütmen gerekir.
