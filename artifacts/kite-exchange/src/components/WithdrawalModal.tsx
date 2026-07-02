@@ -113,26 +113,28 @@ export default function WithdrawalModal({
       }
 
       const { status: autoStatus } = await classifyWithdrawal(coinSymbol, withdrawAmount);
-      const { data: inserted } = await supabase.from('withdrawal_transactions').insert({
-        user_id: user.id,
-        coin_symbol: coinSymbol,
-        network: selectedNetwork.id,
-        amount: withdrawAmount,
-        network_fee: selectedNetwork.withdrawFee,
-        receive_amount: receiveAmount,
-        destination_address: address,
-        status: autoStatus
-      }).select('id').maybeSingle();
+      // Atomic server-side withdrawal: insert + balance deduction happen in
+      // ONE database transaction (with a balance >= amount guard).
+      const { data: withdrawalId, error: rpcErr } = await supabase.rpc('request_withdrawal', {
+        p_coin: coinSymbol,
+        p_network: selectedNetwork.id,
+        p_amount: withdrawAmount,
+        p_fee: selectedNetwork.withdrawFee,
+        p_receive: receiveAmount,
+        p_address: address,
+        p_status: autoStatus,
+        p_fee_usdt: 0,
+      });
 
-      if (inserted?.id) {
-        notifyWithdrawalToAdmin({ withdrawal_id: inserted.id });
+      if (rpcErr || !withdrawalId) {
+        const msg = rpcErr?.message || 'bilinmeyen hata';
+        const friendly = msg.includes('insufficient_balance') ? 'Yetersiz bakiye' : msg;
+        alert('Çekim talebi kaydedilemedi: ' + friendly + '\nBakiyenizden hiçbir şey düşülmedi, lütfen tekrar deneyin.');
+        setLoading(false);
+        return;
       }
 
-      await supabase
-        .from('user_balances')
-        .update({ balance: (currentBalance - withdrawAmount).toString() })
-        .eq('user_id', user.id)
-        .eq('symbol', coinSymbol);
+      notifyWithdrawalToAdmin({ withdrawal_id: withdrawalId });
 
       alert('Withdrawal request submitted! Admin will process your transaction.');
       setAddress('');

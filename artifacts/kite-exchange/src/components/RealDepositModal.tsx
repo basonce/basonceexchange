@@ -11,10 +11,11 @@ const MAJOR_COINS = ['USDT', 'USDC', 'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', '
 // COIN:NETWORK pairs with REAL per-user deposit addresses (NOWPayments).
 // Must stay in sync with NOWPAY_CUR in cf-worker/_worker.js.
 const NOWPAY_SUPPORTED = new Set([
-  'USDT:TRC20', 'USDT:BEP20', 'USDT:ERC20',
+  'USDT:TRC20', 'USDT:BEP20', 'USDT:ERC20', 'USDT:POLYGON',
+  'USDC:ERC20', 'USDC:BEP20', 'USDC:POLYGON',
   'BTC:BTC', 'ETH:ERC20', 'ETH:ETH', 'BNB:BEP20',
   'SOL:SOL', 'TRX:TRC20', 'DOGE:DOGE', 'LTC:LTC',
-  'XRP:XRP', 'ADA:ADA',
+  'XRP:XRP', 'ADA:ADA', 'MATIC:POLYGON',
 ]);
 
 interface RealDepositModalProps {

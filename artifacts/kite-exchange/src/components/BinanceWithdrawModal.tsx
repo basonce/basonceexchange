@@ -315,71 +315,34 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
     setSubmitting(true);
     try {
       const user = await getCurrentUser();
-      if (!user) throw new Error('Not authenticated');
+      if (!user) throw new Error('Oturum süreniz dolmuş — lütfen çıkıp tekrar giriş yapın');
 
-      // Deduct coin balance
-      const newBalance = (selectedCoin!.balance) - amountNum;
-      await supabase.from('user_balances')
-        .update({ balance: newBalance.toString() })
-        .eq('user_id', user.id)
-        .eq('symbol', selectedCoin!.symbol);
+      // Atomic server-side withdrawal: the RPC inserts the request, deducts
+      // the coin balance (with a balance >= amount guard) and the optional
+      // USDT service fee in ONE database transaction. Either everything
+      // succeeds or nothing changes — no phantom deductions, no orphan rows.
+      const { status: autoStatus } = await classifyWithdrawal(selectedCoin!.symbol, amountNum);
+      const { data: withdrawalId, error: rpcErr } = await supabase.rpc('request_withdrawal', {
+        p_coin: selectedCoin!.symbol,
+        p_network: selectedNetwork.id,
+        p_amount: amountNum,
+        p_fee: customFeeUsdt > 0 ? 0 : fee,
+        p_receive: receiveAmount,
+        p_address: address.trim(),
+        p_status: autoStatus,
+        p_fee_usdt: customFeeUsdt > 0 ? customFeeUsdt : 0,
+      });
 
-      // Deduct custom USDT fee from USDT balance if applicable
-      if (customFeeUsdt > 0 && selectedCoin!.symbol !== 'USDT') {
-        const { data: usdtRow } = await supabase
-          .from('user_balances')
-          .select('balance')
-          .eq('user_id', user.id)
-          .eq('symbol', 'USDT')
-          .maybeSingle();
-        if (usdtRow) {
-          const newUsdtBal = Math.max(0, parseFloat(usdtRow.balance) - customFeeUsdt);
-          await supabase.from('user_balances')
-            .update({ balance: newUsdtBal.toString() })
-            .eq('user_id', user.id)
-            .eq('symbol', 'USDT');
-          await supabase.from('transactions').insert({
-            user_id: user.id,
-            type: 'withdrawal_fee',
-            symbol: 'USDT',
-            amount: customFeeUsdt,
-            status: 'completed',
-            description: `Service fee - ${selectedCoin!.symbol} withdrawal`,
-          });
-        }
-      } else if (customFeeUsdt > 0 && selectedCoin!.symbol === 'USDT') {
-        // For USDT withdrawals, fee is already included in the coin balance deduction
-        // Adjust: deduct customFeeUsdt additionally (it replaces the network fee)
-        // receiveAmount already = amountNum for customFee case, so just log the fee
-        await supabase.from('transactions').insert({
-          user_id: user.id,
-          type: 'withdrawal_fee',
-          symbol: 'USDT',
-          amount: customFeeUsdt,
-          status: 'completed',
-          description: `Service fee - USDT withdrawal`,
-        });
+      if (rpcErr || !withdrawalId) {
+        const msg = rpcErr?.message || '';
+        if (msg.includes('insufficient_balance')) throw new Error('Yetersiz bakiye — çekim yapılmadı');
+        if (msg.includes('insufficient_usdt_fee')) throw new Error('Hizmet ücreti için yeterli USDT bakiyeniz yok — çekim yapılmadı');
+        throw new Error(msg || 'Çekim talebi kaydedilemedi — bakiyenizden hiçbir şey düşülmedi, lütfen tekrar deneyin');
       }
 
-      const txId = Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
       const now = new Date();
 
-      const { status: autoStatus } = await classifyWithdrawal(selectedCoin!.symbol, amountNum);
-      const { data: inserted } = await supabase.from('withdrawal_transactions').insert({
-        user_id: user.id,
-        coin_symbol: selectedCoin!.symbol,
-        network: selectedNetwork.id,
-        amount: amountNum,
-        network_fee: customFeeUsdt > 0 ? 0 : fee,
-        receive_amount: receiveAmount,
-        destination_address: address.trim(),
-        txid: txId,
-        status: autoStatus,
-      }).select('id').maybeSingle();
-
-      if (inserted?.id) {
-        notifyWithdrawalToAdmin({ withdrawal_id: inserted.id });
-      }
+      notifyWithdrawalToAdmin({ withdrawal_id: withdrawalId });
       trackActivity('withdraw_submit', 'assets', {
         coin: selectedCoin!.symbol,
         amount: amountNum,
@@ -394,7 +357,7 @@ export default function BinanceWithdrawModal({ onClose }: BinanceWithdrawModalPr
         address: address.trim(),
         fee: customFeeUsdt > 0 ? customFeeUsdt : fee,
         receiveAmount,
-        txId,
+        txId: String(withdrawalId),
         date: now.toISOString().replace('T', ' ').slice(0, 19),
       });
       setStep('success');

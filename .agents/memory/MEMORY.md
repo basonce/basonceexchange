@@ -7,6 +7,7 @@
 - [TON upgrade intent binding](ton-upgrade-intent-binding.md) — on-chain box-upgrade payments bound to a single user via server-reserved unique amount to stop hijack.
 - [Slides artifact catalog](slides-artifact-catalog.md) — pnpm catalog gap (missing wouter) that breaks fresh slides-artifact installs.
 - [basonce deposit signal](basonce-deposit-signal.md) — confirmed crypto deposit is only observable client-side via NOWPAY_ sentinel INSERT on user_balances; no transactions row.
+- [basonce withdrawals](basonce-withdrawals.md) — withdrawals must use the atomic request_withdrawal RPC; unchecked RLS-rejected inserts once made withdrawals vanish while balances were deducted.
 - [NOWPayments payouts](nowpayments-payouts.md) — payouts need account JWT not API key; IP whitelist blocks worker; PostgREST atomic-claim/CAS patterns for money safety.
 - [Ledger user visibility & reset](basonce-ledger-user-visibility.md) — per-user ledger RLS + Ledger tab; 2026-07-02 one-time fake-data reset, future fixes must be reversal entries.
 - [Up/Down card odds & cutoff](updown-card-odds-cutoff.md) — displayed odds/pressure are cosmetic (real = server parimutuel); 20s anti-snipe bet cutoff must stay in sync across frontend + cf-worker + api-server.

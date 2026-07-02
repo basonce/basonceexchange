@@ -868,9 +868,13 @@ function isAdmin(headers) {
    Only confidently-mapped pairs — anything else must go through the hosted
    invoice flow or manual NOWPayments panel handling. */
 const NOWPAY_CUR = {
-  'USDT:TRC20': 'usdttrc20',
-  'USDT:BEP20': 'usdtbsc',
-  'USDT:ERC20': 'usdterc20',
+  'USDT:TRC20':   'usdttrc20',
+  'USDT:BEP20':   'usdtbsc',
+  'USDT:ERC20':   'usdterc20',
+  'USDT:POLYGON': 'usdtmatic',
+  'USDC:ERC20':   'usdc',
+  'USDC:BEP20':   'usdcbsc',
+  'USDC:POLYGON': 'usdcmatic',
   'BTC:BTC':    'btc',
   'ETH:ERC20':  'eth',
   'ETH:ETH':    'eth',
@@ -881,6 +885,7 @@ const NOWPAY_CUR = {
   'LTC:LTC':    'ltc',
   'XRP:XRP':    'xrp',
   'ADA:ADA':    'ada',
+  'MATIC:POLYGON': 'maticmainnet',
 };
 
 // USD value of an amount in a NOWPayments currency (usdt* ≈ 1:1, else live estimate).
