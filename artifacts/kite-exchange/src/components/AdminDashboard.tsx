@@ -36,6 +36,7 @@ import {
   Pin,
   Trash2,
   Radio,
+  ShieldAlert,
 } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { LEAGUES, LEAGUE_TEAMS, TEAM_LOGOS } from '../lib/sportsData';
@@ -2521,7 +2522,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     );
   }
 
-  const tabs: { id: AdminTab; label: string; icon: any; badge?: number }[] = [
+  const tabs: { id: AdminTab; label: string; icon: any; badge?: number; red?: boolean }[] = [
     { id: 'overview', label: 'Genel', icon: BarChart3 },
     { id: 'wallets', label: 'Cüzdan Havuz', icon: Wallet },
     { id: 'user-wallets', label: 'Kullanıcı', icon: Users, badge: newVisitorCount },
@@ -2532,7 +2533,6 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'position', label: 'Pozisyon', icon: Target },
     { id: 'deposits', label: 'Yatırım', icon: DollarSign, badge: newDepositCount },
     { id: 'withdrawals', label: 'Çekim', icon: ArrowUpRight, badge: newWithdrawalCount },
-    { id: 'audit', label: 'Denetim', icon: BarChart3 },
     { id: 'security', label: 'Güvenlik', icon: Shield },
     { id: 'activity', label: 'Aktivite', icon: Activity },
     { id: 'deploy', label: 'Deploy', icon: Server },
@@ -2552,6 +2552,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     { id: 'radar', label: 'BSC&TRC', icon: Radio, badge: depositRadarNewCount },
     { id: 'social', label: 'Sosyal Medya', icon: Send },
     { id: 'copy-trading', label: 'Copy', icon: Copy },
+    { id: 'audit', label: 'Denetim', icon: ShieldAlert, red: true },
   ];
 
   return (
@@ -2614,7 +2615,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
 
       <div className="bg-[#1E2329] border-b border-[#2B3139] px-2 py-2">
         <div className="grid grid-cols-5 gap-1">
-          {tabs.map(({ id, label, icon: Icon, badge }) => (
+          {tabs.map(({ id, label, icon: Icon, badge, red }) => (
             <button
               key={id}
               onClick={() => {
@@ -2644,8 +2645,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
               }}
               className={`relative flex flex-col items-center justify-center gap-1 px-1 py-2.5 rounded-xl transition-all ${
                 activeTab === id
-                  ? 'bg-yellow-500 text-black'
-                  : 'bg-[#2B3139] text-gray-400 hover:text-white hover:bg-[#363D47]'
+                  ? red ? 'bg-red-600 text-white' : 'bg-yellow-500 text-black'
+                  : red
+                    ? 'bg-[#2B3139] text-red-500 border border-red-500/40 hover:bg-red-600/20'
+                    : 'bg-[#2B3139] text-gray-400 hover:text-white hover:bg-[#363D47]'
               }`}
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
