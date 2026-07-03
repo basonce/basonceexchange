@@ -2,6 +2,7 @@ import { ArrowLeft, AlertTriangle, Info } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import StableCoinLogo from './CoinLogo';
+import { NOWPAY_SUPPORTED } from '../lib/nowpay-supported';
 
 interface Network {
   id: string;
@@ -47,6 +48,24 @@ const NETWORK_SHORT: Record<string, string> = {
   NEAR: 'NEAR',
   FTM: 'FTM',
   THETA: 'THETA',
+  ARBITRUM: 'ARB',
+  OPTIMISM: 'OP',
+  BASE: 'BASE',
+  AVAXC: 'AVAX-C',
+  POLYGON: 'MATIC',
+  EGLD: 'EGLD',
+  INJ: 'INJ',
+  SUI: 'SUI',
+  APT: 'APT',
+  BCH: 'BCH',
+  ETC: 'ETC',
+  ZEC: 'ZEC',
+  XMR: 'XMR',
+  QTUM: 'QTUM',
+  ONT: 'ONT',
+  ZIL: 'ZIL',
+  WAVES: 'WAVES',
+  CELO: 'CELO',
 };
 
 const NETWORK_FULL: Record<string, string> = {
@@ -70,6 +89,24 @@ const NETWORK_FULL: Record<string, string> = {
   NEAR: 'NEAR Protocol',
   FTM: 'Fantom Opera',
   THETA: 'Theta Network',
+  ARBITRUM: 'Arbitrum One',
+  OPTIMISM: 'Optimism',
+  BASE: 'Base',
+  AVAXC: 'Avalanche C-Chain',
+  POLYGON: 'Polygon',
+  EGLD: 'MultiversX',
+  INJ: 'Injective',
+  SUI: 'Sui',
+  APT: 'Aptos',
+  BCH: 'Bitcoin Cash',
+  ETC: 'Ethereum Classic',
+  ZEC: 'Zcash',
+  XMR: 'Monero',
+  QTUM: 'Qtum',
+  ONT: 'Ontology',
+  ZIL: 'Zilliqa',
+  WAVES: 'Waves',
+  CELO: 'Celo',
 };
 
 export default function NetworkSelector({
@@ -127,12 +164,28 @@ export default function NetworkSelector({
 
       if (error) throw error;
 
-      if (!data || data.length === 0) {
+      const sym = coinSymbol.toUpperCase();
+      const all = (data || []) as Network[];
+      // Only list networks that can actually generate a real deposit address
+      // for this coin. Deduplicate by network_code.
+      const seen = new Set<string>();
+      const supported = all.filter(n => {
+        const code = n.network_code.toUpperCase();
+        if (seen.has(code)) return false;
+        seen.add(code);
+        return NOWPAY_SUPPORTED.has(`${sym}:${code}`);
+      });
+      if (supported.length > 0) {
+        setNetworks(supported);
+        setUsingFallback(false);
+      } else if (all.length > 0) {
+        // No address-capable network — keep the old list so the user still
+        // sees the Instant Crypto Deposit guidance on the next screen.
+        setNetworks(all);
+        setUsingFallback(false);
+      } else {
         setNetworks(FALLBACK_NETWORKS);
         setUsingFallback(true);
-      } else {
-        setNetworks(data);
-        setUsingFallback(false);
       }
     } catch (err) {
       console.error('Error loading networks:', err);

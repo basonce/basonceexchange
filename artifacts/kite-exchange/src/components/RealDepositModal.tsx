@@ -5,18 +5,10 @@ import { QRCodeSVG } from 'qrcode.react';
 import CoinSelector from './CoinSelector';
 import NetworkSelector from './NetworkSelector';
 import StableCoinLogo from './CoinLogo';
+import { NOWPAY_SUPPORTED } from '../lib/nowpay-supported';
 
 const MAJOR_COINS = ['USDT', 'USDC', 'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'AVAX', 'DOT', 'MATIC', 'LTC', 'TRX'];
 
-// COIN:NETWORK pairs with REAL per-user deposit addresses (NOWPayments).
-// Must stay in sync with NOWPAY_CUR in cf-worker/_worker.js.
-const NOWPAY_SUPPORTED = new Set([
-  'USDT:TRC20', 'USDT:BEP20', 'USDT:ERC20', 'USDT:POLYGON',
-  'USDC:ERC20', 'USDC:BEP20', 'USDC:POLYGON',
-  'BTC:BTC', 'ETH:ERC20', 'ETH:ETH', 'BNB:BEP20',
-  'SOL:SOL', 'TRX:TRC20', 'DOGE:DOGE', 'LTC:LTC',
-  'XRP:XRP', 'ADA:ADA', 'MATIC:POLYGON',
-]);
 
 interface RealDepositModalProps {
   onClose: () => void;
@@ -90,19 +82,6 @@ const NETWORK_FULL: Record<string, string> = {
   THETA: 'Theta Network',
 };
 
-const BEP20_MOCK_NETWORK: SelectedNetwork = {
-  id: 'bep20-default',
-  network_name: 'BNB Smart Chain (BEP20)',
-  network_code: 'BEP20',
-  chain_id: '56',
-  contract_address: null,
-  min_deposit: 0.0001,
-  confirmations_required: 1,
-  estimated_arrival_minutes: 2,
-  withdrawal_fee: 0,
-  is_mainnet: true,
-};
-
 export function RealDepositModal({ onClose, currency: initialCurrency, network: initialNetwork }: RealDepositModalProps) {
   const [step, setStep] = useState<'coin' | 'network' | 'address'>('coin');
   const [selectedCoin, setSelectedCoin] = useState<SelectedCoin | null>(null);
@@ -131,15 +110,10 @@ export function RealDepositModal({ onClose, currency: initialCurrency, network: 
 
   const handleCoinSelect = (coin: SelectedCoin) => {
     setSelectedCoin(coin);
-    const isMajor = MAJOR_COINS.includes(coin.symbol.toUpperCase());
-    if (isMajor) {
-      setIsAltcoin(false);
-      setStep('network');
-    } else {
-      setIsAltcoin(true);
-      setSelectedNetwork(BEP20_MOCK_NETWORK);
-      setStep('address');
-    }
+    // Always let the user pick a network — the selector only lists networks
+    // that can actually generate a real deposit address for this coin.
+    setIsAltcoin(!MAJOR_COINS.includes(coin.symbol.toUpperCase()));
+    setStep('network');
   };
 
   const generateAddress = async () => {
