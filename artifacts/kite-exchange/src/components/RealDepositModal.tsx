@@ -63,7 +63,7 @@ const NETWORK_FULL: Record<string, string> = {
   BEP20: 'BNB Smart Chain (BEP20)',
   TRC20: 'Tron (TRC20)',
   ERC20: 'Ethereum (ERC20)',
-  Polygon: 'Polygon',
+  Polygon: 'Polygon (MATIC)',
   BTC: 'Bitcoin',
   SOL: 'Solana',
   AVAX: 'Avalanche C-Chain',
@@ -308,13 +308,13 @@ export function RealDepositModal({ onClose, currency: initialCurrency, network: 
           </div>
         ) : (
           <>
-            {isAltcoin && selectedCoin && (
+            {selectedCoin && selectedNetwork && (
               <div className="mx-4 mt-2 mb-4 p-3 bg-[#1a2535] border border-[#2a4a7f] rounded-xl flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 text-[#4d9fff] flex-shrink-0 mt-0.5" />
                 <div className="flex-1 text-[13px] text-gray-300 leading-relaxed">
-                  Send <span className="text-white font-semibold">{selectedCoin.symbol}</span> via{' '}
-                  <span className="text-white font-semibold">{selectedNetwork?.network_code}</span> network to this address.
-                  Only send {selectedCoin.symbol} tokens — do not send native {selectedNetwork?.network_code === 'BEP20' ? 'BNB' : 'TRX'}.
+                  Send only <span className="text-white font-semibold">{selectedCoin.symbol}</span> to this address via the{' '}
+                  <span className="text-white font-semibold">{networkFull}</span> network.
+                  Sending any other asset or using a different network may result in permanent loss of funds.
                 </div>
               </div>
             )}

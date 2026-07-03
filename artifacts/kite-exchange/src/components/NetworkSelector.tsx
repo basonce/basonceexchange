@@ -72,7 +72,7 @@ const NETWORK_FULL: Record<string, string> = {
   BEP20: 'BNB Smart Chain (BEP20)',
   TRC20: 'Tron (TRC20)',
   ERC20: 'Ethereum (ERC20)',
-  Polygon: 'Polygon',
+  Polygon: 'Polygon (MATIC)',
   BTC: 'Bitcoin',
   SOL: 'Solana',
   AVAX: 'Avalanche C-Chain',
@@ -93,7 +93,7 @@ const NETWORK_FULL: Record<string, string> = {
   OPTIMISM: 'Optimism',
   BASE: 'Base',
   AVAXC: 'Avalanche C-Chain',
-  POLYGON: 'Polygon',
+  POLYGON: 'Polygon (MATIC)',
   EGLD: 'MultiversX',
   INJ: 'Injective',
   SUI: 'Sui',
@@ -232,8 +232,8 @@ export default function NetworkSelector({
               <div className="mx-4 mt-2 mb-1 p-3 bg-[#1a2535] border border-[#2a4a7f] rounded-xl flex items-start gap-2">
                 <Info className="w-4 h-4 text-[#4d9fff] flex-shrink-0 mt-0.5" />
                 <p className="text-[13px] text-gray-300 leading-relaxed">
-                  <span className="text-white font-semibold">{coinSymbol}</span> can be deposited via BEP20 or TRC20 network.
-                  Select a network below to receive your deposit address.
+                  <span className="text-white font-semibold">{coinSymbol}</span> can be deposited via the networks listed below.
+                  Make sure the network you choose matches the network you are sending from — deposits sent over a different network cannot be recovered.
                 </p>
               </div>
             )}
