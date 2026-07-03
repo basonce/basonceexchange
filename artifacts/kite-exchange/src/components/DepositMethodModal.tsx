@@ -27,11 +27,11 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
 
   if (!isOpen) return null;
 
-  const openRealDeposit = (currency: string) => {
+  const openRealDeposit = (currency?: string) => {
     setRealDepositModal({
       open: true,
-      currency,
-      network: 'bsc'
+      currency: currency || '',
+      network: currency ? 'bsc' : ''
     });
   };
 
@@ -99,7 +99,7 @@ export default function DepositMethodModal({ isOpen, onClose }: DepositMethodMod
       icon: ArrowDownCircle,
       title: 'On-Chain Deposit',
       description: 'Deposit Crypto from other exchanges/wallets',
-      action: () => openRealDeposit('USDT')
+      action: () => openRealDeposit()
     },
     {
       icon: Users,
