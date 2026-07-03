@@ -132,51 +132,6 @@ export const CRYPTO_NETWORKS: CoinNetworks = {
   ]
 };
 
-export function generateDepositAddress(coinSymbol: string, network: string, userId: string): string {
-  const prefixes: { [key: string]: string } = {
-    BTC: '1',
-    ERC20: '0x',
-    BEP20: '0x',
-    TRC20: 'T',
-    SOL: '',
-    XRP: 'r',
-    ADA: 'addr1',
-    DOGE: 'D'
-  };
-
-  const lengths: { [key: string]: number } = {
-    BTC: 34,
-    ERC20: 42,
-    BEP20: 42,
-    TRC20: 34,
-    SOL: 44,
-    XRP: 34,
-    ADA: 58,
-    DOGE: 34
-  };
-
-  const prefix = prefixes[network] || '0x';
-  const targetLength = lengths[network] || 42;
-  const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-
-  let seed = userId + coinSymbol + network;
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = ((hash << 5) - hash) + seed.charCodeAt(i);
-    hash = hash & hash;
-  }
-
-  let address = prefix;
-  const remainingLength = targetLength - prefix.length;
-
-  for (let i = 0; i < remainingLength; i++) {
-    const index = Math.abs((hash + i) * 9301 + 49297) % chars.length;
-    address += chars[index];
-  }
-
-  return address;
-}
-
 export function generateQRCodeUrl(address: string): string {
   return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(address)}`;
 }

@@ -102,6 +102,28 @@ export function RealDepositModal({ onClose, currency: initialCurrency, network: 
     };
   }, []);
 
+  // Preselect the coin when opened from a per-coin Deposit button.
+  useEffect(() => {
+    if (!initialCurrency) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('supported_coins')
+        .select('id, symbol, name, logo_url')
+        .ilike('symbol', initialCurrency)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled && data) {
+        setSelectedCoin(data as SelectedCoin);
+        setIsAltcoin(!MAJOR_COINS.includes(String(data.symbol).toUpperCase()));
+        setStep('network');
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (selectedCoin && selectedNetwork && step === 'address') {
       generateAddress();

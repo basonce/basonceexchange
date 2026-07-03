@@ -1,5 +1,5 @@
 import { supabase, getAccessToken } from './supabase';
-import { CRYPTO_NETWORKS, generateDepositAddress } from './networks';
+import { CRYPTO_NETWORKS } from './networks';
 
 export interface WalletBalance {
   symbol: string;
@@ -74,27 +74,41 @@ export async function getBalances(userId: string): Promise<WalletBalance[]> {
   return Array.from(map.values());
 }
 
-// Reads the user's deposit address for a coin/network; generates + persists a
-// deterministic one if none exists yet (same algorithm & table as kite-exchange).
-export async function getDepositAddress(coinSymbol: string, network: string, userId: string): Promise<string> {
-  const { data } = await supabase
-    .from('deposit_addresses')
-    .select('address')
-    .eq('user_id', userId)
-    .eq('coin_symbol', coinSymbol)
-    .eq('network', network)
-    .maybeSingle();
+export interface DepositAddressResult {
+  address?: string;
+  extraId?: string | null;
+  minAmount?: number;
+  error?: string;
+}
 
-  if (data?.address) return data.address as string;
-
-  const address = generateDepositAddress(coinSymbol, network, userId);
-  await supabase.from('deposit_addresses').insert({
-    user_id: userId,
-    coin_symbol: coinSymbol,
-    network,
-    address,
-  });
-  return address;
+// Fetches a REAL per-user deposit address from the NOWPayments-backed server
+// endpoint (same one kite-exchange uses). Addresses are NEVER generated
+// client-side — a made-up address would mean lost funds.
+export async function getDepositAddress(coinSymbol: string, network: string): Promise<DepositAddressResult> {
+  const token = await getAccessToken();
+  if (!token) return { error: 'Please sign in first.' };
+  try {
+    const res = await fetch(`${API_BASE}/nowpay/deposit-address`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ currency: coinSymbol.toUpperCase(), network: network.toUpperCase() }),
+    });
+    const text = await res.text();
+    let j: any = null;
+    try { j = JSON.parse(text); } catch {
+      // Dev preview has no cf-worker — only the live site can create addresses.
+      return { error: 'Deposit addresses can only be generated on the live site (basonce.com).' };
+    }
+    if (!res.ok || !j.address) {
+      if (j?.error === 'unsupported') {
+        return { error: `Address deposit isn't available for ${coinSymbol} (${network}) yet.` };
+      }
+      return { error: j?.error || 'Could not generate a deposit address. Please try again.' };
+    }
+    return { address: j.address, extraId: j.extra_id || null, minAmount: Number(j.min_amount) || 0 };
+  } catch {
+    return { error: 'Network error. Please try again.' };
+  }
 }
 
 export interface WithdrawParams {

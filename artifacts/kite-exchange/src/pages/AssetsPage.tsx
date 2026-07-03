@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import { Eye, EyeOff, Search, ScanLine, ChevronDown, X, Camera, History } from 'lucide-react';
 import AssetsHistoryModal from '../components/AssetsHistoryModal';
-import DepositModal from '../components/DepositModal';
 import WithdrawalModal from '../components/WithdrawalModal';
 import TransactionHistory from '../components/TransactionHistory';
 import DepositMethodModal from '../components/DepositMethodModal';
@@ -124,11 +123,6 @@ export default function AssetsPage() {
     dailyPnL: 0,
     dailyPnLPercentage: 0,
     balances: []
-  });
-  const [depositModal, setDepositModal] = useState<{ open: boolean; coin: string; name: string }>({
-    open: false,
-    coin: '',
-    name: ''
   });
   const [withdrawalModal, setWithdrawalModal] = useState<{
     open: boolean;
@@ -300,6 +294,7 @@ export default function AssetsPage() {
           symbol: sym,
           balance,
           locked_balance: locked,
+          futures_balance: 0,
           price: cached?.price || 0,
           priceChange24h: cached?.change24h || 0,
         });
@@ -722,13 +717,6 @@ export default function AssetsPage() {
 
         {activeTab === 'history' && <BlockchainTransactionHistory />}
       </div>
-
-      <DepositModal
-        isOpen={depositModal.open}
-        onClose={() => setDepositModal({ open: false, coin: '', name: '' })}
-        coinSymbol={depositModal.coin}
-        coinName={depositModal.name}
-      />
 
       <WithdrawalModal
         isOpen={withdrawalModal.open}

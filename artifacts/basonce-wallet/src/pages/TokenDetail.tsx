@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams } from "wouter";
 import { useMarkets, useBalances, useBncPrice } from "@/lib/hooks";
 import { CoinIcon } from "@/components/CoinIcon";
@@ -68,7 +69,7 @@ export function TokenDetail() {
             <div className="w-14 h-14 bg-secondary rounded-full flex items-center justify-center"><ArrowUpRight /></div>
             <span className="text-xs font-medium">Send</span>
           </Link>
-          <Link href="/receive" className="flex-1 flex flex-col items-center gap-2">
+          <Link href={`/receive?coin=${symbol.toUpperCase()}`} className="flex-1 flex flex-col items-center gap-2">
             <div className="w-14 h-14 bg-secondary rounded-full flex items-center justify-center"><ArrowDownLeft /></div>
             <span className="text-xs font-medium">Receive</span>
           </Link>

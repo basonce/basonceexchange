@@ -12,7 +12,7 @@ import { getCachedTradFiPrice, subscribeAllTradFiPrices } from '../../lib/tradfi
 import CoinLogo from '../../components/CoinLogo';
 import MetalIcon, { isMetalSymbol } from '../../components/MetalIcon';
 import TradFiIcon, { isTradFiIcon } from '../../components/TradFiIcon';
-import DepositModal from '../../components/DepositModal';
+import { RealDepositModal } from '../../components/RealDepositModal';
 import WithdrawalModal from '../../components/WithdrawalModal';
 import DepositMethodModal from '../../components/DepositMethodModal';
 import SendMethodModal from '../../components/SendMethodModal';
@@ -565,12 +565,12 @@ export default function DesktopAssets({ onNavigate }: DesktopAssetsProps) {
         </div>
       </div>
 
-      <DepositModal
-        isOpen={depositModal.open}
-        onClose={() => setDepositModal({ open: false, coin: '', name: '' })}
-        coinSymbol={depositModal.coin}
-        coinName={depositModal.name}
-      />
+      {depositModal.open && (
+        <RealDepositModal
+          onClose={() => setDepositModal({ open: false, coin: '', name: '' })}
+          currency={depositModal.coin}
+        />
+      )}
       <WithdrawalModal
         isOpen={withdrawalModal.open}
         onClose={() => setWithdrawalModal({ open: false, coin: '', name: '', balance: 0 })}
