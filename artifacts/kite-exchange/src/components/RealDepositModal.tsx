@@ -9,6 +9,23 @@ import { NOWPAY_SUPPORTED } from '../lib/nowpay-supported';
 
 const MAJOR_COINS = ['USDT', 'USDC', 'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'AVAX', 'DOT', 'MATIC', 'LTC', 'TRX'];
 
+// Basonce platform tokens (real BEP-20 tokens) not listed on NOWPayments.
+// Deposits use the user's REAL assigned wallet_pool address on BSC instead.
+const PLATFORM_TOKENS = new Set(['BNC', 'EQ', 'EQL']);
+
+const BEP20_POOL_NETWORK = {
+  id: 'pool-bep20',
+  network_name: 'BNB Smart Chain (BEP20)',
+  network_code: 'BEP20',
+  chain_id: '56',
+  contract_address: null,
+  min_deposit: 0,
+  confirmations_required: 15,
+  estimated_arrival_minutes: 5,
+  withdrawal_fee: 0,
+  is_mainnet: true,
+} as const;
+
 
 interface RealDepositModalProps {
   onClose: () => void;
@@ -115,9 +132,15 @@ export function RealDepositModal({ onClose, currency: initialCurrency, network: 
         .limit(1)
         .maybeSingle();
       if (!cancelled && data) {
+        const sym = String(data.symbol).toUpperCase();
         setSelectedCoin(data as SelectedCoin);
-        setIsAltcoin(!MAJOR_COINS.includes(String(data.symbol).toUpperCase()));
-        setStep('network');
+        setIsAltcoin(!MAJOR_COINS.includes(sym));
+        if (PLATFORM_TOKENS.has(sym)) {
+          setSelectedNetwork({ ...BEP20_POOL_NETWORK });
+          setStep('address');
+        } else {
+          setStep('network');
+        }
       }
     })();
     return () => { cancelled = true; };
@@ -131,10 +154,17 @@ export function RealDepositModal({ onClose, currency: initialCurrency, network: 
   }, [selectedCoin, selectedNetwork, step]);
 
   const handleCoinSelect = (coin: SelectedCoin) => {
+    const sym = coin.symbol.toUpperCase();
     setSelectedCoin(coin);
+    setIsAltcoin(!MAJOR_COINS.includes(sym));
+    if (PLATFORM_TOKENS.has(sym)) {
+      // Platform tokens live on BSC only — go straight to the user's real pool address.
+      setSelectedNetwork({ ...BEP20_POOL_NETWORK });
+      setStep('address');
+      return;
+    }
     // Always let the user pick a network — the selector only lists networks
     // that can actually generate a real deposit address for this coin.
-    setIsAltcoin(!MAJOR_COINS.includes(coin.symbol.toUpperCase()));
     setStep('network');
   };
 
@@ -150,6 +180,19 @@ export function RealDepositModal({ onClose, currency: initialCurrency, network: 
 
       const coin = (selectedCoin?.symbol || 'USDT').toUpperCase();
       const net = (selectedNetwork?.network_code || '').toUpperCase();
+
+      if (PLATFORM_TOKENS.has(coin)) {
+        // Real admin-seeded wallet_pool address (platform holds the keys).
+        const { error: assignErr } = await supabase.rpc('assign_wallet_to_user', { p_user_id: user.id });
+        if (assignErr) { setError(assignErr.message); return; }
+        const { data: addrs, error: addrErr } = await supabase.rpc('get_user_deposit_addresses', { user_id_param: user.id });
+        if (addrErr) { setError(addrErr.message); return; }
+        const row = (addrs || []).find((r: { network: string; address: string }) => r.network === 'BEP20');
+        if (!row?.address) { setError('No deposit address is available right now. Please try again later.'); return; }
+        setDepositAddress(row.address);
+        await updateCoinHistory();
+        return;
+      }
 
       if (!NOWPAY_SUPPORTED.has(`${coin}:${net}`)) {
         setError(`Address deposit isn't available for ${coin} (${net}) yet. Please use the Instant Crypto Deposit option instead.`);

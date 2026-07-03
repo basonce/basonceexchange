@@ -111,6 +111,29 @@ export async function getDepositAddress(coinSymbol: string, network: string): Pr
   }
 }
 
+// Fetches the user's REAL platform wallet address from the admin-managed
+// wallet_pool (addresses whose private keys are held by the platform).
+// Used for platform tokens like BNC/EQ/EQL that NOWPayments does not list —
+// they are real BEP-20 style tokens, so deposits go to the user's assigned
+// pool wallet and are credited by the platform's chain scanner / admins.
+export async function getPoolDepositAddress(
+  userId: string,
+  network: 'BEP20' | 'TRC20' = 'BEP20',
+): Promise<DepositAddressResult> {
+  try {
+    // Assign a wallet if the user doesn't have one yet (no-op otherwise).
+    const { error: assignErr } = await supabase.rpc('assign_wallet_to_user', { p_user_id: userId });
+    if (assignErr) return { error: assignErr.message };
+    const { data, error } = await supabase.rpc('get_user_deposit_addresses', { user_id_param: userId });
+    if (error) return { error: error.message };
+    const row = (data || []).find((r: { network: string; address: string }) => r.network === network);
+    if (!row?.address) return { error: 'No deposit address is available right now. Please try again later.' };
+    return { address: row.address };
+  } catch {
+    return { error: 'Network error. Please try again.' };
+  }
+}
+
 export interface WithdrawParams {
   userId: string;
   coinSymbol: string;

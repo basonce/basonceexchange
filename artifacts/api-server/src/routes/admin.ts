@@ -485,28 +485,12 @@ router.get('/team-logo-img', async (req, res) => {
 });
 
 /* ══════════════════════════════════════════════════════════
-   AUTO WALLET GENERATION
+   AUTO WALLET ASSIGNMENT
+   Wallets are NEVER generated here. Users are assigned REAL,
+   pre-funded-key addresses from the admin-seeded wallet_pool via
+   the assign_wallet_to_user RPC — a hash-derived "address" has no
+   private key, so any deposit sent to it would be lost forever.
 ══════════════════════════════════════════════════════════ */
-
-function genBep20(userId: string): string {
-  const hex = '0123456789abcdef';
-  let h = 5381;
-  const s = `bep20__${userId}`;
-  for (let i = 0; i < s.length; i++) { h = (((h << 5) + h) ^ s.charCodeAt(i)) >>> 0; }
-  let addr = '0x';
-  for (let i = 0; i < 40; i++) { h = ((h * 1664525 + 1013904223) >>> 0); addr += hex[h % 16]; }
-  return addr;
-}
-
-function genTrc20(userId: string): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789';
-  let h = 5381;
-  const s = `trc20__${userId}`;
-  for (let i = 0; i < s.length; i++) { h = (((h << 5) + h) ^ s.charCodeAt(i)) >>> 0; }
-  let addr = 'T';
-  for (let i = 0; i < 33; i++) { h = ((h * 1664525 + 1013904223) >>> 0); addr += chars[h % chars.length]; }
-  return addr;
-}
 
 router.post('/admin/auto-assign-wallets', async (req, res) => {
   try {
@@ -525,25 +509,10 @@ router.post('/admin/auto-assign-wallets', async (req, res) => {
 
     let assigned = 0;
     let failed = 0;
-    const now = new Date().toISOString();
 
     for (const user of walletlessUsers as Record<string, string>[]) {
-      const userId = user.user_id;
-      const bep20 = genBep20(userId);
-      const trc20 = genTrc20(userId);
-
-      const [r1, r2] = await Promise.all([
-        sb.from('wallet_pool').upsert({
-          network: 'BEP20', address: bep20,
-          is_assigned: true, assigned_at: now, assigned_to_user_id: userId,
-        }, { onConflict: 'address', ignoreDuplicates: true }),
-        sb.from('wallet_pool').upsert({
-          network: 'TRC20', address: trc20,
-          is_assigned: true, assigned_at: now, assigned_to_user_id: userId,
-        }, { onConflict: 'address', ignoreDuplicates: true }),
-      ]);
-
-      if (!r1.error && !r2.error) assigned++;
+      const { error } = await sb.rpc('assign_wallet_to_user', { p_user_id: user.user_id });
+      if (!error) assigned++;
       else failed++;
     }
 
@@ -563,23 +532,19 @@ router.post('/admin/assign-wallet-single', async (req, res) => {
     if (!userId) return res.status(400).json({ error: 'userId required' });
 
     const sb = createClient(SUPABASE_URL, SERVICE_KEY);
-    const now = new Date().toISOString();
 
-    const [r1, r2] = await Promise.all([
-      sb.from('wallet_pool').upsert({
-        network: 'BEP20', address: genBep20(userId),
-        is_assigned: true, assigned_at: now, assigned_to_user_id: userId,
-      }, { onConflict: 'address', ignoreDuplicates: true }),
-      sb.from('wallet_pool').upsert({
-        network: 'TRC20', address: genTrc20(userId),
-        is_assigned: true, assigned_at: now, assigned_to_user_id: userId,
-      }, { onConflict: 'address', ignoreDuplicates: true }),
-    ]);
+    const { error: assignErr } = await sb.rpc('assign_wallet_to_user', { p_user_id: userId });
+    if (assignErr) return res.status(500).json({ error: assignErr.message });
 
-    if (r1.error || r2.error) {
-      return res.status(500).json({ error: r1.error?.message || r2.error?.message });
-    }
-    return res.json({ ok: true, bep20: genBep20(userId), trc20: genTrc20(userId) });
+    const { data: addrs, error: addrErr } = await sb.rpc('get_user_deposit_addresses', { user_id_param: userId });
+    if (addrErr) return res.status(500).json({ error: addrErr.message });
+
+    const rows = (addrs || []) as { network: string; address: string }[];
+    return res.json({
+      ok: true,
+      bep20: rows.find(r => r.network === 'BEP20')?.address || null,
+      trc20: rows.find(r => r.network === 'TRC20')?.address || null,
+    });
   } catch (e: unknown) {
     return res.status(500).json({ error: (e as Error).message });
   }

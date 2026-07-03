@@ -29,8 +29,9 @@ export const NOWPAY_SUPPORTED = new Set([
   'ZEC:ZEC', 'ZIL:ZIL',
 ]);
 
-// Internal Basonce tokens — they live only on the platform ledger; there is no
-// on-chain deposit address for them. Users receive them via in-app transfer.
+// Basonce platform tokens (real BEP-20 tokens not listed on NOWPayments).
+// Deposits use the user's REAL assigned wallet_pool address on BSC; they can
+// also be received via in-app transfer from another Basonce user.
 export const INTERNAL_TOKENS = new Set(['BNC', 'EQ', 'EQL']);
 
 export const NETWORK_NAMES: Record<string, string> = {
@@ -51,7 +52,7 @@ export function receivableCoins(): string[] {
   if (coinCache.length === 0) {
     const coins = new Set<string>();
     for (const pair of NOWPAY_SUPPORTED) coins.add(pair.split(':')[0]);
-    for (const t of ['BNC', 'EQ']) coins.add(t);
+    for (const t of INTERNAL_TOKENS) coins.add(t);
     coinCache.push(...Array.from(coins).sort());
   }
   return coinCache;

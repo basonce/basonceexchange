@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
-import { getDepositAddress } from "@/lib/wallet";
+import { getDepositAddress, getPoolDepositAddress } from "@/lib/wallet";
 import { receivableCoins, networksForCoin, NETWORK_NAMES, INTERNAL_TOKENS, NOWPAY_SUPPORTED } from "@/lib/nowpay-supported";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
@@ -37,9 +37,27 @@ export function Receive() {
     setAddress("");
     setExtraId(null);
     setError("");
-    if (!user || !coin || isInternal || !network) return;
-    if (!NOWPAY_SUPPORTED.has(`${coin}:${network}`)) return;
+    if (!user || !coin) return;
+
     let mounted = true;
+
+    // Platform tokens (BNC / EQ / EQL) are real BEP-20 tokens that NOWPayments
+    // does not list — serve the user's REAL assigned wallet_pool address instead.
+    if (isInternal) {
+      setLoading(true);
+      getPoolDepositAddress(user.id, "BEP20").then(res => {
+        if (!mounted) return;
+        setLoading(false);
+        if (res.error || !res.address) {
+          setError(res.error || "Could not load your deposit address.");
+        } else {
+          setAddress(res.address);
+        }
+      });
+      return () => { mounted = false; };
+    }
+
+    if (!network || !NOWPAY_SUPPORTED.has(`${coin}:${network}`)) return;
     setLoading(true);
     getDepositAddress(coin, network).then(res => {
       if (!mounted) return;
@@ -67,23 +85,18 @@ export function Receive() {
             <select value={coin} onChange={e => setCoin(e.target.value)} className="flex-1 min-w-0 h-12 bg-secondary rounded-lg px-3 outline-none font-bold">
               {coins.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            {!isInternal && (
+            {isInternal ? (
+              <div className="flex-1 min-w-0 h-12 bg-secondary rounded-lg px-3 flex items-center font-bold">
+                {NETWORK_NAMES["BSC"] || "BNB Smart Chain (BEP20)"}
+              </div>
+            ) : (
               <select value={network} onChange={e => setNetwork(e.target.value)} className="flex-1 min-w-0 h-12 bg-secondary rounded-lg px-3 outline-none font-bold">
                 {networks.map(n => <option key={n} value={n}>{NETWORK_NAMES[n] || n}</option>)}
               </select>
             )}
           </div>
 
-          {isInternal ? (
-            <div className="text-center px-2">
-              <p className="font-semibold mb-2">{coin} is a Basonce platform token</p>
-              <p className="text-sm text-muted-foreground">
-                It has no on-chain deposit address. You can receive {coin} instantly
-                from another Basonce user — just share your username or email with them
-                and they can use the Send feature.
-              </p>
-            </div>
-          ) : loading ? (
+          {loading ? (
             <div className="flex flex-col items-center py-10">
               <Loader2 className="w-8 h-8 animate-spin mb-3" />
               <p className="text-sm text-muted-foreground">Generating your address…</p>
@@ -101,8 +114,18 @@ export function Receive() {
 
               <p className="text-xs text-muted-foreground text-center mb-2">
                 Send only <span className="font-bold text-foreground">{coin}</span> on the{" "}
-                <span className="font-bold text-foreground">{NETWORK_NAMES[network] || network}</span> network to this address.
+                <span className="font-bold text-foreground">
+                  {isInternal ? "BNB Smart Chain (BEP20)" : (NETWORK_NAMES[network] || network)}
+                </span>{" "}
+                network to this address. Assets sent on any other network may be lost.
               </p>
+
+              {isInternal && (
+                <p className="text-xs text-muted-foreground text-center mb-2 px-2">
+                  This is your personal Basonce wallet address. You can also receive {coin} instantly
+                  from another Basonce user via the Send feature.
+                </p>
+              )}
 
               <p className="text-sm font-mono text-center break-all mb-4 px-4">{address}</p>
 
