@@ -23,6 +23,8 @@ interface MinerDevice {
   status: 'active' | 'paused' | 'stopped';
   started_at: string | null;
   used_mining_seconds: number;
+  base_used_seconds: number;
+  paid_mining_seconds: number;
   level: number;
   mining_duration_hours: number;
   withdrawal_limit: number;
@@ -63,6 +65,8 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
   const [authChecked, setAuthChecked] = useState(false);
 
   const minersRef = useRef(miners);
+  // Equipment ids whose "time exhausted" state we already synced to the server
+  const stoppedSyncRef = useRef<Set<string>>(new Set());
 
   // ✅ LOCKED EARNINGS (in mining session, not yet collected)
   const sessionUsdtTotal = miners.reduce((sum, m) => sum + m.session_earned_usdt, 0);
@@ -142,22 +146,11 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
   }, []);
 
   useEffect(() => {
+    // Display-only tick. All real earnings are computed on the server from
+    // started_at — nothing is periodically written from the client anymore.
     const earningsInterval = setInterval(updateRealtimeEarnings, 100);
-    const saveInterval = setInterval(() => {
-      saveSessionToDatabase();
-    }, 5000);
-
-    const handleBeforeUnload = async () => {
-      await saveSessionToDatabase();
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
     return () => {
       clearInterval(earningsInterval);
-      clearInterval(saveInterval);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      saveSessionToDatabase();
     };
   }, []);
 
@@ -176,12 +169,14 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
       name: 'CPU Miner',
       icon: '💻',
       hash_rate: 10,
-      daily_earning_usdt: 624,
+      daily_earning_usdt: 5,
       total_earned_usdt: 0,
       session_earned_usdt: 0,
       status: 'stopped',
       started_at: null,
       used_mining_seconds: 0,
+      base_used_seconds: 0,
+      paid_mining_seconds: 0,
       level: 0,
       mining_duration_hours: 0.25, // 15 minutes
       withdrawal_limit: 130,
@@ -197,37 +192,44 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
     setDemoTimeRemaining(15 * 60);
   };
 
-  // ✅ SAVE SESSION DATA TO DATABASE (No balance change, just save session progress)
-  const saveSessionToDatabase = async () => {
-    const user = await getCurrentUser();
-    if (!user) {
-      // Demo mode - save to localStorage
-      if (isDemoMode && miners.length > 0) {
-        localStorage.setItem('demo_miner', JSON.stringify(miners[0]));
-      }
-      return;
-    }
+  const MINING_CACHE_KEY = 'basonce_mining_cache_v4';
 
-    const currentMiners = minersRef.current;
-
-    for (const miner of currentMiners) {
-      const { error } = await supabase
-        .from('user_mining_equipment')
-        .update({
-          session_earned_usdt: Number(miner.session_earned_usdt.toFixed(4)),
-          total_earned_usdt: Number(miner.total_earned_usdt.toFixed(4)),
-          used_mining_seconds: Math.floor(Number(miner.used_mining_seconds)),
-          status: miner.status
-        })
-        .eq('id', miner.id);
-
-      if (error) {
-        console.error('Error saving session:', error);
-      }
-    }
+  // Map a DB equipment row (+ joined type) to a display device.
+  // Pending earnings are ALWAYS derived from server-tracked seconds — the
+  // client never invents an amount.
+  const mapEquipmentToDevice = (eq: any): MinerDevice => {
+    const t = eq.mining_equipment_types || {};
+    const durationHours = t.mining_duration_hours || eq.mining_duration_hours || 5;
+    const maxSeconds = durationHours * 3600;
+    const usedSeconds = Number(eq.used_mining_seconds || 0);
+    const paidSeconds = Number(eq.paid_mining_seconds || 0);
+    const rate = Number(t.daily_earning ?? 5);
+    const hasTimeLimit = durationHours > 0;
+    const pendingUsd = Math.max(0, Math.min(usedSeconds, maxSeconds) - paidSeconds) * rate / 86400;
+    return {
+      id: eq.id,
+      name: t.name || 'CPU Miner',
+      icon: t.icon || '💻',
+      hash_rate: t.hash_rate || 10,
+      daily_earning_usdt: rate,
+      total_earned_usdt: eq.total_earned_usdt || 0,
+      session_earned_usdt: pendingUsd,
+      status: (eq.status || 'stopped') as 'active' | 'paused' | 'stopped',
+      started_at: eq.started_at,
+      used_mining_seconds: usedSeconds,
+      base_used_seconds: usedSeconds,
+      paid_mining_seconds: paidSeconds,
+      level: t.level || 0,
+      mining_duration_hours: durationHours,
+      withdrawal_limit: t.withdrawal_limit || 100,
+      times_used: eq.times_used || 0,
+      tier: 1,
+      max_uses: 999,
+      has_time_limit: hasTimeLimit,
+      remaining_mining_seconds: hasTimeLimit ? Math.max(0, maxSeconds - usedSeconds) : 999999,
+      usage_percentage: hasTimeLimit ? (usedSeconds / maxSeconds * 100) : 0,
+    };
   };
-
-  const MINING_CACHE_KEY = 'basonce_mining_cache_v3';
 
   const loadMiningData = async () => {
     // Önce cache'den anında göster
@@ -321,70 +323,14 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
         return;
       }
       // Use the freshly fetched equipment
-      const retryDevices: MinerDevice[] = retryEquipment.map((eq: any) => {
-        const t = eq.mining_equipment_types || {};
-        const durationHours = t.mining_duration_hours || eq.mining_duration_hours || 5;
-        const maxSeconds = durationHours * 3600;
-        const usedSeconds = eq.used_mining_seconds || 0;
-        const hasTimeLimit = durationHours > 0;
-        return {
-          id: eq.id,
-          name: t.name || 'CPU Miner',
-          icon: t.icon || '💻',
-          hash_rate: t.hash_rate || 10,
-          daily_earning_usdt: t.daily_earning || 240,
-          total_earned_usdt: eq.total_earned_usdt || 0,
-          session_earned_usdt: eq.session_earned_usdt || 0,
-          status: (eq.status || 'stopped') as 'active' | 'paused' | 'stopped',
-          started_at: eq.started_at,
-          used_mining_seconds: usedSeconds,
-          level: t.level || 0,
-          mining_duration_hours: durationHours,
-          withdrawal_limit: t.withdrawal_limit || 100,
-          times_used: eq.times_used || 0,
-          tier: 1,
-          max_uses: 999,
-          has_time_limit: hasTimeLimit,
-          remaining_mining_seconds: hasTimeLimit ? Math.max(0, maxSeconds - usedSeconds) : 999999,
-          usage_percentage: hasTimeLimit ? (usedSeconds / maxSeconds * 100) : 0,
-        };
-      });
-      setMiners(retryDevices);
+      setMiners(retryEquipment.map(mapEquipmentToDevice));
       return;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const equipment = rawEquipment as any[];
 
-    const devices: MinerDevice[] = equipment.map(eq => {
-      const t = eq.mining_equipment_types || {};
-      const durationHours = t.mining_duration_hours || eq.mining_duration_hours || 5;
-      const maxSeconds = durationHours * 3600;
-      const usedSeconds = eq.used_mining_seconds || 0;
-      // has_time_limit: true if duration is set (> 0), otherwise unlimited
-      const hasTimeLimit = durationHours > 0;
-      return {
-        id: eq.id,
-        name: t.name || 'CPU Miner',
-        icon: t.icon || '💻',
-        hash_rate: t.hash_rate || 10,
-        daily_earning_usdt: t.daily_earning || 240,
-        total_earned_usdt: eq.total_earned_usdt || 0,
-        session_earned_usdt: eq.session_earned_usdt || 0,
-        status: (eq.status || 'stopped') as 'active' | 'paused' | 'stopped',
-        started_at: eq.started_at,
-        used_mining_seconds: usedSeconds,
-        level: t.level || 0,
-        mining_duration_hours: durationHours,
-        withdrawal_limit: t.withdrawal_limit || 100,
-        times_used: eq.times_used || 0,
-        tier: 1,
-        max_uses: 999,
-        has_time_limit: hasTimeLimit,
-        remaining_mining_seconds: hasTimeLimit ? Math.max(0, maxSeconds - usedSeconds) : 999999,
-        usage_percentage: hasTimeLimit ? (usedSeconds / maxSeconds * 100) : 0,
-      };
-    });
+    const devices: MinerDevice[] = equipment.map(mapEquipmentToDevice);
 
     setMiners(devices);
 
@@ -410,76 +356,77 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
       }
 
       return prev.map(m => {
-        if (m.status === 'active') {
-          // ✅ Calculate time wallet
-          const maxDuration = m.mining_duration_hours * 3600;
-          const increment = 0.1;
-          const newDuration = m.used_mining_seconds + increment;
-          const usagePercent = (newDuration / maxDuration) * 100;
-          const remainingSeconds = Math.max(0, maxDuration - newDuration);
+        if (m.status !== 'active') return m;
 
-          // 🔔 70% WARNING (Soft reminder to consider upgrade)
-          if (m.has_time_limit && usagePercent >= 70 && usagePercent < 70.1 && m.name === 'CPU Miner') {
-            setTimeout(() => {
-              if (confirm(
-                `⚠️ Free Mining Almost Complete\n\n` +
-                `You've used ${usagePercent.toFixed(0)}% of your CPU Miner's 5-hour limit.\n` +
-                `${(remainingSeconds / 60).toFixed(0)} minutes remaining.\n\n` +
-                `⏰ After 5 hours, CPU Miner will be deactivated.\n\n` +
-                `💡 Tip: Upgrade to premium equipment for:\n` +
-                `• Unlimited mining time\n` +
-                `• 2x-10x higher earnings\n` +
-                `• No restrictions\n\n` +
-                `View Shop now?`
-              )) {
-                if (onSwitchToShop) onSwitchToShop();
-              }
-            }, 100);
-          }
+        const maxDuration = m.mining_duration_hours * 3600;
 
-          // ✅ 100% STOP (Time wallet depleted)
+        // Demo mode: purely visual local counter (no real money involved)
+        if (m.id === 'demo-cpu-miner') {
+          const newDuration = m.used_mining_seconds + 0.1;
           if (m.has_time_limit && newDuration >= maxDuration) {
-            // Save to database (only for real users)
-            (async () => {
-              const user = await getCurrentUser();
-              if (user) {
-                await supabase
-                  .from('user_mining_equipment')
-                  .update({
-                    status: 'stopped',
-                    used_mining_seconds: Math.floor(Number(maxDuration))
-                  })
-                  .eq('id', m.id);
-              } else {
-                // Demo mode - show auth modal
-                setTimeout(() => setShowAuthModal(true), 500);
-              }
-            })();
-
-            return {
-              ...m,
-              status: 'stopped' as const,
-              used_mining_seconds: maxDuration,
-              remaining_mining_seconds: 0,
-              usage_percentage: 100
-            };
+            setTimeout(() => setShowAuthModal(true), 500);
+            return { ...m, status: 'stopped' as const, used_mining_seconds: maxDuration, remaining_mining_seconds: 0, usage_percentage: 100 };
           }
-
-          // Continue mining - REAL SPEED
           const earningPerSecond = m.daily_earning_usdt / 24 / 3600;
-          const newSessionEarned = m.session_earned_usdt + (earningPerSecond / 10);
-          const newTotalEarned = m.total_earned_usdt + (earningPerSecond / 10);
-
           return {
             ...m,
-            session_earned_usdt: newSessionEarned,
-            total_earned_usdt: newTotalEarned,
+            session_earned_usdt: m.session_earned_usdt + earningPerSecond / 10,
+            total_earned_usdt: m.total_earned_usdt + earningPerSecond / 10,
             used_mining_seconds: newDuration,
-            remaining_mining_seconds: remainingSeconds,
-            usage_percentage: usagePercent
+            remaining_mining_seconds: Math.max(0, maxDuration - newDuration),
+            usage_percentage: (newDuration / maxDuration) * 100,
           };
         }
-        return m;
+
+        // Real miners: DISPLAY ONLY. Everything is derived from the server's
+        // started_at timestamp, so every device shows the exact same numbers
+        // and nothing the client renders can change what actually gets paid.
+        if (!m.started_at) return m;
+        const elapsed = Math.max(0, (Date.now() - new Date(m.started_at).getTime()) / 1000);
+        const totalUsed = Math.min(m.base_used_seconds + elapsed, maxDuration);
+        const pendingUsd = Math.max(0, totalUsed - m.paid_mining_seconds) * m.daily_earning_usdt / 86400;
+        const usagePercent = m.has_time_limit ? (totalUsed / maxDuration) * 100 : 0;
+        const remainingSeconds = Math.max(0, maxDuration - totalUsed);
+
+        // 🔔 70% WARNING (Soft reminder to consider upgrade) — fire once on crossing
+        if (m.has_time_limit && usagePercent >= 70 && (m.usage_percentage ?? 0) < 70 && m.name === 'CPU Miner') {
+          setTimeout(() => {
+            if (confirm(
+              `⚠️ Free Mining Almost Complete\n\n` +
+              `You've used ${usagePercent.toFixed(0)}% of your CPU Miner's ${m.mining_duration_hours}-hour limit.\n` +
+              `${(remainingSeconds / 60).toFixed(0)} minutes remaining.\n\n` +
+              `💡 Tip: Upgrade to premium equipment for higher earnings.\n\n` +
+              `View Shop now?`
+            )) {
+              if (onSwitchToShop) onSwitchToShop();
+            }
+          }, 100);
+        }
+
+        // ✅ 100% STOP (time exhausted) — sync server state once; the server
+        // caps earnings at the duration limit regardless of what we do here.
+        if (m.has_time_limit && totalUsed >= maxDuration) {
+          if (!stoppedSyncRef.current.has(m.id)) {
+            stoppedSyncRef.current.add(m.id);
+            supabase.rpc('mining_stop', { p_equipment_id: m.id }).then();
+          }
+          return {
+            ...m,
+            status: 'stopped' as const,
+            used_mining_seconds: maxDuration,
+            session_earned_usdt: pendingUsd,
+            remaining_mining_seconds: 0,
+            usage_percentage: 100,
+          };
+        }
+
+        return {
+          ...m,
+          session_earned_usdt: pendingUsd,
+          used_mining_seconds: totalUsed,
+          remaining_mining_seconds: remainingSeconds,
+          usage_percentage: usagePercent,
+        };
       });
     });
   };
@@ -497,7 +444,7 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
       return;
     }
 
-    const restrictions = await getUserRestrictions(user.id);
+    const restrictions = await getUserRestrictions();
     if (restrictions?.mining_blocked || restrictions?.usdt_frozen) {
       alert('Mining earnings collection is currently restricted on your account. Please contact support for assistance.');
       return;
@@ -514,118 +461,38 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
     setCollecting(true);
 
     try {
-      const equipmentWithEarnings = miners.filter(m => m.session_earned_usdt > 0);
+      // SERVER-AUTHORITATIVE collect: the server computes earnings from its
+      // own timestamps and credits the balance atomically. The client cannot
+      // influence the amount.
+      const { data, error } = await supabase.rpc('mining_collect');
 
-      let totalCollected = 0;
-      let anyDeactivated = false;
-      let anyTimeLimitReached = false;
-
-      // DIRECT DB collect — RPC yok, frontend yapıyor
-      // Bakiyeyi bir kez oku, her cihazı toplayıp tek seferde yaz
-      const { data: balRow } = await supabase
-        .from('user_balances')
-        .select('balance')
-        .eq('user_id', user.id)
-        .eq('symbol', 'USDT')
-        .maybeSingle();
-      let currentBal = Number(balRow?.balance || 0);
-
-      for (const miner of equipmentWithEarnings) {
-        const amount = Number(miner.session_earned_usdt || 0);
-        if (amount <= 0) continue;
-
-        const maxDuration = miner.mining_duration_hours * 3600;
-        const timeLimitExpired = miner.has_time_limit && miner.used_mining_seconds >= maxDuration;
-
-        // 1) Ekipmanı sıfırla
-        const { error: eqErr } = await supabase
-          .from('user_mining_equipment')
-          .update({
-            session_earned_usdt: 0,
-            status: 'stopped',
-            is_active: !timeLimitExpired,
-          })
-          .eq('id', miner.id)
-          .eq('user_id', user.id);
-
-        if (eqErr) {
-          console.error('Collect: equipment update failed', eqErr);
-          continue;
-        }
-
-        // 2) Bakiyeyi artır
-        currentBal = Number((currentBal + amount).toFixed(4));
-        totalCollected += amount;
-        if (timeLimitExpired) anyTimeLimitReached = true;
+      if (error) {
+        console.error('Collect error:', error);
+        setCollecting(false);
+        alert('Collection failed. Please try again.');
+        return;
       }
 
-      // 3) Bakiyeyi yaz — UPDATE, yoksa INSERT
-      if (totalCollected > 0) {
-        const { data: updated, error: balErr } = await supabase
-          .from('user_balances')
-          .update({ balance: currentBal })
-          .eq('user_id', user.id)
-          .eq('symbol', 'USDT')
-          .select('id');
+      const collected = Number((data as any)?.collected || 0);
+      const newBalance = Number((data as any)?.new_balance || 0);
+      const expired = Boolean((data as any)?.expired);
 
-        if (balErr) {
-          console.error('Collect: balance update failed', balErr);
-          alert('Collection failed — balance not updated. Contact support.');
-          setCollecting(false);
-          return;
-        }
-
-        // Satır yoksa oluştur
-        if (!updated || updated.length === 0) {
-          const { error: insErr } = await supabase
-            .from('user_balances')
-            .insert({ user_id: user.id, symbol: 'USDT', balance: currentBal });
-          if (insErr) {
-            console.error('Collect: balance insert failed', insErr);
-            alert('Collection failed — balance not created. Contact support.');
-            setCollecting(false);
-            return;
-          }
-        }
-        setDbUsdtBalance(currentBal);
-      }
-
-      setMiners(prev => prev.map(m => {
-        if (m.session_earned_usdt > 0) {
-          const maxDuration = m.mining_duration_hours * 3600;
-          const hasTimeLimitExpired = m.has_time_limit && m.used_mining_seconds >= maxDuration;
-
-          if (hasTimeLimitExpired) {
-            return {
-              ...m,
-              session_earned_usdt: 0,
-              status: 'stopped' as const,
-              used_mining_seconds: maxDuration,
-              remaining_mining_seconds: 0,
-              usage_percentage: 100,
-              started_at: null
-            };
-          }
-
-          return {
-            ...m,
-            session_earned_usdt: 0,
-            status: 'stopped' as const,
-            used_mining_seconds: m.has_time_limit ? m.used_mining_seconds : 0,
-            remaining_mining_seconds: m.has_time_limit ? Math.max(0, maxDuration - m.used_mining_seconds) : 999999,
-            usage_percentage: m.has_time_limit ? (m.used_mining_seconds / maxDuration * 100) : 0,
-            started_at: null
-          };
-        }
-        return m;
-      }));
+      setDbUsdtBalance(newBalance);
+      stoppedSyncRef.current.clear();
+      try { localStorage.removeItem(MINING_CACHE_KEY); } catch {}
+      await loadMiningData();
 
       setCollecting(false);
 
-      if (anyTimeLimitReached || anyDeactivated) {
+      if (collected <= 0) {
+        alert('No earnings to collect!');
+        return;
+      }
+
+      if (expired) {
         const shouldUpgrade = confirm(
           `Mining Earnings Collected!\n\n` +
-          `+$${totalCollected.toFixed(2)} USDT\n\n` +
+          `+$${collected.toFixed(2)} USDT\n\n` +
           `Equipment has been deactivated (time limit reached).\n\n` +
           `Visit Shop to buy unlimited mining equipment?`
         );
@@ -636,7 +503,7 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
       } else {
         alert(
           `Collected Successfully!\n\n` +
-          `+$${totalCollected.toFixed(2)} USDT`
+          `+$${collected.toFixed(2)} USDT`
         );
       }
     } catch (error) {
@@ -720,49 +587,55 @@ export default function MineTab({ onSwitchToShop }: { onSwitchToShop?: () => voi
       return;
     }
 
-    const now = new Date();
-    const updateData: any = { status: newStatus };
-    const currentMiner = miners.find(m => m.id === minerId);
-
+    // SERVER-AUTHORITATIVE start/stop: the server sets all timestamps and
+    // caps. The client only mirrors the returned row.
     if (newStatus === 'active') {
-      const remainingSeconds = currentMiner?.has_time_limit
-        ? (maxDuration - (currentMiner?.used_mining_seconds || 0))
-        : maxDuration;
-      const endsAt = new Date(now.getTime() + remainingSeconds * 1000);
-
-      updateData.started_at = now.toISOString();
-      updateData.ends_at = endsAt.toISOString();
-
+      const { data, error } = await supabase.rpc('mining_start', { p_equipment_id: minerId });
+      if (error) {
+        if ((error.message || '').includes('time_exhausted')) {
+          setShowUpgradeModal(true);
+        } else {
+          console.error('Start mining failed:', error);
+          alert('Could not start mining. Please try again.');
+        }
+        await loadMiningData();
+        return;
+      }
+      const row: any = data;
+      stoppedSyncRef.current.delete(minerId);
       setMiners(prev => prev.map(m =>
         m.id === minerId ? {
           ...m,
           status: 'active',
-          started_at: now.toISOString()
+          started_at: row?.started_at || new Date().toISOString(),
+          base_used_seconds: Number(row?.used_mining_seconds ?? m.base_used_seconds),
+          used_mining_seconds: Number(row?.used_mining_seconds ?? m.used_mining_seconds),
+          paid_mining_seconds: Number(row?.paid_mining_seconds ?? m.paid_mining_seconds),
         } : m
       ));
     } else {
-      if (currentMiner?.started_at && currentMiner?.has_time_limit) {
-        const startedAt = new Date(currentMiner.started_at).getTime();
-        const sessionDuration = Math.floor((now.getTime() - startedAt) / 1000);
-        const totalUsed = (currentMiner.used_mining_seconds || 0) + sessionDuration;
-
-        updateData.used_mining_seconds = totalUsed;
-        updateData.ends_at = null;
+      const { data, error } = await supabase.rpc('mining_stop', { p_equipment_id: minerId });
+      if (error) {
+        console.error('Stop mining failed:', error);
+        await loadMiningData();
+        return;
       }
-
+      const row: any = data;
+      const newUsed = Number(row?.used_mining_seconds ?? miner.used_mining_seconds);
       setMiners(prev => prev.map(m =>
         m.id === minerId ? {
           ...m,
-          status: 'stopped'
+          status: 'stopped',
+          started_at: null,
+          base_used_seconds: newUsed,
+          used_mining_seconds: newUsed,
+          paid_mining_seconds: Number(row?.paid_mining_seconds ?? m.paid_mining_seconds),
+          session_earned_usdt: Number(row?.session_earned_usdt ?? m.session_earned_usdt),
+          remaining_mining_seconds: Math.max(0, maxDuration - newUsed),
+          usage_percentage: m.has_time_limit ? (newUsed / maxDuration) * 100 : 0,
         } : m
       ));
     }
-
-    supabase
-      .from('user_mining_equipment')
-      .update(updateData)
-      .eq('id', minerId)
-      .then();
   };
 
   const formatTime = (seconds: number) => {

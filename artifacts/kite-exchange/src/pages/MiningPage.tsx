@@ -44,32 +44,11 @@ export default function MiningPage() {
     const user = await getCurrentUser();
     if (!user) return;
 
-    const { data: existingEquipment } = await supabase
-      .from('user_mining_equipment')
-      .select('id')
-      .eq('user_id', user.id)
-      .limit(1);
-
-    if (!existingEquipment || existingEquipment.length === 0) {
-      const { data: freeEquipment } = await supabase
-        .from('mining_equipment_types')
-        .select('id')
-        .or('is_free.eq.true,level.eq.0')
-        .maybeSingle();
-
-      if (freeEquipment) {
-        await supabase
-          .from('user_mining_equipment')
-          .insert({
-            user_id: user.id,
-            equipment_type_id: freeEquipment.id,
-            is_active: true,
-            status: 'stopped',
-            session_earned_usdt: 0,
-            total_earned_usdt: 0,
-            used_mining_seconds: 0
-          });
-      }
+    // SERVER-AUTHORITATIVE claim: idempotent RPC — grants the free CPU miner
+    // only if the user has no equipment yet. Direct inserts are blocked by RLS.
+    const { error } = await supabase.rpc('mining_claim_free_equipment');
+    if (error) {
+      console.error('Free equipment claim failed:', error);
     }
   };
 

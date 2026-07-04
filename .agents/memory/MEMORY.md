@@ -7,6 +7,8 @@
 - [TON upgrade intent binding](ton-upgrade-intent-binding.md) — on-chain box-upgrade payments bound to a single user via server-reserved unique amount to stop hijack.
 - [Slides artifact catalog](slides-artifact-catalog.md) — pnpm catalog gap (missing wouter) that breaks fresh slides-artifact installs.
 - [basonce deposit signal](basonce-deposit-signal.md) — confirmed crypto deposit is only observable client-side via NOWPAY_ sentinel INSERT on user_balances; no transactions row.
+- [Ledger deferred trigger vs RLS](ledger-deferred-trigger-rls.md) — deferred constraint triggers fire at COMMIT with the caller's role; RLS hides rows → false "unbalanced journal"; make them SECURITY DEFINER.
+- [basonce mining authority](basonce-mining-authority.md) — mining fully server-authoritative via RPCs; user_balances still client-writable app-wide (trading/games) — separate project to close.
 - [basonce platform token deposits](basonce-platform-token-deposits.md) — BNC/EQ/EQL use real wallet_pool addresses (not NOWPayments); pool RPCs must self-validate auth.uid and stay revoked from anon.
 - [basonce withdrawals](basonce-withdrawals.md) — withdrawals must use the atomic request_withdrawal RPC; unchecked RLS-rejected inserts once made withdrawals vanish while balances were deducted.
 - [NOWPayments payouts](nowpayments-payouts.md) — payouts need account JWT not API key; IP whitelist blocks worker; PostgREST atomic-claim/CAS patterns for money safety.
